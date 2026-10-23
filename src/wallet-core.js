@@ -111,24 +111,27 @@
   }
 
   // ===== التخزين =====
-  // يفضّل SecureStorage (Android Keystore) ثم Preferences ثم ذاكرة مؤقتة للاختبار
+  // البيانات مشفّرة برمز PIN قبل التخزين، فتُحفظ في Preferences (ملف خاص بالتطبيق)
+  // ثم localStorage في المتصفح، ثم ذاكرة مؤقتة للاختبار
   var memoryStore = {};
   function storage() {
     var P = root.Capacitor && root.Capacitor.Plugins;
-    if (P && P.SecureStorage) {
-      return {
-        get: function (k) { return P.SecureStorage.get(k).catch(function () { return null; }); },
-        set: function (k, v) { return P.SecureStorage.set(k, v); },
-        remove: function (k) { return P.SecureStorage.remove(k); }
-      };
-    }
-    if (P && P.Preferences) {
+    if (P && P.Preferences && typeof P.Preferences.get === 'function') {
       return {
         get: function (k) { return P.Preferences.get({ key: k }).then(function (r) { return r.value; }); },
         set: function (k, v) { return P.Preferences.set({ key: k, value: v }); },
         remove: function (k) { return P.Preferences.remove({ key: k }); }
       };
     }
+    try {
+      if (root.localStorage) {
+        return {
+          get: async function (k) { return root.localStorage.getItem(k); },
+          set: async function (k, v) { root.localStorage.setItem(k, v); },
+          remove: async function (k) { root.localStorage.removeItem(k); }
+        };
+      }
+    } catch (e) {}
     return {
       get: async function (k) { return memoryStore[k] == null ? null : memoryStore[k]; },
       set: async function (k, v) { memoryStore[k] = v; },

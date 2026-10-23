@@ -10,7 +10,6 @@
     "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
-    "@aparajita/capacitor-secure-storage": "^6.0.0",
     "@capacitor/android": "^6.1.0",
     "@capacitor/app": "^6.0.0",
     "@capacitor/clipboard": "^6.0.0",
