@@ -166,7 +166,8 @@
   }
 
   function normalizeMnemonic(m) {
-    return String(m).trim().toLowerCase().replace(/\s+/g, ' ');
+    // يقبل الكلمات مفصولة بمسافات أو فواصل (, ، ;) أو أسطر جديدة، ويتجاهل الترقيم
+    return String(m).toLowerCase().replace(/[^a-z]+/g, ' ').trim();
   }
 
   function accountFromMnemonic(mnemonic) {

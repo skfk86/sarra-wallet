@@ -55,6 +55,16 @@ await t('الحفظ وفتح القفل والقفل', async () => {
   await assert.rejects(core.saveWallet(m, '12'), /PIN_FORMAT/);
 });
 
+await t('قبول الكلمات المفصولة بفواصل وأسطر', () => {
+  const core = W.createCore();
+  const w = 'river smile cotton eagle harvest lamp orbit velvet sand thunder maple quiet'.split(' ');
+  assert.equal(core.validateMnemonic(w.join(', ')), true);
+  assert.equal(core.validateMnemonic(w.join(' ،')), true);
+  assert.equal(core.validateMnemonic('  ' + w.join(' ,\n') + ' '), true);
+  assert.equal(core.validateMnemonic(w.map((x, i) => (i + 1) + '. ' + x.toUpperCase()).join(' ')), true);
+  assert.equal(core.validateMnemonic(w.slice(0, 11).join(', ')), false);
+});
+
 await t('تغيير رمز القفل', async () => {
   const core = W.createCore();
   const m = core.generateMnemonic();
