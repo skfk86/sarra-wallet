@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs';
 
 const config = {
-  network: process.env.SARRA_NETWORK || 'nile',
+  network: process.env.SARRA_NETWORK || 'mainnet',
   trongridApiKey: process.env.TRONGRID_API_KEY || ''
 };
 

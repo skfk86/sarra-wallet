@@ -20,7 +20,7 @@ npm test                # اختبارات النواة (بدون إنترنت)
 
 ## الإعدادات (أعلى السكربت في index.html)
 
-- `NETWORK` — يبدأ على `'nile'` (شبكة الاختبار المجانية). لا تحوّله إلى `'mainnet'` قبل اختبار كامل.
+- الشبكة الافتراضية: **mainnet** (شبكة TRON الحقيقية). لبناء نسخة اختبار على Nile: Actions ← Build Android APK ← Run workflow ← network: nile.
 - `TRONGRID_API_KEY` — مفتاح مجاني من trongrid.io لتجنّب حدود الطلبات.
 
 للحصول على TRX وUSDT تجريبيين على Nile: صنبور الشبكة الرسمي nileex.io.
