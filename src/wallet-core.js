@@ -12,7 +12,10 @@
     mainnet: {
       fullHost: 'https://api.trongrid.io',
       usdt: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
-      explorer: 'https://tronscan.org/#/transaction/'
+      explorer: 'https://tronscan.org/#/transaction/',
+      // SunSwap V2 — يُتحقق منه وقت التشغيل: router.WETH() يجب أن يساوي wtrx
+      // ⚠️ راجع العنوانين على tronscan.org قبل الإطلاق
+      swap: { router: 'TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax', wtrx: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR' }
     },
     // شبكة اختبار مجانية — استخدمها أثناء التطوير
     nile: {
@@ -162,6 +165,7 @@
     opts = opts || {};
     var net = NETWORKS[opts.network || 'nile'];
     var apiKey = opts.apiKey || '';
+    var swapChecked = null;
     var session = null; // { address, privateKey } — في الذاكرة فقط بعد فتح القفل
     var failedAttempts = 0;
     var lockedUntil = 0;
@@ -302,6 +306,67 @@
         return { txid: res.txid, url: net.explorer + res.txid };
       },
 
+      // ===== التبديل عبر SunSwap V2 =====
+      // direction: 'TRX_USDT' أو 'USDT_TRX'
+      swapSupported: async function () {
+        if (!net.swap) return false;
+        if (swapChecked !== null) return swapChecked;
+        try {
+          var tw = client();
+          tw.setAddress(net.swap.router);
+          var router = await tw.contract().at(net.swap.router);
+          var weth = await router.WETH().call();
+          var wethB58 = typeof weth === 'string' && weth.indexOf('41') === 0 ? tw.address.fromHex(weth) : String(weth);
+          swapChecked = wethB58 === net.swap.wtrx;
+        } catch (e) { swapChecked = false; }
+        return swapChecked;
+      },
+
+      quoteSwap: async function (direction, amountStr) {
+        if (!(await this.swapSupported())) throw new Error('SWAP_UNAVAILABLE');
+        var units = toUnits(amountStr, 6);
+        var path = direction === 'TRX_USDT' ? [net.swap.wtrx, net.usdt] : [net.usdt, net.swap.wtrx];
+        var tw = client();
+        tw.setAddress(net.swap.router);
+        var router = await tw.contract().at(net.swap.router);
+        var res = await router.getAmountsOut(units.toString(), path).call();
+        var amounts = res.amounts || res[0] || res;
+        var out = BigInt(amounts[amounts.length - 1].toString());
+        if (out <= 0n) throw new Error('NO_LIQUIDITY');
+        return { inUnits: units, outUnits: out, out: fromUnits(out, 6), path: path };
+      },
+
+      swap: async function (direction, amountStr, slippageBps) {
+        if (!session) throw new Error('LOCKED');
+        var q = await this.quoteSwap(direction, amountStr);
+        var bps = BigInt(slippageBps == null ? 50 : slippageBps);
+        var minOut = q.outUnits * (10000n - bps) / 10000n;
+        var deadline = Math.floor(Date.now() / 1000) + 600;
+        var bal = await this.getBalances(session.address);
+        var tw = client(session.privateKey);
+        var router = await tw.contract().at(net.swap.router);
+        var txid;
+        if (direction === 'TRX_USDT') {
+          // نترك 15 TRX على الأقل للرسوم
+          if (q.inUnits + 15000000n > bal.trxUnits) throw new Error('INSUFFICIENT_TRX_SWAP');
+          txid = await router.swapExactETHForTokens(minOut.toString(), q.path, session.address, deadline)
+            .send({ callValue: Number(q.inUnits), feeLimit: FEE_LIMIT_SUN });
+        } else {
+          if (q.inUnits > bal.usdtUnits) throw new Error('INSUFFICIENT_USDT');
+          if (bal.trxUnits < 15000000n) throw new Error('LOW_TRX_FOR_FEES');
+          var usdt = await tw.contract().at(net.usdt);
+          var allowance = BigInt((await usdt.allowance(session.address, net.swap.router).call()).toString());
+          if (allowance < q.inUnits) {
+            // موافقة لمرة واحدة بالمبلغ المطلوب فقط (وليس موافقة غير محدودة)
+            await usdt.approve(net.swap.router, q.inUnits.toString()).send({ feeLimit: FEE_LIMIT_SUN });
+            await new Promise(function (r) { setTimeout(r, 4000); });
+          }
+          txid = await router.swapExactTokensForETH(q.inUnits.toString(), minOut.toString(), q.path, session.address, deadline)
+            .send({ feeLimit: FEE_LIMIT_SUN });
+        }
+        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6) };
+      },
+
       // آخر معاملات USDT (TRC20) من TronGrid
       getHistory: async function (address, limit) {
         var addr = address || (await this.getAddress());
@@ -337,6 +402,9 @@
     LOW_TRX_FOR_FEES: 'رصيد الرسوم غير كافٍ. رسوم الشبكة تُدفع بعملة TRX، أرسل إلى محفظتك 15 TRX على الأقل عبر شبكة TRON (TRC20)',
     TX_FAILED: 'فشلت المعاملة. حاول مجدداً',
     HISTORY_FAILED: 'تعذّر تحميل السجل',
+    SWAP_UNAVAILABLE: 'التبديل غير متاح حالياً على هذه الشبكة',
+    NO_LIQUIDITY: 'لا توجد سيولة كافية لهذا التبديل',
+    INSUFFICIENT_TRX_SWAP: 'رصيد TRX غير كافٍ. يجب أن يبقى 15 TRX على الأقل للرسوم',
     TRONWEB_NOT_LOADED: 'تعذّر تحميل مكتبة الشبكة'
   };
   function errorText(e) {

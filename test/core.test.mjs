@@ -68,6 +68,12 @@ await t('تغيير رمز القفل', async () => {
   assert.equal(await core.hasWallet(), false);
 });
 
+await t('التبديل معطّل على شبكة بدون عقد SunSwap', async () => {
+  const core = W.createCore({ network: 'nile' });
+  assert.equal(await core.swapSupported(), false);
+  await assert.rejects(core.quoteSwap('TRX_USDT', '10'), /SWAP_UNAVAILABLE/);
+});
+
 await t('الحظر المؤقت بعد 5 محاولات خاطئة', async () => {
   const core = W.createCore();
   await core.saveWallet(core.generateMnemonic(), '246810');

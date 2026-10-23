@@ -332,10 +332,38 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <!-- ===== التبديل (قريباً) ===== -->
 <section class="screen" id="s-swap" aria-label="تبديل">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">تبديل</h1></div>
-  <div class="soon">
-    <span class="badge">قريباً</span>
-    <h2 style="font-size:20px">بدّل بين TRX وUSDT داخل التطبيق</h2>
-    <p class="muted" style="font-size:14px;line-height:1.8">عبر SunSwap مباشرة على الشبكة، تُوقَّع المعاملة على جهازك بدون وسيط.</p>
+  <div class="soon" id="swap-off" hidden>
+    <span class="badge" id="swap-off-badge">غير متاح</span>
+    <h2 style="font-size:20px">التبديل غير متاح على هذه الشبكة</h2>
+    <p class="muted" style="font-size:14px;line-height:1.8" id="swap-off-msg">يعمل التبديل على شبكة TRON الرئيسية عبر SunSwap.</p>
+  </div>
+  <div id="swap-on" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:6px;position:relative">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px 18px">
+        <div class="row between"><label for="sw-in" class="muted">من</label><span class="muted" style="font-size:12px">الرصيد: <bdi class="ltr" id="sw-bal-in">—</bdi></span></div>
+        <div class="row ltr" style="gap:10px">
+          <input id="sw-in" inputmode="decimal" placeholder="0" autocomplete="off" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:28px;font-weight:700;padding:0">
+          <span style="font-weight:700;padding:8px 12px;border-radius:999px;background:var(--s2)" id="sw-sym-in">TRX</span>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" id="sw-flip" aria-label="عكس اتجاه التبديل" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:16px;background:var(--bg);color:var(--ac)"><svg class="i" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></button>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px 18px">
+        <div class="row between"><span class="muted">إلى (تقريبي)</span><span class="muted" style="font-size:12px">الرصيد: <bdi class="ltr" id="sw-bal-out">—</bdi></span></div>
+        <div class="row ltr" style="gap:10px">
+          <span id="sw-out" style="flex-grow:1;font-size:28px;font-weight:700;color:var(--tx2)">0</span>
+          <span style="font-weight:700;padding:8px 12px;border-radius:999px;background:var(--s2)" id="sw-sym-out">USDT</span>
+        </div>
+      </div>
+    </div>
+    <dl class="kv card" style="padding:4px 16px">
+      <div><dt>أقل مبلغ ستستلمه</dt><dd class="ltr" id="sw-min">—</dd></div>
+      <div><dt>أقصى انزلاق للسعر</dt><dd class="ltr">0.5%</dd></div>
+      <div><dt>المنصة</dt><dd>SunSwap · على الشبكة</dd></div>
+      <div><dt>الرسوم</dt><dd>رسوم الشبكة بـ TRX + 0.3% للمنصة</dd></div>
+    </dl>
+    <div class="note ok" id="sw-approve-note" hidden><span>التبديل من USDT يسبقه معاملة "موافقة" تسمح لـ SunSwap بأخذ المبلغ المحدد فقط، فتدفع رسوم الشبكة مرتين.</span></div>
+    <div class="note err" id="sw-err" hidden></div>
+    <button class="btn btn-primary" id="sw-go" disabled>مراجعة التبديل</button>
   </div>
 </section>
 
@@ -455,6 +483,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (name === 'send') prepareSend();
     if (name === 'history') loadHistoryFull();
     if (name === 'security') prepareSecurity();
+    if (name === 'swap') prepareSwap();
   }
   function back() {
     state.stack.pop();
@@ -931,6 +960,83 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
   }
   $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
+
+  // ===== التبديل =====
+  state.swapDir = 'TRX_USDT';
+  var swapTimer = null, swapSeq = 0;
+  function swapSyms() { return state.swapDir === 'TRX_USDT' ? ['TRX', 'USDT'] : ['USDT', 'TRX']; }
+  async function prepareSwap() {
+    $('sw-err').hidden = true;
+    var ok = await core.swapSupported();
+    $('swap-off').hidden = ok;
+    $('swap-on').style.display = ok ? 'flex' : 'none';
+    if (!ok) {
+      $('swap-off-msg').textContent = NETWORK === 'mainnet'
+        ? 'تعذّر التحقق من عقد SunSwap الآن. تحقق من الاتصال وحاول لاحقاً.'
+        : 'أنت على شبكة الاختبار (Nile). التبديل يعمل على شبكة TRON الرئيسية فقط.';
+      return;
+    }
+    renderSwapSide();
+    if (!state.balances) { try { state.balances = await core.getBalances(); renderSwapSide(); } catch (e) {} }
+  }
+  function renderSwapSide() {
+    var s = swapSyms(), b = state.balances;
+    $('sw-sym-in').textContent = s[0]; $('sw-sym-out').textContent = s[1];
+    $('sw-bal-in').textContent = b ? (s[0] === 'TRX' ? b.trx : b.usdt) : '—';
+    $('sw-bal-out').textContent = b ? (s[1] === 'TRX' ? b.trx : b.usdt) : '—';
+    $('sw-approve-note').hidden = state.swapDir !== 'USDT_TRX';
+    requestQuote();
+  }
+  $('sw-flip').onclick = function () {
+    state.swapDir = state.swapDir === 'TRX_USDT' ? 'USDT_TRX' : 'TRX_USDT';
+    $('sw-in').value = '';
+    renderSwapSide();
+  };
+  $('sw-in').oninput = function () { clearTimeout(swapTimer); swapTimer = setTimeout(requestQuote, 450); };
+  async function requestQuote() {
+    var v = $('sw-in').value, seq = ++swapSeq;
+    $('sw-err').hidden = true; $('sw-go').disabled = true; state.swapQuote = null;
+    if (!v || !Number(v.replace(/[,،]/g, ''))) { $('sw-out').textContent = '0'; $('sw-min').textContent = '—'; return; }
+    $('sw-out').textContent = '…';
+    try {
+      var q = await core.quoteSwap(state.swapDir, v);
+      if (seq !== swapSeq) return;
+      var min = q.outUnits * 9950n / 10000n;
+      $('sw-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 });
+      $('sw-min').textContent = Number(WalletCore.fromUnits(min, 6)).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + swapSyms()[1];
+      state.swapQuote = { dir: state.swapDir, amt: v, out: q.out };
+      $('sw-go').disabled = false;
+    } catch (e) {
+      if (seq !== swapSeq) return;
+      $('sw-out').textContent = '0'; $('sw-min').textContent = '—';
+      $('sw-err').textContent = WalletCore.errorText(e); $('sw-err').hidden = false;
+    }
+  }
+  $('sw-go').onclick = function () {
+    var q = state.swapQuote; if (!q) return;
+    var s = swapSyms();
+    var run = function () { doSwap(q, s); };
+    var askPin = function () { openPin('verify', run); };
+    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run).catch(askPin);
+    else askPin();
+  };
+  async function doSwap(q, s) {
+    $('pin-sub').textContent = 'جارٍ التبديل…';
+    toast('جارٍ التبديل… قد يستغرق دقيقة');
+    try {
+      var r = await core.swap(q.dir, q.amt, 50);
+      state.lastTx = r; state.historyCache = null;
+      $('ok-amt').textContent = q.amt + ' ' + s[0] + ' ← ' + Number(r.out).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
+      $('ok-to').textContent = 'SunSwap';
+      $('sw-in').value = '';
+      state.stack = ['home'];
+      show('success');
+    } catch (e) {
+      state.stack = ['home'];
+      show('swap');
+      $('sw-err').textContent = WalletCore.errorText(e); $('sw-err').hidden = false;
+    }
+  }
 
   // ===== قبل أن تبدأ (يظهر مرة واحدة بعد إنشاء المحفظة) =====
   function showIntro() {
