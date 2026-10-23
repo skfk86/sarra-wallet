@@ -78,8 +78,36 @@ await t('الحظر المؤقت بعد 5 محاولات خاطئة', async () =
   const core = W.createCore();
   await core.saveWallet(core.generateMnemonic(), '246810');
   core.lock();
-  for (let i = 0; i < 5; i++) await assert.rejects(core.unlock('999999'), /WRONG_PIN/);
+  for (let i = 0; i < 4; i++) await assert.rejects(core.unlock('999999'), /WRONG_PIN/);
+  await assert.rejects(core.unlock('999999'), /LOCKED_OUT/); // الخامسة تُعلن الحظر مباشرة
   await assert.rejects(core.unlock('246810'), /LOCKED_OUT/);
+  // الحظر يبقى بعد إعادة تشغيل التطبيق (نسخة جديدة من النواة)
+  const core2 = W.createCore();
+  await assert.rejects(core2.unlock('246810'), /LOCKED_OUT/);
+  // ويشمل التحقق وعرض الكلمات أيضاً
+  await assert.rejects(core2.verifyPin('246810'), /LOCKED_OUT/);
+  await assert.rejects(core2.revealMnemonic('246810'), /LOCKED_OUT/);
+  assert.ok((await core2.lockoutRemaining()) > 0);
+  await core2.wipe();
+});
+
+await t('محاولات التحقق الخاطئة تُحسب ضمن الحظر', async () => {
+  const core = W.createCore();
+  await core.saveWallet(core.generateMnemonic(), '135790');
+  for (let i = 0; i < 4; i++) await assert.rejects(core.verifyPin('000000'), /WRONG_PIN/);
+  await assert.rejects(core.revealMnemonic('000000'), /LOCKED_OUT/);
+  await assert.rejects(core.verifyPin('135790'), /LOCKED_OUT/);
+  await core.wipe();
+});
+
+await t('النجاح يصفّر عدّاد المحاولات', async () => {
+  const core = W.createCore();
+  await core.saveWallet(core.generateMnemonic(), '112233');
+  for (let i = 0; i < 4; i++) await assert.rejects(core.verifyPin('000000'), /WRONG_PIN/);
+  assert.equal(await core.verifyPin('112233'), true);
+  for (let i = 0; i < 4; i++) await assert.rejects(core.verifyPin('000000'), /WRONG_PIN/);
+  assert.equal(await core.verifyPin('112233'), true);
+  await core.wipe();
 });
 
 await t('رسائل الأخطاء بالعربية', () => {

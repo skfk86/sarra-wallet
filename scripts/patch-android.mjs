@@ -41,5 +41,9 @@ if (!xml.includes('com.google.mlkit.vision.DEPENDENCIES')) {
 if (!xml.includes('android.permission.USE_BIOMETRIC')) {
   xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.USE_BIOMETRIC" />');
 }
+// منع النسخ الاحتياطي التلقائي إلى Google Drive: لا تخرج بيانات المحفظة المشفّرة من الجهاز
+xml = xml.replace(/android:allowBackup="true"/, 'android:allowBackup="false"');
+if (!xml.includes('android:allowBackup')) xml = xml.replace(/<application\b/, '<application android:allowBackup="false"');
+if (!xml.includes('android:fullBackupContent')) xml = xml.replace(/<application\b/, '<application android:fullBackupContent="false"');
 writeFileSync(manifest, xml);
-console.log('AndroidManifest patched (ML Kit barcode_ui, USE_BIOMETRIC)');
+console.log('AndroidManifest patched (ML Kit barcode_ui, USE_BIOMETRIC, allowBackup=false)');

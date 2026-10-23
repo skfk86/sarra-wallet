@@ -2,7 +2,7 @@
  * صُرّة — نواة المحفظة (غير احتجازية)
  * - المفتاح الخاص لا يغادر الجهاز أبداً
  * - كلمات الاسترجاع تُشفَّر برمز PIN (PBKDF2 + AES-GCM) قبل التخزين
- * - التخزين في Android Keystore عبر SecureStorage إن توفر
+ * - التخزين المشفّر في Preferences الخاصة بالتطبيق (النسخ الاحتياطي التلقائي معطّل)
  */
 (function (root) {
   'use strict';
@@ -29,6 +29,7 @@
   var TRX_DECIMALS = 6;
   var PBKDF2_ITERATIONS = 600000;
   var VAULT_KEY = 'sarra.vault.v1';
+  var GUARD_KEY = 'sarra.pinguard.v1'; // عدد المحاولات الخاطئة ووقت انتهاء الحظر (يبقى بعد إعادة التشغيل)
   var DERIVATION_PATH = "m/44'/195'/0'/0/0";
   var FEE_LIMIT_SUN = 100000000; // أقصى 100 TRX رسوم للمعاملة الواحدة
 
@@ -167,8 +168,54 @@
     var apiKey = opts.apiKey || '';
     var swapChecked = null;
     var session = null; // { address, privateKey } — في الذاكرة فقط بعد فتح القفل
-    var failedAttempts = 0;
-    var lockedUntil = 0;
+
+    // ===== حماية رمز القفل من التخمين =====
+    // كل محاولة خاطئة (فتح، تحقق، عرض الكلمات، تغيير الرمز) تُحسب وتُحفظ
+    // بعد 5 أخطاء: حظر متصاعد يبدأ بدقيقة ويصل إلى ساعة
+    async function readGuard() {
+      try { var g = JSON.parse((await storage().get(GUARD_KEY)) || 'null'); if (g) return g; } catch (e) {}
+      return { fails: 0, until: 0 };
+    }
+    async function openVault(pin) {
+      var g = await readGuard();
+      if (Date.now() < g.until) throw new Error('LOCKED_OUT');
+      var raw = await storage().get(VAULT_KEY);
+      if (!raw) throw new Error('NO_WALLET');
+      var box = JSON.parse(raw);
+      try {
+        var mnemonic = await decryptSecret(box, pin);
+        if (g.fails) await storage().set(GUARD_KEY, JSON.stringify({ fails: 0, until: 0 }));
+        return { box: box, mnemonic: mnemonic };
+      } catch (e) {
+        g.fails++;
+        if (g.fails >= 5) g.until = Date.now() + Math.min(60000 * Math.pow(2, g.fails - 5), 3600000);
+        await storage().set(GUARD_KEY, JSON.stringify(g));
+        throw new Error(g.until ? 'LOCKED_OUT' : 'WRONG_PIN');
+      }
+    }
+
+    // ===== انتظار تأكيد المعاملة على الشبكة =====
+    // يعيد 'SUCCESS' أو 'PENDING' (لم تُؤكَّد خلال المهلة) أو يرمي TX_FAILED
+    async function waitForTx(txid, isContract, timeoutMs) {
+      var tw = client();
+      var end = Date.now() + (timeoutMs || 90000);
+      while (Date.now() < end) {
+        await new Promise(function (r) { setTimeout(r, 3000); });
+        try {
+          var info = await tw.trx.getTransactionInfo(txid);
+          if (info && info.id) {
+            if (isContract) {
+              var res = info.receipt && info.receipt.result;
+              if (res === 'SUCCESS') return 'SUCCESS';
+              throw new Error('TX_FAILED');
+            }
+            if (info.result === 'FAILED') throw new Error('TX_FAILED');
+            return 'SUCCESS';
+          }
+        } catch (e) { if (e.message === 'TX_FAILED') throw e; }
+      }
+      return 'PENDING';
+    }
 
     function client(privateKey) {
       var TW = TronWebClass();
@@ -209,6 +256,7 @@
         var box = await encryptSecret(normalizeMnemonic(mnemonic), pin);
         box.address = acc.address; // العنوان عام، لا بأس بحفظه لعرض الرصيد قبل فتح القفل
         await storage().set(VAULT_KEY, JSON.stringify(box));
+        await storage().remove(GUARD_KEY);
         session = acc;
         return acc.address;
       },
@@ -220,51 +268,39 @@
       },
 
       unlock: async function (pin) {
-        if (Date.now() < lockedUntil) throw new Error('LOCKED_OUT');
-        var raw = await storage().get(VAULT_KEY);
-        if (!raw) throw new Error('NO_WALLET');
-        try {
-          var mnemonic = await decryptSecret(JSON.parse(raw), pin);
-          session = accountFromMnemonic(mnemonic);
-          failedAttempts = 0;
-          return session.address;
-        } catch (e) {
-          failedAttempts++;
-          // تأخير متصاعد بعد 5 محاولات خاطئة
-          if (failedAttempts >= 5) lockedUntil = Date.now() + Math.min(60000 * Math.pow(2, failedAttempts - 5), 3600000);
-          throw new Error('WRONG_PIN');
-        }
+        var v = await openVault(pin);
+        session = accountFromMnemonic(v.mnemonic);
+        return session.address;
       },
 
       lock: function () { session = null; },
       isUnlocked: function () { return !!session; },
 
       revealMnemonic: async function (pin) {
-        var raw = await storage().get(VAULT_KEY);
-        return decryptSecret(JSON.parse(raw), pin);
+        return (await openVault(pin)).mnemonic;
       },
 
       // تغيير رمز القفل: فك التشفير بالقديم ثم إعادة التشفير بالجديد
       changePin: async function (oldPin, newPin) {
         if (!/^\d{6}$/.test(newPin)) throw new Error('PIN_FORMAT');
-        var raw = await storage().get(VAULT_KEY);
-        if (!raw) throw new Error('NO_WALLET');
-        var old = JSON.parse(raw);
-        var mnemonic = await decryptSecret(old, oldPin);
-        var box = await encryptSecret(mnemonic, newPin);
-        box.address = old.address;
+        var v = await openVault(oldPin);
+        var box = await encryptSecret(v.mnemonic, newPin);
+        box.address = v.box.address;
         await storage().set(VAULT_KEY, JSON.stringify(box));
         return true;
       },
 
       verifyPin: async function (pin) {
-        var raw = await storage().get(VAULT_KEY);
-        if (!raw) throw new Error('NO_WALLET');
-        await decryptSecret(JSON.parse(raw), pin);
+        await openVault(pin);
         return true;
       },
 
-      wipe: async function () { session = null; await storage().remove(VAULT_KEY); },
+      lockoutRemaining: async function () {
+        var g = await readGuard();
+        return Math.max(0, g.until - Date.now());
+      },
+
+      wipe: async function () { session = null; await storage().remove(VAULT_KEY); await storage().remove(GUARD_KEY); },
 
       getBalances: async function (address) {
         var addr = address || (await this.getAddress());
@@ -293,17 +329,23 @@
         var tw = client(session.privateKey);
         var contract = await tw.contract().at(net.usdt);
         var txid = await contract.transfer(to, units.toString()).send({ feeLimit: FEE_LIMIT_SUN });
-        return { txid: txid, url: net.explorer + txid };
+        var status = await waitForTx(txid, true);
+        return { txid: txid, url: net.explorer + txid, status: status };
       },
 
       sendTRX: async function (to, amountStr) {
         if (!session) throw new Error('LOCKED');
         if (!this.isValidAddress(to)) throw new Error('INVALID_ADDRESS');
+        if (to === session.address) throw new Error('SELF_SEND');
         var units = toUnits(amountStr, TRX_DECIMALS);
+        var bal = await this.getBalances(session.address);
+        if (units > bal.trxUnits) throw new Error('INSUFFICIENT_TRX');
         var tw = client(session.privateKey);
         var res = await tw.trx.sendTransaction(to, Number(units));
-        if (!res || !res.result) throw new Error('TX_FAILED');
-        return { txid: res.txid, url: net.explorer + res.txid };
+        var txid = res && (res.txid || (res.transaction && res.transaction.txID));
+        if (!res || !res.result || !txid) throw new Error('TX_FAILED');
+        var status = await waitForTx(txid, false);
+        return { txid: txid, url: net.explorer + txid, status: status };
       },
 
       // ===== التبديل عبر SunSwap V2 =====
@@ -336,11 +378,15 @@
         return { inUnits: units, outUnits: out, out: fromUnits(out, 6), path: path };
       },
 
-      swap: async function (direction, amountStr, slippageBps) {
+      // quotedOut: المبلغ الذي رآه المستخدم؛ الحد الأدنى يُحسب منه حتى لا يقبل سعراً أسوأ مما وافق عليه
+      swap: async function (direction, amountStr, slippageBps, quotedOut) {
         if (!session) throw new Error('LOCKED');
         var q = await this.quoteSwap(direction, amountStr);
         var bps = BigInt(slippageBps == null ? 50 : slippageBps);
-        var minOut = q.outUnits * (10000n - bps) / 10000n;
+        var ref = q.outUnits;
+        if (quotedOut) { var shown = toUnits(quotedOut, 6); if (shown < ref) ref = shown; }
+        var minOut = ref * (10000n - bps) / 10000n;
+        if (q.outUnits < minOut) throw new Error('PRICE_MOVED');
         var deadline = Math.floor(Date.now() / 1000) + 600;
         var bal = await this.getBalances(session.address);
         var tw = client(session.privateKey);
@@ -358,13 +404,15 @@
           var allowance = BigInt((await usdt.allowance(session.address, net.swap.router).call()).toString());
           if (allowance < q.inUnits) {
             // موافقة لمرة واحدة بالمبلغ المطلوب فقط (وليس موافقة غير محدودة)
-            await usdt.approve(net.swap.router, q.inUnits.toString()).send({ feeLimit: FEE_LIMIT_SUN });
-            await new Promise(function (r) { setTimeout(r, 4000); });
+            var approveTx = await usdt.approve(net.swap.router, q.inUnits.toString()).send({ feeLimit: FEE_LIMIT_SUN });
+            // لا نبدّل قبل تأكيد الموافقة على الشبكة
+            if ((await waitForTx(approveTx, true, 60000)) !== 'SUCCESS') throw new Error('APPROVE_PENDING');
           }
           txid = await router.swapExactTokensForETH(q.inUnits.toString(), minOut.toString(), q.path, session.address, deadline)
             .send({ feeLimit: FEE_LIMIT_SUN });
         }
-        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6) };
+        var status = await waitForTx(txid, true);
+        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status };
       },
 
       // آخر معاملات USDT (TRC20) من TronGrid
@@ -400,10 +448,13 @@
     SELF_SEND: 'لا يمكنك الإرسال لنفس محفظتك',
     INSUFFICIENT_USDT: 'رصيد USDT غير كافٍ',
     LOW_TRX_FOR_FEES: 'رصيد الرسوم غير كافٍ. رسوم الشبكة تُدفع بعملة TRX، أرسل إلى محفظتك 15 TRX على الأقل عبر شبكة TRON (TRC20)',
-    TX_FAILED: 'فشلت المعاملة. حاول مجدداً',
+    TX_FAILED: 'فشلت المعاملة على الشبكة. غالباً بسبب عدم كفاية رصيد TRX للرسوم. لم يُرسَل المبلغ، لكن قد تُخصم رسوم الشبكة',
     HISTORY_FAILED: 'تعذّر تحميل السجل',
     SWAP_UNAVAILABLE: 'التبديل غير متاح حالياً على هذه الشبكة',
     NO_LIQUIDITY: 'لا توجد سيولة كافية لهذا التبديل',
+    INSUFFICIENT_TRX: 'رصيد TRX غير كافٍ',
+    PRICE_MOVED: 'تغيّر السعر أكثر من الحد المسموح. راجع المبلغ الجديد وحاول مجدداً',
+    APPROVE_PENDING: 'لم تُؤكَّد الموافقة بعد على الشبكة. انتظر دقيقة ثم أعد التبديل',
     INSUFFICIENT_TRX_SWAP: 'رصيد TRX غير كافٍ. يجب أن يبقى 15 TRX على الأقل للرسوم',
     TRONWEB_NOT_LOADED: 'تعذّر تحميل مكتبة الشبكة'
   };

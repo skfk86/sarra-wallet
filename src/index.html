@@ -165,6 +165,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </div>
     <div class="dots" id="dots" role="status" aria-live="polite"></div>
     <p id="pin-err" style="color:var(--err);font-size:13px;min-height:20px"></p>
+    <button type="button" id="forgot-pin" class="chip" hidden style="background:transparent">نسيت الرمز؟</button>
   </div>
   <div class="keypad" id="keypad"></div>
 </section>
@@ -255,10 +256,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div style="width:104px;height:104px;border-radius:50%;background:var(--ok-bg);border:1px solid var(--ok-bd);display:flex;align-items:center;justify-content:center" aria-hidden="true">
       <div style="width:68px;height:68px;border-radius:50%;background:var(--ac);color:var(--on-ac);display:flex;align-items:center;justify-content:center"><svg class="i" style="width:34px;height:34px;stroke-width:2.6" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
     </div>
-    <h1>تم إرسال المعاملة</h1>
+    <h1 id="ok-title">تمت المعاملة بنجاح</h1>
     <span class="ltr" style="font-size:32px;font-weight:700" id="ok-amt"></span>
     <span class="muted" style="font-size:14px">إلى <bdi class="ltr" id="ok-to"></bdi></span>
-    <p class="muted">التأكيد على الشبكة يستغرق عادة أقل من دقيقة</p>
+    <p class="muted">يمكنك متابعة حالتها في مستكشف TRON</p>
   </div>
   <button class="btn btn-primary" data-go="home">العودة للمحفظة</button>
   <button class="btn btn-ghost" id="explorer">عرض على مستكشف TRON</button>
@@ -401,6 +402,17 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 </div>
 
+<!-- ===== نسيت الرمز ===== -->
+<div class="sheet-bg" id="forgot-sheet" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
+  <div class="sheet">
+    <h2 id="forgot-title" style="font-size:18px">نسيت رمز القفل؟</h2>
+    <p class="muted" style="font-size:14px;line-height:1.8">لا يمكن استرجاع الرمز. لكن أموالك محفوظة على الشبكة، وتستعيدها بكلمات الاسترجاع الـ12: نحذف المحفظة من هذا الجهاز، ثم تستوردها بالكلمات وتختار رمزاً جديداً.</p>
+    <div class="note err"><span>لا تتابع إلا إن كانت الكلمات الـ12 مكتوبة عندك. بدونها ستفقد الوصول لأموالك نهائياً.</span></div>
+    <button class="btn" id="forgot-yes" style="background:#5A262B;color:#FFD6D9">الكلمات عندي، احذف واستورد</button>
+    <button class="btn btn-ghost" id="forgot-no">إلغاء</button>
+  </div>
+</div>
+
 <!-- ===== تأكيد حذف المحفظة ===== -->
 <div class="sheet-bg" id="wipe-sheet" role="dialog" aria-modal="true" aria-labelledby="wipe-title">
   <div class="sheet">
@@ -472,6 +484,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // ===== تنقل =====
   function show(name, push) {
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    if (name !== 'reveal') $('words2').textContent = ''; // لا تبقى الكلمات في الشاشة بعد مغادرتها
+    if (name !== 'backup' && name !== 'pin') state.mnemonic = null; // لا تبقى الكلمات في الذاكرة خارج شاشات الإنشاء
     $('s-' + name).classList.add('active');
     if (push !== false) state.stack.push(name);
     window.scrollTo(0, 0);
@@ -584,7 +598,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     newconfirm: ['أعد إدخال الرمز الجديد', 'للتأكيد']
   };
   function setPinMode(mode) {
-    state.pinMode = mode; state.pin = '';
+    state.pinMode = mode; state.pin = ''; state.pinBusy = false;
+    $('forgot-pin').hidden = mode !== 'unlock';
     $('pin-title').textContent = PIN_TEXT[mode][0];
     $('pin-sub').textContent = PIN_TEXT[mode][1];
     var bk = $('bio-key');
@@ -610,7 +625,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       await bioVerify(state.pinMode === 'unlock' ? 'فتح المحفظة' : 'تأكيد هويتك');
       var c = await Bio.getCredentials({ server: BIO_SERVER });
-      if (c && c.password) { state.pin = c.password; renderDots(); pinComplete(); }
+      if (c && c.password && !state.pinBusy) { state.pinBusy = true; state.pin = c.password; renderDots(); pinComplete(); }
     } catch (e) { /* أُلغيت البصمة: يكمل المستخدم بالرمز */ }
   }
   async function bioSavePin(pin) {
@@ -648,15 +663,27 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       else if (k === 'del') {
         b.className = 'key fn'; b.setAttribute('aria-label', 'حذف');
         b.innerHTML = '<svg class="i" style="width:24px;height:24px" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></svg>';
-        b.onclick = function () { state.pin = state.pin.slice(0, -1); renderDots(); };
+        b.onclick = function () { if (state.pinBusy) return; state.pin = state.pin.slice(0, -1); renderDots(); };
       } else {
         b.className = 'key'; b.textContent = k;
-        b.onclick = function () { if (state.pin.length < 6) { state.pin += k; renderDots(); if (state.pin.length === 6) setTimeout(pinComplete, 120); } };
+        b.onclick = function () {
+          if (state.pinBusy || state.pin.length >= 6) return;
+          state.pin += k; renderDots();
+          if (state.pin.length === 6) { state.pinBusy = true; setTimeout(pinComplete, 120); }
+        };
       }
       kp.appendChild(b);
     });
   })();
+  async function lockMsg(e) {
+    if (e && e.message === 'LOCKED_OUT') {
+      var ms = await core.lockoutRemaining();
+      return 'محاولات كثيرة خاطئة. حاول بعد ' + Math.max(1, Math.ceil(ms / 60000)) + ' دقيقة';
+    }
+    return WalletCore.errorText(e);
+  }
   function pinError(msg) {
+    state.pinBusy = false;
     $('pin-err').textContent = msg;
     var d = $('dots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
     state.pin = ''; renderDots();
@@ -685,7 +712,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
           resetTo('security');
           toast('تم تغيير رمز القفل');
         }
-      } catch (e) { setPinMode(mode === 'confirm' ? 'create' : 'newpin'); pinError(WalletCore.errorText(e)); }
+      } catch (e) { setPinMode(mode === 'confirm' ? 'create' : 'newpin'); pinError(await lockMsg(e)); }
       return;
     }
     if (mode === 'verify') {
@@ -694,13 +721,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         await core.verifyPin(pin);
         var cb = state.pinCb; state.pinCb = null;
         if (cb) cb(pin);
-      } catch (e) { setPinMode('verify'); pinError(WalletCore.errorText(e)); }
+      } catch (e) { setPinMode('verify'); pinError(await lockMsg(e)); }
       return;
     }
     // unlock
     $('pin-sub').textContent = 'جارٍ التحقق…';
     try { await core.unlock(pin); resetTo('home'); }
-    catch (e) { setPinMode('unlock'); pinError(WalletCore.errorText(e)); }
+    catch (e) { setPinMode('unlock'); pinError(await lockMsg(e)); }
   }
 
   // ===== الرئيسية =====
@@ -942,12 +969,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
   async function doSend() {
     var p = state.pending;
-    if (!p) return;
+    if (!p || state.txBusy) return;
+    state.txBusy = true;
     $('pin-sub').textContent = 'جارٍ الإرسال…';
     toast('جارٍ الإرسال…');
     try {
       var r = p.coin === 'USDT' ? await core.sendUSDT(p.to, p.amt) : await core.sendTRX(p.to, p.amt);
-      state.lastTx = r; state.historyCache = null; state.pending = null;
+      state.lastTx = r; state.historyCache = null; state.pending = null; state.balances = null;
+      setSuccessTitle(r.status);
       $('ok-amt').textContent = p.amt + ' ' + p.coin;
       $('ok-to').textContent = shortAddr(p.to);
       $('to').value = ''; $('amt').value = '';
@@ -957,7 +986,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.stack = ['home'];
       show('send');
       sendError(WalletCore.errorText(e));
-    }
+    } finally { state.txBusy = false; }
+  }
+  function setSuccessTitle(status) {
+    $('ok-title').textContent = status === 'PENDING' ? 'أُرسلت المعاملة، بانتظار التأكيد' : 'تمت المعاملة بنجاح';
   }
   $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
 
@@ -1021,11 +1053,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     else askPin();
   };
   async function doSwap(q, s) {
+    if (state.txBusy) return;
+    state.txBusy = true;
     $('pin-sub').textContent = 'جارٍ التبديل…';
     toast('جارٍ التبديل… قد يستغرق دقيقة');
     try {
-      var r = await core.swap(q.dir, q.amt, 50);
-      state.lastTx = r; state.historyCache = null;
+      var r = await core.swap(q.dir, q.amt, 50, q.out);
+      state.lastTx = r; state.historyCache = null; state.balances = null;
+      setSuccessTitle(r.status);
       $('ok-amt').textContent = q.amt + ' ' + s[0] + ' ← ' + Number(r.out).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
       $('ok-to').textContent = 'SunSwap';
       $('sw-in').value = '';
@@ -1035,7 +1070,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.stack = ['home'];
       show('swap');
       $('sw-err').textContent = WalletCore.errorText(e); $('sw-err').hidden = false;
-    }
+    } finally { state.txBusy = false; }
   }
 
   // ===== قبل أن تبدأ (يظهر مرة واحدة بعد إنشاء المحفظة) =====
@@ -1047,6 +1082,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('intro-ok').onclick = function () {
     try { localStorage.setItem('sarra.intro', '1'); } catch (e) {}
     $('intro-sheet').classList.remove('show');
+  };
+
+  // ===== نسيت الرمز =====
+  $('forgot-pin').onclick = function () { $('forgot-sheet').classList.add('show'); };
+  $('forgot-no').onclick = function () { $('forgot-sheet').classList.remove('show'); };
+  $('forgot-yes').onclick = async function () {
+    $('forgot-sheet').classList.remove('show');
+    await core.wipe();
+    await bioDisable();
+    state.balances = null; state.historyCache = null;
+    resetTo('welcome');
+    routes.import();
   };
 
   // ===== البداية =====
