@@ -214,6 +214,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <label class="lbl" for="to">عنوان المستلم</label>
   <div class="field">
     <input id="to" dir="ltr" placeholder="T…" autocomplete="off" autocapitalize="none" spellcheck="false">
+    <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
     <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
   </div>
   <label class="lbl" for="amt">المبلغ</label>
@@ -274,6 +275,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="note ok"><span>المفتاح الخاص مشفّر على هذا الجهاز ولا يُرسل لأي سيرفر.</span></div>
   <h2 class="muted" style="font-size:13px">الحماية</h2>
   <div class="list">
+    <div class="li" style="cursor:default" id="bio-row" hidden>
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/></svg></span>
+      <span class="t">الدخول بالبصمة<small>لفتح التطبيق وتأكيد الإرسال</small></span>
+      <button type="button" class="switch" role="switch" id="sw-bio" aria-checked="false" aria-label="الدخول بالبصمة"><span></span></button>
+    </div>
     <div class="li" style="cursor:default">
       <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></span>
       <span class="t">إخفاء الأرصدة<small>عند فتح التطبيق</small></span>
@@ -529,14 +535,47 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     state.pinMode = mode; state.pin = '';
     $('pin-title').textContent = PIN_TEXT[mode][0];
     $('pin-sub').textContent = PIN_TEXT[mode][1];
+    var bk = $('bio-key');
+    if (bk) bk.style.visibility = (bioEnabled() && (mode === 'unlock' || mode === 'verify')) ? 'visible' : 'hidden';
     renderDots();
   }
+
+  // ===== البصمة =====
+  // رمز PIN يُحفظ في Android Keystore خلف البصمة، ولا يُقرأ إلا بعد التحقق منها
+  var BIO_SERVER = 'com.sarra.wallet';
+  var Bio = P.NativeBiometric;
+  function bioEnabled() { try { return !!Bio && localStorage.getItem('sarra.bio') === '1'; } catch (e) { return false; } }
+  function setBioFlag(v) { try { localStorage.setItem('sarra.bio', v ? '1' : '0'); } catch (e) {} }
+  async function bioAvailable() {
+    if (!Bio) return false;
+    try { var r = await Bio.isAvailable(); return !!r.isAvailable; } catch (e) { return false; }
+  }
+  function bioVerify(title) {
+    return Bio.verifyIdentity({ reason: title, title: title, subtitle: 'صُرّة', negativeButtonText: 'استخدم الرمز' });
+  }
+  async function bioForPin() {
+    if (!bioEnabled()) return;
+    try {
+      await bioVerify(state.pinMode === 'unlock' ? 'فتح المحفظة' : 'تأكيد هويتك');
+      var c = await Bio.getCredentials({ server: BIO_SERVER });
+      if (c && c.password) { state.pin = c.password; renderDots(); pinComplete(); }
+    } catch (e) { /* أُلغيت البصمة: يكمل المستخدم بالرمز */ }
+  }
+  async function bioSavePin(pin) {
+    await Bio.setCredentials({ username: 'pin', password: pin, server: BIO_SERVER });
+  }
+  async function bioDisable() {
+    try { if (Bio) await Bio.deleteCredentials({ server: BIO_SERVER }); } catch (e) {}
+    setBioFlag(false);
+  }
+
   function openPin(mode, cb) {
     state.firstPin = ''; state.pinCb = cb || null;
     $('pin-err').textContent = '';
     $('pin-top').style.visibility = mode === 'unlock' ? 'hidden' : 'visible';
     setPinMode(mode);
     if (mode === 'unlock') resetTo('pin'); else show('pin');
+    if (mode === 'unlock' && bioEnabled()) setTimeout(bioForPin, 350);
   }
   function renderDots() {
     var d = $('dots'); d.textContent = '';
@@ -548,7 +587,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].forEach(function (k) {
       var b = document.createElement('button');
       b.type = 'button';
-      if (k === '') { b.className = 'key fn'; b.disabled = true; b.setAttribute('aria-hidden', 'true'); }
+      if (k === '') {
+        b.className = 'key fn'; b.id = 'bio-key'; b.setAttribute('aria-label', 'الدخول بالبصمة');
+        b.style.visibility = 'hidden';
+        b.innerHTML = '<svg class="i" style="width:28px;height:28px" viewBox="0 0 24 24"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/></svg>';
+        b.onclick = function () { bioForPin(); };
+      }
       else if (k === 'del') {
         b.className = 'key fn'; b.setAttribute('aria-label', 'حذف');
         b.innerHTML = '<svg class="i" style="width:24px;height:24px" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></svg>';
@@ -583,6 +627,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
           resetTo('home');
         } else {
           await core.changePin(state.oldPin, pin);
+          if (bioEnabled()) { try { await bioSavePin(pin); } catch (e) { await bioDisable(); } }
           state.oldPin = null; state.firstPin = '';
           resetTo('security');
           toast('تم تغيير رمز القفل');
@@ -694,8 +739,22 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function prepareSecurity() {
     $('sw-hide').setAttribute('aria-checked', state.hidden ? 'true' : 'false');
     $('sec-net').textContent = netName();
+    $('sw-bio').setAttribute('aria-checked', bioEnabled() ? 'true' : 'false');
+    bioAvailable().then(function (ok) { $('bio-row').hidden = !ok; });
   }
   $('sw-hide').onclick = function () { setHidden(!state.hidden); };
+  $('sw-bio').onclick = function () {
+    if (bioEnabled()) { bioDisable().then(function () { prepareSecurity(); toast('تم إيقاف البصمة'); }); return; }
+    openPin('verify', async function (pin) {
+      try {
+        await bioVerify('تفعيل البصمة');
+        await bioSavePin(pin);
+        setBioFlag(true);
+        toast('تم تفعيل البصمة');
+      } catch (e) { toast('لم يتم تفعيل البصمة', true); }
+      resetTo('security');
+    });
+  };
   $('lock-now').onclick = function () { core.lock(); openPin('unlock'); };
   $('sec-reveal').onclick = function () {
     openPin('verify', async function (pin) {
@@ -721,6 +780,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('wipe-sheet').classList.remove('show');
     openPin('verify', async function () {
       await core.wipe();
+      await bioDisable();
       state.balances = null; state.historyCache = null;
       resetTo('welcome');
       toast('تم حذف المحفظة من هذا الجهاز');
@@ -767,6 +827,29 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       prepareSend();
     };
   });
+  // مسح QR عبر ماسح Google (لا يحتاج إذن الكاميرا)
+  var Scanner = P.BarcodeScanner;
+  if (!Scanner) $('scan').hidden = true;
+  $('scan').onclick = async function () {
+    try {
+      var av = await Scanner.isGoogleBarcodeScannerModuleAvailable();
+      if (!av.available) {
+        toast('جارٍ تجهيز الماسح لأول مرة، حاول بعد لحظات');
+        await Scanner.installGoogleBarcodeScannerModule();
+        return;
+      }
+      var r = await Scanner.scan({ formats: ['QR_CODE'] });
+      var raw = r && r.barcodes && r.barcodes[0] && r.barcodes[0].rawValue;
+      if (!raw) return;
+      var addr = String(raw).trim().replace(/^tron:/i, '').split(/[?&/]/)[0];
+      if (core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; }
+      else toast('الرمز لا يحتوي عنوان TRON صحيحاً', true);
+    } catch (e) {
+      var msg = (e && e.message) || '';
+      if (!/cancel/i.test(msg)) toast('تعذّر المسح', true);
+    }
+  };
+
   $('paste').onclick = async function () {
     try {
       var r = P.Clipboard ? (await P.Clipboard.read()).value : await navigator.clipboard.readText();
@@ -794,22 +877,32 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('sheet').classList.add('show');
   };
   $('cancel-send').onclick = function () { $('sheet').classList.remove('show'); };
-  $('confirm-send').onclick = async function () {
-    var btn = this, p = state.pending;
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جارٍ الإرسال';
+  // كل إرسال يحتاج تأكيد الهوية: البصمة إن كانت مفعّلة، وإلا رمز القفل
+  $('confirm-send').onclick = function () {
+    $('sheet').classList.remove('show');
+    var askPin = function () { openPin('verify', function () { doSend(); }); };
+    if (bioEnabled()) bioVerify('تأكيد الإرسال').then(doSend).catch(askPin);
+    else askPin();
+  };
+  async function doSend() {
+    var p = state.pending;
+    if (!p) return;
+    $('pin-sub').textContent = 'جارٍ الإرسال…';
+    toast('جارٍ الإرسال…');
     try {
       var r = p.coin === 'USDT' ? await core.sendUSDT(p.to, p.amt) : await core.sendTRX(p.to, p.amt);
-      state.lastTx = r; state.historyCache = null;
+      state.lastTx = r; state.historyCache = null; state.pending = null;
       $('ok-amt').textContent = p.amt + ' ' + p.coin;
       $('ok-to').textContent = shortAddr(p.to);
       $('to').value = ''; $('amt').value = '';
-      $('sheet').classList.remove('show');
+      state.stack = ['home'];
       show('success');
     } catch (e) {
-      $('sheet').classList.remove('show');
+      state.stack = ['home'];
+      show('send');
       sendError(WalletCore.errorText(e));
-    } finally { btn.disabled = false; btn.textContent = 'تأكيد وإرسال'; }
-  };
+    }
+  }
   $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
 
   // ===== البداية =====

@@ -31,3 +31,15 @@ public class MainActivity extends BridgeActivity {
 }
 `);
 console.log('FLAG_SECURE applied to ' + file);
+
+// ماسح QR من Google: تنزيل الوحدة تلقائياً عند التثبيت + إذن البصمة
+const manifest = 'android/app/src/main/AndroidManifest.xml';
+let xml = readFileSync(manifest, 'utf8');
+if (!xml.includes('com.google.mlkit.vision.DEPENDENCIES')) {
+  xml = xml.replace(/(<application\b[^>]*>)/, '$1\n        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />');
+}
+if (!xml.includes('android.permission.USE_BIOMETRIC')) {
+  xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.USE_BIOMETRIC" />');
+}
+writeFileSync(manifest, xml);
+console.log('AndroidManifest patched (ML Kit barcode_ui, USE_BIOMETRIC)');

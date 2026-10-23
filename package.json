@@ -12,7 +12,9 @@
     "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^6.0.0",
     "@capacitor/android": "^6.1.0",
+    "@capgo/capacitor-native-biometric": "^6.0.0",
     "@capacitor/app": "^6.0.0",
     "@capacitor/clipboard": "^6.0.0",
     "@capacitor/core": "^6.1.0",
