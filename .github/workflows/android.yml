@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network (nile or mainnet)'
+        required: true
+        default: 'nile'
+        type: choice
+        options: [nile, mainnet]
 
 jobs:
   build:
@@ -32,7 +39,7 @@ jobs:
       - name: Write build config
         env:
           TRONGRID_API_KEY: ${{ secrets.TRONGRID_API_KEY }}
-          SARRA_NETWORK: ${{ vars.SARRA_NETWORK }}
+          SARRA_NETWORK: ${{ inputs.network || vars.SARRA_NETWORK || 'nile' }}
         run: npm run config
 
       - name: Add Android platform
@@ -52,5 +59,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sarra-wallet-debug
+          name: sarra-wallet-${{ inputs.network || vars.SARRA_NETWORK || 'nile' }}-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
