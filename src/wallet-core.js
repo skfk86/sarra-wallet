@@ -334,7 +334,7 @@
     INVALID_ADDRESS: 'عنوان غير صالح على شبكة TRON',
     SELF_SEND: 'لا يمكنك الإرسال لنفس محفظتك',
     INSUFFICIENT_USDT: 'رصيد USDT غير كافٍ',
-    LOW_TRX_FOR_FEES: 'رصيد الرسوم (TRX) غير كافٍ. تحتاج 5 TRX على الأقل',
+    LOW_TRX_FOR_FEES: 'رصيد الرسوم غير كافٍ. رسوم الشبكة تُدفع بعملة TRX، أرسل إلى محفظتك 15 TRX على الأقل عبر شبكة TRON (TRC20)',
     TX_FAILED: 'فشلت المعاملة. حاول مجدداً',
     HISTORY_FAILED: 'تعذّر تحميل السجل',
     TRONWEB_NOT_LOADED: 'تعذّر تحميل مكتبة الشبكة'

@@ -187,6 +187,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <span class="muted" style="font-size:12px" id="fee-hint"></span>
     </div>
   </div>
+  <div class="note warn" id="low-trx" role="alert" hidden style="flex-direction:column;gap:10px">
+    <span><b>رصيد الرسوم غير كافٍ.</b> لكي ترسل USDT تحتاج TRX في محفظتك لدفع رسوم الشبكة (15 TRX على الأقل). أرسل TRX إلى عنوانك عبر شبكة TRON (TRC20).</span>
+    <button type="button" class="chip" data-go="receive" style="align-self:flex-start;background:transparent;border-color:#4A3218;color:#FFC58A">عرض عنواني</button>
+  </div>
   <nav class="actions" aria-label="إجراءات">
     <button class="action main" data-go="send"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال</button>
     <button class="action" data-go="receive"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span>استلام</button>
@@ -222,7 +226,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="row ltr"><input id="amt" inputmode="decimal" placeholder="0.00" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:34px;font-weight:700;padding:0"><span class="muted" style="font-size:16px;font-weight:600" id="amt-unit">USDT</span></div>
     <div class="row between"><span class="muted">المتاح: <bdi class="ltr" id="avail">—</bdi></span><button class="icon-btn flat" id="max" style="width:auto;height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ac)">الكل</button></div>
   </div>
-  <div class="note warn" role="note"><span>أرسل فقط إلى عنوان على شبكة TRON. الإرسال إلى شبكة أخرى يضيّع المبلغ ولا يمكن استرجاعه.</span></div>
+  <div class="note warn" role="note"><span>أرسل فقط إلى عنوان على <b>شبكة TRON (TRC20)</b>، يبدأ بحرف T. إن كان المستلم يستخدم منصة مثل Binance، فليختر شبكة TRON عند نسخ عنوان الإيداع.</span></div>
+  <div class="note ok" role="note" id="send-fee-note"><span>رسوم الشبكة تُخصم من رصيد TRX: <bdi class="ltr" id="send-trx">—</bdi> TRX متاح.</span></div>
   <div class="note err" id="send-err" hidden></div>
   <div class="grow"></div>
   <button class="btn btn-primary" id="review">مراجعة الإرسال</button>
@@ -240,7 +245,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <button class="btn btn-ghost" id="share" style="height:48px;border-radius:14px;font-size:15px">مشاركة</button>
     </div>
   </div>
-  <div class="note warn" role="note"><span>استلم فقط USDT أو TRX عبر شبكة TRON (TRC20). أي عملة أو شبكة أخرى قد تضيع.</span></div>
+  <div class="note warn" role="note"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
+  <div class="note ok" role="note"><span><b>تحتاج TRX لترسل لاحقاً:</b> رسوم الشبكة تُدفع بعملة TRX. احرص أن يكون في محفظتك 15 TRX على الأقل لتتمكن من إرسال USDT.</span></div>
 </section>
 
 <!-- ===== تم الإرسال ===== -->
@@ -351,6 +357,22 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <button type="button" class="tab" data-tab="security"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>الأمان</button>
 </nav>
 
+<!-- ===== قبل أن تبدأ (مرة واحدة) ===== -->
+<div class="sheet-bg" id="intro-sheet" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+  <div class="sheet">
+    <h2 id="intro-title" style="font-size:20px">قبل أن تبدأ: أمران مهمان</h2>
+    <div class="row" style="align-items:flex-start">
+      <span class="icon-btn flat" aria-hidden="true" style="color:#FFC58A;background:#241A10;cursor:default"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+      <p style="font-size:14px;line-height:1.8"><b>شبكة TRON (TRC20) فقط.</b> عند استلام أو إرسال أي مبلغ، تأكد أن الطرف الآخر يختار شبكة TRON. المبالغ المرسلة من شبكة أخرى تضيع.</p>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <span class="icon-btn flat" aria-hidden="true" style="color:#FF5A5F;cursor:default"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
+      <p style="font-size:14px;line-height:1.8"><b>الرسوم تُدفع بعملة TRX.</b> لكي ترسل USDT تحتاج قليلاً من TRX في محفظتك (15 TRX على الأقل). الاستلام لا يحتاج رسوماً.</p>
+    </div>
+    <button class="btn btn-primary" id="intro-ok">فهمت</button>
+  </div>
+</div>
+
 <!-- ===== تأكيد حذف المحفظة ===== -->
 <div class="sheet-bg" id="wipe-sheet" role="dialog" aria-modal="true" aria-labelledby="wipe-title">
   <div class="sheet">
@@ -368,6 +390,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <dl class="kv">
       <div><dt>المبلغ</dt><dd class="ltr" id="c-amt"></dd></div>
       <div><dt>إلى</dt><dd class="ltr mono" id="c-to" style="font-size:12px;word-break:break-all"></dd></div>
+      <div><dt>الشبكة</dt><dd>TRON (TRC20)</dd></div>
       <div><dt>رسوم الشبكة</dt><dd>تُخصم من رصيد TRX</dd></div>
       <div><dt>رسوم التطبيق</dt><dd style="color:var(--ac)">مجاناً</dd></div>
     </dl>
@@ -625,6 +648,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
           await core.saveWallet(state.mnemonic, pin);
           state.mnemonic = null; state.firstPin = '';
           resetTo('home');
+          showIntro();
         } else {
           await core.changePin(state.oldPin, pin);
           if (bioEnabled()) { try { await bioSavePin(pin); } catch (e) { await bioDisable(); } }
@@ -661,7 +685,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.balances = b;
       renderBalances();
       var trx = Number(WalletCore.fromUnits(b.trxUnits, 6));
-      $('fee-hint').textContent = trx < 5 ? 'أضف TRX لدفع رسوم الإرسال' : 'رصيد الرسوم كافٍ';
+      $('fee-hint').textContent = trx < 15 ? 'أضف TRX لدفع رسوم الإرسال' : 'رصيد الرسوم كافٍ';
+      $('low-trx').hidden = !(trx < 15 && b.usdtUnits > 0n);
     } catch (e) { toast(WalletCore.errorText(e), true); }
     loadHistory();
   }
@@ -816,6 +841,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var b = state.balances;
     $('amt-unit').textContent = state.coin;
     $('avail').textContent = b ? (state.coin === 'USDT' ? b.usdt : b.trx) + ' ' + state.coin : '—';
+    $('send-trx').textContent = b ? b.trx : '—';
   }
   document.querySelectorAll('[data-coin]').forEach(function (btn) {
     btn.onclick = function () {
@@ -871,6 +897,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try { units = WalletCore.toUnits(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
     var have = coinUnits();
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
+    if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
     state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin };
     $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
     $('c-to').textContent = to;
@@ -904,6 +931,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
   }
   $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
+
+  // ===== قبل أن تبدأ (يظهر مرة واحدة بعد إنشاء المحفظة) =====
+  function showIntro() {
+    var seen = false;
+    try { seen = localStorage.getItem('sarra.intro') === '1'; } catch (e) {}
+    if (!seen) $('intro-sheet').classList.add('show');
+  }
+  $('intro-ok').onclick = function () {
+    try { localStorage.setItem('sarra.intro', '1'); } catch (e) {}
+    $('intro-sheet').classList.remove('show');
+  };
 
   // ===== البداية =====
   (async function start() {
