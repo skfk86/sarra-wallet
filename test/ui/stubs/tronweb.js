@@ -8,10 +8,11 @@
     this.address={fromHex:(h)=>h};
   }
   TW.prototype.setAddress=function(){};
-  TW.prototype.contract=function(){return{at:async()=>({
+  function C(){ return {
     balanceOf:()=>({call:async()=>'125500000'}),
     transfer:(to,v)=>({send:async()=>{window.__sent.push(['USDT',to,v]);return 'usdt'+window.__sent.length}})
-  })}};
+  }; }
+  TW.prototype.contract=function(abi,addr){ var c=C(); c.at=async()=>C(); return c; };
   TW.isAddress=(a)=>/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a);
   TW.createRandom=()=>({mnemonic:{phrase:'river smile cotton eagle harvest lamp orbit velvet sand thunder maple quiet'}});
   TW.fromMnemonic=()=>({address:ADDR,privateKey:'0x'+'ab'.repeat(32)});

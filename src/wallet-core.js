@@ -14,7 +14,7 @@
       usdt: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
       explorer: 'https://tronscan.org/#/transaction/',
       // SunSwap V2 — يُتحقق منه وقت التشغيل: router.WETH() يجب أن يساوي wtrx
-      // ⚠️ راجع العنوانين على tronscan.org قبل الإطلاق
+      // تم التحقق على الشبكة الرئيسية (2026-10-23): WETH() يعيد wtrx، وgetAmountsOut يعمل
       swap: { router: 'TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax', wtrx: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR' }
     },
     // شبكة اختبار مجانية — استخدمها أثناء التطوير
@@ -32,6 +32,21 @@
   var GUARD_KEY = 'sarra.pinguard.v1'; // عدد المحاولات الخاطئة ووقت انتهاء الحظر (يبقى بعد إعادة التشغيل)
   var DERIVATION_PATH = "m/44'/195'/0'/0/0";
   var FEE_LIMIT_SUN = 100000000; // أقصى 100 TRX رسوم للمعاملة الواحدة
+
+  // وصف الدوال (ABI) مضمّن في التطبيق: عقد SunSwap لا ينشر وصفه على الشبكة،
+  // والتضمين يوفّر طلباً إضافياً للشبكة في كل عملية
+  var TRC20_ABI = [
+    { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'who', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] },
+    { type: 'function', name: 'transfer', stateMutability: 'nonpayable', inputs: [{ name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] },
+    { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] },
+    { type: 'function', name: 'allowance', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }
+  ];
+  var ROUTER_ABI = [
+    { type: 'function', name: 'WETH', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
+    { type: 'function', name: 'getAmountsOut', stateMutability: 'view', inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'path', type: 'address[]' }], outputs: [{ name: 'amounts', type: 'uint256[]' }] },
+    { type: 'function', name: 'swapExactETHForTokens', stateMutability: 'payable', inputs: [{ name: 'amountOutMin', type: 'uint256' }, { name: 'path', type: 'address[]' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], outputs: [{ name: 'amounts', type: 'uint256[]' }] },
+    { type: 'function', name: 'swapExactTokensForETH', stateMutability: 'nonpayable', inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'amountOutMin', type: 'uint256' }, { name: 'path', type: 'address[]' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], outputs: [{ name: 'amounts', type: 'uint256[]' }] }
+  ];
 
   var subtle = root.crypto && root.crypto.subtle;
   var enc = new TextEncoder();
@@ -307,7 +322,7 @@
         var tw = client();
         tw.setAddress(addr);
         var trxSun = await tw.trx.getBalance(addr);
-        var contract = await tw.contract().at(net.usdt);
+        var contract = tw.contract(TRC20_ABI, net.usdt);
         var usdtRaw = await contract.balanceOf(addr).call();
         var usdtUnits = BigInt(usdtRaw.toString());
         return {
@@ -327,7 +342,7 @@
         if (units > bal.usdtUnits) throw new Error('INSUFFICIENT_USDT');
         if (bal.trxUnits < 5000000n) throw new Error('LOW_TRX_FOR_FEES');
         var tw = client(session.privateKey);
-        var contract = await tw.contract().at(net.usdt);
+        var contract = tw.contract(TRC20_ABI, net.usdt);
         var txid = await contract.transfer(to, units.toString()).send({ feeLimit: FEE_LIMIT_SUN });
         var status = await waitForTx(txid, true);
         return { txid: txid, url: net.explorer + txid, status: status };
@@ -356,7 +371,7 @@
         try {
           var tw = client();
           tw.setAddress(net.swap.router);
-          var router = await tw.contract().at(net.swap.router);
+          var router = tw.contract(ROUTER_ABI, net.swap.router);
           var weth = await router.WETH().call();
           var wethB58 = typeof weth === 'string' && weth.indexOf('41') === 0 ? tw.address.fromHex(weth) : String(weth);
           swapChecked = wethB58 === net.swap.wtrx;
@@ -370,7 +385,7 @@
         var path = direction === 'TRX_USDT' ? [net.swap.wtrx, net.usdt] : [net.usdt, net.swap.wtrx];
         var tw = client();
         tw.setAddress(net.swap.router);
-        var router = await tw.contract().at(net.swap.router);
+        var router = tw.contract(ROUTER_ABI, net.swap.router);
         var res = await router.getAmountsOut(units.toString(), path).call();
         var amounts = res.amounts || res[0] || res;
         var out = BigInt(amounts[amounts.length - 1].toString());
@@ -390,7 +405,7 @@
         var deadline = Math.floor(Date.now() / 1000) + 600;
         var bal = await this.getBalances(session.address);
         var tw = client(session.privateKey);
-        var router = await tw.contract().at(net.swap.router);
+        var router = tw.contract(ROUTER_ABI, net.swap.router);
         var txid;
         if (direction === 'TRX_USDT') {
           // نترك 15 TRX على الأقل للرسوم
@@ -400,7 +415,7 @@
         } else {
           if (q.inUnits > bal.usdtUnits) throw new Error('INSUFFICIENT_USDT');
           if (bal.trxUnits < 15000000n) throw new Error('LOW_TRX_FOR_FEES');
-          var usdt = await tw.contract().at(net.usdt);
+          var usdt = tw.contract(TRC20_ABI, net.usdt);
           var allowance = BigInt((await usdt.allowance(session.address, net.swap.router).call()).toString());
           if (allowance < q.inUnits) {
             // موافقة لمرة واحدة بالمبلغ المطلوب فقط (وليس موافقة غير محدودة)
