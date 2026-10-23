@@ -84,6 +84,32 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:sp 0.8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .skeleton{color:transparent;background:var(--s2);border-radius:8px}
+/* شريط التنقل */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#0E1319;border-top:1px solid var(--div);display:none;grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom)}
+.tabbar.show{display:grid}
+.tab{height:66px;background:none;border:0;color:var(--mu);font-size:11px;font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.tab.on{color:var(--ac);font-weight:600}
+.with-tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 90px)}
+/* شرائح وقوائم */
+.chips{display:flex;gap:8px}
+.chip{height:36px;padding:0 14px;border-radius:999px;background:var(--s1);border:1px solid var(--line);color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:4px}
+.seg button{height:40px;border-radius:10px;border:0;background:transparent;color:var(--mu);font-size:14px;font-weight:600;cursor:pointer}
+.seg button.on{background:#2A3644;color:var(--tx);font-weight:700}
+.list{background:var(--s1);border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:12px;padding:14px 16px;background:none;border:0;width:100%;text-align:start;cursor:pointer;color:var(--tx)}
+.li+.li{border-top:1px solid var(--div)}
+.li .ic{width:36px;height:36px;flex-shrink:0;border-radius:10px;background:var(--s2);color:var(--tx2);display:flex;align-items:center;justify-content:center}
+.li .t{flex-grow:1;display:flex;flex-direction:column;font-size:14px;font-weight:600}
+.li .t small{font-size:12px;font-weight:400;color:var(--mu)}
+.li.danger,.li.danger .ic{color:#FF8A8F}
+.switch{width:52px;height:32px;flex-shrink:0;border-radius:999px;border:0;padding:3px;background:#2A3644;display:flex;justify-content:flex-end;cursor:pointer}
+.switch span{width:26px;height:26px;border-radius:50%;background:var(--mu)}
+.switch[aria-checked="true"]{background:var(--ac);justify-content:flex-start}
+.switch[aria-checked="true"] span{background:var(--on-ac)}
+.soon{flex-grow:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 12px}
+.soon .badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ac)}
 </style>
 </head>
 <body>
@@ -144,7 +170,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </section>
 
 <!-- ===== الرئيسية ===== -->
-<section class="screen" id="s-home" aria-label="الرئيسية">
+<section class="screen with-tabs" id="s-home" aria-label="الرئيسية">
   <header class="row between">
     <div class="row">
       <div class="icon-btn" style="color:var(--ac);cursor:default" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></div>
@@ -164,7 +190,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <nav class="actions" aria-label="إجراءات">
     <button class="action main" data-go="send"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال</button>
     <button class="action" data-go="receive"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span>استلام</button>
-    <button class="action" id="lock-now"><span class="ic"><svg class="i" style="width:24px;height:24px" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>قفل</button>
+    <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
   </nav>
   <div class="card" style="padding:0">
     <div class="asset"><span class="coin" style="background:#26A17B;color:#fff" aria-hidden="true">₮</span>
@@ -174,13 +200,17 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">رصيد الرسوم</span><span class="muted" style="font-size:12px">TRX · لدفع رسوم الشبكة</span></div>
       <span class="ltr" style="font-weight:600" id="row-trx">—</span></div>
   </div>
-  <h2>آخر المعاملات</h2>
+  <div class="row between"><h2>آخر المعاملات</h2><button class="chip" data-tab="history" style="height:32px">عرض الكل</button></div>
   <div id="history"><p class="muted">جارٍ التحميل…</p></div>
 </section>
 
 <!-- ===== إرسال ===== -->
 <section class="screen" id="s-send" aria-label="إرسال">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إرسال USDT</h1></div>
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إرسال</h1></div>
+  <div class="seg" role="tablist" aria-label="العملة">
+    <button type="button" role="tab" class="on" data-coin="USDT" aria-selected="true">USDT</button>
+    <button type="button" role="tab" data-coin="TRX" aria-selected="false">TRX</button>
+  </div>
   <label class="lbl" for="to">عنوان المستلم</label>
   <div class="field">
     <input id="to" dir="ltr" placeholder="T…" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -188,7 +218,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <label class="lbl" for="amt">المبلغ</label>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
-    <div class="row ltr"><input id="amt" inputmode="decimal" placeholder="0.00" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:34px;font-weight:700;padding:0"><span class="muted" style="font-size:16px;font-weight:600">USDT</span></div>
+    <div class="row ltr"><input id="amt" inputmode="decimal" placeholder="0.00" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:34px;font-weight:700;padding:0"><span class="muted" style="font-size:16px;font-weight:600" id="amt-unit">USDT</span></div>
     <div class="row between"><span class="muted">المتاح: <bdi class="ltr" id="avail">—</bdi></span><button class="icon-btn flat" id="max" style="width:auto;height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ac)">الكل</button></div>
   </div>
   <div class="note warn" role="note"><span>أرسل فقط إلى عنوان على شبكة TRON. الإرسال إلى شبكة أخرى يضيّع المبلغ ولا يمكن استرجاعه.</span></div>
@@ -226,6 +256,104 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <button class="btn btn-primary" data-go="home">العودة للمحفظة</button>
   <button class="btn btn-ghost" id="explorer">عرض على مستكشف TRON</button>
 </section>
+
+<!-- ===== السجل ===== -->
+<section class="screen with-tabs" id="s-history" aria-label="السجل">
+  <h1 style="font-size:20px">سجل المعاملات</h1>
+  <div class="chips" role="tablist" aria-label="تصفية">
+    <button type="button" class="chip on" data-filter="all">الكل</button>
+    <button type="button" class="chip" data-filter="in">استلام</button>
+    <button type="button" class="chip" data-filter="out">إرسال</button>
+  </div>
+  <div id="history-full"><p class="muted">جارٍ التحميل…</p></div>
+</section>
+
+<!-- ===== الأمان ===== -->
+<section class="screen with-tabs" id="s-security" aria-label="الأمان">
+  <h1 style="font-size:20px">الأمان</h1>
+  <div class="note ok"><span>المفتاح الخاص مشفّر على هذا الجهاز ولا يُرسل لأي سيرفر.</span></div>
+  <h2 class="muted" style="font-size:13px">الحماية</h2>
+  <div class="list">
+    <div class="li" style="cursor:default">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></span>
+      <span class="t">إخفاء الأرصدة<small>عند فتح التطبيق</small></span>
+      <button type="button" class="switch" role="switch" id="sw-hide" aria-checked="false" aria-label="إخفاء الأرصدة"><span></span></button>
+    </div>
+    <div class="li" style="cursor:default">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span class="t">قفل تلقائي<small>بعد دقيقة من الخروج من التطبيق</small></span>
+    </div>
+    <button type="button" class="li" id="lock-now">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      <span class="t">قفل الآن</span>
+    </button>
+  </div>
+  <h2 class="muted" style="font-size:13px">النسخ الاحتياطي</h2>
+  <div class="list">
+    <button type="button" class="li" id="sec-reveal">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></svg></span>
+      <span class="t">عرض كلمات الاسترجاع<small>يتطلب رمز القفل</small></span>
+    </button>
+    <button type="button" class="li" id="sec-pin">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 12h.01"/><path d="M12 12h.01"/><path d="M17 12h.01"/></svg></span>
+      <span class="t">تغيير رمز القفل</span>
+    </button>
+  </div>
+  <div class="list">
+    <button type="button" class="li danger" id="sec-wipe">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>
+      <span class="t">حذف المحفظة من هذا الجهاز<small style="color:#C98A8E">لن تستعيدها إلا بكلمات الاسترجاع</small></span>
+    </button>
+  </div>
+  <p class="muted" style="text-align:center;font-size:12px">صُرّة · بدون إعلانات · <span id="sec-net"></span></p>
+</section>
+
+<!-- ===== عرض الكلمات من الإعدادات ===== -->
+<section class="screen" id="s-reveal" aria-label="كلمات الاسترجاع">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">كلمات الاسترجاع</h1></div>
+  <div class="card" style="padding:14px"><ol class="words" id="words2"></ol></div>
+  <div class="note err" role="note"><span>لا تصوّرها ولا ترسلها لأحد. من يملك هذه الكلمات يملك أموالك.</span></div>
+  <div class="grow"></div>
+  <button class="btn btn-primary" id="reveal-done">تم</button>
+</section>
+
+<!-- ===== التبديل (قريباً) ===== -->
+<section class="screen" id="s-swap" aria-label="تبديل">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">تبديل</h1></div>
+  <div class="soon">
+    <span class="badge">قريباً</span>
+    <h2 style="font-size:20px">بدّل بين TRX وUSDT داخل التطبيق</h2>
+    <p class="muted" style="font-size:14px;line-height:1.8">عبر SunSwap مباشرة على الشبكة، تُوقَّع المعاملة على جهازك بدون وسيط.</p>
+  </div>
+</section>
+
+<!-- ===== P2P (قريباً) ===== -->
+<section class="screen with-tabs" id="s-p2p" aria-label="سوق P2P">
+  <h1 style="font-size:20px">سوق P2P</h1>
+  <div class="soon">
+    <span class="badge">قريباً</span>
+    <h2 style="font-size:20px">اشترِ وبِع USDT بالجنيه عبر بنكك</h2>
+    <p class="muted" style="font-size:14px;line-height:1.8">مع عقد ضمان يحجز العملة حتى يؤكد البائع وصول التحويل.</p>
+  </div>
+</section>
+
+<!-- ===== شريط التنقل ===== -->
+<nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
+  <button type="button" class="tab" data-tab="home"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>المحفظة</button>
+  <button type="button" class="tab" data-tab="history"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>السجل</button>
+  <button type="button" class="tab" data-tab="p2p"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>P2P</button>
+  <button type="button" class="tab" data-tab="security"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>الأمان</button>
+</nav>
+
+<!-- ===== تأكيد حذف المحفظة ===== -->
+<div class="sheet-bg" id="wipe-sheet" role="dialog" aria-modal="true" aria-labelledby="wipe-title">
+  <div class="sheet">
+    <h2 id="wipe-title" style="font-size:18px">حذف المحفظة؟</h2>
+    <p class="muted" style="font-size:14px;line-height:1.8">ستُحذف المحفظة من هذا الجهاز. أموالك تبقى على الشبكة، ولن تصل إليها إلا بكلمات الاسترجاع الـ12. تأكد أنها مكتوبة عندك.</p>
+    <button class="btn" id="wipe-yes" style="background:#5A262B;color:#FFD6D9">نعم، احذف</button>
+    <button class="btn btn-ghost" id="wipe-no">إلغاء</button>
+  </div>
+</div>
 
 <!-- ===== ورقة تأكيد الإرسال ===== -->
 <div class="sheet-bg" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -275,7 +403,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var P = (window.Capacitor && window.Capacitor.Plugins) || {};
   var $ = function (id) { return document.getElementById(id); };
 
-  var state = { mnemonic: null, pinMode: 'create', firstPin: '', pin: '', balances: null, hidden: false, lastTx: null, stack: [] };
+  var state = { mnemonic: null, pinMode: 'create', firstPin: '', pin: '', pinCb: null, balances: null, hidden: false, lastTx: null, stack: [], coin: 'USDT', filter: 'all', historyCache: null };
+  var TAB_SCREENS = ['home', 'history', 'p2p', 'security'];
+
+  // تفضيل إخفاء الأرصدة (غير حساس)
+  try { state.hidden = localStorage.getItem('sarra.hide') === '1'; } catch (e) {}
 
   // ===== تنقل =====
   function show(name, push) {
@@ -283,9 +415,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('s-' + name).classList.add('active');
     if (push !== false) state.stack.push(name);
     window.scrollTo(0, 0);
+    var tabbed = TAB_SCREENS.indexOf(name) >= 0;
+    $('tabbar').classList.toggle('show', tabbed);
+    document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t.dataset.tab === name); });
     if (name === 'home') loadHome();
     if (name === 'receive') loadReceive();
     if (name === 'send') prepareSend();
+    if (name === 'history') loadHistoryFull();
+    if (name === 'security') prepareSecurity();
   }
   function back() {
     state.stack.pop();
@@ -295,6 +432,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function resetTo(name) { state.stack = []; show(name); }
 
   document.addEventListener('click', function (e) {
+    var tab = e.target.closest('[data-tab]');
+    if (tab) { resetTo(tab.dataset.tab); return; }
     var go = e.target.closest('[data-go]');
     if (go) { routes[go.dataset.go](); return; }
     if (e.target.closest('[data-back]')) back();
@@ -309,12 +448,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     import: function () { $('mn-in').value = ''; $('import-err').hidden = true; show('import'); },
     home: function () { resetTo('home'); },
     send: function () { show('send'); },
-    receive: function () { show('receive'); }
+    receive: function () { show('receive'); },
+    swap: function () { show('swap'); }
   };
 
   if (P.App) {
     P.App.addListener('backButton', function () {
-      if (state.stack.length > 1 && !['home', 'pin'].includes(state.stack[state.stack.length - 1])) back();
+      var cur = state.stack[state.stack.length - 1];
+      if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
+      if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if (cur && cur !== 'home' && TAB_SCREENS.indexOf(cur) >= 0) { resetTo('home'); return; }
+      if (state.stack.length > 1 && cur !== 'home' && !(cur === 'pin' && state.pinMode === 'unlock')) back();
       else P.App.exitApp();
     });
     var hiddenAt = 0;
@@ -335,9 +479,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
 
   // ===== كلمات الاسترجاع =====
-  // الكلمات لا تُكتب في الشاشة إطلاقاً قبل الضغط على "إظهار"
-  function renderWords(m, revealed) {
-    var ol = $('words');
+  function fillWords(ol, m, revealed) {
     ol.textContent = '';
     m.split(' ').forEach(function (w, i) {
       var li = document.createElement('li');
@@ -347,6 +489,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!revealed) t.style.color = '#33445A';
       li.appendChild(n); li.appendChild(t); ol.appendChild(li);
     });
+  }
+  // الكلمات لا تُكتب في الشاشة إطلاقاً قبل الضغط على "إظهار"
+  function renderWords(m, revealed) {
+    fillWords($('words'), m, revealed);
     $('reveal').hidden = !!revealed;
     if (!revealed) { $('agree').checked = false; $('backup-next').disabled = true; }
   }
@@ -367,13 +513,26 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
 
   // ===== رمز القفل =====
-  function openPin(mode) {
-    state.pinMode = mode; state.pin = ''; state.firstPin = '';
+  // الأوضاع: create → confirm (محفظة جديدة) | unlock | verify (تأكيد قبل عملية حساسة) | newpin → newconfirm (تغيير الرمز)
+  var PIN_TEXT = {
+    create: ['أنشئ رمز القفل', '6 أرقام لفتح التطبيق وتأكيد كل عملية'],
+    confirm: ['أعد إدخال الرمز', 'للتأكيد'],
+    unlock: ['أدخل رمز القفل', 'لفتح محفظتك'],
+    verify: ['أدخل رمز القفل', 'للمتابعة'],
+    newpin: ['الرمز الجديد', 'اختر 6 أرقام جديدة'],
+    newconfirm: ['أعد إدخال الرمز الجديد', 'للتأكيد']
+  };
+  function setPinMode(mode) {
+    state.pinMode = mode; state.pin = '';
+    $('pin-title').textContent = PIN_TEXT[mode][0];
+    $('pin-sub').textContent = PIN_TEXT[mode][1];
+    renderDots();
+  }
+  function openPin(mode, cb) {
+    state.firstPin = ''; state.pinCb = cb || null;
     $('pin-err').textContent = '';
     $('pin-top').style.visibility = mode === 'unlock' ? 'hidden' : 'visible';
-    $('pin-title').textContent = mode === 'unlock' ? 'أدخل رمز القفل' : 'أنشئ رمز القفل';
-    $('pin-sub').textContent = mode === 'unlock' ? 'لفتح محفظتك' : '6 أرقام لفتح التطبيق وتأكيد كل عملية';
-    renderDots();
+    setPinMode(mode);
     if (mode === 'unlock') resetTo('pin'); else show('pin');
   }
   function renderDots() {
@@ -404,32 +563,51 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     state.pin = ''; renderDots();
   }
   async function pinComplete() {
-    var pin = state.pin;
-    if (state.pinMode === 'create') {
-      state.firstPin = pin; state.pinMode = 'confirm'; state.pin = '';
-      $('pin-title').textContent = 'أعد إدخال الرمز'; $('pin-sub').textContent = 'للتأكيد'; $('pin-err').textContent = '';
-      renderDots(); return;
+    var pin = state.pin, mode = state.pinMode;
+    $('pin-err').textContent = '';
+
+    if (mode === 'create' || mode === 'newpin') {
+      state.firstPin = pin;
+      return setPinMode(mode === 'create' ? 'confirm' : 'newconfirm');
     }
-    if (state.pinMode === 'confirm') {
-      if (pin !== state.firstPin) { state.pinMode = 'create'; $('pin-title').textContent = 'أنشئ رمز القفل'; return pinError('الرمزان غير متطابقين، حاول مجدداً'); }
-      $('pin-sub').textContent = 'جارٍ تأمين المحفظة…';
+    if (mode === 'confirm' || mode === 'newconfirm') {
+      if (pin !== state.firstPin) { setPinMode(mode === 'confirm' ? 'create' : 'newpin'); return pinError('الرمزان غير متطابقين، حاول مجدداً'); }
+      $('pin-sub').textContent = 'جارٍ التأمين…';
       try {
-        await core.saveWallet(state.mnemonic, pin);
-        state.mnemonic = null; state.firstPin = '';
-        resetTo('home');
-      } catch (e) { pinError(WalletCore.errorText(e)); }
+        if (mode === 'confirm') {
+          await core.saveWallet(state.mnemonic, pin);
+          state.mnemonic = null; state.firstPin = '';
+          resetTo('home');
+        } else {
+          await core.changePin(state.oldPin, pin);
+          state.oldPin = null; state.firstPin = '';
+          resetTo('security');
+          toast('تم تغيير رمز القفل');
+        }
+      } catch (e) { setPinMode(mode === 'confirm' ? 'create' : 'newpin'); pinError(WalletCore.errorText(e)); }
+      return;
+    }
+    if (mode === 'verify') {
+      $('pin-sub').textContent = 'جارٍ التحقق…';
+      try {
+        await core.verifyPin(pin);
+        var cb = state.pinCb; state.pinCb = null;
+        if (cb) cb(pin);
+      } catch (e) { setPinMode('verify'); pinError(WalletCore.errorText(e)); }
       return;
     }
     // unlock
     $('pin-sub').textContent = 'جارٍ التحقق…';
     try { await core.unlock(pin); resetTo('home'); }
-    catch (e) { $('pin-sub').textContent = 'لفتح محفظتك'; pinError(WalletCore.errorText(e)); }
+    catch (e) { setPinMode('unlock'); pinError(WalletCore.errorText(e)); }
   }
 
   // ===== الرئيسية =====
   function shortAddr(a) { return a ? a.slice(0, 4) + '…' + a.slice(-4) : ''; }
+  function netName() { return NETWORK === 'mainnet' ? 'شبكة TRON' : 'شبكة الاختبار (Nile)'; }
   async function loadHome() {
-    $('net-label').textContent = NETWORK === 'mainnet' ? 'شبكة TRON' : 'شبكة الاختبار (Nile)';
+    $('net-label').textContent = netName();
+    renderBalances();
     try {
       var b = await core.getBalances();
       state.balances = b;
@@ -445,36 +623,106 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('row-usdt').textContent = state.hidden ? '••••' : b.usdt;
     $('row-trx').textContent = state.hidden ? '••••' : b.trx;
   }
-  $('toggle-bal').onclick = function () { state.hidden = !state.hidden; renderBalances(); };
+  function setHidden(v) {
+    state.hidden = v;
+    try { localStorage.setItem('sarra.hide', v ? '1' : '0'); } catch (e) {}
+    renderBalances();
+    $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
+  }
+  $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
   $('refresh').onclick = loadHome;
-  $('lock-now').onclick = function () { core.lock(); openPin('unlock'); };
 
+  // ===== السجل =====
+  function emptyMsg(box, text) {
+    box.textContent = '';
+    var p = document.createElement('p'); p.className = 'muted'; p.textContent = text; box.appendChild(p);
+  }
+  function renderTxList(box, list) {
+    box.textContent = '';
+    if (!list.length) return emptyMsg(box, 'لا توجد معاملات');
+    list.forEach(function (t) {
+      var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
+      row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid #161E28;cursor:pointer;color:inherit;text-align:start';
+      row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' USDT، عرض على المستكشف');
+      row.onclick = function () { window.open(core.network.explorer + t.txid, '_blank'); };
+      var b = document.createElement('span'); b.className = 'b';
+      b.style.cssText = t.incoming ? 'background:#10241D;color:#2BD9A0' : 'background:#1E2935;color:#C5D0DB';
+      b.innerHTML = t.incoming
+        ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
+        : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+      var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column';
+      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = t.incoming ? 'استلام' : 'إرسال';
+      var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.fontSize = '12px';
+      t2.textContent = new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + shortAddr(t.counterparty);
+      mid.appendChild(t1); mid.appendChild(t2);
+      var amt = document.createElement('span'); amt.className = 'ltr';
+      amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? '#2BD9A0' : '#EEF2F6');
+      amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' USDT';
+      row.appendChild(b); row.appendChild(mid); row.appendChild(amt);
+      box.appendChild(row);
+    });
+  }
   async function loadHistory() {
     var box = $('history');
-    try {
-      var list = await core.getHistory(null, 10);
-      box.textContent = '';
-      if (!list.length) { var p = document.createElement('p'); p.className = 'muted'; p.textContent = 'لا توجد معاملات بعد'; box.appendChild(p); return; }
-      list.forEach(function (t) {
-        var row = document.createElement('div'); row.className = 'tx';
-        var b = document.createElement('span'); b.className = 'b';
-        b.style.cssText = t.incoming ? 'background:#10241D;color:#2BD9A0' : 'background:#1E2935;color:#C5D0DB';
-        b.innerHTML = t.incoming
-          ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
-          : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
-        var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column';
-        var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = t.incoming ? 'استلام' : 'إرسال';
-        var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.fontSize = '12px';
-        t2.textContent = new Date(t.time).toLocaleDateString('ar', { day: 'numeric', month: 'short' }) + ' · ' + shortAddr(t.counterparty);
-        mid.appendChild(t1); mid.appendChild(t2);
-        var amt = document.createElement('span'); amt.className = 'ltr';
-        amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? '#2BD9A0' : '#EEF2F6');
-        amt.textContent = (t.incoming ? '+' : '−') + t.amount + ' USDT';
-        row.appendChild(b); row.appendChild(mid); row.appendChild(amt);
-        box.appendChild(row);
-      });
-    } catch (e) { box.textContent = ''; var p2 = document.createElement('p'); p2.className = 'muted'; p2.textContent = WalletCore.errorText(e); box.appendChild(p2); }
+    try { renderTxList(box, (await core.getHistory(null, 5))); }
+    catch (e) { emptyMsg(box, WalletCore.errorText(e)); }
   }
+  async function loadHistoryFull() {
+    var box = $('history-full');
+    if (!state.historyCache) emptyMsg(box, 'جارٍ التحميل…');
+    try { state.historyCache = await core.getHistory(null, 50); applyFilter(); }
+    catch (e) { emptyMsg(box, WalletCore.errorText(e)); }
+  }
+  function applyFilter() {
+    var list = (state.historyCache || []).filter(function (t) {
+      return state.filter === 'all' || (state.filter === 'in') === t.incoming;
+    });
+    renderTxList($('history-full'), list);
+  }
+  document.querySelectorAll('[data-filter]').forEach(function (c) {
+    c.onclick = function () {
+      state.filter = c.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach(function (x) { x.classList.toggle('on', x === c); });
+      applyFilter();
+    };
+  });
+
+  // ===== الأمان =====
+  function prepareSecurity() {
+    $('sw-hide').setAttribute('aria-checked', state.hidden ? 'true' : 'false');
+    $('sec-net').textContent = netName();
+  }
+  $('sw-hide').onclick = function () { setHidden(!state.hidden); };
+  $('lock-now').onclick = function () { core.lock(); openPin('unlock'); };
+  $('sec-reveal').onclick = function () {
+    openPin('verify', async function (pin) {
+      try {
+        var m = await core.revealMnemonic(pin);
+        fillWords($('words2'), m, true);
+        state.stack.pop(); // لا نرجع لشاشة الرمز
+        show('reveal');
+      } catch (e) { toast(WalletCore.errorText(e), true); }
+    });
+  };
+  $('reveal-done').onclick = function () { $('words2').textContent = ''; resetTo('security'); };
+  $('sec-pin').onclick = function () {
+    openPin('verify', function (pin) {
+      state.oldPin = pin;
+      $('pin-err').textContent = '';
+      setPinMode('newpin');
+    });
+  };
+  $('sec-wipe').onclick = function () { $('wipe-sheet').classList.add('show'); };
+  $('wipe-no').onclick = function () { $('wipe-sheet').classList.remove('show'); };
+  $('wipe-yes').onclick = function () {
+    $('wipe-sheet').classList.remove('show');
+    openPin('verify', async function () {
+      await core.wipe();
+      state.balances = null; state.historyCache = null;
+      resetTo('welcome');
+      toast('تم حذف المحفظة من هذا الجهاز');
+    });
+  };
 
   // ===== استلام =====
   async function loadReceive() {
@@ -492,22 +740,42 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('copy').onclick = function () { copyText($('addr').textContent); };
   $('share').onclick = async function () {
     var a = $('addr').textContent;
-    try { if (P.Share) await P.Share.share({ title: 'عنوان محفظتي', text: 'عنوان USDT (شبكة TRON / TRC20):\n' + a }); else copyText(a); } catch (e) {}
+    try { if (P.Share) await P.Share.share({ title: 'عنوان محفظتي', text: 'عنوان محفظتي على شبكة TRON (TRC20):\n' + a }); else copyText(a); } catch (e) {}
   };
 
   // ===== إرسال =====
+  function coinUnits() {
+    var b = state.balances; if (!b) return null;
+    return state.coin === 'USDT' ? b.usdtUnits : b.trxUnits;
+  }
   function prepareSend() {
     $('send-err').hidden = true;
     var b = state.balances;
-    $('avail').textContent = b ? b.usdt + ' USDT' : '—';
+    $('amt-unit').textContent = state.coin;
+    $('avail').textContent = b ? (state.coin === 'USDT' ? b.usdt : b.trx) + ' ' + state.coin : '—';
   }
+  document.querySelectorAll('[data-coin]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.coin = btn.dataset.coin;
+      document.querySelectorAll('[data-coin]').forEach(function (x) {
+        var on = x === btn; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      $('amt').value = '';
+      prepareSend();
+    };
+  });
   $('paste').onclick = async function () {
     try {
       var r = P.Clipboard ? (await P.Clipboard.read()).value : await navigator.clipboard.readText();
       $('to').value = String(r || '').trim();
     } catch (e) { toast('تعذّر اللصق', true); }
   };
-  $('max').onclick = function () { if (state.balances) $('amt').value = WalletCore.fromUnits(state.balances.usdtUnits, 6); };
+  $('max').onclick = function () {
+    var u = coinUnits(); if (u == null) return;
+    // عند إرسال كل TRX نترك 2 TRX للرسوم
+    if (state.coin === 'TRX') u = u > 2000000n ? u - 2000000n : 0n;
+    $('amt').value = WalletCore.fromUnits(u, 6);
+  };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
   $('review').onclick = function () {
     $('send-err').hidden = true;
@@ -515,21 +783,22 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!core.isValidAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_ADDRESS')));
     var units;
     try { units = WalletCore.toUnits(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
-    if (state.balances && units > state.balances.usdtUnits) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_USDT')));
-    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6) };
-    $('c-amt').textContent = state.pending.amt + ' USDT';
+    var have = coinUnits();
+    if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
+    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin };
+    $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
     $('c-to').textContent = to;
     $('sheet').classList.add('show');
   };
   $('cancel-send').onclick = function () { $('sheet').classList.remove('show'); };
   $('confirm-send').onclick = async function () {
-    var btn = this;
+    var btn = this, p = state.pending;
     btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جارٍ الإرسال';
     try {
-      var r = await core.sendUSDT(state.pending.to, state.pending.amt);
-      state.lastTx = r;
-      $('ok-amt').textContent = state.pending.amt + ' USDT';
-      $('ok-to').textContent = shortAddr(state.pending.to);
+      var r = p.coin === 'USDT' ? await core.sendUSDT(p.to, p.amt) : await core.sendTRX(p.to, p.amt);
+      state.lastTx = r; state.historyCache = null;
+      $('ok-amt').textContent = p.amt + ' ' + p.coin;
+      $('ok-to').textContent = shortAddr(p.to);
       $('to').value = ''; $('amt').value = '';
       $('sheet').classList.remove('show');
       show('success');

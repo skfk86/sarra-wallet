@@ -55,8 +55,23 @@ await t('الحفظ وفتح القفل والقفل', async () => {
   await assert.rejects(core.saveWallet(m, '12'), /PIN_FORMAT/);
 });
 
+await t('تغيير رمز القفل', async () => {
+  const core = W.createCore();
+  const m = core.generateMnemonic();
+  await core.saveWallet(m, '111222');
+  await core.changePin('111222', '333444');
+  await assert.rejects(core.verifyPin('111222'), /WRONG_PIN/);
+  assert.equal(await core.verifyPin('333444'), true);
+  assert.equal(await core.revealMnemonic('333444'), m);
+  await assert.rejects(core.changePin('000000', '555666'), /WRONG_PIN/);
+  await core.wipe();
+  assert.equal(await core.hasWallet(), false);
+});
+
 await t('الحظر المؤقت بعد 5 محاولات خاطئة', async () => {
   const core = W.createCore();
+  await core.saveWallet(core.generateMnemonic(), '246810');
+  core.lock();
   for (let i = 0; i < 5; i++) await assert.rejects(core.unlock('999999'), /WRONG_PIN/);
   await assert.rejects(core.unlock('246810'), /LOCKED_OUT/);
 });

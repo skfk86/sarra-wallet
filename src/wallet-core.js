@@ -240,6 +240,26 @@
         return decryptSecret(JSON.parse(raw), pin);
       },
 
+      // تغيير رمز القفل: فك التشفير بالقديم ثم إعادة التشفير بالجديد
+      changePin: async function (oldPin, newPin) {
+        if (!/^\d{6}$/.test(newPin)) throw new Error('PIN_FORMAT');
+        var raw = await storage().get(VAULT_KEY);
+        if (!raw) throw new Error('NO_WALLET');
+        var old = JSON.parse(raw);
+        var mnemonic = await decryptSecret(old, oldPin);
+        var box = await encryptSecret(mnemonic, newPin);
+        box.address = old.address;
+        await storage().set(VAULT_KEY, JSON.stringify(box));
+        return true;
+      },
+
+      verifyPin: async function (pin) {
+        var raw = await storage().get(VAULT_KEY);
+        if (!raw) throw new Error('NO_WALLET');
+        await decryptSecret(JSON.parse(raw), pin);
+        return true;
+      },
+
       wipe: async function () { session = null; await storage().remove(VAULT_KEY); },
 
       getBalances: async function (address) {
