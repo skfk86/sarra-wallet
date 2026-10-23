@@ -9,6 +9,7 @@
 <style>
 :root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;overscroll-behavior:none}
 button,input,textarea{font:inherit;color:inherit}
 .screen{display:none;min-height:100%;padding:calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);flex-direction:column;gap:18px}
@@ -108,7 +109,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <h1>كلمات الاسترجاع</h1>
   <p style="color:#A3B0BE;line-height:1.8;font-size:14px">هذه الكلمات الـ12 هي المفتاح الوحيد لأموالك. اكتبها على ورقة بالترتيب واحفظها في مكان آمن.</p>
   <div class="card" style="position:relative;padding:14px">
-    <ol class="words blur" id="words"></ol>
+    <ol class="words" id="words"></ol>
     <button class="btn btn-ghost" id="reveal" style="position:absolute;inset:0;margin:auto;width:auto;height:48px;padding:0 20px;background:var(--s2)">اضغط لإظهار الكلمات</button>
   </div>
   <div class="note err" role="note"><span>لا تصوّرها ولا ترسلها لأحد. لن يطلبها منك فريق صُرّة أبداً.</span></div>
@@ -334,21 +335,22 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
 
   // ===== كلمات الاسترجاع =====
-  function renderWords(m) {
+  // الكلمات لا تُكتب في الشاشة إطلاقاً قبل الضغط على "إظهار"
+  function renderWords(m, revealed) {
     var ol = $('words');
     ol.textContent = '';
     m.split(' ').forEach(function (w, i) {
       var li = document.createElement('li');
       var n = document.createElement('span'); n.textContent = i + 1;
-      var t = document.createElement('span'); t.className = 'mono'; t.textContent = w;
+      var t = document.createElement('span'); t.className = 'mono';
+      t.textContent = revealed ? w : '••••••';
+      if (!revealed) t.style.color = '#33445A';
       li.appendChild(n); li.appendChild(t); ol.appendChild(li);
     });
-    ol.classList.add('blur');
-    $('reveal').hidden = false;
-    $('agree').checked = false;
-    $('backup-next').disabled = true;
+    $('reveal').hidden = !!revealed;
+    if (!revealed) { $('agree').checked = false; $('backup-next').disabled = true; }
   }
-  $('reveal').onclick = function () { $('words').classList.remove('blur'); this.hidden = true; };
+  $('reveal').onclick = function () { renderWords(state.mnemonic, true); };
   $('agree').onchange = function () { $('backup-next').disabled = !this.checked; };
   $('backup-next').onclick = function () { openPin('create'); };
 
