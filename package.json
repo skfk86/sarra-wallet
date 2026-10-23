@@ -6,7 +6,9 @@
   "scripts": {
     "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js",
     "test": "node test/core.test.mjs",
-    "sync": "npm run vendor && npx cap sync android",
+    "config": "node scripts/write-config.mjs",
+    "patch:android": "node scripts/patch-android.mjs",
+    "sync": "npm run vendor && npm run config && npx cap sync android",
     "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {

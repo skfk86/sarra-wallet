@@ -29,8 +29,17 @@ jobs:
       - name: Copy vendor libraries
         run: npm run vendor
 
+      - name: Write build config
+        env:
+          TRONGRID_API_KEY: ${{ secrets.TRONGRID_API_KEY }}
+          SARRA_NETWORK: ${{ vars.SARRA_NETWORK }}
+        run: npm run config
+
       - name: Add Android platform
         run: npx cap add android
+
+      - name: Block screenshots (FLAG_SECURE)
+        run: npm run patch:android
 
       - name: Sync
         run: npx cap sync android

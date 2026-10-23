@@ -386,6 +386,7 @@ function showFatal(e) {
 window.addEventListener('error', function (ev) { showFatal(ev.error || ev.message); });
 window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reason); });
 </script>
+<script src="config.js"></script>
 <script src="vendor/tronweb.js"></script>
 <script src="vendor/qrcode.js"></script>
 <script src="wallet-core.js"></script>
@@ -395,8 +396,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 
   // ===== الإعدادات =====
   // غيّر إلى 'mainnet' عند الإطلاق فقط، بعد الاختبار الكامل على شبكة nile
-  var NETWORK = 'nile';
-  var TRONGRID_API_KEY = ''; // مفتاح مجاني من trongrid.io
+  // تُكتب وقت البناء في config.js من GitHub Secrets (انظر scripts/write-config.mjs)
+  var CFG = window.SARRA_CONFIG || {};
+  var NETWORK = CFG.network === 'mainnet' ? 'mainnet' : 'nile';
+  var TRONGRID_API_KEY = CFG.trongridApiKey || '';
   var AUTO_LOCK_MS = 60000;
 
   var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY });
