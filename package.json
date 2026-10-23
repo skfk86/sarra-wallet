@@ -1,0 +1,26 @@
+{
+  "name": "sarra-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
+  "scripts": {
+    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js",
+    "test": "node test/core.test.mjs",
+    "sync": "npm run vendor && npx cap sync android",
+    "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^6.0.0",
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/clipboard": "^6.0.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/preferences": "^6.0.0",
+    "@capacitor/share": "^6.0.0",
+    "qrcode-generator": "^1.4.4",
+    "tronweb": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0"
+  }
+}

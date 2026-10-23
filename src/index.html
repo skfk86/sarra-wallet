@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.trongrid.io https://nile.trongrid.io">
+<title>صُرّة</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;overscroll-behavior:none}
+button,input,textarea{font:inherit;color:inherit}
+.screen{display:none;min-height:100%;padding:calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);flex-direction:column;gap:18px}
+.screen.active{display:flex}
+.grow{flex-grow:1}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+h1{margin:0;font-size:22px;font-weight:700}
+h2{margin:0;font-size:16px;font-weight:600}
+p{margin:0}
+.muted{color:var(--mu);font-size:13px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:18px}
+.btn{height:56px;border-radius:18px;border:0;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn-primary{background:var(--ac);color:var(--on-ac)}
+.btn-primary:disabled{background:var(--s2);color:var(--mu)}
+.btn-ghost{background:var(--s1);border:1px solid var(--line);color:var(--tx);font-weight:600}
+.icon-btn{width:44px;height:44px;flex-shrink:0;border-radius:14px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;color:var(--tx)}
+.icon-btn.flat{background:var(--s2);border:0;border-radius:12px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.field{display:flex;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:6px}
+.field input,.field textarea{flex-grow:1;min-width:0;background:transparent;border:0;outline:none;padding:0 10px;font-size:15px}
+.field input{height:44px}
+.field:focus-within{border-color:var(--ac)}
+label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
+.note{display:flex;gap:10px;align-items:flex-start;border-radius:16px;padding:12px 14px;font-size:13px;line-height:1.7}
+.note.warn{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn)}
+.note.err{background:var(--err-bg);border:1px solid var(--err-bd);color:var(--err)}
+.note.ok{background:var(--ok-bg);border:1px solid var(--ok-bd);color:#A9C9BC}
+.ltr{direction:ltr;unicode-bidi:isolate}
+.mono{font-family:'IBM Plex Mono',monospace}
+/* الرئيسية */
+.balance{font-size:40px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.action{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;cursor:pointer;color:var(--tx);font-size:13px;font-weight:500;padding:0}
+.action span.ic{width:56px;height:56px;border-radius:18px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.action.main span.ic{background:var(--ac);color:var(--on-ac);border:0}
+.asset{display:flex;align-items:center;gap:12px;padding:14px 16px}
+.asset+.asset{border-top:1px solid var(--div)}
+.coin{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;flex-shrink:0}
+.tx{display:flex;align-items:center;gap:12px;padding:10px 0}
+.tx .b{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* كلمات الاسترجاع */
+.words{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;direction:ltr}
+.words li{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border-radius:10px;background:var(--bg);border:1px solid var(--div)}
+.words li span:first-child{font-size:11px;color:#5E6E80;width:16px}
+.blur{filter:blur(7px);user-select:none}
+/* PIN */
+.dots{display:flex;gap:16px;justify-content:center;direction:ltr}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid #33445A}
+.dot.on{background:var(--ac);border-color:var(--ac)}
+.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;direction:ltr}
+.key{height:64px;border-radius:18px;border:0;background:var(--s1);font-size:26px;font-weight:600;cursor:pointer}
+.key.fn{background:transparent;color:#A3B0BE;display:flex;align-items:center;justify-content:center}
+.key:active{background:var(--s2)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+/* استلام */
+.qr{width:232px;height:232px;background:#fff;border-radius:18px;padding:14px;margin:0 auto}
+.qr img{width:100%;height:100%;image-rendering:pixelated;display:block}
+/* ورقة التأكيد */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:50}
+.sheet-bg.show{display:flex}
+.sheet{width:100%;background:var(--s1);border-radius:24px 24px 0 0;padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line)}
+dl.kv{margin:0;display:flex;flex-direction:column}
+dl.kv div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--div)}
+dl.kv div:last-child{border-bottom:0}
+dl.kv dt{color:var(--mu);font-size:14px}
+dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
+.toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:#2A3644;color:var(--tx);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:99;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.error{background:#5A262B}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.skeleton{color:transparent;background:var(--s2);border-radius:8px}
+</style>
+</head>
+<body>
+
+<!-- ===== ترحيب ===== -->
+<section class="screen" id="s-welcome" aria-label="ترحيب">
+  <div class="grow" style="display:flex;flex-direction:column;justify-content:center;gap:26px">
+    <div style="width:88px;height:88px;border-radius:28px;background:var(--s1);border:1px solid var(--line);color:var(--ac);display:flex;align-items:center;justify-content:center">
+      <svg class="i" style="width:44px;height:44px;stroke-width:1.6" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 style="font-size:32px;line-height:1.35">دولارك في جيبك،<br>وأنت المتحكم.</h1>
+      <p style="color:#A3B0BE;line-height:1.8">احفظ وأرسل واستلم USDT في ثوانٍ، بدون بنك وبدون وسيط.</p>
+    </div>
+  </div>
+  <button class="btn btn-primary" data-go="create">إنشاء محفظة جديدة</button>
+  <button class="btn btn-ghost" data-go="import">لدي محفظة — استيراد</button>
+</section>
+
+<!-- ===== كلمات الاسترجاع ===== -->
+<section class="screen" id="s-backup" aria-label="كلمات الاسترجاع">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+  <h1>كلمات الاسترجاع</h1>
+  <p style="color:#A3B0BE;line-height:1.8;font-size:14px">هذه الكلمات الـ12 هي المفتاح الوحيد لأموالك. اكتبها على ورقة بالترتيب واحفظها في مكان آمن.</p>
+  <div class="card" style="position:relative;padding:14px">
+    <ol class="words blur" id="words"></ol>
+    <button class="btn btn-ghost" id="reveal" style="position:absolute;inset:0;margin:auto;width:auto;height:48px;padding:0 20px;background:var(--s2)">اضغط لإظهار الكلمات</button>
+  </div>
+  <div class="note err" role="note"><span>لا تصوّرها ولا ترسلها لأحد. لن يطلبها منك فريق صُرّة أبداً.</span></div>
+  <div class="grow"></div>
+  <label class="row" style="min-height:44px;font-size:14px;cursor:pointer"><input type="checkbox" id="agree" style="width:22px;height:22px;accent-color:var(--ac);margin:0">كتبت الكلمات وحفظتها في مكان آمن</label>
+  <button class="btn btn-primary" id="backup-next" disabled>متابعة</button>
+</section>
+
+<!-- ===== استيراد ===== -->
+<section class="screen" id="s-import" aria-label="استيراد">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+  <h1>استيراد محفظة</h1>
+  <label class="lbl" for="mn-in">اكتب كلمات الاسترجاع (12 أو 24 كلمة) مفصولة بمسافات</label>
+  <div class="field" style="padding:10px"><textarea id="mn-in" rows="5" dir="ltr" autocomplete="off" autocapitalize="none" spellcheck="false" style="resize:none;line-height:1.7"></textarea></div>
+  <div class="note err" id="import-err" hidden></div>
+  <div class="grow"></div>
+  <button class="btn btn-primary" id="import-next">متابعة</button>
+</section>
+
+<!-- ===== رمز القفل ===== -->
+<section class="screen" id="s-pin" aria-label="رمز القفل">
+  <div class="row" id="pin-top"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+  <div class="grow" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <h1 id="pin-title">أنشئ رمز القفل</h1>
+      <p class="muted" id="pin-sub" style="font-size:14px">6 أرقام لفتح التطبيق وتأكيد كل عملية</p>
+    </div>
+    <div class="dots" id="dots" role="status" aria-live="polite"></div>
+    <p id="pin-err" style="color:var(--err);font-size:13px;min-height:20px"></p>
+  </div>
+  <div class="keypad" id="keypad"></div>
+</section>
+
+<!-- ===== الرئيسية ===== -->
+<section class="screen" id="s-home" aria-label="الرئيسية">
+  <header class="row between">
+    <div class="row">
+      <div class="icon-btn" style="color:var(--ac);cursor:default" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></div>
+      <div style="display:flex;flex-direction:column"><span style="font-size:18px;font-weight:700">صُرّة</span><span class="muted" style="font-size:12px" id="net-label"></span></div>
+    </div>
+    <button class="icon-btn" id="refresh" aria-label="تحديث الرصيد"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+  </header>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:24px">
+    <div class="row between"><span class="muted" style="font-size:14px">رصيد الدولار الرقمي</span>
+      <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" style="width:36px;height:32px;background:none"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
+    <div class="row between" style="gap:8px">
+      <span style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT · TRC20</span>
+      <span class="muted" style="font-size:12px" id="fee-hint"></span>
+    </div>
+  </div>
+  <nav class="actions" aria-label="إجراءات">
+    <button class="action main" data-go="send"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال</button>
+    <button class="action" data-go="receive"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span>استلام</button>
+    <button class="action" id="lock-now"><span class="ic"><svg class="i" style="width:24px;height:24px" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>قفل</button>
+  </nav>
+  <div class="card" style="padding:0">
+    <div class="asset"><span class="coin" style="background:#26A17B;color:#fff" aria-hidden="true">₮</span>
+      <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">دولار رقمي</span><span class="muted" style="font-size:12px">USDT</span></div>
+      <span class="ltr" style="font-weight:600" id="row-usdt">—</span></div>
+    <div class="asset"><span class="coin" style="background:var(--s2);color:#FF5A5F" aria-hidden="true"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
+      <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">رصيد الرسوم</span><span class="muted" style="font-size:12px">TRX · لدفع رسوم الشبكة</span></div>
+      <span class="ltr" style="font-weight:600" id="row-trx">—</span></div>
+  </div>
+  <h2>آخر المعاملات</h2>
+  <div id="history"><p class="muted">جارٍ التحميل…</p></div>
+</section>
+
+<!-- ===== إرسال ===== -->
+<section class="screen" id="s-send" aria-label="إرسال">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إرسال USDT</h1></div>
+  <label class="lbl" for="to">عنوان المستلم</label>
+  <div class="field">
+    <input id="to" dir="ltr" placeholder="T…" autocomplete="off" autocapitalize="none" spellcheck="false">
+    <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
+  </div>
+  <label class="lbl" for="amt">المبلغ</label>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <div class="row ltr"><input id="amt" inputmode="decimal" placeholder="0.00" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:34px;font-weight:700;padding:0"><span class="muted" style="font-size:16px;font-weight:600">USDT</span></div>
+    <div class="row between"><span class="muted">المتاح: <bdi class="ltr" id="avail">—</bdi></span><button class="icon-btn flat" id="max" style="width:auto;height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ac)">الكل</button></div>
+  </div>
+  <div class="note warn" role="note"><span>أرسل فقط إلى عنوان على شبكة TRON. الإرسال إلى شبكة أخرى يضيّع المبلغ ولا يمكن استرجاعه.</span></div>
+  <div class="note err" id="send-err" hidden></div>
+  <div class="grow"></div>
+  <button class="btn btn-primary" id="review">مراجعة الإرسال</button>
+</section>
+
+<!-- ===== استلام ===== -->
+<section class="screen" id="s-receive" aria-label="استلام">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">استلام</h1></div>
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:22px;border-radius:24px">
+    <div class="qr" id="qr" role="img" aria-label="رمز QR لعنوان المحفظة"></div>
+    <span class="muted">عنوان محفظتك على شبكة TRON</span>
+    <span class="ltr mono" id="addr" style="font-size:14px;text-align:center;word-break:break-all;line-height:1.6"></span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
+      <button class="btn btn-primary" id="copy" style="height:48px;border-radius:14px;font-size:15px">نسخ</button>
+      <button class="btn btn-ghost" id="share" style="height:48px;border-radius:14px;font-size:15px">مشاركة</button>
+    </div>
+  </div>
+  <div class="note warn" role="note"><span>استلم فقط USDT أو TRX عبر شبكة TRON (TRC20). أي عملة أو شبكة أخرى قد تضيع.</span></div>
+</section>
+
+<!-- ===== تم الإرسال ===== -->
+<section class="screen" id="s-success" aria-label="تم الإرسال">
+  <div class="grow" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center">
+    <div style="width:104px;height:104px;border-radius:50%;background:var(--ok-bg);border:1px solid var(--ok-bd);display:flex;align-items:center;justify-content:center" aria-hidden="true">
+      <div style="width:68px;height:68px;border-radius:50%;background:var(--ac);color:var(--on-ac);display:flex;align-items:center;justify-content:center"><svg class="i" style="width:34px;height:34px;stroke-width:2.6" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+    </div>
+    <h1>تم إرسال المعاملة</h1>
+    <span class="ltr" style="font-size:32px;font-weight:700" id="ok-amt"></span>
+    <span class="muted" style="font-size:14px">إلى <bdi class="ltr" id="ok-to"></bdi></span>
+    <p class="muted">التأكيد على الشبكة يستغرق عادة أقل من دقيقة</p>
+  </div>
+  <button class="btn btn-primary" data-go="home">العودة للمحفظة</button>
+  <button class="btn btn-ghost" id="explorer">عرض على مستكشف TRON</button>
+</section>
+
+<!-- ===== ورقة تأكيد الإرسال ===== -->
+<div class="sheet-bg" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet">
+    <h2 id="sheet-title" style="font-size:18px">تأكيد الإرسال</h2>
+    <dl class="kv">
+      <div><dt>المبلغ</dt><dd class="ltr" id="c-amt"></dd></div>
+      <div><dt>إلى</dt><dd class="ltr mono" id="c-to" style="font-size:12px;word-break:break-all"></dd></div>
+      <div><dt>رسوم الشبكة</dt><dd>تُخصم من رصيد TRX</dd></div>
+      <div><dt>رسوم التطبيق</dt><dd style="color:var(--ac)">مجاناً</dd></div>
+    </dl>
+    <button class="btn btn-primary" id="confirm-send">تأكيد وإرسال</button>
+    <button class="btn btn-ghost" id="cancel-send">إلغاء</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="vendor/tronweb.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="wallet-core.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ===== الإعدادات =====
+  // غيّر إلى 'mainnet' عند الإطلاق فقط، بعد الاختبار الكامل على شبكة nile
+  var NETWORK = 'nile';
+  var TRONGRID_API_KEY = ''; // مفتاح مجاني من trongrid.io
+  var AUTO_LOCK_MS = 60000;
+
+  var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY });
+  var P = (window.Capacitor && window.Capacitor.Plugins) || {};
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = { mnemonic: null, pinMode: 'create', firstPin: '', pin: '', balances: null, hidden: false, lastTx: null, stack: [] };
+
+  // ===== تنقل =====
+  function show(name, push) {
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    $('s-' + name).classList.add('active');
+    if (push !== false) state.stack.push(name);
+    window.scrollTo(0, 0);
+    if (name === 'home') loadHome();
+    if (name === 'receive') loadReceive();
+    if (name === 'send') prepareSend();
+  }
+  function back() {
+    state.stack.pop();
+    var prev = state.stack[state.stack.length - 1];
+    if (prev) show(prev, false);
+  }
+  function resetTo(name) { state.stack = []; show(name); }
+
+  document.addEventListener('click', function (e) {
+    var go = e.target.closest('[data-go]');
+    if (go) { routes[go.dataset.go](); return; }
+    if (e.target.closest('[data-back]')) back();
+  });
+
+  var routes = {
+    create: function () {
+      state.mnemonic = core.generateMnemonic();
+      renderWords(state.mnemonic);
+      show('backup');
+    },
+    import: function () { $('mn-in').value = ''; $('import-err').hidden = true; show('import'); },
+    home: function () { resetTo('home'); },
+    send: function () { show('send'); },
+    receive: function () { show('receive'); }
+  };
+
+  if (P.App) {
+    P.App.addListener('backButton', function () {
+      if (state.stack.length > 1 && !['home', 'pin'].includes(state.stack[state.stack.length - 1])) back();
+      else P.App.exitApp();
+    });
+    var hiddenAt = 0;
+    P.App.addListener('appStateChange', function (s) {
+      if (!s.isActive) { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MS && core.isUnlocked()) { core.lock(); openPin('unlock'); }
+    });
+  }
+
+  // ===== Toast =====
+  var toastTimer;
+  function toast(msg, isErr) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast'; }, 2800);
+  }
+
+  // ===== كلمات الاسترجاع =====
+  function renderWords(m) {
+    var ol = $('words');
+    ol.textContent = '';
+    m.split(' ').forEach(function (w, i) {
+      var li = document.createElement('li');
+      var n = document.createElement('span'); n.textContent = i + 1;
+      var t = document.createElement('span'); t.className = 'mono'; t.textContent = w;
+      li.appendChild(n); li.appendChild(t); ol.appendChild(li);
+    });
+    ol.classList.add('blur');
+    $('reveal').hidden = false;
+    $('agree').checked = false;
+    $('backup-next').disabled = true;
+  }
+  $('reveal').onclick = function () { $('words').classList.remove('blur'); this.hidden = true; };
+  $('agree').onchange = function () { $('backup-next').disabled = !this.checked; };
+  $('backup-next').onclick = function () { openPin('create'); };
+
+  $('import-next').onclick = function () {
+    var m = $('mn-in').value;
+    if (!core.validateMnemonic(m)) {
+      $('import-err').textContent = 'الكلمات غير صحيحة. تأكد من الترتيب والإملاء.';
+      $('import-err').hidden = false;
+      return;
+    }
+    state.mnemonic = m;
+    $('mn-in').value = '';
+    openPin('create');
+  };
+
+  // ===== رمز القفل =====
+  function openPin(mode) {
+    state.pinMode = mode; state.pin = ''; state.firstPin = '';
+    $('pin-err').textContent = '';
+    $('pin-top').style.visibility = mode === 'unlock' ? 'hidden' : 'visible';
+    $('pin-title').textContent = mode === 'unlock' ? 'أدخل رمز القفل' : 'أنشئ رمز القفل';
+    $('pin-sub').textContent = mode === 'unlock' ? 'لفتح محفظتك' : '6 أرقام لفتح التطبيق وتأكيد كل عملية';
+    renderDots();
+    if (mode === 'unlock') resetTo('pin'); else show('pin');
+  }
+  function renderDots() {
+    var d = $('dots'); d.textContent = '';
+    for (var i = 0; i < 6; i++) { var s = document.createElement('span'); s.className = 'dot' + (i < state.pin.length ? ' on' : ''); d.appendChild(s); }
+    d.setAttribute('aria-label', state.pin.length + ' من 6 أرقام');
+  }
+  (function buildKeypad() {
+    var kp = $('keypad');
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].forEach(function (k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      if (k === '') { b.className = 'key fn'; b.disabled = true; b.setAttribute('aria-hidden', 'true'); }
+      else if (k === 'del') {
+        b.className = 'key fn'; b.setAttribute('aria-label', 'حذف');
+        b.innerHTML = '<svg class="i" style="width:24px;height:24px" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></svg>';
+        b.onclick = function () { state.pin = state.pin.slice(0, -1); renderDots(); };
+      } else {
+        b.className = 'key'; b.textContent = k;
+        b.onclick = function () { if (state.pin.length < 6) { state.pin += k; renderDots(); if (state.pin.length === 6) setTimeout(pinComplete, 120); } };
+      }
+      kp.appendChild(b);
+    });
+  })();
+  function pinError(msg) {
+    $('pin-err').textContent = msg;
+    var d = $('dots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+    state.pin = ''; renderDots();
+  }
+  async function pinComplete() {
+    var pin = state.pin;
+    if (state.pinMode === 'create') {
+      state.firstPin = pin; state.pinMode = 'confirm'; state.pin = '';
+      $('pin-title').textContent = 'أعد إدخال الرمز'; $('pin-sub').textContent = 'للتأكيد'; $('pin-err').textContent = '';
+      renderDots(); return;
+    }
+    if (state.pinMode === 'confirm') {
+      if (pin !== state.firstPin) { state.pinMode = 'create'; $('pin-title').textContent = 'أنشئ رمز القفل'; return pinError('الرمزان غير متطابقين، حاول مجدداً'); }
+      $('pin-sub').textContent = 'جارٍ تأمين المحفظة…';
+      try {
+        await core.saveWallet(state.mnemonic, pin);
+        state.mnemonic = null; state.firstPin = '';
+        resetTo('home');
+      } catch (e) { pinError(WalletCore.errorText(e)); }
+      return;
+    }
+    // unlock
+    $('pin-sub').textContent = 'جارٍ التحقق…';
+    try { await core.unlock(pin); resetTo('home'); }
+    catch (e) { $('pin-sub').textContent = 'لفتح محفظتك'; pinError(WalletCore.errorText(e)); }
+  }
+
+  // ===== الرئيسية =====
+  function shortAddr(a) { return a ? a.slice(0, 4) + '…' + a.slice(-4) : ''; }
+  async function loadHome() {
+    $('net-label').textContent = NETWORK === 'mainnet' ? 'شبكة TRON' : 'شبكة الاختبار (Nile)';
+    try {
+      var b = await core.getBalances();
+      state.balances = b;
+      renderBalances();
+      var trx = Number(WalletCore.fromUnits(b.trxUnits, 6));
+      $('fee-hint').textContent = trx < 5 ? 'أضف TRX لدفع رسوم الإرسال' : 'رصيد الرسوم كافٍ';
+    } catch (e) { toast(WalletCore.errorText(e), true); }
+    loadHistory();
+  }
+  function renderBalances() {
+    var b = state.balances; if (!b) return;
+    $('bal-usdt').textContent = state.hidden ? '••••' : '$' + b.usdt;
+    $('row-usdt').textContent = state.hidden ? '••••' : b.usdt;
+    $('row-trx').textContent = state.hidden ? '••••' : b.trx;
+  }
+  $('toggle-bal').onclick = function () { state.hidden = !state.hidden; renderBalances(); };
+  $('refresh').onclick = loadHome;
+  $('lock-now').onclick = function () { core.lock(); openPin('unlock'); };
+
+  async function loadHistory() {
+    var box = $('history');
+    try {
+      var list = await core.getHistory(null, 10);
+      box.textContent = '';
+      if (!list.length) { var p = document.createElement('p'); p.className = 'muted'; p.textContent = 'لا توجد معاملات بعد'; box.appendChild(p); return; }
+      list.forEach(function (t) {
+        var row = document.createElement('div'); row.className = 'tx';
+        var b = document.createElement('span'); b.className = 'b';
+        b.style.cssText = t.incoming ? 'background:#10241D;color:#2BD9A0' : 'background:#1E2935;color:#C5D0DB';
+        b.innerHTML = t.incoming
+          ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
+          : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+        var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column';
+        var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = t.incoming ? 'استلام' : 'إرسال';
+        var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.fontSize = '12px';
+        t2.textContent = new Date(t.time).toLocaleDateString('ar', { day: 'numeric', month: 'short' }) + ' · ' + shortAddr(t.counterparty);
+        mid.appendChild(t1); mid.appendChild(t2);
+        var amt = document.createElement('span'); amt.className = 'ltr';
+        amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? '#2BD9A0' : '#EEF2F6');
+        amt.textContent = (t.incoming ? '+' : '−') + t.amount + ' USDT';
+        row.appendChild(b); row.appendChild(mid); row.appendChild(amt);
+        box.appendChild(row);
+      });
+    } catch (e) { box.textContent = ''; var p2 = document.createElement('p'); p2.className = 'muted'; p2.textContent = WalletCore.errorText(e); box.appendChild(p2); }
+  }
+
+  // ===== استلام =====
+  async function loadReceive() {
+    var a = await core.getAddress();
+    $('addr').textContent = a;
+    var qr = qrcode(0, 'M'); qr.addData(a); qr.make();
+    var img = document.createElement('img');
+    img.src = qr.createDataURL(8, 0); img.alt = '';
+    $('qr').textContent = ''; $('qr').appendChild(img);
+  }
+  async function copyText(text) {
+    try { if (P.Clipboard) await P.Clipboard.write({ string: text }); else await navigator.clipboard.writeText(text); toast('تم النسخ'); }
+    catch (e) { toast('تعذّر النسخ', true); }
+  }
+  $('copy').onclick = function () { copyText($('addr').textContent); };
+  $('share').onclick = async function () {
+    var a = $('addr').textContent;
+    try { if (P.Share) await P.Share.share({ title: 'عنوان محفظتي', text: 'عنوان USDT (شبكة TRON / TRC20):\n' + a }); else copyText(a); } catch (e) {}
+  };
+
+  // ===== إرسال =====
+  function prepareSend() {
+    $('send-err').hidden = true;
+    var b = state.balances;
+    $('avail').textContent = b ? b.usdt + ' USDT' : '—';
+  }
+  $('paste').onclick = async function () {
+    try {
+      var r = P.Clipboard ? (await P.Clipboard.read()).value : await navigator.clipboard.readText();
+      $('to').value = String(r || '').trim();
+    } catch (e) { toast('تعذّر اللصق', true); }
+  };
+  $('max').onclick = function () { if (state.balances) $('amt').value = WalletCore.fromUnits(state.balances.usdtUnits, 6); };
+  function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
+  $('review').onclick = function () {
+    $('send-err').hidden = true;
+    var to = $('to').value.trim(), amt = $('amt').value;
+    if (!core.isValidAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_ADDRESS')));
+    var units;
+    try { units = WalletCore.toUnits(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
+    if (state.balances && units > state.balances.usdtUnits) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_USDT')));
+    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6) };
+    $('c-amt').textContent = state.pending.amt + ' USDT';
+    $('c-to').textContent = to;
+    $('sheet').classList.add('show');
+  };
+  $('cancel-send').onclick = function () { $('sheet').classList.remove('show'); };
+  $('confirm-send').onclick = async function () {
+    var btn = this;
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جارٍ الإرسال';
+    try {
+      var r = await core.sendUSDT(state.pending.to, state.pending.amt);
+      state.lastTx = r;
+      $('ok-amt').textContent = state.pending.amt + ' USDT';
+      $('ok-to').textContent = shortAddr(state.pending.to);
+      $('to').value = ''; $('amt').value = '';
+      $('sheet').classList.remove('show');
+      show('success');
+    } catch (e) {
+      $('sheet').classList.remove('show');
+      sendError(WalletCore.errorText(e));
+    } finally { btn.disabled = false; btn.textContent = 'تأكيد وإرسال'; }
+  };
+  $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
+
+  // ===== البداية =====
+  (async function start() {
+    if (await core.hasWallet()) openPin('unlock');
+    else resetTo('welcome');
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "appId": "com.sarra.wallet",
+  "appName": "صُرّة",
+  "webDir": "src",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#0B0F14",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B0F14"
+    }
+  }
+}

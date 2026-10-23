@@ -1,0 +1,7 @@
+node_modules/
+android/
+ios/
+src/vendor/
+*.keystore
+*.jks
+.env
