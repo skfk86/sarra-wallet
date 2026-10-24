@@ -264,10 +264,26 @@
       return 'PENDING';
     }
 
-    function client(privateKey) {
+    // القراءة (الرصيد والسجل) بدون مفتاح أولاً: حد TronGrid بدون مفتاح يُحسب لكل جهاز على حدة،
+    // فلا يشترك كل المستخدمين في حد مفتاح واحد. عند الرفض (429) نستخدم المفتاح لدقيقة ثم نعود.
+    // الإرسال والتبديل يستخدمان المفتاح دائماً لأنهما الأهم.
+    var keyUntil = 0;
+    function readKeyed() { return !!apiKey && Date.now() < keyUntil; }
+    function noteRateLimited() { if (apiKey) keyUntil = Date.now() + 60000; }
+    async function readRetry(fn) {
+      for (var i = 0; ; i++) {
+        try { return await fn(readKeyed()); }
+        catch (e) {
+          if (i >= 3 || !isTransient(e)) throw e;
+          noteRateLimited();
+          await new Promise(function (r) { setTimeout(r, (i === 0 ? 150 : 700 * Math.pow(2, i - 1)) + Math.random() * 300); });
+        }
+      }
+    }
+    function client(privateKey, keyed) {
       var TW = TronWebClass();
       var conf = { fullHost: net.fullHost };
-      if (apiKey) conf.headers = { 'TRON-PRO-API-KEY': apiKey };
+      if (apiKey && keyed !== false) conf.headers = { 'TRON-PRO-API-KEY': apiKey };
       if (privateKey) conf.privateKey = privateKey;
       return new TW(conf);
     }
@@ -351,11 +367,11 @@
 
       getBalances: async function (address) {
         var addr = address || (await this.getAddress());
-        var tw = client();
-        tw.setAddress(addr);
-        var trxSun = await withRetry(function () { return tw.trx.getBalance(addr); });
-        var contract = tw.contract(TRC20_ABI, net.usdt);
-        var usdtRaw = await withRetry(function () { return contract.balanceOf(addr).call(); });
+        var trxSun = await readRetry(function (k) { var tw = client(null, k); return tw.trx.getBalance(addr); });
+        var usdtRaw = await readRetry(function (k) {
+          var tw = client(null, k); tw.setAddress(addr);
+          return tw.contract(TRC20_ABI, net.usdt).balanceOf(addr).call();
+        });
         var usdtUnits = BigInt(usdtRaw.toString());
         return {
           trxUnits: BigInt(trxSun),
@@ -500,14 +516,16 @@
       getHistory: async function (address, limit) {
         var addr = address || (await this.getAddress());
         var n = limit || 20;
-        var headers = apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {};
-        var hexTw = client();
-        var usdtReq = withRetry(function () {
-          return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: headers })
+        var hdr = function (k) { return k && apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}; };
+        var hexTw = client(null, false);
+        var usdtReq = readRetry(function (k) {
+          return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: hdr(k) })
             .then(function (r) { if (!r.ok) throw new Error(r.status === 429 ? 'RATE_429' : 'HISTORY_FAILED'); return r.json(); });
         });
-        var trxReq = fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions?limit=' + n + '&only_confirmed=true', { headers: headers })
-          .then(function (r) { return r.ok ? r.json() : { data: [] }; })
+        var trxReq = readRetry(function (k) {
+          return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions?limit=' + n + '&only_confirmed=true', { headers: hdr(k) })
+            .then(function (r) { if (r.status === 429) throw new Error('RATE_429'); return r.ok ? r.json() : { data: [] }; });
+        })
           .catch(function () { return { data: [] }; });
         var results = await Promise.all([usdtReq, trxReq]);
         var list = (results[0].data || []).map(function (t) {

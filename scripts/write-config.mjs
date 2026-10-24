@@ -9,7 +9,11 @@ const config = {
   feeAddress: (process.env.SARRA_FEE_ADDRESS || '').trim(),
   feeBps: Number(process.env.SARRA_FEE_BPS || 50),
   // خادم سوق P2P (Supabase Edge Function)
-  p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p'
+  p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p',
+  // قراءات عامة خفيفة عبر قاعدة البيانات (لا تُحسب ضمن حد Edge Functions). المفتاح عام بطبيعته (publishable)
+  // ولا يسمح إلا باستدعاء دالتي p2p_offers و p2p_inbox؛ كل الجداول محمية بـ RLS
+  p2pRest: process.env.SARRA_P2P_REST || 'https://osdojhpsfbcqguoctbpk.supabase.co/rest/v1/rpc/',
+  p2pKey: process.env.SARRA_P2P_KEY || 'sb_publishable_G8Qx_mPt_M11R_KnUPJ76w_UirKPVP8'
 };
 
 writeFileSync('src/config.js', 'window.SARRA_CONFIG = ' + JSON.stringify(config) + ';\n');

@@ -1381,6 +1381,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RATE_LIMITED_ORDER_CREATE: 'وصلت الحد اليومي للطلبات (10)', RATE_LIMITED_ORDER_CANCEL: 'إلغاءات كثيرة اليوم. حاول غداً',
     RATE_LIMITED_MESSAGE: 'رسائل كثيرة. انتظر قليلاً', RATE_LIMITED_PROFILE: 'غيّرت اسمك كثيراً اليوم'
   };
+  // قراءة عامة عبر قاعدة البيانات مباشرة (أرخص بكثير من Edge Function)؛ عند فشلها نرجع للخادم
+  var P2P_REST = CFG.p2pRest || '', P2P_KEY = CFG.p2pKey || '';
+  async function rpc(fn, args) {
+    if (!P2P_REST || !P2P_KEY) throw new Error('NO_REST');
+    var res = await fetch(P2P_REST + fn, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: P2P_KEY }, body: JSON.stringify(args || {}) });
+    if (!res.ok) throw new Error('REST_' + res.status);
+    return res.json();
+  }
   function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
   async function p2p(action, params, isPublic, attachment) {
     var body = isPublic ? Object.assign({ action: action }, params || {}) : await core.signRequest(action, params || {});
@@ -1430,6 +1438,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('p2p-nick-btn').textContent = me.profile.nickname + ' ✎';
     $('p2p-admin-btn').hidden = !me.is_admin;
     if (me.rate) { state.p2p.rate = me.rate; state.p2p.range = me.range; }
+    if (me.fee_bps != null) state.p2p.feeBps = me.fee_bps;
+    if (me.min_trade != null) state.p2p.minTrade = me.min_trade;
+    if (me.net_fee != null) state.p2p.netFee = Number(me.net_fee);
   }
   $('p2p-nick-btn').onclick = async function () {
     if (!(await ensureProfile())) return;
@@ -1487,8 +1498,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (c0 && Date.now() - c0.at < 15000) { state.p2p.offers = c0.offers; state.p2p.listSide = side; renderOffers(); return; }
     emptyMsg(box, 'جارٍ التحميل…');
     try {
-      var r = await p2p('offers.list', { side: side }, true);
-      state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade; state.p2p.netFee = Number(r.net_fee || 0);
+      var r;
+      try { r = await rpc('p2p_offers', { p_side: side }); }
+      catch (e) { r = await p2p('offers.list', { side: side }, true); }
+      if (r.fee_bps != null) state.p2p.feeBps = r.fee_bps;
+      if (r.min_trade != null) state.p2p.minTrade = r.min_trade;
+      if (r.net_fee != null) state.p2p.netFee = Number(r.net_fee);
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
@@ -1969,20 +1984,36 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (o.buyer === me) return o.status === 'funded';
     return false;
   }
+  // فحص خفيف عبر "صندوق" في قاعدة البيانات: رقم واحد، بدون توقيع ولا Edge Function.
+  // كل 30 ثانية إن كان لديك طلب مفتوح أو إعلان نشط، وإلا كل 3 دقائق، ويتوقف والتطبيق في الخلفية.
   state.p2p.pending = 0;
+  var pollTimer = null;
+  function setBadges(n) { ['p2p-badge', 'orders-badge'].forEach(function (id) { $(id).hidden = !n; $(id).textContent = String(n); }); }
   async function pollMyOrders() {
-    if (!P2P_URL || document.hidden || !core.isUnlocked()) return;
+    clearTimeout(pollTimer);
+    var next = 180000;
     try {
-      if (!state.p2p.me || !state.p2p.me.profile) { state.p2p.me = await p2p('me'); renderMe(); }
-      var me = state.p2p.me.profile.address;
-      var n = (await p2p('orders.mine')).orders.filter(function (o) { return needsMyAction(o, me); }).length;
-      if (n > state.p2p.pending) toast(n === 1 ? 'لديك طلب ينتظر إجراءً منك' : 'لديك ' + n + ' طلبات تنتظر إجراءً منك');
-      state.p2p.pending = n;
-      ['p2p-badge', 'orders-badge'].forEach(function (id) { $(id).hidden = !n; $(id).textContent = String(n); });
+      if (P2P_URL && !document.hidden && core.isUnlocked()) {
+        if (!state.p2p.me || !state.p2p.me.profile) { state.p2p.me = await p2p('me'); renderMe(); }
+        var tok = state.p2p.me.profile.inbox_token, n, busy;
+        if (tok) {
+          var ib = await rpc('p2p_inbox', { p_token: tok }).catch(function () { return null; });
+          if (ib) { n = ib.action; busy = ib.open > 0 || ib.offers > 0; }
+        }
+        if (n == null) {
+          var me = state.p2p.me.profile.address, list = (await p2p('orders.mine')).orders;
+          n = list.filter(function (o) { return needsMyAction(o, me); }).length;
+          busy = list.some(function (o) { return ['awaiting_deposit', 'funded', 'paid'].indexOf(o.status) >= 0; });
+        }
+        if (n > state.p2p.pending) toast(n === 1 ? 'لديك طلب ينتظر إجراءً منك' : 'لديك ' + n + ' طلبات تنتظر إجراءً منك');
+        state.p2p.pending = n; setBadges(n);
+        if (busy) next = 30000;
+      }
     } catch (e) {}
+    pollTimer = setTimeout(pollMyOrders, next);
   }
-  setInterval(pollMyOrders, 30000);
-  setTimeout(pollMyOrders, 8000);
+  pollTimer = setTimeout(pollMyOrders, 8000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) pollMyOrders(); });
 
   // ===== المظهر: تلقائي / ليلي / نهاري =====
   function applyTheme(pref) {

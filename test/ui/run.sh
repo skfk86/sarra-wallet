@@ -12,3 +12,4 @@ run "Nile: التدفق الكامل" tronweb.js '{"network":"nile","trongridApi
 run "Mainnet: التبديل والعمولة" tronweb-mainnet.js '{"network":"mainnet","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_mainnet.py
 run "P2P: السوق والطلبات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_p2p.py
 run "التنقل بين الأقسام وحد الطلبات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_tabs.py
+run "التوسع بتكلفة صفر" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_free.py
