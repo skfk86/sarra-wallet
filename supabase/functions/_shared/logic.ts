@@ -198,3 +198,14 @@ export function completionRate(completed: number, cancels: number): number | nul
 export function orderParties(offer: { seller: string; side?: string }, taker: string) {
   return offer.side === 'buy' ? { seller: taker, buyer: offer.seller } : { seller: offer.seller, buyer: taker };
 }
+
+// رسوم شبكة OxaPay الثابتة لكل إرسال (Payout TRC20 = 1 USDT حسب صفحة الأسعار)
+// يدفعها المشتري مع العمولة عند التحرير، ويُخصم من المبلغ المُعاد للبائع عند الإلغاء بعد الإيداع
+export function tradeFee(amount: string | number, bps: number, netFee: string | number): string {
+  return fromMicro(toMicro(feeFor(amount, bps)) + toMicro(netFee));
+}
+export function refundAmount(amount: string | number, netFee: string | number): string {
+  const r = toMicro(amount) - toMicro(netFee);
+  if (r <= 0n) throw new Error('FEE_TOO_HIGH');
+  return fromMicro(r);
+}

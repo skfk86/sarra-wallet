@@ -1488,7 +1488,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     emptyMsg(box, 'جارٍ التحميل…');
     try {
       var r = await p2p('offers.list', { side: side }, true);
-      state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade;
+      state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade; state.p2p.netFee = Number(r.net_fee || 0);
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
@@ -1574,9 +1574,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var o = state.p2p.offer; if (!o) return;
     var v = 0; try { v = Number(WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6)); } catch (e) {}
     var ok = v >= Number(o.min_usdt) && v <= Math.min(Number(o.max_usdt), Number(o.available_usdt));
-    var fee = Math.floor(v * (state.p2p.feeBps || 50) / 10000 * 1e6) / 1e6;
+    var net = state.p2p.netFee || 0;
+    var fee = Math.round((Math.floor(v * (state.p2p.feeBps || 50) / 10000 * 1e6) / 1e6 + net) * 1e6) / 1e6;
     $('buy-total').textContent = v ? fmt(v * o.price_sdg) + ' ج.س' : '—';
-    $('buy-fee').textContent = v ? fee + ' USDT (' + ((state.p2p.feeBps || 50) / 100) + '%)' : '—';
+    $('buy-fee').textContent = v ? fmt(fee, 6) + ' USDT (' + ((state.p2p.feeBps || 50) / 100) + '%' + (net ? ' + ' + net + ' رسوم الشبكة' : '') + ')' : '—';
     $('buy-recv').textContent = v ? fmt(v - fee, 6) + ' USDT' : '—';
     $('buy-go').disabled = !ok;
   }
@@ -1860,6 +1861,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
     kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
     kv(dl, 'يستلم المشتري', fmt(o.buyer_receives, 6) + ' USDT', true);
+    kv(dl, 'العمولة ورسوم الشبكة', fmt(o.fee_usdt, 6) + ' USDT', true);
     if (o.pay_deadline && o.status === 'funded') kv(dl, 'آخر موعد للدفع', new Date(o.pay_deadline).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }));
     if (o.deposit_address && o.status === 'awaiting_deposit') kv(dl, 'مبلغ الإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
     var showBank = !!o.bankak_account && role !== 'seller';
@@ -1892,8 +1894,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!reason) return; state.p2p.reason = reason; doAction('dispute');
     });
     if (s === 'awaiting_deposit' && role !== 'admin') actionBtn('إلغاء الطلب', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟'); });
-    if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ.'); });
-    if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟', true); });
+    if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ. يُعاد USDT للبائع بعد خصم ' + (state.p2p.netFee || 1) + ' USDT رسوم الشبكة.'); });
+    if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟ يُخصم ' + (state.p2p.netFee || 1) + ' USDT رسوم شبكة الإرسال من المبلغ المُعاد.', true); });
     if (role === 'admin') {
       if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { doAction('admin_release', 'تحرير USDT للمشتري؟', true); });
       if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { doAction('admin_refund', 'إرجاع USDT للبائع؟', true); });

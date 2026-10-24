@@ -12,6 +12,7 @@ const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
 const ADMINS = env('ADMIN_ADDRESSES').split(',').map((s) => s.trim()).filter(Boolean);
 const FEE_BPS = Number(env('P2P_FEE_BPS', '50'));
 const MIN_TRADE = Number(env('P2P_MIN_USDT', '10'));
+const NET_FEE = env('P2P_NETWORK_FEE_USDT', '1');
 const DEPOSIT_LIFETIME = Number(env('DEPOSIT_LIFETIME_MIN', '30'));
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
@@ -58,7 +59,7 @@ const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent
 // ===== تنفيذ التحرير/الإرجاع بعد قفل الحالة =====
 async function settle(order: Record<string, any>, kind: 'release' | 'refund', actor: string) {
   const to = kind === 'release' ? order.buyer : order.seller;
-  const amount = kind === 'release' ? L.buyerReceives(order.amount_usdt, order.fee_usdt) : L.fromMicro(L.toMicro(order.amount_usdt));
+  const amount = kind === 'release' ? L.buyerReceives(order.amount_usdt, order.fee_usdt) : L.refundAmount(order.amount_usdt, NET_FEE);
   try {
     const r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`);
     const done = kind === 'release' ? 'released' : 'refunded';
@@ -161,7 +162,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const shown = (data || []).filter((o) => Number(o.available_usdt) >= Number(o.min_usdt) &&
       (!range || (Number(o.price_sdg) >= range.min && Number(o.price_sdg) <= range.max)));
     const profs = await profilesMap(shown.map((o) => o.seller));
-    return { offers: shown.map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range };
+    return { offers: shown.map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, net_fee: NET_FEE, min_trade: MIN_TRADE, rate, range };
   }
   if (!me) throw new Error('UNAUTHORIZED');
   const { data: prof } = await db.from('profiles').select('*').eq('address', me).maybeSingle();
@@ -178,7 +179,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const rate = await getRate();
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
     delete pub.id_doc_path; delete pub.phone; delete pub.prev_kyc;
-    return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
+    return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, net_fee: NET_FEE, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
 
   if (action === 'profile.set') {
@@ -275,7 +276,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     }
     const { data: ok } = await db.rpc('p2p_reserve', { p_offer: offer.id, p_amount: amount });
     if (!ok) throw new Error('AMOUNT_UNAVAILABLE');
-    const fee = L.feeFor(amount, FEE_BPS);
+    const fee = L.tradeFee(amount, FEE_BPS, NET_FEE);
     const total = Math.round(Number(amount) * Number(offer.price_sdg) * 100) / 100;
     const { data: order, error } = await db.from('orders').insert({
       offer_id: offer.id, seller, buyer, amount_usdt: amount, side,

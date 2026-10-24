@@ -23,7 +23,7 @@ async def handler(route):
   def ok(d): return route.fulfill(status=200,json=d)
   def err(c): return route.fulfill(status=400,json={'error':c})
   r=st['rate']; rg={'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}
-  if a=='offers.list': return await ok({'offers':st['buyads'] if p.get('side')=='buy' else st['offers'],'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
+  if a=='offers.list': return await ok({'offers':st['buyads'] if p.get('side')=='buy' else st['offers'],'fee_bps':50,'net_fee':'1','min_trade':10,'rate':r,'range':rg})
   if not st['profile']: st['profile']={'address':ME,'nickname':'مستخدم-'+ME[-4:],'verify_status':'none'}
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
@@ -101,7 +101,7 @@ async def main():
     await pg.click('#p2p-list button:text-is("شراء")'); assert await vis('s-p2p-buy'); step('فتح شاشة الشراء')
     await pg.fill('#buy-amt','5'); assert await pg.is_disabled('#buy-go'); step('رفض كمية أقل من حد الإعلان')
     await pg.fill('#buy-amt','50')
-    assert '135,000' in await pg.inner_text('#buy-total'); assert '0.25' in await pg.inner_text('#buy-fee'); assert '49.75' in await pg.inner_text('#buy-recv'); step('حساب المبلغ بالجنيه والعمولة وما يستلمه المشتري')
+    assert '135,000' in await pg.inner_text('#buy-total'); assert '1.25' in await pg.inner_text('#buy-fee') and 'رسوم الشبكة' in await pg.inner_text('#buy-fee'); assert '48.75' in await pg.inner_text('#buy-recv'); step('العمولة 0.5% + 1 USDT رسوم الشبكة وما يستلمه المشتري')
     await no_overflow('الشراء')
     await pg.click('#buy-go'); await pg.wait_for_timeout(1200)
     assert not await vis('nick-sheet'); step('الشراء مباشرة بدون طلب الاسم')

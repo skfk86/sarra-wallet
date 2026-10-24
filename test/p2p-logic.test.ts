@@ -140,4 +140,14 @@ t('إعلانات الشراء', () => {
   assert.equal(L.validateOffer({ ...base, side: 'hack' }, 10).side, 'sell');
 });
 
+t('رسوم الشبكة: لا خسارة على المنصة', () => {
+  assert.equal(L.tradeFee('100', 50, '1'), '1.5');
+  assert.equal(L.buyerReceives('100', L.tradeFee('100', 50, '1')), '98.5');
+  assert.equal(L.tradeFee('10', 50, '1'), '1.05');
+  assert.equal(L.refundAmount('100', '1'), '99');
+  assert.throws(() => L.refundAmount('1', '1'), /FEE_TOO_HIGH/);
+  // ربح المنصة بعد دفع رسوم الإرسال = العمولة دائماً (لا يصبح سالباً)
+  for (const a of ['10', '50', '100', '1000']) assert.equal(L.toMicro(L.tradeFee(a, 50, '1')) - L.toMicro('1'), L.toMicro(L.feeFor(a, 50)));
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
