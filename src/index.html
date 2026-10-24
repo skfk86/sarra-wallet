@@ -105,6 +105,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .tabbar.show{display:grid}
 .tab{height:66px;background:none;border:0;color:var(--mu);font-size:11px;font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .tab.on{color:var(--ac);font-weight:600}
+.nbadge{position:absolute;top:8px;left:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--trx);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .with-tabs{padding-bottom:calc(env(safe-area-inset-bottom) + 90px)}
 /* شرائح وقوائم */
 .chips{display:flex;gap:8px}
@@ -408,7 +409,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <span class="muted" style="font-size:12px;text-align:left" id="p2p-rate-range"></span>
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
-    <button type="button" class="btn btn-ghost" id="p2p-orders-btn" style="height:48px;font-size:15px">طلباتي</button>
+    <button type="button" class="btn btn-ghost" id="p2p-orders-btn" style="height:48px;font-size:15px;position:relative">طلباتي<span class="nbadge" id="orders-badge" hidden style="top:6px;left:10px"></span></button>
     <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ نشر إعلان</button>
   </div>
   <div class="seg" role="tablist" aria-label="عرض" style="grid-template-columns:repeat(3,minmax(0,1fr))">
@@ -578,7 +579,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
   <button type="button" class="tab" data-tab="home"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>المحفظة</button>
   <button type="button" class="tab" data-tab="history"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>السجل</button>
-  <button type="button" class="tab" data-tab="p2p"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>P2P</button>
+  <button type="button" class="tab" data-tab="p2p" style="position:relative"><span class="nbadge" id="p2p-badge" hidden></span><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>P2P</button>
   <button type="button" class="tab" data-tab="security"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>الأمان</button>
 </nav>
 
@@ -1410,7 +1411,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function ensureProfile() {
     if (state.p2p.me && state.p2p.me.profile) return true;
     try { state.p2p.me = await p2p('me'); } catch (e) { toast(p2pErr(e), true); return false; }
-    renderMe();
+    renderMe(); pollMyOrders();
     return !!state.p2p.me.profile;
   }
   function renderMe() {
@@ -1708,6 +1709,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       list.forEach(function (v) {
         var c = el('div'); c.className = 'ad';
         c.appendChild(el('b', 'font-size:15px', v.full_name));
+        if (v.change_from) c.appendChild(el('span', 'font-size:12px;font-weight:700;color:var(--warn)', 'طلب تغيير حساب: من ' + v.change_from + ' إلى ' + v.bankak_account + ' (الرفض يعيد الحساب القديم)'));
         c.appendChild(el('span', 'font-size:13px;color:var(--mu);direction:ltr;text-align:right', v.phone + ' · بنكك ' + v.bankak_account));
         c.appendChild(el('span', 'font-size:11px;color:var(--mu);direction:ltr;word-break:break-all', v.address));
         if (v.image_url) { var im = el('img', 'width:100%;border-radius:12px'); im.src = v.image_url; im.alt = 'صورة الهوية'; c.appendChild(im); }
@@ -1944,6 +1946,27 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     resetTo('welcome');
     routes.import();
   };
+
+  // ===== تنبيه الطلبات التي تنتظر إجراءً منك (لا إشعارات خارجية، نفحص كل 30 ثانية والتطبيق مفتوح) =====
+  function needsMyAction(o, me) {
+    if (o.seller === me) return o.status === 'awaiting_deposit' || o.status === 'paid';
+    if (o.buyer === me) return o.status === 'funded';
+    return false;
+  }
+  state.p2p.pending = 0;
+  async function pollMyOrders() {
+    if (!P2P_URL || document.hidden || !core.isUnlocked()) return;
+    try {
+      if (!state.p2p.me || !state.p2p.me.profile) { state.p2p.me = await p2p('me'); renderMe(); }
+      var me = state.p2p.me.profile.address;
+      var n = (await p2p('orders.mine')).orders.filter(function (o) { return needsMyAction(o, me); }).length;
+      if (n > state.p2p.pending) toast(n === 1 ? 'لديك طلب ينتظر إجراءً منك' : 'لديك ' + n + ' طلبات تنتظر إجراءً منك');
+      state.p2p.pending = n;
+      ['p2p-badge', 'orders-badge'].forEach(function (id) { $(id).hidden = !n; $(id).textContent = String(n); });
+    } catch (e) {}
+  }
+  setInterval(pollMyOrders, 30000);
+  setTimeout(pollMyOrders, 8000);
 
   // ===== المظهر: تلقائي / ليلي / نهاري =====
   function applyTheme(pref) {

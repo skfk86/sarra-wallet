@@ -71,7 +71,7 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
         if (p) await db.from('profiles').update({ trades_completed: p.trades_completed + 1 }).eq('address', a);
       }
     } else {
-      await db.rpc('p2p_unreserve', { p_offer: order.offer_id, p_amount: order.amount_usdt });
+      await db.rpc('p2p_unreserve_order', { p_order: order.id });
     }
     return done;
   } catch (e) {
@@ -82,11 +82,16 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
   }
 }
 
+async function bumpCancel(addr: string) {
+  const { data: c } = await db.from('profiles').select('cancels').eq('address', addr).single();
+  if (c) await db.from('profiles').update({ cancels: c.cancels + 1 }).eq('address', addr);
+}
+
 // إلغاء الطلبات التي لم يودع فيها البائع خلال المهلة
 async function expireStale(o: Record<string, any>) {
   if (o.status === 'awaiting_deposit' && o.deposit_expires_at && Date.now() > Date.parse(o.deposit_expires_at) + 60000) {
     const { data } = await db.from('orders').update({ status: 'cancelled' }).eq('id', o.id).eq('status', 'awaiting_deposit').select().maybeSingle();
-    if (data) { await db.rpc('p2p_unreserve', { p_offer: o.offer_id, p_amount: o.amount_usdt }); await audit(o.id, null, 'deposit_expired'); o.status = 'cancelled'; }
+    if (data) { await db.rpc('p2p_unreserve_order', { p_order: o.id }); await bumpCancel(o.seller); await audit(o.id, null, 'deposit_expired'); o.status = 'cancelled'; }
   }
   return o;
 }
@@ -172,7 +177,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   if (action === 'me') {
     const rate = await getRate();
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
-    delete pub.id_doc_path; delete pub.phone;
+    delete pub.id_doc_path; delete pub.phone; delete pub.prev_kyc;
     return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
 
@@ -196,7 +201,10 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const { error: upErr } = await db.storage.from('kyc').upload(path, b64bytes(v.image_b64), { contentType: 'image/jpeg' });
     if (upErr) throw new Error('UPLOAD_FAILED');
     if (profile.id_doc_path) await db.storage.from('kyc').remove([profile.id_doc_path]);
-    await db.from('profiles').update({ verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null }).eq('address', me);
+    await db.from('profiles').update({
+      verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null,
+      prev_kyc: changing ? { full_name: profile.full_name, phone: profile.phone, bankak_account: profile.bankak_account, verified_at: profile.verified_at } : null
+    }).eq('address', me);
     if (changing) await db.from('offers').update({ active: false }).eq('seller', me).eq('active', true);
     await audit(null, me, changing ? 'verify_change' : 'verify_submit');
     return { ok: true, verify_status: 'pending' };
@@ -245,7 +253,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (range && (Number(offer.price_sdg) < range.min || Number(offer.price_sdg) > range.max)) throw new Error('OFFER_UNAVAILABLE');
     const side = offer.side === 'buy' ? 'buy' : 'sell';
     const { seller, buyer } = L.orderParties(offer, me);
-    const { data: open } = await db.from('orders').select('id').or(`buyer.eq.${me},seller.eq.${me}`).in('status', ['awaiting_deposit', 'funded', 'paid']);
+    // حد الطلبات المفتوحة يخص الطلبات التي فتحتها أنت (لا الطلبات التي وصلت لإعلاناتك)
+    const { data: open } = await db.from('orders').select('id').or(`and(side.eq.sell,buyer.eq.${me}),and(side.eq.buy,seller.eq.${me})`).in('status', ['awaiting_deposit', 'funded', 'paid']);
     if ((open || []).length >= 3) throw new Error('TOO_MANY_OPEN');
     let payName = offer.bankak_name, payAccount = offer.bankak_account;
     if (side === 'buy') {
@@ -284,7 +293,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       return { order: publicOrder(upd, offer, me) };
     } catch (e) {
       await db.from('orders').update({ status: 'cancelled', payout_error: String(e).slice(0, 300) }).eq('id', order.id);
-      await db.rpc('p2p_unreserve', { p_offer: offer.id, p_amount: amount });
+      await db.rpc('p2p_unreserve_order', { p_order: order.id });
       throw new Error('ESCROW_UNAVAILABLE');
     }
   }
@@ -320,9 +329,10 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       if (!locked) throw new Error('INVALID_STATE');
       await audit(o.id, me, 'action_' + p.action, { from: o.status, to: tr.to });
       if (tr.to === 'cancelled') {
-        await db.rpc('p2p_unreserve', { p_offer: o.offer_id, p_amount: o.amount_usdt });
-        if (role !== 'admin') { const { data: c } = await db.from('profiles').select('cancels').eq('address', me).single(); if (c) await db.from('profiles').update({ cancels: c.cancels + 1 }).eq('address', me); }
+        await db.rpc('p2p_unreserve_order', { p_order: o.id });
       }
+      // كل إلغاء من طرف (قبل الحجز أو بعده) يُحسب في نسبة الإتمام
+      if (role !== 'admin' && p.action === 'cancel') await bumpCancel(me);
       if (role === 'admin' && p.action === 'admin_refund' && o.status === 'disputed') {
         const { data: s } = await db.from('profiles').select('disputes_lost').eq('address', o.buyer).single();
         if (s) await db.from('profiles').update({ disputes_lost: s.disputes_lost + 1 }).eq('address', o.buyer);
@@ -366,23 +376,25 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { rate: v, range: L.priceRange(v) };
   }
   if (action === 'admin.verify.list') {
-    const { data } = await db.from('profiles').select('address,nickname,full_name,phone,bankak_account,id_doc_path').eq('verify_status', 'pending').limit(30);
+    const { data } = await db.from('profiles').select('address,nickname,full_name,phone,bankak_account,id_doc_path,prev_kyc').eq('verify_status', 'pending').limit(30);
     const out = await Promise.all((data || []).map(async (r) => {
       const { data: s } = r.id_doc_path ? await db.storage.from('kyc').createSignedUrl(r.id_doc_path, 600) : { data: null };
-      return { ...r, id_doc_path: undefined, image_url: s?.signedUrl || null };
+      return { ...r, id_doc_path: undefined, prev_kyc: undefined, change_from: r.prev_kyc?.bankak_account || null, image_url: s?.signedUrl || null };
     }));
     return { pending: out };
   }
   if (action === 'admin.verify.decide') {
     const approve = p.approve === true;
-    const { data: r } = await db.from('profiles').select('id_doc_path').eq('address', String(p.address)).eq('verify_status', 'pending').maybeSingle();
+    const { data: r } = await db.from('profiles').select('id_doc_path,prev_kyc').eq('address', String(p.address)).eq('verify_status', 'pending').maybeSingle();
     if (!r) throw new Error('NOT_FOUND');
     // تُحذف صورة الهوية بعد القرار؛ لا نحتفظ بها
     if (r.id_doc_path) await db.storage.from('kyc').remove([r.id_doc_path]);
-    await db.from('profiles').update({
-      verify_status: approve ? 'approved' : 'rejected', id_doc_path: null,
-      verify_note: approve ? null : String(p.note || '').slice(0, 200), verified_at: approve ? new Date().toISOString() : null
-    }).eq('address', String(p.address));
+    const note = approve ? null : String(p.note || '').slice(0, 200);
+    // رفض طلب تغيير الحساب يعيد التوثيق والحساب السابقين بدل أن يُسقط التوثيق كله
+    const patch = approve ? { verify_status: 'approved', verified_at: new Date().toISOString() }
+      : r.prev_kyc ? { verify_status: 'approved', ...r.prev_kyc }
+      : { verify_status: 'rejected', verified_at: null };
+    await db.from('profiles').update({ ...patch, id_doc_path: null, verify_note: note, prev_kyc: null }).eq('address', String(p.address));
     await audit(null, me, approve ? 'verify_approve' : 'verify_reject', { address: p.address });
     return { ok: true };
   }
