@@ -153,6 +153,41 @@ export const LIMITS: Record<string, [number, number]> = {
   order_create: [10, 86400],  // 10 طلبات شراء في اليوم
   order_cancel: [5, 86400],   // 5 إلغاءات في اليوم
   message: [30, 3600],        // 30 رسالة في الساعة
-  profile: [5, 86400]         // 5 تغييرات اسم في اليوم
+  profile: [5, 86400],        // 5 تغييرات اسم في اليوم
+  verify: [3, 86400]          // 3 طلبات توثيق في اليوم
 };
 export const MAX_ACTIVE_OFFERS = 3;
+
+// ===== التوثيق (KYC) =====
+export function validateKyc(p: Record<string, unknown>) {
+  const full_name = String(p.full_name || '').trim().replace(/\s+/g, ' ');
+  const phone = String(p.phone || '').replace(/[\s-]/g, '').replace(/^\+?249/, '0');
+  const bankak_account = String(p.bankak_account || '').replace(/\s/g, '');
+  if (full_name.length < 6 || full_name.split(' ').length < 2 || full_name.length > 60) throw new Error('BAD_FULL_NAME');
+  if (!/^0\d{9}$/.test(phone)) throw new Error('BAD_PHONE');
+  if (!/^\d{4,30}$/.test(bankak_account)) throw new Error('BAD_BANKAK_ACCOUNT');
+  const img = String(p.id_image || '');
+  const m = img.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) throw new Error('BAD_ID_IMAGE');
+  const bytes = Math.floor(m[1].length * 3 / 4);
+  if (bytes < 15000 || bytes > 600000) throw new Error('BAD_ID_IMAGE');
+  return { full_name, phone, bankak_account, image_b64: m[1] };
+}
+export function maskAccount(a: string | null | undefined): string {
+  if (!a) return '';
+  return '••••' + a.slice(-4);
+}
+
+// ===== رصيد البائع على الشبكة =====
+export const SELLER_MIN_TRX_SUN = 15000000n; // 15 TRX لرسوم إيداع الضمان
+export function checkSellerFunds(usdtMicro: bigint, trxSun: bigint, needUsdt: string | number) {
+  if (usdtMicro < toMicro(needUsdt)) throw new Error('INSUFFICIENT_SELLER_USDT');
+  if (trxSun < SELLER_MIN_TRX_SUN) throw new Error('SELLER_NEEDS_TRX');
+}
+
+// نسبة الإتمام على طريقة Binance: المكتملة ÷ (المكتملة + الإلغاءات)
+export function completionRate(completed: number, cancels: number): number | null {
+  const total = completed + cancels;
+  if (!total) return null;
+  return Math.round(completed / total * 1000) / 10;
+}

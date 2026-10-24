@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co">
 <title>صُرّة</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -110,6 +110,13 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .switch[aria-checked="true"] span{background:var(--on-ac)}
 .soon{flex-grow:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 12px}
 .soon .badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ac)}
+.tag-bk{font-size:11px;padding:2px 8px;border-radius:6px;background:#3A2A10;color:#F5C26B;font-weight:600;white-space:nowrap}
+.vbadge{font-size:11px;padding:1px 6px;border-radius:6px;background:#10241D;color:var(--ac);font-weight:600;white-space:nowrap}
+.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.steps3 span{font-size:12px;text-align:center;padding:8px 2px 6px;border-top:3px solid var(--s2);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
+.ad{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -386,6 +393,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
   </div>
   <div class="note ok"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+  <div class="field" id="p2p-filter" style="height:48px"><input id="p2p-amt" inputmode="decimal" dir="ltr" placeholder="كم USDT تريد؟ (فلترة)"><span class="muted" style="font-size:13px;flex-shrink:0">USDT</span></div>
   <button type="button" class="btn btn-ghost" id="p2p-admin-btn" hidden style="height:48px;font-size:15px">لوحة الأدمن</button>
   <div id="p2p-list"><p class="muted">جارٍ التحميل…</p></div>
 </section>
@@ -412,22 +420,48 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <label class="lbl" for="new-price">سعرك لكل USDT (جنيه سوداني)</label>
   <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
   <p class="muted" id="new-range" style="font-size:12px;margin-top:-10px"></p>
+  <div class="note ok" id="new-bal"><span>جارٍ فحص رصيدك…</span></div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
-    <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"><button type="button" class="chip" id="new-all" style="height:30px;padding:0 10px;flex-shrink:0">الكل</button></div></div>
     <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-min">أقل صفقة</label><div class="field"><input id="new-min" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
   </div>
   <label class="lbl" for="new-max">أكبر صفقة (USDT)</label>
   <div class="field"><input id="new-max" inputmode="decimal" placeholder="USDT" dir="ltr"></div>
-  <label class="lbl" for="new-bname">اسم صاحب حساب بنكك</label>
-  <div class="field"><input id="new-bname" autocomplete="off"></div>
-  <label class="lbl" for="new-bacct">رقم حساب بنكك</label>
-  <div class="field"><input id="new-bacct" inputmode="numeric" dir="ltr" autocomplete="off"></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:12px 16px">
+    <div class="row between"><span class="muted" style="font-size:13px">يستلم المشتري الدفع على</span><span class="tag-bk">بنكك</span></div>
+    <b id="new-payee" style="font-size:15px"></b>
+    <span class="muted" style="font-size:12px">حساب بنكك الموثّق باسمك. لتغييره تواصل مع الدعم.</span>
+  </div>
   <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">مهلة الدفع للمشتري</legend>
     <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
   </fieldset>
-  <div class="note ok"><span>لا يُحجز شيء من رصيدك الآن. عند كل طلب تودع الكمية المطلوبة في الضمان، وتحتاج TRX لرسوم الإيداع.</span></div>
+  <div class="note ok"><span>نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
+</section>
+
+<!-- ===== P2P: التوثيق ===== -->
+<section class="screen" id="s-p2p-verify" aria-label="توثيق الحساب">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">توثيق حساب البائع</h1></div>
+  <div class="steps3" aria-hidden="true"><span class="on">1 البيانات</span><span>2 المراجعة</span><span>3 البيع</span></div>
+  <div class="note" id="ver-state" hidden></div>
+  <div id="ver-form" style="display:flex;flex-direction:column;gap:14px">
+    <p class="muted" style="font-size:13px;line-height:1.8">التوثيق مطلوب مرة واحدة قبل نشر أي إعلان بيع، لحماية المشترين. بياناتك لا تظهر لأحد، والمشتري يرى فقط اسمك وحساب بنكك عند فتح طلب معك. تُحذف صورة الهوية بعد المراجعة.</p>
+    <label class="lbl" for="ver-name">الاسم الرباعي كما في الهوية وبنكك</label>
+    <div class="field"><input id="ver-name" autocomplete="off" maxlength="60"></div>
+    <label class="lbl" for="ver-phone">رقم الهاتف</label>
+    <div class="field"><input id="ver-phone" inputmode="tel" dir="ltr" placeholder="09xxxxxxxx" autocomplete="off"></div>
+    <label class="lbl" for="ver-acct">رقم حساب بنكك (بنفس الاسم)</label>
+    <div class="field"><input id="ver-acct" inputmode="numeric" dir="ltr" autocomplete="off"></div>
+    <span class="lbl">صورة الهوية أو الجواز</span>
+    <label class="card" for="ver-file" id="ver-pick" style="display:flex;align-items:center;justify-content:center;min-height:120px;cursor:pointer;border-style:dashed;text-align:center;padding:12px">
+      <span class="muted" id="ver-pick-txt">اضغط لالتقاط أو اختيار صورة واضحة</span>
+      <img id="ver-prev" alt="" hidden style="max-width:100%;max-height:180px;border-radius:12px">
+    </label>
+    <input type="file" id="ver-file" accept="image/*" capture="environment" hidden>
+    <div class="note err" id="ver-err" hidden></div>
+    <button class="btn btn-primary" id="ver-go">إرسال للمراجعة</button>
+  </div>
 </section>
 
 <!-- ===== لوحة الأدمن ===== -->
@@ -448,6 +482,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <p class="muted" style="font-size:12px;line-height:1.7">الإعلانات الحالية خارج النطاق الجديد تختفي من السوق تلقائياً حتى يعدّل البائع سعره.</p>
   </div>
   <button class="btn btn-ghost" id="adm-queue">النزاعات والمعاملات المتأخرة</button>
+  <button class="btn btn-ghost" id="adm-verify">طلبات التوثيق</button>
+  <div id="adm-verify-list" style="display:flex;flex-direction:column;gap:10px"></div>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
     <h2 style="font-size:16px">حظر محفظة</h2>
     <label class="lbl" for="adm-ban-addr">عنوان المحفظة (يبدأ بـ T)</label>
@@ -469,11 +505,14 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen" id="s-order" aria-label="الطلب">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div></div>
+  <div class="steps3" id="ord-steps" aria-hidden="true"><span>1 الضمان</span><span>2 الدفع</span><span>3 الاستلام</span></div>
   <div class="note" id="ord-status" role="status"></div>
+  <div class="card" id="ord-timer" hidden style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px"><span class="muted" style="font-size:13px" id="ord-timer-lbl">الوقت المتبقي للدفع</span><b class="ltr" id="ord-timer-val" style="font-size:22px;font-variant-numeric:tabular-nums">--:--</b></div>
   <dl class="kv card" style="padding:4px 16px" id="ord-kv"></dl>
   <div class="card" id="ord-bank" hidden style="display:flex;flex-direction:column;gap:8px">
     <span class="muted">حوّل المبلغ إلى حساب بنكك التالي فقط:</span>
-    <div class="row between"><span>الاسم</span><b id="ord-bname"></b></div>
+    <div class="row between"><span>المبلغ</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bamt"></b><button type="button" class="chip" id="ord-copy-amt" style="height:32px">نسخ</button></span></div>
+    <div class="row between"><span>الاسم</span><span class="row" style="gap:6px"><b id="ord-bname"></b><span class="vbadge">موثّق</span></span></div>
     <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px">نسخ</button></span></div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px" id="ord-actions"></div>
@@ -1291,13 +1330,19 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
     MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
+    VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
+    BAD_FULL_NAME: 'اكتب اسمك كاملاً كما في الهوية', BAD_PHONE: 'رقم الهاتف غير صحيح (مثل 0912345678)', BAD_ID_IMAGE: 'صورة الهوية غير واضحة أو كبيرة جداً. التقط صورة أخرى',
+    UPLOAD_FAILED: 'تعذّر رفع الصورة. حاول مرة أخرى', RATE_LIMITED_VERIFY: 'محاولات توثيق كثيرة اليوم',
+    INSUFFICIENT_SELLER_USDT: 'رصيدك من USDT أقل من الكمية المعروضة (مع إعلاناتك النشطة)', SELLER_NEEDS_TRX: 'تحتاج 15 TRX على الأقل في محفظتك لرسوم الإيداع',
+    SELLER_INSUFFICIENT: 'البائع لم يعد يملك هذه الكمية. اختر إعلاناً آخر', BALANCE_CHECK_FAILED: 'تعذّر فحص الرصيد على الشبكة. حاول بعد قليل',
     RATE_LIMITED_REQ: 'طلبات كثيرة جداً. انتظر دقيقة', RATE_LIMITED_OFFER_CREATE: 'وصلت الحد اليومي للإعلانات (5)',
     RATE_LIMITED_ORDER_CREATE: 'وصلت الحد اليومي للطلبات (10)', RATE_LIMITED_ORDER_CANCEL: 'إلغاءات كثيرة اليوم. حاول غداً',
     RATE_LIMITED_MESSAGE: 'رسائل كثيرة. انتظر قليلاً', RATE_LIMITED_PROFILE: 'غيّرت اسمك كثيراً اليوم'
   };
   function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
-  async function p2p(action, params, isPublic) {
+  async function p2p(action, params, isPublic, attachment) {
     var body = isPublic ? { action: action } : await core.signRequest(action, params || {});
+    if (attachment) body.attachment = attachment;
     var res;
     try { res = await fetch(P2P_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
     catch (e) { throw new Error('NETWORK'); }
@@ -1400,32 +1445,48 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
-      if (!r.offers.length) return emptyMsg(box, 'لا توجد إعلانات بيع الآن');
-      r.offers.forEach(function (o) {
+      state.p2p.offers = r.offers;
+      renderOffers();
+    } catch (e) { emptyMsg(box, p2pErr(e)); }
+  }
+  function renderOffers() {
+    var box = $('p2p-list'), want = Number($('p2p-amt').value) || 0;
+    var list = (state.p2p.offers || []).filter(function (o) { return !want || (want >= Number(o.min_usdt) && want <= Math.min(Number(o.max_usdt), Number(o.available_usdt))); });
+    box.textContent = '';
+    if (!list.length) return emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : 'لا توجد إعلانات بيع الآن');
+    list.forEach(function (o) {
         var sp = o.seller_profile || {};
-        var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px');
-        var top = el('div', 'display:flex;align-items:center;gap:10px');
-        top.appendChild(el('span', 'width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-weight:700', (sp.nickname || '؟').charAt(0)));
-        var who = el('div', 'flex-grow:1;display:flex;flex-direction:column');
-        who.appendChild(el('b', 'font-size:14px', sp.nickname || 'بائع'));
-        who.appendChild(el('span', 'font-size:12px;color:var(--mu)', (sp.trades_completed || 0) + ' صفقة مكتملة' + (sp.disputes_lost ? ' · خسر ' + sp.disputes_lost + ' نزاع' : '')));
-        top.appendChild(who);
-        top.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'مهلة ' + o.pay_window_min + ' د'));
+        var c = el('div'); c.className = 'ad';
+        var top = el('div', 'display:flex;align-items:center;gap:8px;min-width:0');
+        top.appendChild(el('span', 'width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px', (sp.nickname || '؟').charAt(0)));
+        top.appendChild(el('b', 'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', sp.nickname || 'بائع'));
+        if (sp.verified) { var vb = el('span', null, 'موثّق ✓'); vb.className = 'vbadge'; top.appendChild(vb); }
         c.appendChild(top);
+        var meta = el('div'); meta.className = 'ad-meta';
+        meta.appendChild(el('span', null, (sp.trades_completed || 0) + ' صفقة'));
+        if (sp.completion != null) meta.appendChild(el('span', null, 'إتمام ' + sp.completion + '%'));
+        meta.appendChild(el('span', null, 'مهلة ' + o.pay_window_min + ' د'));
+        if (sp.disputes_lost) meta.appendChild(el('span', 'color:var(--err)', 'خسر ' + sp.disputes_lost + ' نزاع'));
+        c.appendChild(meta);
         var bot = el('div', 'display:flex;align-items:flex-end;justify-content:space-between;gap:10px');
-        var pr = el('div', 'display:flex;flex-direction:column;gap:2px');
-        pr.appendChild(el('b', 'font-size:20px', fmt(o.price_sdg) + ' ج.س'));
-        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' · الحدود ' + fmt(o.min_usdt) + '–' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
+        var pr = el('div', 'display:flex;flex-direction:column;gap:4px;min-width:0');
+        var price = el('div', 'display:flex;align-items:baseline;gap:4px');
+        price.appendChild(el('b', 'font-size:22px;direction:ltr', fmt(o.price_sdg)));
+        price.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'ج.س'));
+        pr.appendChild(price);
+        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' USDT'));
+        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
+        var tg = el('span', 'align-self:flex-start', 'بنكك'); tg.className = 'tag-bk'; pr.appendChild(tg);
         bot.appendChild(pr);
-        var go = el('button', 'height:40px;padding:0 20px;border-radius:12px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer', 'شراء');
+        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', 'شراء');
         go.type = 'button';
-        go.onclick = function () { state.p2p.offer = o; openBuy(); };
+        go.onclick = function () { state.p2p.offer = o; openBuy(want); };
         bot.appendChild(go);
         c.appendChild(bot);
         box.appendChild(c);
-      });
-    } catch (e) { emptyMsg(box, p2pErr(e)); }
+    });
   }
+  $('p2p-amt').oninput = renderOffers;
   document.querySelectorAll('[data-p2ptab]').forEach(function (b) {
     b.onclick = function () {
       state.p2p.tab = b.dataset.p2ptab;
@@ -1435,12 +1496,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   });
 
   // ===== الشراء =====
-  function openBuy() {
+  function openBuy(prefill) {
     var o = state.p2p.offer, sp = o.seller_profile || {};
     var box = $('buy-offer'); box.textContent = '';
     box.appendChild(el('b', 'font-size:16px', (sp.nickname || 'بائع') + ' · ' + fmt(o.price_sdg) + ' ج.س / USDT'));
     box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + '–' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT · مهلة الدفع ' + o.pay_window_min + ' دقيقة'));
-    $('buy-amt').value = ''; $('buy-err').hidden = true; calcBuy();
+    $('buy-amt').value = prefill ? String(prefill) : ''; $('buy-err').hidden = true; calcBuy();
     show('p2p-buy');
   }
   function calcBuy() {
@@ -1472,9 +1533,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('p2p-new-btn').onclick = async function () {
     if (!(await ensureProfile())) return;
     try { state.p2p.me = await p2p('me'); renderMe(); } catch (e) {}
+    var pf = state.p2p.me && state.p2p.me.profile;
+    if (!pf || pf.verify_status !== 'approved') { openVerify(); return; }
     var r = state.p2p.rate, rg = state.p2p.range;
     $('new-err').hidden = true;
     if (!r || !r.sdg_per_usdt || !rg) { toast('لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', true); return; }
+    $('new-payee').textContent = pf.full_name + ' · ' + pf.bankak_account;
+    loadSellerBalance();
     $('new-price').value = String(r.sdg_per_usdt);
     $('new-range').textContent = 'السعر المرجعي ' + fmt(r.sdg_per_usdt) + ' ج.س · المسموح من ' + fmt(rg.min) + ' إلى ' + fmt(rg.max);
     show('p2p-new');
@@ -1483,13 +1548,24 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var rg = state.p2p.range, v = Number(this.value);
     $('new-range').style.color = rg && v && (v < rg.min || v > rg.max) ? 'var(--err)' : '';
   };
+  async function loadSellerBalance() {
+    var n = $('new-bal'); n.className = 'note ok'; n.firstChild.textContent = 'جارٍ فحص رصيدك…'; state.p2p.bal = null;
+    try {
+      var b = await p2p('balance.check');
+      state.p2p.bal = b;
+      var lowTrx = Number(b.trx) < 15;
+      n.className = 'note ' + (lowTrx || Number(b.usdt) < (state.p2p.minTrade || 10) ? 'err' : 'ok');
+      n.firstChild.textContent = 'رصيدك: ' + fmt(b.usdt) + ' USDT · ' + fmt(b.trx) + ' TRX' + (lowTrx ? ' — تحتاج 15 TRX على الأقل للرسوم' : '');
+    } catch (e) { n.className = 'note err'; n.firstChild.textContent = p2pErr(e); }
+  }
+  $('new-all').onclick = function () { if (state.p2p.bal) { $('new-amount').value = state.p2p.bal.usdt; if (!$('new-max').value) $('new-max').value = state.p2p.bal.usdt; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
     var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnits($(id).value, 6), 6); } catch (e) { return '0'; } };
     try {
       await p2p('offer.create', {
         price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
-        bankak_name: $('new-bname').value, bankak_account: $('new-bacct').value, pay_window_min: state.p2p.win
+        pay_window_min: state.p2p.win
       });
       toast('تم نشر الإعلان');
       state.p2p.tab = 'mine';
@@ -1497,6 +1573,90 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       resetTo('p2p');
     } catch (e) { $('new-err').textContent = p2pErr(e); $('new-err').hidden = false; }
     btn.disabled = false;
+  };
+
+  // ===== التوثيق =====
+  function openVerify(noShow) {
+    var pf = (state.p2p.me && state.p2p.me.profile) || {}, s = pf.verify_status || 'none';
+    var st = $('ver-state'), steps = document.querySelectorAll('#s-p2p-verify .steps3 span');
+    steps.forEach(function (x, i) { x.classList.toggle('on', i === 0 || (i === 1 && s === 'pending')); });
+    st.hidden = s === 'none';
+    if (s === 'pending') { st.className = 'note warn'; st.textContent = 'طلبك قيد المراجعة. سنفعّل البيع بعد التحقق من بياناتك.'; }
+    if (s === 'rejected') { st.className = 'note err'; st.textContent = 'رُفض طلب التوثيق' + (pf.verify_note ? ': ' + pf.verify_note : '') + '. صحّح البيانات وأرسل مرة أخرى.'; }
+    $('ver-form').hidden = s === 'pending';
+    $('ver-err').hidden = true;
+    if (!noShow) show('p2p-verify');
+  }
+  // تصغير الصورة على الجهاز إلى JPEG حتى ~1280px لتقليل حجم الرفع
+  function compressImage(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var s = Math.min(1, 1280 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var q = 0.82, out = c.toDataURL('image/jpeg', q);
+        while (out.length * 0.75 > 580000 && q > 0.4) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+        resolve(out);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('BAD_ID_IMAGE')); };
+      img.src = url;
+    });
+  }
+  async function sha256Hex(s) {
+    var d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(d)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  $('ver-file').onchange = async function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    try {
+      state.p2p.idImg = await compressImage(f);
+      $('ver-prev').src = state.p2p.idImg; $('ver-prev').hidden = false; $('ver-pick-txt').hidden = true;
+    } catch (e) { toast(p2pErr(e), true); }
+  };
+  $('ver-go').onclick = async function () {
+    var btn = this; $('ver-err').hidden = true;
+    if (!state.p2p.idImg) { $('ver-err').textContent = 'أضف صورة الهوية'; $('ver-err').hidden = false; return; }
+    btn.disabled = true;
+    try {
+      await p2p('verify.submit', {
+        full_name: $('ver-name').value, phone: $('ver-phone').value, bankak_account: $('ver-acct').value,
+        image_sha256: await sha256Hex(state.p2p.idImg)
+      }, false, state.p2p.idImg);
+      state.p2p.idImg = null;
+      state.p2p.me = await p2p('me'); renderMe();
+      toast('أُرسل طلب التوثيق');
+      openVerify(true);
+    } catch (e) { $('ver-err').textContent = p2pErr(e); $('ver-err').hidden = false; }
+    btn.disabled = false;
+  };
+  $('adm-verify').onclick = async function () {
+    var box = $('adm-verify-list'); emptyMsg(box, 'جارٍ التحميل…');
+    try {
+      var list = (await p2p('admin.verify.list')).pending;
+      box.textContent = '';
+      if (!list.length) return emptyMsg(box, 'لا توجد طلبات توثيق');
+      list.forEach(function (v) {
+        var c = el('div'); c.className = 'ad';
+        c.appendChild(el('b', 'font-size:15px', v.full_name));
+        c.appendChild(el('span', 'font-size:13px;color:var(--mu);direction:ltr;text-align:right', v.phone + ' · بنكك ' + v.bankak_account));
+        c.appendChild(el('span', 'font-size:11px;color:var(--mu);direction:ltr;word-break:break-all', v.address));
+        if (v.image_url) { var im = el('img', 'width:100%;border-radius:12px'); im.src = v.image_url; im.alt = 'صورة الهوية'; c.appendChild(im); }
+        var row = el('div', 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px');
+        var ok = el('button', null, 'قبول'); ok.type = 'button'; ok.className = 'btn btn-primary'; ok.style.height = '44px';
+        var no = el('button', 'color:var(--err)', 'رفض'); no.type = 'button'; no.className = 'btn btn-ghost'; no.style.height = '44px';
+        var decide = async function (approve) {
+          var note = approve ? '' : await askConfirm('سبب الرفض (يراه المستخدم):', true);
+          if (!approve && !note) return;
+          try { await p2p('admin.verify.decide', { address: v.address, approve: approve, note: note }); toast(approve ? 'تم التوثيق' : 'تم الرفض'); c.remove(); }
+          catch (e) { toast(p2pErr(e), true); }
+        };
+        ok.onclick = function () { decide(true); }; no.onclick = function () { decide(false); };
+        row.appendChild(ok); row.appendChild(no); c.appendChild(row);
+        box.appendChild(c);
+      });
+    } catch (e) { emptyMsg(box, p2pErr(e)); }
   };
 
   // ===== طلباتي ولوحة المشرف =====
@@ -1548,7 +1708,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var box = $('adm-stats'); box.textContent = '';
     try {
       var s = await p2p('admin.stats');
-      [['المستخدمون', s.users], ['إعلانات نشطة', s.active_offers], ['طلبات مفتوحة', s.open_orders], ['نزاعات', s.disputes], ['صفقات مكتملة', s.completed]].forEach(function (x) {
+      [['طلبات توثيق', s.pending_verify || 0], ['المستخدمون', s.users], ['إعلانات نشطة', s.active_offers], ['طلبات مفتوحة', s.open_orders], ['نزاعات', s.disputes], ['صفقات مكتملة', s.completed]].forEach(function (x) {
         var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px');
         c.appendChild(el('span', 'font-size:12px;color:var(--mu)', x[0])); c.appendChild(el('b', 'font-size:20px', String(x[1])));
         box.appendChild(c);
@@ -1620,7 +1780,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (o.deposit_address && o.status === 'awaiting_deposit') kv(dl, 'مبلغ الإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
     var showBank = !!o.bankak_account && role !== 'seller';
     $('ord-bank').hidden = !showBank;
-    if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; }
+    if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; $('ord-bamt').textContent = String(o.total_sdg); }
+    var stepIdx = { awaiting_deposit: 0, funded: 1, paid: 2, releasing: 2, released: 3, disputed: 2 }[o.status];
+    document.querySelectorAll('#ord-steps span').forEach(function (x, i) { x.classList.toggle('on', stepIdx != null && i <= Math.min(stepIdx, 2)); });
+    state.p2p.deadline = o.status === 'funded' ? o.pay_deadline : o.status === 'awaiting_deposit' ? o.deposit_expires_at : null;
+    $('ord-timer-lbl').textContent = o.status === 'funded' ? 'الوقت المتبقي للدفع' : 'الوقت المتبقي لإيداع البائع';
+    tickTimer();
 
     $('ord-actions').textContent = '';
     var s = o.status;
@@ -1671,6 +1836,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
   $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter') $('ord-send').click(); };
   $('ord-copy').onclick = function () { copyText($('ord-bacct').textContent); };
+  $('ord-copy-amt').onclick = function () { copyText($('ord-bamt').textContent); };
+  function tickTimer() {
+    var d = state.p2p.deadline; $('ord-timer').hidden = !d;
+    if (!d) return;
+    var left = Math.max(0, Math.floor((Date.parse(d) - Date.now()) / 1000));
+    $('ord-timer-val').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    $('ord-timer-val').style.color = left < 120 ? 'var(--err)' : '';
+  }
+  setInterval(function () { if (state.stack[state.stack.length - 1] === 'order') tickTimer(); }, 1000);
   // تحديث تلقائي للطلب المفتوح كل 6 ثوانٍ
   setInterval(function () {
     var cur = state.stack[state.stack.length - 1];

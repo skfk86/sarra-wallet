@@ -15,6 +15,8 @@ const MIN_TRADE = Number(env('P2P_MIN_USDT', '10'));
 const DEPOSIT_LIFETIME = Number(env('DEPOSIT_LIFETIME_MIN', '30'));
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
+const TRONGRID_KEY = env('TRONGRID_API_KEY');
+const USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const WEBHOOK_URL = env('SUPABASE_URL') + '/functions/v1/oxapay-webhook';
 
 const cors = {
@@ -100,6 +102,22 @@ function publicOrder(o: Record<string, any>, offer: Record<string, any> | null, 
   return out;
 }
 
+// ===== رصيد البائع على الشبكة (TronGrid) =====
+async function onchainBalances(addr: string): Promise<{ usdt: bigint; trx: bigint }> {
+  const r = await fetch('https://api.trongrid.io/v1/accounts/' + addr, { headers: TRONGRID_KEY ? { 'TRON-PRO-API-KEY': TRONGRID_KEY } : {} });
+  if (!r.ok) throw new Error('BALANCE_CHECK_FAILED');
+  const j = await r.json();
+  const acc = j?.data?.[0];
+  if (!acc) return { usdt: 0n, trx: 0n };
+  const t = (acc.trc20 || []).find((x: Record<string, string>) => x[USDT] !== undefined);
+  return { usdt: BigInt(t ? t[USDT] : 0), trx: BigInt(acc.balance || 0) };
+}
+async function sha256Hex(s: string) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const b64bytes = (b: string) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
+
 // ===== الإعدادات وحدود الاستخدام =====
 async function getRate(): Promise<L.RateSetting> {
   const { data } = await db.from('settings').select('value').eq('key', 'rate').maybeSingle();
@@ -114,12 +132,15 @@ async function limit(addr: string, kind: string) {
 }
 
 async function profilesMap(addresses: string[]) {
-  const { data } = await db.from('profiles').select('address,nickname,trades_completed,disputes_lost').in('address', [...new Set(addresses)]);
-  return Object.fromEntries((data || []).map((p) => [p.address, p]));
+  const { data } = await db.from('profiles').select('address,nickname,trades_completed,disputes_lost,cancels,verify_status').in('address', [...new Set(addresses)]);
+  return Object.fromEntries((data || []).map((p) => [p.address, {
+    nickname: p.nickname, trades_completed: p.trades_completed, disputes_lost: p.disputes_lost,
+    verified: p.verify_status === 'approved', completion: L.completionRate(p.trades_completed, p.cancels)
+  }]));
 }
 
 // ===== الإجراءات =====
-async function handle(action: string, p: Record<string, any>, me: string | null) {
+async function handle(action: string, p: Record<string, any>, me: string | null, attachment = '') {
   // قراءة عامة بدون توقيع
   if (action === 'offers.list') {
     const { data } = await db.from('offers')
@@ -146,7 +167,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
 
   if (action === 'me') {
     const rate = await getRate();
-    return { profile, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
+    const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
+    delete pub.id_doc_path; delete pub.phone;
+    return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
 
   if (action === 'profile.set') {
@@ -157,9 +180,36 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     return { ok: true };
   }
 
+  if (action === 'verify.submit') {
+    if (profile.verify_status === 'approved') throw new Error('ALREADY_VERIFIED');
+    if (profile.verify_status === 'pending') throw new Error('VERIFY_PENDING');
+    const v = L.validateKyc({ ...p, id_image: attachment });
+    if (await sha256Hex(attachment) !== String(p.image_sha256)) throw new Error('BAD_ID_IMAGE');
+    await limit(me, 'verify');
+    const path = me + '/' + Date.now() + '.jpg';
+    const { error: upErr } = await db.storage.from('kyc').upload(path, b64bytes(v.image_b64), { contentType: 'image/jpeg' });
+    if (upErr) throw new Error('UPLOAD_FAILED');
+    if (profile.id_doc_path) await db.storage.from('kyc').remove([profile.id_doc_path]);
+    await db.from('profiles').update({ verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null }).eq('address', me);
+    await audit(null, me, 'verify_submit');
+    return { ok: true, verify_status: 'pending' };
+  }
+
+  if (action === 'balance.check') {
+    const b = await onchainBalances(me);
+    return { usdt: L.fromMicro(b.usdt), trx: (Number(b.trx) / 1e6).toFixed(2) };
+  }
+
   if (action === 'offer.create') {
-    const v = L.validateOffer(p, MIN_TRADE);
+    // لا إعلان بيع بدون توثيق، وحساب بنكك هو الحساب الموثّق نفسه
+    if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
+    const v = L.validateOffer({ ...p, bankak_name: profile.full_name, bankak_account: profile.bankak_account }, MIN_TRADE);
     L.checkPrice(v.price_sdg, await getRate());
+    // لا يمكن عرض مبلغ غير موجود في المحفظة فعلاً
+    const bal = await onchainBalances(me);
+    const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('active', true);
+    const committed = (mine || []).reduce((s, o) => s + L.toMicro(String(o.available_usdt)), 0n);
+    L.checkSellerFunds(bal.usdt - committed, bal.trx, v.available_usdt);
     const { count } = await db.from('offers').select('id', { count: 'exact', head: true }).eq('seller', me).eq('active', true);
     if ((count || 0) >= L.MAX_ACTIVE_OFFERS) throw new Error('MAX_OFFERS');
     await limit(me, 'offer_create');
@@ -187,6 +237,12 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     const { data: open } = await db.from('orders').select('id').eq('buyer', me).in('status', ['awaiting_deposit', 'funded', 'paid']);
     if ((open || []).length >= 3) throw new Error('TOO_MANY_OPEN');
     await limit(me, 'order_create');
+    // البائع يجب أن يملك المبلغ الآن، وإلا يُغلق إعلانه
+    const sb = await onchainBalances(offer.seller).catch(() => null);
+    if (sb && sb.usdt < L.toMicro(amount)) {
+      if (sb.usdt < L.toMicro(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
+      throw new Error('SELLER_INSUFFICIENT');
+    }
     const { data: ok } = await db.rpc('p2p_reserve', { p_offer: offer.id, p_amount: amount });
     if (!ok) throw new Error('AMOUNT_UNAVAILABLE');
     const fee = L.feeFor(amount, FEE_BPS);
@@ -242,7 +298,10 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
       const { data: locked } = await db.from('orders').update(patch).eq('id', o.id).in('status', tr.from).select().maybeSingle();
       if (!locked) throw new Error('INVALID_STATE');
       await audit(o.id, me, 'action_' + p.action, { from: o.status, to: tr.to });
-      if (tr.to === 'cancelled') await db.rpc('p2p_unreserve', { p_offer: o.offer_id, p_amount: o.amount_usdt });
+      if (tr.to === 'cancelled') {
+        await db.rpc('p2p_unreserve', { p_offer: o.offer_id, p_amount: o.amount_usdt });
+        if (role !== 'admin') { const { data: c } = await db.from('profiles').select('cancels').eq('address', me).single(); if (c) await db.from('profiles').update({ cancels: c.cancels + 1 }).eq('address', me); }
+      }
       if (role === 'admin' && p.action === 'admin_refund' && o.status === 'disputed') {
         const { data: s } = await db.from('profiles').select('disputes_lost').eq('address', o.buyer).single();
         if (s) await db.from('profiles').update({ disputes_lost: s.disputes_lost + 1 }).eq('address', o.buyer);
@@ -285,6 +344,27 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     await audit(null, me, 'rate_set', v);
     return { rate: v, range: L.priceRange(v) };
   }
+  if (action === 'admin.verify.list') {
+    const { data } = await db.from('profiles').select('address,nickname,full_name,phone,bankak_account,id_doc_path').eq('verify_status', 'pending').limit(30);
+    const out = await Promise.all((data || []).map(async (r) => {
+      const { data: s } = r.id_doc_path ? await db.storage.from('kyc').createSignedUrl(r.id_doc_path, 600) : { data: null };
+      return { ...r, id_doc_path: undefined, image_url: s?.signedUrl || null };
+    }));
+    return { pending: out };
+  }
+  if (action === 'admin.verify.decide') {
+    const approve = p.approve === true;
+    const { data: r } = await db.from('profiles').select('id_doc_path').eq('address', String(p.address)).eq('verify_status', 'pending').maybeSingle();
+    if (!r) throw new Error('NOT_FOUND');
+    // تُحذف صورة الهوية بعد القرار؛ لا نحتفظ بها
+    if (r.id_doc_path) await db.storage.from('kyc').remove([r.id_doc_path]);
+    await db.from('profiles').update({
+      verify_status: approve ? 'approved' : 'rejected', id_doc_path: null,
+      verify_note: approve ? null : String(p.note || '').slice(0, 200), verified_at: approve ? new Date().toISOString() : null
+    }).eq('address', String(p.address));
+    await audit(null, me, approve ? 'verify_approve' : 'verify_reject', { address: p.address });
+    return { ok: true };
+  }
   if (action === 'admin.ban') {
     const addr = String(p.address || '').trim();
     if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr) || ADMINS.includes(addr)) throw new Error('BAD_ADDRESS');
@@ -300,6 +380,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
       users: await count(db.from('profiles').select('address', { count: 'exact', head: true })),
       active_offers: await count(db.from('offers').select('id', { count: 'exact', head: true }).eq('active', true)),
       open_orders: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['awaiting_deposit', 'funded', 'paid'])),
+      pending_verify: await count(db.from('profiles').select('address', { count: 'exact', head: true }).eq('verify_status', 'pending')),
       disputes: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['disputed', 'release_failed', 'refund_failed'])),
       completed: await count(db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'released'))
     };
@@ -335,7 +416,7 @@ Deno.serve(async (req) => {
     if (nonceErr) return fail('REPLAY', 401);
     await limit(m.address, 'req');
     if (Math.random() < 0.02) db.rpc('p2p_cleanup').then(() => {}, () => {});
-    return json(await handle(m.action, m.params as Record<string, any>, m.address));
+    return json(await handle(m.action, m.params as Record<string, any>, m.address, typeof body.attachment === 'string' ? body.attachment : ''));
   } catch (e) {
     const msg = String((e as Error).message || e);
     const code = /^[A-Z_]+$/.test(msg) ? msg : 'SERVER_ERROR';

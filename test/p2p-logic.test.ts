@@ -107,4 +107,29 @@ t('الاسم التلقائي والحدود', () => {
   assert.equal(L.MAX_ACTIVE_OFFERS, 3);
 });
 
+t('التوثيق', () => {
+  const IMG = 'data:image/jpeg;base64,' + 'A'.repeat(30000);
+  const ok = { full_name: '  محمد  أحمد علي ', phone: '+249 912 345 678', bankak_account: '1234 5678', id_image: IMG };
+  const v = L.validateKyc(ok);
+  assert.equal(v.full_name, 'محمد أحمد علي'); assert.equal(v.phone, '0912345678'); assert.equal(v.bankak_account, '12345678');
+  assert.throws(() => L.validateKyc({ ...ok, full_name: 'محمد' }), /BAD_FULL_NAME/);
+  assert.throws(() => L.validateKyc({ ...ok, phone: '12345' }), /BAD_PHONE/);
+  assert.throws(() => L.validateKyc({ ...ok, id_image: 'data:image/png;base64,AAAA' }), /BAD_ID_IMAGE/);
+  assert.throws(() => L.validateKyc({ ...ok, id_image: 'data:image/jpeg;base64,' + 'A'.repeat(100) }), /BAD_ID_IMAGE/);
+  assert.throws(() => L.validateKyc({ ...ok, id_image: 'data:image/jpeg;base64,' + 'A'.repeat(900000) }), /BAD_ID_IMAGE/);
+  assert.equal(L.maskAccount('12345678'), '••••5678');
+});
+
+t('رصيد البائع على الشبكة', () => {
+  L.checkSellerFunds(150000000n, 20000000n, '150');
+  assert.throws(() => L.checkSellerFunds(149999999n, 20000000n, '150'), /INSUFFICIENT_SELLER_USDT/);
+  assert.throws(() => L.checkSellerFunds(150000000n, 14999999n, '150'), /SELLER_NEEDS_TRX/);
+});
+
+t('نسبة الإتمام', () => {
+  assert.equal(L.completionRate(0, 0), null);
+  assert.equal(L.completionRate(9, 1), 90);
+  assert.equal(L.completionRate(2, 1), 66.7);
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
