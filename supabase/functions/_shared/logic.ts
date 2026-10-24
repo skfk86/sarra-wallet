@@ -114,7 +114,9 @@ export function validateOffer(p: Record<string, unknown>, minTrade: number) {
   if (!/^\d{4,30}$/.test(acct)) throw new Error('BAD_BANKAK_ACCOUNT');
   const win = Number(p.pay_window_min || 15);
   if (![15, 30, 60].includes(win)) throw new Error('BAD_WINDOW');
+  const side = p.side === 'buy' ? 'buy' : 'sell';
   return {
+    side,
     price_sdg: Math.round(price * 100) / 100,
     min_usdt: fromMicro(toMicro(min.toFixed(6))), max_usdt: fromMicro(toMicro(max.toFixed(6))),
     available_usdt: fromMicro(toMicro(amount.toFixed(6))),
@@ -190,4 +192,9 @@ export function completionRate(completed: number, cancels: number): number | nul
   const total = completed + cancels;
   if (!total) return null;
   return Math.round(completed / total * 1000) / 10;
+}
+
+// من الطرف الذي يأخذ الإعلان؟ إعلان بيع ← الآخذ مشترٍ، إعلان شراء ← الآخذ بائع
+export function orderParties(offer: { seller: string; side?: string }, taker: string) {
+  return offer.side === 'buy' ? { seller: taker, buyer: offer.seller } : { seller: offer.seller, buyer: taker };
 }

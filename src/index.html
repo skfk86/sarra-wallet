@@ -132,6 +132,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .steps3 span{font-size:12px;text-align:center;padding:8px 2px 6px;border-top:3px solid var(--s2);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
 .ad{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.btn-sell{background:var(--danger-bg)!important;color:var(--danger-tx)!important}
 .ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
@@ -408,13 +409,14 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
     <button type="button" class="btn btn-ghost" id="p2p-orders-btn" style="height:48px;font-size:15px">طلباتي</button>
-    <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ إعلان بيع</button>
+    <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ نشر إعلان</button>
   </div>
-  <div class="seg" role="tablist" aria-label="عرض">
-    <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">شراء USDT</button>
+  <div class="seg" role="tablist" aria-label="عرض" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">شراء</button>
+    <button type="button" role="tab" data-p2ptab="sell" aria-selected="false">بيع</button>
     <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
   </div>
-  <div class="note ok"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+  <div class="note ok" id="p2p-hint"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
   <div class="field" id="p2p-filter" style="height:48px"><input id="p2p-amt" inputmode="decimal" dir="ltr" placeholder="كم USDT تريد؟ (فلترة)"><span class="muted" style="font-size:13px;flex-shrink:0">USDT</span></div>
   <button type="button" class="btn btn-ghost" id="p2p-admin-btn" hidden style="height:48px;font-size:15px">لوحة الأدمن</button>
   <div id="p2p-list"><p class="muted">جارٍ التحميل…</p></div>
@@ -422,15 +424,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== P2P: شراء من إعلان ===== -->
 <section class="screen" id="s-p2p-buy" aria-label="شراء USDT">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">شراء USDT</h1></div>
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px" id="buy-title">شراء USDT</h1></div>
   <div class="card" id="buy-offer" style="display:flex;flex-direction:column;gap:6px"></div>
   <label class="lbl" for="buy-amt">الكمية (USDT)</label>
   <div class="field"><input id="buy-amt" inputmode="decimal" placeholder="0" dir="ltr"></div>
   <dl class="kv card" style="padding:4px 16px">
-    <div><dt>ستحوّل عبر بنكك</dt><dd id="buy-total">—</dd></div>
+    <div><dt id="buy-total-l">ستحوّل عبر بنكك</dt><dd id="buy-total">—</dd></div>
     <div><dt>عمولة صُرّة</dt><dd class="ltr" id="buy-fee">—</dd></div>
-    <div><dt>ستستلم في محفظتك</dt><dd class="ltr" id="buy-recv" style="color:var(--ac)">—</dd></div>
+    <div><dt id="buy-recv-l">ستستلم في محفظتك</dt><dd class="ltr" id="buy-recv" style="color:var(--ac)">—</dd></div>
   </dl>
+  <div class="note ok" id="buy-sellnote" hidden><span></span></div>
   <div class="note err" id="buy-err" hidden></div>
   <div class="grow"></div>
   <button class="btn btn-primary" id="buy-go" disabled>فتح الطلب</button>
@@ -438,7 +441,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== P2P: إعلان بيع جديد ===== -->
 <section class="screen" id="s-p2p-new" aria-label="إعلان بيع">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إعلان بيع USDT</h1></div>
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">نشر إعلان</h1></div>
+  <div class="seg" id="new-side" role="radiogroup" aria-label="نوع الإعلان">
+    <button type="button" role="radio" data-side="sell" class="on" aria-checked="true">أريد أن أبيع USDT</button>
+    <button type="button" role="radio" data-side="buy" aria-checked="false">أريد أن أشتري USDT</button>
+  </div>
   <label class="lbl" for="new-price">سعرك لكل USDT (جنيه سوداني)</label>
   <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
   <p class="muted" id="new-range" style="font-size:12px;margin-top:-10px"></p>
@@ -449,15 +456,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <label class="lbl" for="new-max">أكبر صفقة (USDT)</label>
   <div class="field"><input id="new-max" inputmode="decimal" placeholder="USDT" dir="ltr"></div>
-  <div class="card" style="display:flex;flex-direction:column;gap:6px;padding:12px 16px">
-    <div class="row between"><span class="muted" style="font-size:13px">يستلم المشتري الدفع على</span><span class="tag-bk">بنكك</span></div>
+  <div class="card" id="new-payee-card" style="display:flex;flex-direction:column;gap:6px;padding:12px 16px">
+    <div class="row between"><span class="muted" style="font-size:13px">تستلم الدفع على</span><span class="tag-bk">بنكك</span></div>
     <b id="new-payee" style="font-size:15px"></b>
     <span class="muted" style="font-size:12px">حساب بنكك الموثّق باسمك. لتغييره تواصل مع الدعم.</span>
   </div>
   <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">مهلة الدفع للمشتري</legend>
     <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
   </fieldset>
-  <div class="note ok"><span>نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.</span></div>
+  <div class="note ok" id="new-buynote" hidden><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك وتستلم USDT في محفظتك. لا يلزمك رصيد الآن.</span></div>
+  <div class="note ok" id="new-sellnote"><span>نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
 </section>
@@ -1363,7 +1371,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
   function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
   async function p2p(action, params, isPublic, attachment) {
-    var body = isPublic ? { action: action } : await core.signRequest(action, params || {});
+    var body = isPublic ? Object.assign({ action: action }, params || {}) : await core.signRequest(action, params || {});
     if (attachment) body.attachment = attachment;
     var res;
     try { res = await fetch(P2P_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
@@ -1446,8 +1454,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         if (!mine.length) return emptyMsg(box, 'لا توجد إعلانات. اضغط "+ إعلان بيع"');
         mine.forEach(function (o) {
           var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px');
+          c.appendChild(el('span', 'font-size:12px;font-weight:700;color:' + (o.side === 'buy' ? 'var(--ac)' : 'var(--danger)'), o.side === 'buy' ? 'إعلان شراء' : 'إعلان بيع'));
           c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT'));
-          c.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
+          c.appendChild(el('span', 'font-size:13px;color:var(--mu)', (o.side === 'buy' ? 'المطلوب ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
           c.appendChild(el('span', 'font-size:13px;color:' + (o.active ? 'var(--ac)' : 'var(--mu)'), o.active ? 'نشط' : 'متوقف'));
           if (o.active) {
             var b = el('button', 'height:40px;border-radius:12px;background:var(--s2);border:0;color:var(--err);font:inherit;font-weight:600;cursor:pointer', 'إيقاف الإعلان');
@@ -1462,12 +1471,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     emptyMsg(box, 'جارٍ التحميل…');
     try {
-      var r = await p2p('offers.list', null, true);
+      var side = state.p2p.tab === 'sell' ? 'buy' : 'sell';
+      var r = await p2p('offers.list', { side: side }, true);
       state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade;
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
-      state.p2p.offers = r.offers;
+      state.p2p.offers = r.offers; state.p2p.listSide = side;
       renderOffers();
     } catch (e) { emptyMsg(box, p2pErr(e)); }
   }
@@ -1475,7 +1485,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var box = $('p2p-list'), want = Number($('p2p-amt').value) || 0;
     var list = (state.p2p.offers || []).filter(function (o) { return !want || (want >= Number(o.min_usdt) && want <= Math.min(Number(o.max_usdt), Number(o.available_usdt))); });
     box.textContent = '';
-    if (!list.length) return emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : 'لا توجد إعلانات بيع الآن');
+    if (!list.length) return emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا يوجد من يريد الشراء الآن' : 'لا توجد إعلانات بيع الآن');
     list.forEach(function (o) {
         var sp = o.seller_profile || {};
         var c = el('div'); c.className = 'ad';
@@ -1496,11 +1506,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         price.appendChild(el('b', 'font-size:22px;direction:ltr', fmt(o.price_sdg)));
         price.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'ج.س'));
         pr.appendChild(price);
-        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' USDT'));
+        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', (o.side === 'buy' ? 'يريد ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT'));
         pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
-        var tg = el('span', 'align-self:flex-start', 'بنكك'); tg.className = 'tag-bk'; pr.appendChild(tg);
+        var tg = el('span', 'align-self:flex-start', o.side === 'buy' ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; pr.appendChild(tg);
         bot.appendChild(pr);
-        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', 'شراء');
+        var isBuyAd = o.side === 'buy';
+        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', isBuyAd ? 'بيع' : 'شراء');
+        if (isBuyAd) go.className = 'btn-sell';
         go.type = 'button';
         go.onclick = function () { state.p2p.offer = o; openBuy(want); };
         bot.appendChild(go);
@@ -1512,16 +1524,33 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   document.querySelectorAll('[data-p2ptab]').forEach(function (b) {
     b.onclick = function () {
       state.p2p.tab = b.dataset.p2ptab;
+      $('p2p-hint').firstChild.textContent = state.p2p.tab === 'sell'
+        ? 'تبيع USDT لمشترٍ ينتظر: تودع الكمية في الضمان، يحوّل لك الجنيه عبر بنكك، ثم تحرّر USDT بعد التأكد من وصول المبلغ.'
+        : 'البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".';
+      $('p2p-filter').hidden = state.p2p.tab === 'mine';
       document.querySelectorAll('[data-p2ptab]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
       loadP2P();
     };
   });
 
   // ===== الشراء =====
-  function openBuy(prefill) {
-    var o = state.p2p.offer, sp = o.seller_profile || {};
+  async function openBuy(prefill) {
+    var o = state.p2p.offer, sp = o.seller_profile || {}, sell = o.side === 'buy';
+    if (sell) {
+      // البيع لإعلان شراء يتطلب التوثيق (لتستلم على حسابك الموثّق في بنكك)
+      if (!(await ensureProfile())) return;
+      var pf = state.p2p.me.profile;
+      if (pf.verify_status !== 'approved') { toast('وثّق حسابك أولاً لتبيع', true); openVerify(); return; }
+      $('buy-sellnote').hidden = false;
+      $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك (تحتاج TRX للرسوم).';
+    } else $('buy-sellnote').hidden = true;
+    $('buy-title').textContent = sell ? 'بيع USDT' : 'شراء USDT';
+    $('buy-total-l').textContent = sell ? 'ستستلم عبر بنكك' : 'ستحوّل عبر بنكك';
+    $('buy-recv-l').textContent = sell ? 'يستلم المشتري' : 'ستستلم في محفظتك';
+    $('buy-go').textContent = sell ? 'فتح طلب البيع' : 'فتح الطلب';
+    $('buy-go').classList.toggle('btn-sell', sell);
     var box = $('buy-offer'); box.textContent = '';
-    box.appendChild(el('b', 'font-size:16px', (sp.nickname || 'بائع') + ' · ' + fmt(o.price_sdg) + ' ج.س / USDT'));
+    box.appendChild(el('b', 'font-size:16px', (sp.nickname || (sell ? 'مشترٍ' : 'بائع')) + ' · ' + fmt(o.price_sdg) + ' ج.س / USDT'));
     box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + '–' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT · مهلة الدفع ' + o.pay_window_min + ' دقيقة'));
     $('buy-amt').value = prefill ? String(prefill) : ''; $('buy-err').hidden = true; calcBuy();
     show('p2p-buy');
@@ -1561,7 +1590,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('new-err').hidden = true;
     if (!r || !r.sdg_per_usdt || !rg) { toast('لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', true); return; }
     $('new-payee').textContent = pf.full_name + ' · ' + pf.bankak_account;
-    loadSellerBalance();
+    state.p2p.bal = null; setNewSide(state.p2p.tab === 'sell' ? 'buy' : 'sell');
     $('new-price').value = String(r.sdg_per_usdt);
     $('new-range').textContent = 'السعر المرجعي ' + fmt(r.sdg_per_usdt) + ' ج.س · المسموح من ' + fmt(rg.min) + ' إلى ' + fmt(rg.max);
     show('p2p-new');
@@ -1580,6 +1609,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       n.firstChild.textContent = 'رصيدك: ' + fmt(b.usdt) + ' USDT · ' + fmt(b.trx) + ' TRX' + (lowTrx ? ' — تحتاج 15 TRX على الأقل للرسوم' : '');
     } catch (e) { n.className = 'note err'; n.firstChild.textContent = p2pErr(e); }
   }
+  state.p2p.newSide = 'sell';
+  function setNewSide(s) {
+    state.p2p.newSide = s;
+    document.querySelectorAll('[data-side]').forEach(function (b) { var on = b.dataset.side === s; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    var buy = s === 'buy';
+    $('new-bal').hidden = buy; $('new-payee-card').hidden = buy; $('new-sellnote').hidden = buy; $('new-buynote').hidden = !buy; $('new-all').hidden = buy;
+    $('new-go').textContent = buy ? 'نشر إعلان الشراء' : 'نشر إعلان البيع';
+    if (!buy && !state.p2p.bal) loadSellerBalance();
+  }
+  document.querySelectorAll('[data-side]').forEach(function (b) { b.onclick = function () { setNewSide(b.dataset.side); }; });
   $('new-all').onclick = function () { if (state.p2p.bal) { $('new-amount').value = state.p2p.bal.usdt; if (!$('new-max').value) $('new-max').value = state.p2p.bal.usdt; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
@@ -1587,7 +1626,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       await p2p('offer.create', {
         price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
-        pay_window_min: state.p2p.win
+        pay_window_min: state.p2p.win, side: state.p2p.newSide
       });
       toast('تم نشر الإعلان');
       state.p2p.tab = 'mine';

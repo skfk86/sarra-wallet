@@ -5,7 +5,7 @@ S=sys.argv[1]
 ME='TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'; SELLER='TSe'+'A'*31; BUYER2='TBu'+'A'*31
 DEP='TDepZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'
 st={'profile':None,'rate':{'sdg_per_usdt':2700,'band_pct':3},'banned':[],'offers':[{'id':'of1','seller':SELLER,'price_sdg':2700,'min_usdt':10,'max_usdt':200,'available_usdt':150,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'ود_الخرطوم','trades_completed':12,'disputes_lost':0,'verified':True,'completion':92.3}},{'id':'of2','seller':SELLER,'price_sdg':2710,'min_usdt':300,'max_usdt':900,'available_usdt':900,'pay_window_min':30,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'تاجر_كبير','trades_completed':3,'disputes_lost':0,'verified':True,'completion':None}}],
-    'mine':[],'orders':{},'msgs':{},'signed':0,'kyc':None,'bal':{'usdt':'80','trx':'20.00'},'deposit_seen':False}
+    'buyads':[{'id':'bd1','side':'buy','seller':BUYER2,'price_sdg':2690,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'مشتري_جاد','trades_completed':5,'verified':True,'completion':100}}],'mine':[],'orders':{},'msgs':{},'signed':0,'kyc':None,'bal':{'usdt':'80','trx':'20.00'},'deposit_seen':False}
 st['orders']['sell1']={'id':'sell1','offer_id':'myof','seller':ME,'buyer':BUYER2,'amount_usdt':30,'price_sdg':2700,'total_sdg':81000,'fee_usdt':0.15,'status':'awaiting_deposit','deposit_address':DEP,'deposit_amount':30.5,'created_at':'2026-10-24T08:05:00Z','buyer_profile':{'nickname':'مشترٍ'},'seller_profile':{'nickname':'أنا'}}
 TR={('buyer','mark_paid'):(['funded'],'paid'),('buyer','dispute'):(['paid'],'disputed'),('seller','release'):(['funded','paid'],'released'),('buyer','cancel'):(['awaiting_deposit'],'cancelled'),('seller','cancel'):(['awaiting_deposit'],'cancelled')}
 def view(o):
@@ -17,13 +17,13 @@ def view(o):
   return {'order':v,'role':role,'messages':st['msgs'].get(o['id'],[])}
 async def handler(route):
   b=json.loads(route.request.post_data)
-  if 'action' in b: a,p=b['action'],{}
+  if 'action' in b: a,p=b['action'],{'side':b.get('side')}
   else:
     m=json.loads(b['message']); assert m['address']==ME and b['signature'].startswith('0x'); st['signed']+=1; a,p=m['action'],m['params']
   def ok(d): return route.fulfill(status=200,json=d)
   def err(c): return route.fulfill(status=400,json={'error':c})
   r=st['rate']; rg={'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}
-  if a=='offers.list': return await ok({'offers':st['offers'],'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
+  if a=='offers.list': return await ok({'offers':st['buyads'] if p.get('side')=='buy' else st['offers'],'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if not st['profile']: st['profile']={'address':ME,'nickname':'مستخدم-'+ME[-4:],'verify_status':'none'}
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
@@ -48,8 +48,12 @@ async def handler(route):
     if float(p['min_usdt'])<10: return await err('MIN_TOO_LOW')
     if not (rg['min']<=float(p['price_sdg'])<=rg['max']): return await err('PRICE_OUT_OF_RANGE')
     if float(p['amount_usdt'])>float(st['bal']['usdt']): return await err('INSUFFICIENT_SELLER_USDT')
-    st['mine'].append({'id':'n1','price_sdg':float(p['price_sdg']),'available_usdt':float(p['amount_usdt']),'min_usdt':float(p['min_usdt']),'max_usdt':float(p['max_usdt']),'active':True}); return await ok({'offer':st['mine'][-1]})
+    st['mine'].append({'id':'n1','side':p.get('side','sell'),'price_sdg':float(p['price_sdg']),'available_usdt':float(p['amount_usdt']),'min_usdt':float(p['min_usdt']),'max_usdt':float(p['max_usdt']),'active':True}); return await ok({'offer':st['mine'][-1]})
   if a=='offers.mine': return await ok({'offers':st['mine']})
+  if a=='order.create' and p['offer_id']=='bd1':
+    if st['profile']['verify_status']!='approved': return await err('VERIFY_REQUIRED')
+    amt=float(p['amount']); o={'id':'sell2','offer_id':'bd1','side':'buy','seller':ME,'buyer':BUYER2,'amount_usdt':amt,'price_sdg':2690,'total_sdg':amt*2690,'fee_usdt':round(amt*0.005,6),'status':'awaiting_deposit','created_at':'2026-10-24T10:00:00Z','buyer_profile':{'nickname':'مشتري_جاد'},'seller_profile':{'nickname':'أنا'},'deposit_address':DEP,'deposit_amount':amt}
+    st['orders']['sell2']=o; return await ok(view(o))
   if a=='order.create':
     amt=float(p['amount']); o={'id':'buy1','offer_id':'of1','seller':SELLER,'buyer':ME,'amount_usdt':amt,'price_sdg':2700,'total_sdg':amt*2700,'fee_usdt':round(amt*0.005,6),'status':'awaiting_deposit','created_at':'2026-10-24T09:00:00Z','buyer_profile':{'nickname':st['profile']['nickname']},'seller_profile':{'nickname':'ود_الخرطوم'},'deposit_address':'Tsecret','deposit_amount':amt}
     st['orders']['buy1']=o; return await ok(view(o))
@@ -174,6 +178,22 @@ async def main():
     assert await vis('s-p2p') and '2,650' in await pg.inner_text('#p2p-list'); step('نشر الإعلان وظهوره في "إعلاناتي"')
     await pg.click('#p2p-nick-btn'); await pg.fill('#nick-in','علوش_تجربة'); await pg.click('#nick-go'); await pg.wait_for_timeout(1000)
     assert 'علوش_تجربة' in await pg.inner_text('#p2p-nick-btn'); step('تعديل الاسم من زر واضح في السوق')
+    # تبويب البيع (إعلانات الشراء)
+    await pg.click('[data-p2ptab=sell]'); await pg.wait_for_timeout(800)
+    t=await pg.inner_text('#p2p-list'); assert 'مشتري_جاد' in t and 'يريد 100' in t, t; step('تبويب "بيع": إعلانات من يريد الشراء')
+    await no_overflow('تبويب البيع')
+    await pg.click('#p2p-list button:text-is("بيع")'); await pg.wait_for_timeout(600)
+    assert await pg.inner_text('#buy-title')=='بيع USDT' and 'ستستلم على حسابك الموثّق' in await pg.inner_text('#buy-sellnote'); step('شاشة البيع تعرض حسابك الموثّق')
+    await pg.fill('#buy-amt','40'); assert '107,600' in await pg.inner_text('#buy-total'); step('حساب ما ستستلمه بالجنيه')
+    await pg.click('#buy-go'); await pg.wait_for_timeout(1200)
+    assert await vis('s-order') and st['orders']['sell2']['seller']==ME; step('فتح طلب بيع لإعلان شراء')
+    assert await pg.locator('#ord-actions button.btn-primary:has-text("إيداع")').count()==1; step('البائع يرى زر الإيداع في الضمان')
+    await pg.click('#s-order [data-back]'); await pg.wait_for_timeout(300)
+    await pg.click('#p2p-new-btn'); await pg.wait_for_timeout(800)
+    assert await pg.get_attribute('[data-side=buy]','aria-checked')=='true' and not await vis('new-bal'); step('نشر إعلان من تبويب البيع يبدأ كإعلان شراء بدون فحص رصيد')
+    for k,v in [('new-price','2700'),('new-amount','50'),('new-min','10'),('new-max','50')]: await pg.fill('#'+k,v)
+    await pg.click('#new-go'); await pg.wait_for_timeout(1000)
+    assert st['mine'][-1]['side']=='buy' and 'إعلان شراء' in await pg.inner_text('#p2p-list'); step('نشر إعلان شراء وظهوره في "إعلاناتي"')
     await pg.click('#p2p-admin-btn'); await pg.wait_for_timeout(1000)
     assert '7' in await pg.inner_text('#adm-stats'); step('لوحة الأدمن: الإحصائيات')
     await no_overflow('لوحة الأدمن')

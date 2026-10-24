@@ -132,4 +132,12 @@ t('نسبة الإتمام', () => {
   assert.equal(L.completionRate(2, 1), 66.7);
 });
 
+t('إعلانات الشراء', () => {
+  assert.deepEqual(L.orderParties({ seller: 'A', side: 'sell' }, 'B'), { seller: 'A', buyer: 'B' });
+  assert.deepEqual(L.orderParties({ seller: 'A', side: 'buy' }, 'B'), { seller: 'B', buyer: 'A' });
+  const base = { price_sdg: 2700, min_usdt: 10, max_usdt: 50, amount_usdt: 50, bankak_name: 'x y', bankak_account: '1234' };
+  assert.equal(L.validateOffer({ ...base, side: 'buy' }, 10).side, 'buy');
+  assert.equal(L.validateOffer({ ...base, side: 'hack' }, 10).side, 'sell');
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);

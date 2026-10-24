@@ -95,9 +95,11 @@ function publicOrder(o: Record<string, any>, offer: Record<string, any> | null, 
   const out: Record<string, any> = { ...o };
   delete out.payout_error;
   out.buyer_receives = L.buyerReceives(o.amount_usdt, o.fee_usdt);
-  if (offer && L.canSeeBankDetails(o as L.Order, viewer, ADMINS)) {
-    out.bankak_name = offer.bankak_name; out.bankak_account = offer.bankak_account;
+  if (L.canSeeBankDetails(o as L.Order, viewer, ADMINS)) {
+    out.bankak_name = o.pay_name || offer?.bankak_name; out.bankak_account = o.pay_account || offer?.bankak_account;
   }
+  delete out.pay_name; delete out.pay_account;
+  if (!out.bankak_account) { delete out.bankak_name; delete out.bankak_account; }
   if (viewer !== o.seller && !ADMINS.includes(viewer)) { delete out.deposit_address; delete out.deposit_amount; }
   return out;
 }
@@ -143,9 +145,11 @@ async function profilesMap(addresses: string[]) {
 async function handle(action: string, p: Record<string, any>, me: string | null, attachment = '') {
   // قراءة عامة بدون توقيع
   if (action === 'offers.list') {
+    // sell = إعلانات بيع (تبويب "شراء")، buy = إعلانات شراء (تبويب "بيع")
+    const side = p.side === 'buy' ? 'buy' : 'sell';
     const { data } = await db.from('offers')
-      .select('id,seller,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
-      .eq('active', true).gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: true }).limit(50);
+      .select('id,seller,side,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
+      .eq('active', true).eq('side', side).gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: side === 'sell' }).limit(50);
     const rate = await getRate();
     const range = L.priceRange(rate);
     // الإعلانات خارج نطاق سعر الصرف الحالي لا تظهر (مثلاً بعد أن يغيّر المشرف السعر)
@@ -205,11 +209,13 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
     const v = L.validateOffer({ ...p, bankak_name: profile.full_name, bankak_account: profile.bankak_account }, MIN_TRADE);
     L.checkPrice(v.price_sdg, await getRate());
-    // لا يمكن عرض مبلغ غير موجود في المحفظة فعلاً
-    const bal = await onchainBalances(me);
-    const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('active', true);
-    const committed = (mine || []).reduce((s, o) => s + L.toMicro(String(o.available_usdt)), 0n);
-    L.checkSellerFunds(bal.usdt - committed, bal.trx, v.available_usdt);
+    // إعلان البيع: لا يمكن عرض مبلغ غير موجود في المحفظة فعلاً
+    if (v.side === 'sell') {
+      const bal = await onchainBalances(me);
+      const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('side', 'sell').eq('active', true);
+      const committed = (mine || []).reduce((s, o) => s + L.toMicro(String(o.available_usdt)), 0n);
+      L.checkSellerFunds(bal.usdt - committed, bal.trx, v.available_usdt);
+    }
     const { count } = await db.from('offers').select('id', { count: 'exact', head: true }).eq('seller', me).eq('active', true);
     if ((count || 0) >= L.MAX_ACTIVE_OFFERS) throw new Error('MAX_OFFERS');
     await limit(me, 'offer_create');
@@ -234,22 +240,34 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (offer.seller === me) throw new Error('OWN_OFFER');
     const range = L.priceRange(await getRate());
     if (range && (Number(offer.price_sdg) < range.min || Number(offer.price_sdg) > range.max)) throw new Error('OFFER_UNAVAILABLE');
-    const { data: open } = await db.from('orders').select('id').eq('buyer', me).in('status', ['awaiting_deposit', 'funded', 'paid']);
+    const side = offer.side === 'buy' ? 'buy' : 'sell';
+    const { seller, buyer } = L.orderParties(offer, me);
+    const { data: open } = await db.from('orders').select('id').or(`buyer.eq.${me},seller.eq.${me}`).in('status', ['awaiting_deposit', 'funded', 'paid']);
     if ((open || []).length >= 3) throw new Error('TOO_MANY_OPEN');
+    let payName = offer.bankak_name, payAccount = offer.bankak_account;
+    if (side === 'buy') {
+      // البيع لإعلان شراء: البائع (أنت) موثّق، ويملك المبلغ و TRX للرسوم، ويستلم على حسابه الموثّق
+      if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
+      const b = await onchainBalances(me);
+      L.checkSellerFunds(b.usdt, b.trx, amount);
+      payName = profile.full_name; payAccount = profile.bankak_account;
+    }
     await limit(me, 'order_create');
-    // البائع يجب أن يملك المبلغ الآن، وإلا يُغلق إعلانه
-    const sb = await onchainBalances(offer.seller).catch(() => null);
-    if (sb && sb.usdt < L.toMicro(amount)) {
-      if (sb.usdt < L.toMicro(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
-      throw new Error('SELLER_INSUFFICIENT');
+    if (side === 'sell') {
+      // البائع يجب أن يملك المبلغ الآن، وإلا يُغلق إعلانه
+      const sb = await onchainBalances(offer.seller).catch(() => null);
+      if (sb && sb.usdt < L.toMicro(amount)) {
+        if (sb.usdt < L.toMicro(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
+        throw new Error('SELLER_INSUFFICIENT');
+      }
     }
     const { data: ok } = await db.rpc('p2p_reserve', { p_offer: offer.id, p_amount: amount });
     if (!ok) throw new Error('AMOUNT_UNAVAILABLE');
     const fee = L.feeFor(amount, FEE_BPS);
     const total = Math.round(Number(amount) * Number(offer.price_sdg) * 100) / 100;
     const { data: order, error } = await db.from('orders').insert({
-      offer_id: offer.id, seller: offer.seller, buyer: me, amount_usdt: amount,
-      price_sdg: offer.price_sdg, total_sdg: total, fee_usdt: fee
+      offer_id: offer.id, seller, buyer, amount_usdt: amount, side,
+      price_sdg: offer.price_sdg, total_sdg: total, fee_usdt: fee, pay_name: payName, pay_account: payAccount
     }).select().single();
     if (error) { await db.rpc('p2p_unreserve', { p_offer: offer.id, p_amount: amount }); throw new Error('DB_ERROR'); }
     try {
@@ -405,7 +423,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     // قراءة عامة
-    if (body && body.action === 'offers.list') return json(await handle('offers.list', {}, null));
+    if (body && body.action === 'offers.list') return json(await handle('offers.list', { side: body.side }, null));
     // طلب موقّع
     const { message, signature } = body || {};
     if (typeof message !== 'string' || typeof signature !== 'string') return fail('UNAUTHORIZED', 401);
