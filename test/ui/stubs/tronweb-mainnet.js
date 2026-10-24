@@ -11,12 +11,12 @@
       getTransactionInfo: async(txid)=>({id:txid, receipt:{result: String(txid).indexOf('fail')===0?'REVERT':'SUCCESS'}}),
       signMessageV2: async(m)=>{ window.__signed=(window.__signed||0)+1; return '0x'+'5'.repeat(130); }
     };
-    this.address={fromHex:(h)=>h==='41aa'?ADDR:OTHER};
+    this.address={fromHex:(h)=>h==='41aa'?ADDR:h==='41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18'?WTRX:OTHER};
   }
   TW.prototype.setAddress=function(){};
   TW.prototype.contract=function(abi,addr){
     if(addr===ROUTER) return {
-      WETH:()=>({call:async()=>WTRX}),
+      WETH:()=>({call:async()=>'0x891cdb91d149f23b1a45d9c5ca78a88d0cb44c18'}),
       getAmountsOut:(amt,path)=>({call:async()=>{ var a=BigInt(amt); var out= path[0]===WTRX ? a*33n/100n : a*3n; return {amounts:[a.toString(), out.toString()]}; }}),
       swapExactETHForTokens:(min,path,to,dl)=>({send:async(o)=>{ window.__log.push(['SWAP_TRX_USDT',o.callValue,min]); return id('swap'); }}),
       swapExactTokensForETH:(amt,min,path,to,dl)=>({send:async()=>{ window.__log.push(['SWAP_USDT_TRX',amt,min,window.__allow]); return id('swap'); }})

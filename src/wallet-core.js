@@ -41,6 +41,17 @@
     { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] },
     { type: 'function', name: 'allowance', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }
   ];
+  // TronWeb يعيد العنوان بصيغ مختلفة حسب الإصدار: base58، أو hex بـ 41، أو 0x، أو 40 خانة
+  function normalizeAddress(tw, v) {
+    if (Array.isArray(v)) v = v[0];
+    var s = String(v || '');
+    if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(s)) return s;
+    s = s.replace(/^0x/i, '');
+    if (/^[0-9a-fA-F]{40}$/.test(s)) s = '41' + s;
+    if (/^41[0-9a-fA-F]{40}$/.test(s)) return tw.address.fromHex(s);
+    return '';
+  }
+
   var ROUTER_ABI = [
     { type: 'function', name: 'WETH', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] },
     { type: 'function', name: 'getAmountsOut', stateMutability: 'view', inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'path', type: 'address[]' }], outputs: [{ name: 'amounts', type: 'uint256[]' }] },
@@ -388,10 +399,11 @@
           tw.setAddress(net.swap.router);
           var router = tw.contract(ROUTER_ABI, net.swap.router);
           var weth = await router.WETH().call();
-          var wethB58 = typeof weth === 'string' && weth.indexOf('41') === 0 ? tw.address.fromHex(weth) : String(weth);
-          swapChecked = wethB58 === net.swap.wtrx;
-        } catch (e) { swapChecked = false; }
-        return swapChecked;
+          var ok = normalizeAddress(tw, weth) === net.swap.wtrx;
+          // نتذكّر النجاح فقط؛ الفشل (شبكة ضعيفة مثلاً) يُعاد فحصه في المرة القادمة
+          if (ok) swapChecked = true;
+          return ok;
+        } catch (e) { return false; }
       },
 
       // العمولة بالـ TRX لعملية تبديل: من مبلغ TRX الداخل، أو من الحد الأدنى لـ TRX المستلَم
@@ -538,6 +550,7 @@
   }
 
   var api = {
+    normalizeAddress: normalizeAddress,
     createCore: createCore,
     errorText: errorText,
     toUnits: toUnits,

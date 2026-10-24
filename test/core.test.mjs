@@ -16,6 +16,14 @@ const W = require('../src/wallet-core.js');
 let pass = 0;
 const t = async (name, fn) => { await fn(); pass++; console.log('✓', name); };
 
+await t('قراءة عنوان WETH من SunSwap بكل الصيغ', () => {
+  const tw = { address: { fromHex: (x) => x === '41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18' ? 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR' : 'X' } };
+  const W2 = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR';
+  for (const v of [W2, '41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18', '0x891cdb91d149f23b1a45d9c5ca78a88d0cb44c18', '891cdb91d149f23b1a45d9c5ca78a88d0cb44c18', ['0x891cdb91d149f23b1a45d9c5ca78a88d0cb44c18']])
+    assert.equal(W.normalizeAddress(tw, v), W2, String(v));
+  assert.equal(W.normalizeAddress(tw, 'garbage'), '');
+});
+
 await t('toUnits يحوّل بدقة', () => {
   assert.equal(W.toUnits('12.5', 6), 12500000n);
   assert.equal(W.toUnits('0.000001', 6), 1n);

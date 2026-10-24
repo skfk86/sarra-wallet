@@ -185,7 +185,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'verify.submit') {
-    if (profile.verify_status === 'approved') throw new Error('ALREADY_VERIFIED');
+    // الموثّق يمكنه طلب تغيير حساب بنكك: يعود للمراجعة وتتوقف إعلاناته حتى القبول
+    const changing = profile.verify_status === 'approved' && p.change === true;
+    if (profile.verify_status === 'approved' && !changing) throw new Error('ALREADY_VERIFIED');
     if (profile.verify_status === 'pending') throw new Error('VERIFY_PENDING');
     const v = L.validateKyc({ ...p, id_image: attachment });
     if (await sha256Hex(attachment) !== String(p.image_sha256)) throw new Error('BAD_ID_IMAGE');
@@ -195,7 +197,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (upErr) throw new Error('UPLOAD_FAILED');
     if (profile.id_doc_path) await db.storage.from('kyc').remove([profile.id_doc_path]);
     await db.from('profiles').update({ verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null }).eq('address', me);
-    await audit(null, me, 'verify_submit');
+    if (changing) await db.from('offers').update({ active: false }).eq('seller', me).eq('active', true);
+    await audit(null, me, changing ? 'verify_change' : 'verify_submit');
     return { ok: true, verify_status: 'pending' };
   }
 
