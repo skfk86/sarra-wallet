@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.trongrid.io https://nile.trongrid.io">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co">
 <title>صُرّة</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -367,15 +367,108 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 </section>
 
-<!-- ===== P2P (قريباً) ===== -->
+<!-- ===== P2P: السوق ===== -->
 <section class="screen with-tabs" id="s-p2p" aria-label="سوق P2P">
-  <h1 style="font-size:20px">سوق P2P</h1>
-  <div class="soon">
-    <span class="badge">قريباً</span>
-    <h2 style="font-size:20px">اشترِ وبِع USDT بالجنيه عبر بنكك</h2>
-    <p class="muted" style="font-size:14px;line-height:1.8">مع عقد ضمان يحجز العملة حتى يؤكد البائع وصول التحويل.</p>
+  <div class="row between">
+    <h1 style="font-size:20px">سوق P2P</h1>
+    <div class="row" style="gap:8px">
+      <button type="button" class="chip" id="p2p-orders-btn">طلباتي</button>
+      <button type="button" class="chip on" id="p2p-new-btn">+ إعلان بيع</button>
+    </div>
   </div>
+  <div class="seg" role="tablist" aria-label="عرض">
+    <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">شراء USDT</button>
+    <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
+  </div>
+  <div class="note ok"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+  <div class="row" id="p2p-admin-row" hidden><button type="button" class="btn btn-ghost" id="p2p-admin-btn" style="height:44px">لوحة المشرف (النزاعات)</button></div>
+  <div id="p2p-list"><p class="muted">جارٍ التحميل…</p></div>
 </section>
+
+<!-- ===== P2P: شراء من إعلان ===== -->
+<section class="screen" id="s-p2p-buy" aria-label="شراء USDT">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">شراء USDT</h1></div>
+  <div class="card" id="buy-offer" style="display:flex;flex-direction:column;gap:6px"></div>
+  <label class="lbl" for="buy-amt">الكمية (USDT)</label>
+  <div class="field"><input id="buy-amt" inputmode="decimal" placeholder="0" dir="ltr"></div>
+  <dl class="kv card" style="padding:4px 16px">
+    <div><dt>ستحوّل عبر بنكك</dt><dd id="buy-total">—</dd></div>
+    <div><dt>عمولة صُرّة</dt><dd class="ltr" id="buy-fee">—</dd></div>
+    <div><dt>ستستلم في محفظتك</dt><dd class="ltr" id="buy-recv" style="color:var(--ac)">—</dd></div>
+  </dl>
+  <div class="note err" id="buy-err" hidden></div>
+  <div class="grow"></div>
+  <button class="btn btn-primary" id="buy-go" disabled>فتح الطلب</button>
+</section>
+
+<!-- ===== P2P: إعلان بيع جديد ===== -->
+<section class="screen" id="s-p2p-new" aria-label="إعلان بيع">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إعلان بيع USDT</h1></div>
+  <label class="lbl" for="new-price">السعر لكل USDT (جنيه سوداني)</label>
+  <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-min">أقل صفقة</label><div class="field"><input id="new-min" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
+  </div>
+  <label class="lbl" for="new-max">أكبر صفقة (USDT)</label>
+  <div class="field"><input id="new-max" inputmode="decimal" placeholder="USDT" dir="ltr"></div>
+  <label class="lbl" for="new-bname">اسم صاحب حساب بنكك</label>
+  <div class="field"><input id="new-bname" autocomplete="off"></div>
+  <label class="lbl" for="new-bacct">رقم حساب بنكك</label>
+  <div class="field"><input id="new-bacct" inputmode="numeric" dir="ltr" autocomplete="off"></div>
+  <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">مهلة الدفع للمشتري</legend>
+    <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
+  </fieldset>
+  <div class="note ok"><span>لا يُحجز شيء من رصيدك الآن. عند كل طلب تودع الكمية المطلوبة في الضمان، وتحتاج TRX لرسوم الإيداع.</span></div>
+  <div class="note err" id="new-err" hidden></div>
+  <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
+</section>
+
+<!-- ===== P2P: طلباتي ===== -->
+<section class="screen" id="s-p2p-orders" aria-label="طلباتي">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px" id="orders-title">طلباتي</h1></div>
+  <div id="orders-list"><p class="muted">جارٍ التحميل…</p></div>
+</section>
+
+<!-- ===== P2P: الطلب ===== -->
+<section class="screen" id="s-order" aria-label="الطلب">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div></div>
+  <div class="note" id="ord-status" role="status"></div>
+  <dl class="kv card" style="padding:4px 16px" id="ord-kv"></dl>
+  <div class="card" id="ord-bank" hidden style="display:flex;flex-direction:column;gap:8px">
+    <span class="muted">حوّل المبلغ إلى حساب بنكك التالي فقط:</span>
+    <div class="row between"><span>الاسم</span><b id="ord-bname"></b></div>
+    <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px">نسخ</button></span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px" id="ord-actions"></div>
+  <h2 style="font-size:15px">المحادثة</h2>
+  <div class="card" id="ord-chat" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding:12px"></div>
+  <div class="field"><input id="ord-msg" placeholder="اكتب رسالة…" autocomplete="off" maxlength="1000"><button type="button" class="icon-btn flat" id="ord-send" aria-label="إرسال الرسالة"><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button></div>
+  <p class="muted" style="font-size:12px">لا تتواصل خارج التطبيق: المحادثة هنا هي دليلك عند النزاع.</p>
+</section>
+
+<!-- ===== نافذة تأكيد عامة ===== -->
+<div class="sheet-bg" id="ask-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-text">
+  <div class="sheet">
+    <p id="ask-text" style="font-size:15px;line-height:1.8"></p>
+    <div class="field" id="ask-field" hidden><textarea id="ask-in" rows="3" maxlength="500" style="resize:none;padding:8px 10px;line-height:1.7"></textarea></div>
+    <button class="btn btn-primary" id="ask-yes">تأكيد</button>
+    <button class="btn btn-ghost" id="ask-no">رجوع</button>
+  </div>
+</div>
+
+<!-- ===== P2P: الاسم المستعار ===== -->
+<div class="sheet-bg" id="nick-sheet" role="dialog" aria-modal="true" aria-labelledby="nick-title">
+  <div class="sheet">
+    <h2 id="nick-title" style="font-size:18px">اسمك في السوق</h2>
+    <p class="muted" style="font-size:14px">يظهر للطرف الآخر في الصفقات. لا تكتب رقم هاتفك.</p>
+    <div class="field"><input id="nick-in" maxlength="24" placeholder="مثلاً: ود_الخرطوم" autocomplete="off"></div>
+    <div class="note err" id="nick-err" hidden></div>
+    <button class="btn btn-primary" id="nick-go">متابعة</button>
+    <button class="btn btn-ghost" id="nick-no">إلغاء</button>
+  </div>
+</div>
 
 <!-- ===== شريط التنقل ===== -->
 <nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
@@ -509,6 +602,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (name === 'history') loadHistoryFull();
     if (name === 'security') prepareSecurity();
     if (name === 'swap') prepareSwap();
+    if (name === 'p2p') loadP2P();
   }
   function back() {
     state.stack.pop();
@@ -544,6 +638,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if ($('ask-sheet').classList.contains('show')) { $('ask-no').click(); return; }
+      if ($('nick-sheet').classList.contains('show')) { $('nick-no').click(); return; }
       if (cur && cur !== 'home' && TAB_SCREENS.indexOf(cur) >= 0) { resetTo('home'); return; }
       if (state.stack.length > 1 && cur !== 'home' && !(cur === 'pin' && state.pinMode === 'unlock')) back();
       else P.App.exitApp();
@@ -1142,6 +1238,330 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       show('swap');
     } finally { state.txBusy = false; }
   }
+
+  // ===== سوق P2P =====
+  // كل طلب يُوقَّع بمفتاح المحفظة على الجهاز؛ الخادم يتحقق من التوقيع ولا يرى المفتاح أبداً
+  var P2P_URL = CFG.p2pUrl || '';
+  var P2P_ERRORS = {
+    NO_PROFILE: 'اختر اسمك في السوق أولاً', BANNED: 'هذا الحساب موقوف في السوق',
+    OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
+    AMOUNT_UNAVAILABLE: 'الكمية خارج حدود الإعلان أو غير متوفرة', TOO_MANY_OPEN: 'لديك 3 طلبات مفتوحة. أكملها أولاً',
+    ESCROW_UNAVAILABLE: 'خدمة الضمان غير متاحة الآن. حاول لاحقاً', INVALID_STATE: 'حالة الطلب تغيّرت. حدّث الصفحة',
+    PAY_WINDOW_OPEN: 'لا يمكن الإلغاء قبل انتهاء مهلة الدفع', NOT_ALLOWED: 'غير مسموح', NOT_FOUND: 'الطلب غير موجود',
+    EXPIRED_REQUEST: 'وقت هاتفك غير مضبوط. فعّل الوقت التلقائي من الإعدادات', BAD_SIGNATURE: 'تعذّر التحقق من المحفظة',
+    MIN_TOO_LOW: 'أقل صفقة 10 USDT', MAX_LT_MIN: 'أكبر صفقة يجب أن تكون أكبر من الأقل', AMOUNT_LT_MIN: 'الكمية المعروضة أقل من أقل صفقة',
+    BAD_BANKAK_ACCOUNT: 'رقم حساب بنكك غير صحيح (أرقام فقط)', BAD_BANKAK_NAME: 'اكتب اسم صاحب الحساب',
+    BAD_PRICE_SDG: 'اكتب السعر', BAD_MIN_USDT: 'اكتب أقل صفقة', BAD_MAX_USDT: 'اكتب أكبر صفقة', BAD_AMOUNT_USDT: 'اكتب الكمية',
+    BAD_NICKNAME: 'الاسم من 2 إلى 24 حرفاً', EMPTY_MESSAGE: 'اكتب رسالة', ORDER_CLOSED: 'الطلب مغلق'
+  };
+  function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
+  async function p2p(action, params, isPublic) {
+    var body = isPublic ? { action: action } : await core.signRequest(action, params || {});
+    var res;
+    try { res = await fetch(P2P_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+    catch (e) { throw new Error('NETWORK'); }
+    var j = await res.json().catch(function () { return {}; });
+    if (!res.ok || j.error) throw new Error(j.error || 'SERVER');
+    return j;
+  }
+  function fmt(n, d) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d }); }
+  function el(tag, css, text) { var e = document.createElement(tag); if (css) e.style.cssText = css; if (text != null) e.textContent = text; return e; }
+
+  state.p2p = { tab: 'market', me: null, offer: null, orderId: null, poll: 0 };
+
+  // نافذة تأكيد من تصميم التطبيق (بدل confirm/prompt)؛ withInput يطلب نصاً
+  function askConfirm(text, withInput) {
+    return new Promise(function (resolve) {
+      $('ask-text').textContent = text;
+      $('ask-field').hidden = !withInput; $('ask-in').value = '';
+      $('ask-sheet').classList.add('show');
+      var done = function (v) { $('ask-sheet').classList.remove('show'); resolve(v); };
+      $('ask-yes').onclick = function () {
+        if (withInput) { var t = $('ask-in').value.trim(); if (!t) { $('ask-in').focus(); return; } done(t); } else done(true);
+      };
+      $('ask-no').onclick = function () { done(null); };
+    });
+  }
+
+  // تأكيد العمليات الحساسة (البصمة أو الرمز) ثم الرجوع لنفس الشاشة
+  function authorize(title, fn) {
+    var back = state.stack[state.stack.length - 1];
+    var viaPin = function () { openPin('verify', function () { state.stack.pop(); show(back, false); fn(); }); };
+    if (bioEnabled()) bioVerify(title).then(fn).catch(viaPin); else viaPin();
+  }
+
+  async function ensureProfile() {
+    if (state.p2p.me && state.p2p.me.profile) return true;
+    try { state.p2p.me = await p2p('me'); } catch (e) { toast(p2pErr(e), true); return false; }
+    $('p2p-admin-row').hidden = !state.p2p.me.is_admin;
+    if (state.p2p.me.profile) return true;
+    return new Promise(function (resolve) {
+      $('nick-in').value = ''; $('nick-err').hidden = true; $('nick-sheet').classList.add('show');
+      $('nick-no').onclick = function () { $('nick-sheet').classList.remove('show'); resolve(false); };
+      $('nick-go').onclick = async function () {
+        try {
+          await p2p('profile.set', { nickname: $('nick-in').value });
+          state.p2p.me = await p2p('me');
+          $('nick-sheet').classList.remove('show'); resolve(true);
+        } catch (e) { $('nick-err').textContent = p2pErr(e); $('nick-err').hidden = false; }
+      };
+    });
+  }
+
+  async function loadP2P() {
+    if (!P2P_URL) { emptyMsg($('p2p-list'), 'السوق غير مفعّل في هذه النسخة'); return; }
+    var box = $('p2p-list');
+    if (state.p2p.tab === 'mine') {
+      if (!(await ensureProfile())) { emptyMsg(box, 'اختر اسمك في السوق لعرض إعلاناتك'); return; }
+      emptyMsg(box, 'جارٍ التحميل…');
+      try {
+        var mine = (await p2p('offers.mine')).offers;
+        box.textContent = '';
+        if (!mine.length) return emptyMsg(box, 'لا توجد إعلانات. اضغط "+ إعلان بيع"');
+        mine.forEach(function (o) {
+          var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px');
+          c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT'));
+          c.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
+          c.appendChild(el('span', 'font-size:13px;color:' + (o.active ? 'var(--ac)' : 'var(--mu)'), o.active ? 'نشط' : 'متوقف'));
+          if (o.active) {
+            var b = el('button', 'height:40px;border-radius:12px;background:var(--s2);border:0;color:var(--err);font:inherit;font-weight:600;cursor:pointer', 'إيقاف الإعلان');
+            b.type = 'button';
+            b.onclick = async function () { try { await p2p('offer.close', { id: o.id }); toast('تم إيقاف الإعلان'); loadP2P(); } catch (e) { toast(p2pErr(e), true); } };
+            c.appendChild(b);
+          }
+          box.appendChild(c);
+        });
+      } catch (e) { emptyMsg(box, p2pErr(e)); }
+      return;
+    }
+    emptyMsg(box, 'جارٍ التحميل…');
+    try {
+      var r = await p2p('offers.list', null, true);
+      state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade;
+      box.textContent = '';
+      if (!r.offers.length) return emptyMsg(box, 'لا توجد إعلانات بيع الآن');
+      r.offers.forEach(function (o) {
+        var sp = o.seller_profile || {};
+        var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px');
+        var top = el('div', 'display:flex;align-items:center;gap:10px');
+        top.appendChild(el('span', 'width:36px;height:36px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-weight:700', (sp.nickname || '؟').charAt(0)));
+        var who = el('div', 'flex-grow:1;display:flex;flex-direction:column');
+        who.appendChild(el('b', 'font-size:14px', sp.nickname || 'بائع'));
+        who.appendChild(el('span', 'font-size:12px;color:var(--mu)', (sp.trades_completed || 0) + ' صفقة مكتملة' + (sp.disputes_lost ? ' · خسر ' + sp.disputes_lost + ' نزاع' : '')));
+        top.appendChild(who);
+        top.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'مهلة ' + o.pay_window_min + ' د'));
+        c.appendChild(top);
+        var bot = el('div', 'display:flex;align-items:flex-end;justify-content:space-between;gap:10px');
+        var pr = el('div', 'display:flex;flex-direction:column;gap:2px');
+        pr.appendChild(el('b', 'font-size:20px', fmt(o.price_sdg) + ' ج.س'));
+        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'المتاح ' + fmt(o.available_usdt) + ' · الحدود ' + fmt(o.min_usdt) + '–' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
+        bot.appendChild(pr);
+        var go = el('button', 'height:40px;padding:0 20px;border-radius:12px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer', 'شراء');
+        go.type = 'button';
+        go.onclick = function () { state.p2p.offer = o; openBuy(); };
+        bot.appendChild(go);
+        c.appendChild(bot);
+        box.appendChild(c);
+      });
+    } catch (e) { emptyMsg(box, p2pErr(e)); }
+  }
+  document.querySelectorAll('[data-p2ptab]').forEach(function (b) {
+    b.onclick = function () {
+      state.p2p.tab = b.dataset.p2ptab;
+      document.querySelectorAll('[data-p2ptab]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      loadP2P();
+    };
+  });
+
+  // ===== الشراء =====
+  function openBuy() {
+    var o = state.p2p.offer, sp = o.seller_profile || {};
+    var box = $('buy-offer'); box.textContent = '';
+    box.appendChild(el('b', 'font-size:16px', (sp.nickname || 'بائع') + ' · ' + fmt(o.price_sdg) + ' ج.س / USDT'));
+    box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + '–' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT · مهلة الدفع ' + o.pay_window_min + ' دقيقة'));
+    $('buy-amt').value = ''; $('buy-err').hidden = true; calcBuy();
+    show('p2p-buy');
+  }
+  function calcBuy() {
+    var o = state.p2p.offer; if (!o) return;
+    var v = 0; try { v = Number(WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6)); } catch (e) {}
+    var ok = v >= Number(o.min_usdt) && v <= Math.min(Number(o.max_usdt), Number(o.available_usdt));
+    var fee = Math.floor(v * (state.p2p.feeBps || 50) / 10000 * 1e6) / 1e6;
+    $('buy-total').textContent = v ? fmt(v * o.price_sdg) + ' ج.س' : '—';
+    $('buy-fee').textContent = v ? fee + ' USDT (' + ((state.p2p.feeBps || 50) / 100) + '%)' : '—';
+    $('buy-recv').textContent = v ? fmt(v - fee, 6) + ' USDT' : '—';
+    $('buy-go').disabled = !ok;
+  }
+  $('buy-amt').oninput = calcBuy;
+  $('buy-go').onclick = async function () {
+    var btn = this; $('buy-err').hidden = true;
+    if (!(await ensureProfile())) return;
+    btn.disabled = true;
+    try {
+      var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6) });
+      openOrder(r.order.id, true);
+    } catch (e) { $('buy-err').textContent = p2pErr(e); $('buy-err').hidden = false; btn.disabled = false; }
+  };
+
+  // ===== إعلان جديد =====
+  state.p2p.win = 15;
+  document.querySelectorAll('[data-win]').forEach(function (b) {
+    b.onclick = function () { state.p2p.win = Number(b.dataset.win); document.querySelectorAll('[data-win]').forEach(function (x) { x.classList.toggle('on', x === b); }); };
+  });
+  $('p2p-new-btn').onclick = async function () { if (await ensureProfile()) { $('new-err').hidden = true; show('p2p-new'); } };
+  $('new-go').onclick = async function () {
+    var btn = this; $('new-err').hidden = true; btn.disabled = true;
+    var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnits($(id).value, 6), 6); } catch (e) { return '0'; } };
+    try {
+      await p2p('offer.create', {
+        price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
+        bankak_name: $('new-bname').value, bankak_account: $('new-bacct').value, pay_window_min: state.p2p.win
+      });
+      toast('تم نشر الإعلان');
+      state.p2p.tab = 'mine';
+      document.querySelectorAll('[data-p2ptab]').forEach(function (x) { x.classList.toggle('on', x.dataset.p2ptab === 'mine'); });
+      resetTo('p2p');
+    } catch (e) { $('new-err').textContent = p2pErr(e); $('new-err').hidden = false; }
+    btn.disabled = false;
+  };
+
+  // ===== طلباتي ولوحة المشرف =====
+  var STATUS = {
+    awaiting_deposit: ['بانتظار إيداع البائع في الضمان', 'warn'], funded: ['محجوز في الضمان · حوّل المبلغ عبر بنكك', 'ok'],
+    paid: ['المشتري أكّد الدفع · بانتظار تأكيد البائع', 'warn'], releasing: ['جارٍ إرسال USDT للمشتري…', 'warn'],
+    released: ['اكتملت الصفقة ✓', 'ok'], release_failed: ['تأخر الإرسال · المشرف يتابع', 'err'],
+    cancelled: ['أُلغي الطلب', 'warn'], refunding: ['جارٍ إرجاع USDT للبائع…', 'warn'], refunded: ['أُعيد USDT للبائع', 'warn'],
+    refund_failed: ['تأخر الإرجاع · المشرف يتابع', 'err'], disputed: ['نزاع مفتوح · المشرف يراجع الأدلة', 'err']
+  };
+  function renderOrderList(box, list, adminView) {
+    box.textContent = '';
+    if (!list.length) return emptyMsg(box, adminView ? 'لا توجد نزاعات' : 'لا توجد طلبات');
+    list.forEach(function (o) {
+      var me = state.p2p.me && state.p2p.me.profile ? state.p2p.me.profile.address : null;
+      var mine = adminView ? '' : (o.buyer === me ? 'شراء' : 'بيع');
+      var row = el('button', 'width:100%;text-align:start;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:8px;display:flex;flex-direction:column;gap:4px;color:inherit;font:inherit;cursor:pointer');
+      row.type = 'button';
+      row.appendChild(el('b', 'font-size:14px', (mine ? mine + ' ' : '') + fmt(o.amount_usdt) + ' USDT · ' + fmt(o.total_sdg) + ' ج.س'));
+      row.appendChild(el('span', 'font-size:12px;color:var(--mu)', (STATUS[o.status] || [o.status])[0] + ' · ' + new Date(o.created_at).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })));
+      row.onclick = function () { openOrder(o.id); };
+      box.appendChild(row);
+    });
+  }
+  $('p2p-orders-btn').onclick = async function () {
+    if (!(await ensureProfile())) return;
+    $('orders-title').textContent = 'طلباتي'; show('p2p-orders');
+    emptyMsg($('orders-list'), 'جارٍ التحميل…');
+    try { renderOrderList($('orders-list'), (await p2p('orders.mine')).orders, false); } catch (e) { emptyMsg($('orders-list'), p2pErr(e)); }
+  };
+  $('p2p-admin-btn').onclick = async function () {
+    $('orders-title').textContent = 'النزاعات والمعاملات المتأخرة'; show('p2p-orders');
+    emptyMsg($('orders-list'), 'جارٍ التحميل…');
+    try { renderOrderList($('orders-list'), (await p2p('admin.queue')).orders, true); } catch (e) { emptyMsg($('orders-list'), p2pErr(e)); }
+  };
+
+  // ===== شاشة الطلب =====
+  function openOrder(id, fresh) {
+    state.p2p.orderId = id; state.p2p.order = null;
+    $('ord-chat').textContent = ''; $('ord-actions').textContent = ''; $('ord-kv').textContent = '';
+    $('ord-status').textContent = 'جارٍ التحميل…'; $('ord-status').className = 'note';
+    if (fresh) { state.stack.pop(); }
+    show('order');
+    refreshOrder('order.get');
+  }
+  async function refreshOrder(action, params) {
+    var id = state.p2p.orderId; if (!id) return;
+    try {
+      var r = await p2p(action || 'order.get', Object.assign({ id: id }, params || {}));
+      if (state.p2p.orderId !== id) return;
+      renderOrder(r);
+    } catch (e) { toast(p2pErr(e), true); if (action && action !== 'order.get') refreshOrder('order.get'); }
+  }
+  function kv(dl, k, v, ltr) { var d = el('div'); d.appendChild(el('dt', null, k)); var dd = el('dd', ltr ? 'direction:ltr' : null, v); d.appendChild(dd); dl.appendChild(d); }
+  function actionBtn(label, kind, fn) {
+    var b = el('button', null, label); b.type = 'button';
+    b.className = 'btn ' + (kind === 'primary' ? 'btn-primary' : 'btn-ghost');
+    if (kind === 'danger') b.style.cssText = 'color:var(--err)';
+    b.onclick = fn; $('ord-actions').appendChild(b); return b;
+  }
+  async function doAction(act, confirmText, needAuth) {
+    var run = function () { refreshOrder('order.action', { action: act, reason: state.p2p.reason || '' }); };
+    if (confirmText && !(await askConfirm(confirmText))) return;
+    if (needAuth) authorize('تأكيد العملية', run); else run();
+  }
+  function renderOrder(r) {
+    var o = r.order, role = r.role; state.p2p.order = o; state.p2p.role = role;
+    var st = STATUS[o.status] || [o.status, 'warn'];
+    $('ord-title').textContent = (role === 'buyer' ? 'شراء ' : role === 'seller' ? 'بيع ' : 'نزاع ') + fmt(o.amount_usdt) + ' USDT';
+    var other = role === 'buyer' ? o.seller_profile : o.buyer_profile;
+    $('ord-sub').textContent = role === 'admin' ? (o.buyer_profile || {}).nickname + ' ← ' + (o.seller_profile || {}).nickname : 'مع ' + ((other || {}).nickname || '—');
+    $('ord-status').textContent = st[0]; $('ord-status').className = 'note ' + st[1];
+    var dl = $('ord-kv'); dl.textContent = '';
+    kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
+    kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
+    kv(dl, 'يستلم المشتري', fmt(o.buyer_receives, 6) + ' USDT', true);
+    if (o.pay_deadline && o.status === 'funded') kv(dl, 'آخر موعد للدفع', new Date(o.pay_deadline).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }));
+    if (o.deposit_address && o.status === 'awaiting_deposit') kv(dl, 'مبلغ الإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
+    var showBank = !!o.bankak_account && role !== 'seller';
+    $('ord-bank').hidden = !showBank;
+    if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; }
+
+    $('ord-actions').textContent = '';
+    var s = o.status;
+    if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address) {
+      actionBtn('إيداع ' + fmt(o.deposit_amount, 6) + ' USDT في الضمان', 'primary', function () {
+        var b = this;
+        authorize('إيداع في الضمان', async function () {
+          b.disabled = true; toast('جارٍ الإيداع…');
+          try { await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); toast('تم الإيداع، بانتظار تأكيد الضمان'); }
+          catch (e) { toast(WalletCore.errorText(e), true); }
+          b.disabled = false; refreshOrder('order.refresh');
+        });
+      });
+      actionBtn('تحقق من الإيداع', 'ghost', function () { refreshOrder('order.refresh'); });
+    }
+    if (role === 'buyer' && s === 'funded') actionBtn('حوّلت المبلغ عبر بنكك', 'primary', function () { doAction('mark_paid', 'هل حوّلت ' + fmt(o.total_sdg) + ' ج.س فعلاً إلى حساب البائع؟ الادعاء الكاذب يؤدي لحظر حسابك.'); });
+    if (role === 'seller' && (s === 'funded' || s === 'paid')) actionBtn('استلمت المبلغ · حرّر USDT', 'primary', function () { doAction('release', 'تأكد أن ' + fmt(o.total_sdg) + ' ج.س وصلت فعلاً إلى حسابك في بنكك. لا يمكن التراجع بعد التحرير.', true); });
+    if ((role === 'buyer' || role === 'seller') && s === 'paid') actionBtn('فتح نزاع', 'danger', async function () {
+      var reason = await askConfirm('اكتب سبب النزاع باختصار. سيراجع المشرف المحادثة وإيصال بنكك.', true);
+      if (!reason) return; state.p2p.reason = reason; doAction('dispute');
+    });
+    if (s === 'awaiting_deposit' && role !== 'admin') actionBtn('إلغاء الطلب', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟'); });
+    if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ.'); });
+    if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟', true); });
+    if (role === 'admin') {
+      if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { doAction('admin_release', 'تحرير USDT للمشتري؟', true); });
+      if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { doAction('admin_refund', 'إرجاع USDT للبائع؟', true); });
+      if (o.dispute_reason) kv(dl, 'سبب النزاع', o.dispute_reason);
+    }
+
+    var chat = $('ord-chat'), atBottom = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 10;
+    chat.textContent = '';
+    if (!r.messages.length) chat.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لا رسائل بعد'));
+    r.messages.forEach(function (m) {
+      var mine = m.sender === (state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.address);
+      var who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
+      var b = el('div', 'max-width:85%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;' + (mine ? 'align-self:flex-start;background:#10241D' : 'align-self:flex-end;background:var(--s2)'));
+      b.appendChild(el('span', 'display:block;font-size:11px;color:var(--mu)', mine ? 'أنت' : who));
+      b.appendChild(document.createTextNode(m.body));
+      chat.appendChild(b);
+    });
+    if (atBottom) chat.scrollTop = chat.scrollHeight;
+  }
+  $('ord-send').onclick = async function () {
+    var v = $('ord-msg').value.trim(); if (!v) return;
+    $('ord-msg').value = '';
+    await refreshOrder('message.send', { body: v });
+  };
+  $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter') $('ord-send').click(); };
+  $('ord-copy').onclick = function () { copyText($('ord-bacct').textContent); };
+  // تحديث تلقائي للطلب المفتوح كل 6 ثوانٍ
+  setInterval(function () {
+    var cur = state.stack[state.stack.length - 1];
+    if (cur === 'order' && state.p2p.orderId && !document.hidden && core.isUnlocked()) {
+      var s = state.p2p.order && state.p2p.order.status;
+      refreshOrder(s === 'awaiting_deposit' && state.p2p.role === 'seller' ? 'order.refresh' : 'order.get');
+    }
+  }, 6000);
 
   // ===== قبل أن تبدأ (يظهر مرة واحدة بعد إنشاء المحفظة) =====
   function showIntro() {

@@ -368,6 +368,16 @@
         return { txid: txid, url: net.explorer + txid, status: status };
       },
 
+      // توقيع طلب لخادم P2P: يثبت ملكية المحفظة بدون إرسال المفتاح الخاص
+      signRequest: async function (action, params) {
+        if (!session) throw new Error('LOCKED');
+        var nonce = Array.prototype.map.call(randomBytes(16), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        var message = JSON.stringify({ action: action, params: params || {}, address: session.address, ts: Date.now(), nonce: nonce });
+        var tw = client(session.privateKey);
+        var signature = await tw.trx.signMessageV2(message, session.privateKey);
+        return { message: message, signature: signature };
+      },
+
       // ===== التبديل عبر SunSwap V2 =====
       // direction: 'TRX_USDT' أو 'USDT_TRX'
       swapSupported: async function () {

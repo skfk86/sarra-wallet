@@ -8,7 +8,8 @@
     this.trx={
       getBalance: async()=>window.__trx,
       sendTransaction: async(to,amt)=>{ window.__log.push(['TRX',to,amt]); return {result:true,txid:id('trx')}; },
-      getTransactionInfo: async(txid)=>({id:txid, receipt:{result: String(txid).indexOf('fail')===0?'REVERT':'SUCCESS'}})
+      getTransactionInfo: async(txid)=>({id:txid, receipt:{result: String(txid).indexOf('fail')===0?'REVERT':'SUCCESS'}}),
+      signMessageV2: async(m)=>{ window.__signed=(window.__signed||0)+1; return '0x'+'5'.repeat(130); }
     };
     this.address={fromHex:(h)=>h==='41aa'?ADDR:OTHER};
   }

@@ -10,3 +10,4 @@ run() {
 }
 run "Nile: التدفق الكامل" tronweb.js '{"network":"nile","trongridApiKey":""}' run.py
 run "Mainnet: التبديل والعمولة" tronweb-mainnet.js '{"network":"mainnet","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_mainnet.py
+run "P2P: السوق والطلبات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_p2p.py

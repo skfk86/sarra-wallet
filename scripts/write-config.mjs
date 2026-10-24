@@ -7,7 +7,9 @@ const config = {
   trongridApiKey: process.env.TRONGRID_API_KEY || '',
   // عنوان TRON الذي تصله عمولة التبديل (فارغ = العمولة معطّلة)
   feeAddress: (process.env.SARRA_FEE_ADDRESS || '').trim(),
-  feeBps: Number(process.env.SARRA_FEE_BPS || 50)
+  feeBps: Number(process.env.SARRA_FEE_BPS || 50),
+  // خادم سوق P2P (Supabase Edge Function)
+  p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p'
 };
 
 writeFileSync('src/config.js', 'window.SARRA_CONFIG = ' + JSON.stringify(config) + ';\n');
