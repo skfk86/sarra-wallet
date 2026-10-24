@@ -65,6 +65,20 @@ await t('قبول الكلمات المفصولة بفواصل وأسطر', () =
   assert.equal(core.validateMnemonic(w.slice(0, 11).join(', ')), false);
 });
 
+await t('حساب عمولة التبديل', () => {
+  const off = W.createCore();
+  assert.equal(off.feeEnabled(), false);
+  assert.equal(off.swapFeeUnits('TRX_USDT', 100000000n, 0n), 0n);
+  const on = W.createCore({ feeAddress: 'T' + 'B'.repeat(33), feeBps: 50 });
+  assert.equal(on.feeEnabled(), true);
+  assert.equal(on.feeRateText(), '0.5%');
+  assert.equal(on.swapFeeUnits('TRX_USDT', 100000000n, 0n), 500000n);   // 100 TRX → 0.5 TRX
+  assert.equal(on.swapFeeUnits('USDT_TRX', 0n, 30000000n), 150000n);    // يستلم 30 TRX → 0.15 TRX
+  assert.equal(on.swapFeeUnits('TRX_USDT', 10000000n, 0n), 0n);         // 10 TRX → 0.05 أقل من الحد
+  const bad = W.createCore({ feeAddress: 'not-an-address' });
+  assert.equal(bad.feeEnabled(), false);
+});
+
 await t('تغيير رمز القفل', async () => {
   const core = W.createCore();
   const m = core.generateMnemonic();

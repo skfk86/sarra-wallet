@@ -182,6 +182,10 @@
     opts = opts || {};
     var net = NETWORKS[opts.network || 'nile'];
     var apiKey = opts.apiKey || '';
+    // عمولة التبديل: تُدفع بـ TRX (تحويل شبه مجاني) إلى عنوان المطوّر، وبعد نجاح التبديل فقط
+    var feeAddress = opts.feeAddress || '';
+    var feeBps = BigInt(opts.feeBps == null ? 50 : opts.feeBps); // 50 = 0.5%
+    var MIN_FEE_SUN = 100000n; // لا عمولة أقل من 0.1 TRX
     var swapChecked = null;
     var session = null; // { address, privateKey } — في الذاكرة فقط بعد فتح القفل
 
@@ -380,6 +384,19 @@
         return swapChecked;
       },
 
+      // العمولة بالـ TRX لعملية تبديل: من مبلغ TRX الداخل، أو من الحد الأدنى لـ TRX المستلَم
+      feeEnabled: function () {
+        var TW = TronWebClass();
+        return !!feeAddress && feeBps > 0n && TW.isAddress(feeAddress);
+      },
+      feeRateText: function () { return (Number(feeBps) / 100) + '%'; },
+      swapFeeUnits: function (direction, inUnits, minOutUnits) {
+        if (!this.feeEnabled()) return 0n;
+        var base = direction === 'TRX_USDT' ? inUnits : minOutUnits;
+        var fee = base * feeBps / 10000n;
+        return fee >= MIN_FEE_SUN ? fee : 0n;
+      },
+
       quoteSwap: async function (direction, amountStr) {
         if (!(await this.swapSupported())) throw new Error('SWAP_UNAVAILABLE');
         var units = toUnits(amountStr, 6);
@@ -410,7 +427,8 @@
         var txid;
         if (direction === 'TRX_USDT') {
           // نترك 15 TRX على الأقل للرسوم
-          if (q.inUnits + 15000000n > bal.trxUnits) throw new Error('INSUFFICIENT_TRX_SWAP');
+          var feeIn = this.swapFeeUnits(direction, q.inUnits, minOut);
+          if (q.inUnits + feeIn + 15000000n > bal.trxUnits) throw new Error('INSUFFICIENT_TRX_SWAP');
           txid = await router.swapExactETHForTokens(minOut.toString(), q.path, session.address, deadline)
             .send({ callValue: Number(q.inUnits), feeLimit: FEE_LIMIT_SUN });
         } else {
@@ -428,7 +446,16 @@
             .send({ feeLimit: FEE_LIMIT_SUN });
         }
         var status = await waitForTx(txid, true);
-        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status };
+        // العمولة بعد نجاح التبديل فقط؛ فشلها لا يُفشل التبديل
+        var feeUnits = status === 'SUCCESS' ? this.swapFeeUnits(direction, q.inUnits, minOut) : 0n;
+        var feePaid = '0';
+        if (feeUnits > 0n && feeAddress !== session.address) {
+          try {
+            var fres = await tw.trx.sendTransaction(feeAddress, Number(feeUnits));
+            if (fres && fres.result) feePaid = fromUnits(feeUnits, 6);
+          } catch (e) { /* نتجاهل: المستخدم حصل على التبديل كاملاً */ }
+        }
+        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status, fee: feePaid };
       },
 
       // آخر معاملات USDT (TRC20) من TronGrid

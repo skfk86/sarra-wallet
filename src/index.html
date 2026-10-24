@@ -360,7 +360,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <div><dt>أقل مبلغ ستستلمه</dt><dd class="ltr" id="sw-min">—</dd></div>
       <div><dt>أقصى انزلاق للسعر</dt><dd class="ltr">0.5%</dd></div>
       <div><dt>المنصة</dt><dd>SunSwap · على الشبكة</dd></div>
-      <div><dt>الرسوم</dt><dd>رسوم الشبكة بـ TRX + 0.3% للمنصة</dd></div>
+      <div id="sw-fee-row" hidden><dt>عمولة صُرّة</dt><dd class="ltr" id="sw-fee">—</dd></div>
+      <div><dt>الرسوم</dt><dd>رسوم الشبكة بـ TRX + 0.3% لـ SunSwap</dd></div>
     </dl>
     <div class="note ok" id="sw-approve-note" hidden><span>التبديل من USDT يسبقه معاملة "موافقة" تسمح لـ SunSwap بأخذ المبلغ المحدد فقط، فتدفع رسوم الشبكة مرتين.</span></div>
     <div class="note err" id="sw-err" hidden></div>
@@ -471,7 +472,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var TRONGRID_API_KEY = CFG.trongridApiKey || '';
   var AUTO_LOCK_MS = 60000;
 
-  var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY });
+  var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps });
   var P = (window.Capacitor && window.Capacitor.Plugins) || {};
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1036,6 +1037,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var min = q.outUnits * 9950n / 10000n;
       $('sw-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 });
       $('sw-min').textContent = Number(WalletCore.fromUnits(min, 6)).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + swapSyms()[1];
+      var fee = core.swapFeeUnits(state.swapDir, q.inUnits, min);
+      $('sw-fee-row').hidden = !core.feeEnabled();
+      $('sw-fee').textContent = fee > 0n ? core.feeRateText() + ' (' + WalletCore.fromUnits(fee, 6) + ' TRX)' : 'لا عمولة على هذا المبلغ';
       state.swapQuote = { dir: state.swapDir, amt: v, out: q.out };
       $('sw-go').disabled = false;
     } catch (e) {

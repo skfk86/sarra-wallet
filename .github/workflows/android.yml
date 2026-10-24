@@ -40,6 +40,8 @@ jobs:
         env:
           TRONGRID_API_KEY: ${{ secrets.TRONGRID_API_KEY }}
           SARRA_NETWORK: ${{ inputs.network || vars.SARRA_NETWORK || 'mainnet' }}
+          SARRA_FEE_ADDRESS: ${{ vars.SARRA_FEE_ADDRESS || secrets.SARRA_FEE_ADDRESS }}
+          SARRA_FEE_BPS: ${{ vars.SARRA_FEE_BPS || '50' }}
         run: npm run config
 
       - name: Add Android platform

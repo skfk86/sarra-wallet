@@ -4,8 +4,11 @@ import { writeFileSync } from 'node:fs';
 
 const config = {
   network: process.env.SARRA_NETWORK || 'mainnet',
-  trongridApiKey: process.env.TRONGRID_API_KEY || ''
+  trongridApiKey: process.env.TRONGRID_API_KEY || '',
+  // عنوان TRON الذي تصله عمولة التبديل (فارغ = العمولة معطّلة)
+  feeAddress: (process.env.SARRA_FEE_ADDRESS || '').trim(),
+  feeBps: Number(process.env.SARRA_FEE_BPS || 50)
 };
 
 writeFileSync('src/config.js', 'window.SARRA_CONFIG = ' + JSON.stringify(config) + ';\n');
-console.log('config.js written: network=' + config.network + ', apiKey=' + (config.trongridApiKey ? 'set' : 'empty'));
+console.log('config.js written: network=' + config.network + ', apiKey=' + (config.trongridApiKey ? 'set' : 'empty') + ', fee=' + (config.feeAddress ? config.feeBps / 100 + '% to ' + config.feeAddress : 'disabled'));
