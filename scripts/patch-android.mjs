@@ -1,7 +1,7 @@
 // يُشغَّل بعد `npx cap add android`
 // يمنع لقطات الشاشة وتسجيلها في التطبيق كله (FLAG_SECURE)،
 // ويخفي محتوى التطبيق في قائمة التطبيقات الأخيرة.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, cpSync } from 'node:fs';
 
 const cfg = JSON.parse(readFileSync('capacitor.config.json', 'utf8'));
 const pkg = cfg.appId;
@@ -51,3 +51,9 @@ if (!xml.includes('android:allowBackup')) xml = xml.replace(/<application\b/, '<
 if (!xml.includes('android:fullBackupContent')) xml = xml.replace(/<application\b/, '<application android:fullBackupContent="false"');
 writeFileSync(manifest, xml);
 console.log('AndroidManifest patched (ML Kit barcode_ui, CAMERA, USE_BIOMETRIC, allowBackup=false)');
+
+// أيقونة التطبيق: نسخ الأيقونات من resources/android إلى مشروع Android، ولون خلفية الأيقونة التكيّفية
+cpSync('resources/android', 'android/app/src/main/res', { recursive: true });
+writeFileSync('android/app/src/main/res/values/ic_launcher_background.xml',
+  '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#071222</color>\n</resources>\n');
+console.log('App icon copied (mipmap-*), adaptive background #071222');

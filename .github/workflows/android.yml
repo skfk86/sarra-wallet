@@ -53,8 +53,13 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Block screenshots (FLAG_SECURE)
+      - name: Block screenshots (FLAG_SECURE), icon, permissions
         run: npm run patch:android
+
+      - name: Splash screen with logo
+        run: |
+          pip install --quiet pillow
+          python3 scripts/make-splash.py
 
       - name: Sync
         run: npx cap sync android
