@@ -100,6 +100,19 @@ function publicOrder(o: Record<string, any>, offer: Record<string, any> | null, 
   return out;
 }
 
+// ===== الإعدادات وحدود الاستخدام =====
+async function getRate(): Promise<L.RateSetting> {
+  const { data } = await db.from('settings').select('value').eq('key', 'rate').maybeSingle();
+  return (data?.value as L.RateSetting) || { sdg_per_usdt: null, band_pct: 3 };
+}
+// يرمي RATE_LIMITED إن تجاوزت المحفظة حد هذا النوع من العمليات
+async function limit(addr: string, kind: string) {
+  const [max, win] = L.LIMITS[kind];
+  const { data, error } = await db.rpc('p2p_hit', { p_addr: addr, p_kind: kind, p_max: max, p_window_secs: win });
+  if (error) throw new Error('SERVER_ERROR');
+  if (!data) throw new Error('RATE_LIMITED_' + kind.toUpperCase());
+}
+
 async function profilesMap(addresses: string[]) {
   const { data } = await db.from('profiles').select('address,nickname,trades_completed,disputes_lost').in('address', [...new Set(addresses)]);
   return Object.fromEntries((data || []).map((p) => [p.address, p]));
@@ -112,25 +125,44 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     const { data } = await db.from('offers')
       .select('id,seller,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
       .eq('active', true).gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: true }).limit(50);
-    const profs = await profilesMap((data || []).map((o) => o.seller));
-    return { offers: (data || []).filter((o) => Number(o.available_usdt) >= Number(o.min_usdt)).map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, min_trade: MIN_TRADE };
+    const rate = await getRate();
+    const range = L.priceRange(rate);
+    // الإعلانات خارج نطاق سعر الصرف الحالي لا تظهر (مثلاً بعد أن يغيّر المشرف السعر)
+    const shown = (data || []).filter((o) => Number(o.available_usdt) >= Number(o.min_usdt) &&
+      (!range || (Number(o.price_sdg) >= range.min && Number(o.price_sdg) <= range.max)));
+    const profs = await profilesMap(shown.map((o) => o.seller));
+    return { offers: shown.map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range };
   }
   if (!me) throw new Error('UNAUTHORIZED');
   const { data: prof } = await db.from('profiles').select('*').eq('address', me).maybeSingle();
   if (prof?.banned) throw new Error('BANNED');
 
-  if (action === 'me') return { profile: prof, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE };
+  // الملف يُنشأ تلقائياً باسم افتراضي، فلا نسأل المستخدم عن اسمه قبل أول عملية
+  let profile = prof;
+  if (!profile) {
+    const { data: created } = await db.from('profiles').upsert({ address: me, nickname: L.defaultNickname(me) }, { onConflict: 'address', ignoreDuplicates: true }).select().maybeSingle();
+    profile = created || (await db.from('profiles').select('*').eq('address', me).single()).data;
+  }
+
+  if (action === 'me') {
+    const rate = await getRate();
+    return { profile, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
+  }
 
   if (action === 'profile.set') {
     const nickname = String(p.nickname || '').trim();
     if (nickname.length < 2 || nickname.length > 24) throw new Error('BAD_NICKNAME');
-    await db.from('profiles').upsert({ address: me, nickname });
+    await limit(me, 'profile');
+    await db.from('profiles').update({ nickname }).eq('address', me);
     return { ok: true };
   }
-  if (!prof) throw new Error('NO_PROFILE');
 
   if (action === 'offer.create') {
     const v = L.validateOffer(p, MIN_TRADE);
+    L.checkPrice(v.price_sdg, await getRate());
+    const { count } = await db.from('offers').select('id', { count: 'exact', head: true }).eq('seller', me).eq('active', true);
+    if ((count || 0) >= L.MAX_ACTIVE_OFFERS) throw new Error('MAX_OFFERS');
+    await limit(me, 'offer_create');
     const { data, error } = await db.from('offers').insert({ ...v, seller: me }).select().single();
     if (error) throw new Error('DB_ERROR');
     await audit(null, me, 'offer_create', { id: data.id });
@@ -150,8 +182,11 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     const { data: offer } = await db.from('offers').select('*').eq('id', p.offer_id).single();
     if (!offer || !offer.active) throw new Error('OFFER_UNAVAILABLE');
     if (offer.seller === me) throw new Error('OWN_OFFER');
+    const range = L.priceRange(await getRate());
+    if (range && (Number(offer.price_sdg) < range.min || Number(offer.price_sdg) > range.max)) throw new Error('OFFER_UNAVAILABLE');
     const { data: open } = await db.from('orders').select('id').eq('buyer', me).in('status', ['awaiting_deposit', 'funded', 'paid']);
     if ((open || []).length >= 3) throw new Error('TOO_MANY_OPEN');
+    await limit(me, 'order_create');
     const { data: ok } = await db.rpc('p2p_reserve', { p_offer: offer.id, p_amount: amount });
     if (!ok) throw new Error('AMOUNT_UNAVAILABLE');
     const fee = L.feeFor(amount, FEE_BPS);
@@ -199,6 +234,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
 
     if (action === 'order.action') {
       const tr = L.transitionFor(o as L.Order, role, String(p.action), Date.now());
+      if (p.action === 'cancel') await limit(me, 'order_cancel');
       const patch: Record<string, any> = { status: tr.to };
       if (tr.to === 'paid') patch.paid_at = new Date().toISOString();
       if (tr.to === 'disputed') { patch.dispute_by = me; patch.dispute_reason = String(p.reason || '').slice(0, 500); }
@@ -223,6 +259,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     if (action === 'message.send') {
       const body = String(p.body || '').trim().slice(0, 1000);
       if (!body) throw new Error('EMPTY_MESSAGE');
+      await limit(me, 'message');
       if (['cancelled', 'released', 'refunded'].includes(o.status) && role !== 'admin') throw new Error('ORDER_CLOSED');
       await db.from('messages').insert({ order_id: o.id, sender: me, body });
     }
@@ -238,6 +275,34 @@ async function handle(action: string, p: Record<string, any>, me: string | null)
     const { data } = await db.from('orders').select('*').in('status', ['disputed', 'release_failed', 'refund_failed']).order('updated_at').limit(50);
     const profs = await profilesMap((data || []).flatMap((o) => [o.buyer, o.seller]));
     return { orders: (data || []).map((o) => ({ ...o, buyer_profile: profs[o.buyer], seller_profile: profs[o.seller] })) };
+  }
+
+  // ===== لوحة المشرف =====
+  if (action.startsWith('admin.') && !ADMINS.includes(me)) throw new Error('NOT_ALLOWED');
+  if (action === 'admin.rate.set') {
+    const v = L.validateRateSetting(p);
+    await db.from('settings').upsert({ key: 'rate', value: v, updated_by: me, updated_at: new Date().toISOString() });
+    await audit(null, me, 'rate_set', v);
+    return { rate: v, range: L.priceRange(v) };
+  }
+  if (action === 'admin.ban') {
+    const addr = String(p.address || '').trim();
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr) || ADMINS.includes(addr)) throw new Error('BAD_ADDRESS');
+    const banned = p.banned !== false;
+    await db.from('profiles').upsert({ address: addr, nickname: L.defaultNickname(addr), banned }, { onConflict: 'address' });
+    if (banned) await db.from('offers').update({ active: false }).eq('seller', addr);
+    await audit(null, me, banned ? 'ban' : 'unban', { address: addr });
+    return { ok: true };
+  }
+  if (action === 'admin.stats') {
+    const count = async (q: any) => (await q).count || 0;
+    return {
+      users: await count(db.from('profiles').select('address', { count: 'exact', head: true })),
+      active_offers: await count(db.from('offers').select('id', { count: 'exact', head: true }).eq('active', true)),
+      open_orders: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['awaiting_deposit', 'funded', 'paid'])),
+      disputes: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['disputed', 'release_failed', 'refund_failed'])),
+      completed: await count(db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'released'))
+    };
   }
 
   throw new Error('UNKNOWN_ACTION');
@@ -268,10 +333,13 @@ Deno.serve(async (req) => {
     if (signer !== m.address) return fail('BAD_SIGNATURE', 401);
     const { error: nonceErr } = await db.from('used_nonces').insert({ nonce: m.nonce });
     if (nonceErr) return fail('REPLAY', 401);
+    await limit(m.address, 'req');
+    if (Math.random() < 0.02) db.rpc('p2p_cleanup').then(() => {}, () => {});
     return json(await handle(m.action, m.params as Record<string, any>, m.address));
   } catch (e) {
     const msg = String((e as Error).message || e);
     const code = /^[A-Z_]+$/.test(msg) ? msg : 'SERVER_ERROR';
+    if (code.startsWith('RATE_LIMITED')) return fail(code, 429);
     if (code === 'SERVER_ERROR') console.error(e);
     return fail(code, code === 'SERVER_ERROR' ? 500 : 400);
   }

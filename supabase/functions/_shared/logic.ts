@@ -121,3 +121,38 @@ export function validateOffer(p: Record<string, unknown>, minTrade: number) {
     bankak_name: name, bankak_account: acct, pay_window_min: win
   };
 }
+
+// ===== سعر الصرف المرجعي (يحدده المشرف) =====
+export type RateSetting = { sdg_per_usdt: number | null; band_pct: number };
+export function priceRange(r: RateSetting): { min: number; max: number } | null {
+  if (!r || !r.sdg_per_usdt || r.sdg_per_usdt <= 0) return null;
+  const band = Math.min(Math.max(Number(r.band_pct) || 0, 0), 50) / 100;
+  return { min: Math.round(r.sdg_per_usdt * (1 - band) * 100) / 100, max: Math.round(r.sdg_per_usdt * (1 + band) * 100) / 100 };
+}
+export function checkPrice(price: number, r: RateSetting) {
+  const range = priceRange(r);
+  if (!range) throw new Error('RATE_NOT_SET');
+  if (price < range.min || price > range.max) throw new Error('PRICE_OUT_OF_RANGE');
+}
+export function validateRateSetting(p: Record<string, unknown>): RateSetting {
+  const rate = Number(p.sdg_per_usdt), band = Number(p.band_pct);
+  if (!isFinite(rate) || rate <= 0 || rate > 10000000) throw new Error('BAD_RATE');
+  if (![1, 2, 3, 5, 10].includes(band)) throw new Error('BAD_BAND');
+  return { sdg_per_usdt: Math.round(rate * 100) / 100, band_pct: band };
+}
+
+// اسم تلقائي في السوق حتى لا نسأل المستخدم قبل أول عملية
+export function defaultNickname(address: string): string {
+  return 'مستخدم-' + address.slice(-4);
+}
+
+// ===== حدود منع السبام (العدد، والمدة بالثواني) =====
+export const LIMITS: Record<string, [number, number]> = {
+  req: [60, 60],              // 60 طلباً في الدقيقة لكل محفظة
+  offer_create: [5, 86400],   // 5 إعلانات في اليوم
+  order_create: [10, 86400],  // 10 طلبات شراء في اليوم
+  order_cancel: [5, 86400],   // 5 إلغاءات في اليوم
+  message: [30, 3600],        // 30 رسالة في الساعة
+  profile: [5, 86400]         // 5 تغييرات اسم في اليوم
+};
+export const MAX_ACTIVE_OFFERS = 3;

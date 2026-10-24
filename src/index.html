@@ -371,17 +371,22 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen with-tabs" id="s-p2p" aria-label="سوق P2P">
   <div class="row between">
     <h1 style="font-size:20px">سوق P2P</h1>
-    <div class="row" style="gap:8px">
-      <button type="button" class="chip" id="p2p-orders-btn">طلباتي</button>
-      <button type="button" class="chip on" id="p2p-new-btn">+ إعلان بيع</button>
-    </div>
+    <button type="button" class="chip" id="p2p-nick-btn" style="max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" aria-label="تعديل اسمك في السوق"></button>
+  </div>
+  <div class="card" id="p2p-rate" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px" hidden>
+    <div style="display:flex;flex-direction:column;min-width:0"><span class="muted" style="font-size:12px">سعر الصرف المرجعي</span><b style="font-size:20px" id="p2p-rate-val"></b></div>
+    <span class="muted" style="font-size:12px;text-align:left" id="p2p-rate-range"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+    <button type="button" class="btn btn-ghost" id="p2p-orders-btn" style="height:48px;font-size:15px">طلباتي</button>
+    <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ إعلان بيع</button>
   </div>
   <div class="seg" role="tablist" aria-label="عرض">
     <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">شراء USDT</button>
     <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
   </div>
   <div class="note ok"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
-  <div class="row" id="p2p-admin-row" hidden><button type="button" class="btn btn-ghost" id="p2p-admin-btn" style="height:44px">لوحة المشرف (النزاعات)</button></div>
+  <button type="button" class="btn btn-ghost" id="p2p-admin-btn" hidden style="height:48px;font-size:15px">لوحة الأدمن</button>
   <div id="p2p-list"><p class="muted">جارٍ التحميل…</p></div>
 </section>
 
@@ -404,9 +409,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <!-- ===== P2P: إعلان بيع جديد ===== -->
 <section class="screen" id="s-p2p-new" aria-label="إعلان بيع">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">إعلان بيع USDT</h1></div>
-  <label class="lbl" for="new-price">السعر لكل USDT (جنيه سوداني)</label>
+  <label class="lbl" for="new-price">سعرك لكل USDT (جنيه سوداني)</label>
   <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+  <p class="muted" id="new-range" style="font-size:12px;margin-top:-10px"></p>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
     <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
     <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-min">أقل صفقة</label><div class="field"><input id="new-min" inputmode="decimal" placeholder="USDT" dir="ltr"></div></div>
   </div>
@@ -422,6 +428,35 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="note ok"><span>لا يُحجز شيء من رصيدك الآن. عند كل طلب تودع الكمية المطلوبة في الضمان، وتحتاج TRX لرسوم الإيداع.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
+</section>
+
+<!-- ===== لوحة الأدمن ===== -->
+<section class="screen" id="s-p2p-admin" aria-label="لوحة الأدمن">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">لوحة الأدمن</h1></div>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px" id="adm-stats"></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="font-size:16px">سعر الصرف المرجعي</h2>
+    <label class="lbl" for="adm-rate">جنيه سوداني لكل USDT</label>
+    <div class="field"><input id="adm-rate" inputmode="decimal" dir="ltr" placeholder="0"></div>
+    <span class="lbl">الهامش المسموح للبائعين</span>
+    <div class="chips" id="adm-band" style="flex-wrap:wrap">
+      <button type="button" class="chip" data-band="1">±1%</button><button type="button" class="chip" data-band="2">±2%</button>
+      <button type="button" class="chip on" data-band="3">±3%</button><button type="button" class="chip" data-band="5">±5%</button><button type="button" class="chip" data-band="10">±10%</button>
+    </div>
+    <p class="muted" id="adm-range" style="font-size:13px"></p>
+    <button class="btn btn-primary" id="adm-rate-go">حفظ السعر</button>
+    <p class="muted" style="font-size:12px;line-height:1.7">الإعلانات الحالية خارج النطاق الجديد تختفي من السوق تلقائياً حتى يعدّل البائع سعره.</p>
+  </div>
+  <button class="btn btn-ghost" id="adm-queue">النزاعات والمعاملات المتأخرة</button>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="font-size:16px">حظر محفظة</h2>
+    <label class="lbl" for="adm-ban-addr">عنوان المحفظة (يبدأ بـ T)</label>
+    <div class="field"><input id="adm-ban-addr" dir="ltr" autocomplete="off" spellcheck="false"></div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+      <button class="btn" id="adm-ban" style="background:#5A262B;color:#FFD6D9;height:48px;font-size:15px">حظر</button>
+      <button class="btn btn-ghost" id="adm-unban" style="height:48px;font-size:15px">رفع الحظر</button>
+    </div>
+  </div>
 </section>
 
 <!-- ===== P2P: طلباتي ===== -->
@@ -462,10 +497,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <div class="sheet-bg" id="nick-sheet" role="dialog" aria-modal="true" aria-labelledby="nick-title">
   <div class="sheet">
     <h2 id="nick-title" style="font-size:18px">اسمك في السوق</h2>
-    <p class="muted" style="font-size:14px">يظهر للطرف الآخر في الصفقات. لا تكتب رقم هاتفك.</p>
+    <p class="muted" style="font-size:14px;line-height:1.7">هذا الاسم يراه البائعون والمشترون في صفقاتك وفي إعلاناتك. اختر اسماً مستعاراً، ولا تكتب رقم هاتفك أو اسمك الكامل.</p>
     <div class="field"><input id="nick-in" maxlength="24" placeholder="مثلاً: ود_الخرطوم" autocomplete="off"></div>
     <div class="note err" id="nick-err" hidden></div>
-    <button class="btn btn-primary" id="nick-go">متابعة</button>
+    <button class="btn btn-primary" id="nick-go">حفظ</button>
     <button class="btn btn-ghost" id="nick-no">إلغاء</button>
   </div>
 </div>
@@ -1252,7 +1287,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     MIN_TOO_LOW: 'أقل صفقة 10 USDT', MAX_LT_MIN: 'أكبر صفقة يجب أن تكون أكبر من الأقل', AMOUNT_LT_MIN: 'الكمية المعروضة أقل من أقل صفقة',
     BAD_BANKAK_ACCOUNT: 'رقم حساب بنكك غير صحيح (أرقام فقط)', BAD_BANKAK_NAME: 'اكتب اسم صاحب الحساب',
     BAD_PRICE_SDG: 'اكتب السعر', BAD_MIN_USDT: 'اكتب أقل صفقة', BAD_MAX_USDT: 'اكتب أكبر صفقة', BAD_AMOUNT_USDT: 'اكتب الكمية',
-    BAD_NICKNAME: 'الاسم من 2 إلى 24 حرفاً', EMPTY_MESSAGE: 'اكتب رسالة', ORDER_CLOSED: 'الطلب مغلق'
+    BAD_NICKNAME: 'الاسم من 2 إلى 24 حرفاً', EMPTY_MESSAGE: 'اكتب رسالة', ORDER_CLOSED: 'الطلب مغلق',
+    RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
+    MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
+    BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
+    RATE_LIMITED_REQ: 'طلبات كثيرة جداً. انتظر دقيقة', RATE_LIMITED_OFFER_CREATE: 'وصلت الحد اليومي للإعلانات (5)',
+    RATE_LIMITED_ORDER_CREATE: 'وصلت الحد اليومي للطلبات (10)', RATE_LIMITED_ORDER_CANCEL: 'إلغاءات كثيرة اليوم. حاول غداً',
+    RATE_LIMITED_MESSAGE: 'رسائل كثيرة. انتظر قليلاً', RATE_LIMITED_PROFILE: 'غيّرت اسمك كثيراً اليوم'
   };
   function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
   async function p2p(action, params, isPublic) {
@@ -1290,22 +1331,40 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (bioEnabled()) bioVerify(title).then(fn).catch(viaPin); else viaPin();
   }
 
+  // الملف يُنشأ تلقائياً على الخادم باسم افتراضي؛ لا نسأل المستخدم عن اسمه
   async function ensureProfile() {
     if (state.p2p.me && state.p2p.me.profile) return true;
     try { state.p2p.me = await p2p('me'); } catch (e) { toast(p2pErr(e), true); return false; }
-    $('p2p-admin-row').hidden = !state.p2p.me.is_admin;
-    if (state.p2p.me.profile) return true;
-    return new Promise(function (resolve) {
-      $('nick-in').value = ''; $('nick-err').hidden = true; $('nick-sheet').classList.add('show');
-      $('nick-no').onclick = function () { $('nick-sheet').classList.remove('show'); resolve(false); };
-      $('nick-go').onclick = async function () {
-        try {
-          await p2p('profile.set', { nickname: $('nick-in').value });
-          state.p2p.me = await p2p('me');
-          $('nick-sheet').classList.remove('show'); resolve(true);
-        } catch (e) { $('nick-err').textContent = p2pErr(e); $('nick-err').hidden = false; }
-      };
-    });
+    renderMe();
+    return !!state.p2p.me.profile;
+  }
+  function renderMe() {
+    var me = state.p2p.me; if (!me || !me.profile) return;
+    $('p2p-nick-btn').textContent = me.profile.nickname + ' ✎';
+    $('p2p-admin-btn').hidden = !me.is_admin;
+    if (me.rate) { state.p2p.rate = me.rate; state.p2p.range = me.range; }
+  }
+  $('p2p-nick-btn').onclick = async function () {
+    if (!(await ensureProfile())) return;
+    $('nick-in').value = state.p2p.me.profile.nickname; $('nick-err').hidden = true; $('nick-sheet').classList.add('show');
+  };
+  $('nick-no').onclick = function () { $('nick-sheet').classList.remove('show'); };
+  $('nick-go').onclick = async function () {
+    try {
+      await p2p('profile.set', { nickname: $('nick-in').value });
+      state.p2p.me = await p2p('me'); renderMe();
+      $('nick-sheet').classList.remove('show'); toast('تم حفظ اسمك');
+    } catch (e) { $('nick-err').textContent = p2pErr(e); $('nick-err').hidden = false; }
+  };
+  function renderRate(rate, range) {
+    if (rate) state.p2p.rate = rate;
+    if (range !== undefined) state.p2p.range = range;
+    var r = state.p2p.rate, rg = state.p2p.range;
+    $('p2p-rate').hidden = !(r && r.sdg_per_usdt);
+    if (r && r.sdg_per_usdt) {
+      $('p2p-rate-val').textContent = fmt(r.sdg_per_usdt) + ' ج.س';
+      $('p2p-rate-range').textContent = rg ? 'الإعلانات بين ' + fmt(rg.min) + ' و ' + fmt(rg.max) : '';
+    }
   }
 
   async function loadP2P() {
@@ -1338,6 +1397,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       var r = await p2p('offers.list', null, true);
       state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade;
+      renderRate(r.rate, r.range);
+      if (!state.p2p.me) ensureProfile();
       box.textContent = '';
       if (!r.offers.length) return emptyMsg(box, 'لا توجد إعلانات بيع الآن');
       r.offers.forEach(function (o) {
@@ -1408,7 +1469,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   document.querySelectorAll('[data-win]').forEach(function (b) {
     b.onclick = function () { state.p2p.win = Number(b.dataset.win); document.querySelectorAll('[data-win]').forEach(function (x) { x.classList.toggle('on', x === b); }); };
   });
-  $('p2p-new-btn').onclick = async function () { if (await ensureProfile()) { $('new-err').hidden = true; show('p2p-new'); } };
+  $('p2p-new-btn').onclick = async function () {
+    if (!(await ensureProfile())) return;
+    try { state.p2p.me = await p2p('me'); renderMe(); } catch (e) {}
+    var r = state.p2p.rate, rg = state.p2p.range;
+    $('new-err').hidden = true;
+    if (!r || !r.sdg_per_usdt || !rg) { toast('لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', true); return; }
+    $('new-price').value = String(r.sdg_per_usdt);
+    $('new-range').textContent = 'السعر المرجعي ' + fmt(r.sdg_per_usdt) + ' ج.س · المسموح من ' + fmt(rg.min) + ' إلى ' + fmt(rg.max);
+    show('p2p-new');
+  };
+  $('new-price').oninput = function () {
+    var rg = state.p2p.range, v = Number(this.value);
+    $('new-range').style.color = rg && v && (v < rg.min || v > rg.max) ? 'var(--err)' : '';
+  };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
     var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnits($(id).value, 6), 6); } catch (e) { return '0'; } };
@@ -1453,7 +1527,50 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     emptyMsg($('orders-list'), 'جارٍ التحميل…');
     try { renderOrderList($('orders-list'), (await p2p('orders.mine')).orders, false); } catch (e) { emptyMsg($('orders-list'), p2pErr(e)); }
   };
+  // ===== لوحة الأدمن =====
+  state.p2p.band = 3;
+  function admRange() {
+    var v = Number($('adm-rate').value), b = state.p2p.band;
+    $('adm-range').textContent = v > 0 ? 'سيُقبل من ' + fmt(v * (1 - b / 100)) + ' إلى ' + fmt(v * (1 + b / 100)) + ' ج.س' : '';
+  }
+  $('adm-rate').oninput = admRange;
+  document.querySelectorAll('[data-band]').forEach(function (b) {
+    b.onclick = function () { state.p2p.band = Number(b.dataset.band); document.querySelectorAll('[data-band]').forEach(function (x) { x.classList.toggle('on', x === b); }); admRange(); };
+  });
   $('p2p-admin-btn').onclick = async function () {
+    show('p2p-admin');
+    var r = state.p2p.rate;
+    if (r && r.sdg_per_usdt) {
+      $('adm-rate').value = r.sdg_per_usdt; state.p2p.band = r.band_pct || 3;
+      document.querySelectorAll('[data-band]').forEach(function (x) { x.classList.toggle('on', Number(x.dataset.band) === state.p2p.band); });
+    }
+    admRange();
+    var box = $('adm-stats'); box.textContent = '';
+    try {
+      var s = await p2p('admin.stats');
+      [['المستخدمون', s.users], ['إعلانات نشطة', s.active_offers], ['طلبات مفتوحة', s.open_orders], ['نزاعات', s.disputes], ['صفقات مكتملة', s.completed]].forEach(function (x) {
+        var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:2px');
+        c.appendChild(el('span', 'font-size:12px;color:var(--mu)', x[0])); c.appendChild(el('b', 'font-size:20px', String(x[1])));
+        box.appendChild(c);
+      });
+    } catch (e) { toast(p2pErr(e), true); }
+  };
+  $('adm-rate-go').onclick = async function () {
+    try {
+      var r = await p2p('admin.rate.set', { sdg_per_usdt: $('adm-rate').value, band_pct: state.p2p.band });
+      renderRate(r.rate, r.range); toast('تم حفظ سعر الصرف');
+    } catch (e) { toast(p2pErr(e), true); }
+  };
+  async function admBan(banned) {
+    var a = $('adm-ban-addr').value.trim();
+    if (!core.isValidAddress(a)) return toast('عنوان المحفظة غير صحيح', true);
+    if (banned && !(await askConfirm('حظر هذه المحفظة من السوق؟ ستتوقف كل إعلاناتها.'))) return;
+    try { await p2p('admin.ban', { address: a, banned: banned }); toast(banned ? 'تم الحظر' : 'تم رفع الحظر'); $('adm-ban-addr').value = ''; }
+    catch (e) { toast(p2pErr(e), true); }
+  }
+  $('adm-ban').onclick = function () { admBan(true); };
+  $('adm-unban').onclick = function () { admBan(false); };
+  $('adm-queue').onclick = async function () {
     $('orders-title').textContent = 'النزاعات والمعاملات المتأخرة'; show('p2p-orders');
     emptyMsg($('orders-list'), 'جارٍ التحميل…');
     try { renderOrderList($('orders-list'), (await p2p('admin.queue')).orders, true); } catch (e) { emptyMsg($('orders-list'), p2pErr(e)); }

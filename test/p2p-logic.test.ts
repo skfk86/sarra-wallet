@@ -89,4 +89,22 @@ t('التحقق من الإعلان', () => {
   assert.throws(() => L.validateOffer({ ...ok, pay_window_min: 45 }, 10), /BAD_WINDOW/);
 });
 
+t('سعر الصرف والهامش', () => {
+  const r = { sdg_per_usdt: 2700, band_pct: 3 };
+  assert.deepEqual(L.priceRange(r), { min: 2619, max: 2781 });
+  L.checkPrice(2700, r); L.checkPrice(2619, r); L.checkPrice(2781, r);
+  assert.throws(() => L.checkPrice(2800, r), /PRICE_OUT_OF_RANGE/);
+  assert.throws(() => L.checkPrice(2500, r), /PRICE_OUT_OF_RANGE/);
+  assert.throws(() => L.checkPrice(2700, { sdg_per_usdt: null, band_pct: 3 }), /RATE_NOT_SET/);
+  assert.deepEqual(L.validateRateSetting({ sdg_per_usdt: '2650.555', band_pct: 5 }), { sdg_per_usdt: 2650.56, band_pct: 5 });
+  assert.throws(() => L.validateRateSetting({ sdg_per_usdt: 0, band_pct: 5 }), /BAD_RATE/);
+  assert.throws(() => L.validateRateSetting({ sdg_per_usdt: 2700, band_pct: 7 }), /BAD_BAND/);
+});
+
+t('الاسم التلقائي والحدود', () => {
+  assert.equal(L.defaultNickname('TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'), 'مستخدم-9xKf');
+  for (const [k, [n, w]] of Object.entries(L.LIMITS)) assert.ok(n > 0 && w > 0, k);
+  assert.equal(L.MAX_ACTIVE_OFFERS, 3);
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
