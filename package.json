@@ -4,7 +4,7 @@
   "private": true,
   "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
   "scripts": {
-    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js",
+    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js",
     "test": "node test/core.test.mjs",
     "config": "node scripts/write-config.mjs",
     "patch:android": "node scripts/patch-android.mjs",
@@ -14,12 +14,13 @@
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^6.0.0",
     "@capacitor/android": "^6.1.0",
-    "@capgo/capacitor-native-biometric": "^6.0.0",
     "@capacitor/app": "^6.0.0",
     "@capacitor/clipboard": "^6.0.0",
     "@capacitor/core": "^6.1.0",
     "@capacitor/preferences": "^6.0.0",
     "@capacitor/share": "^6.0.0",
+    "@capgo/capacitor-native-biometric": "^6.0.0",
+    "jsqr": "^1.4.0",
     "qrcode-generator": "^1.4.4",
     "tronweb": "^6.0.0"
   },

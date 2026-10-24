@@ -4,7 +4,7 @@ S=sys.argv[1]
 FEE='TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch()
+    b=await p.chromium.launch(args=['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
     pg=await b.new_page(viewport={'width':390,'height':844})
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     async def hist(route):
@@ -65,6 +65,20 @@ async def main():
     await pg.click('#s-success [data-go=home]'); await pg.click('.actions [data-go=send]')
     await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw'); await pg.fill('#amt','5'); await pg.click('#review'); await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(8000)
     assert await vis('s-send') and 'فشلت المعاملة' in await pg.inner_text('#send-err'); step('المعاملة الفاشلة على الشبكة تظهر كفشل وليس نجاحاً')
+    # مسح QR بالكاميرا (الماسح الداخلي، لأن ماسح Google غير موجود في المتصفح)
+    await pg.fill('#to','')
+    await pg.click('#scan'); await pg.wait_for_timeout(300)
+    assert await vis('scanner'); step('فتح الماسح الداخلي بالكاميرا')
+    await pg.locator('#scanner').wait_for(state='hidden', timeout=15000)
+    assert not await vis('scanner'); v=await pg.input_value('#to'); assert v=='TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw', v; step('قراءة عنوان من رمز بصيغة tron:...?amount وإغلاق الكاميرا')
+    tracks=await pg.evaluate("document.getElementById('scan-video').srcObject"); assert tracks is None; step('إيقاف الكاميرا بعد المسح')
+    await pg.evaluate("window.__qrData='https://evil.example'"); await pg.fill('#to','')
+    await pg.click('#scan'); await pg.locator('#scanner').wait_for(state='visible', timeout=5000); await pg.locator('#scanner').wait_for(state='hidden', timeout=15000)
+    assert await pg.input_value('#to')=='' ; step('رفض رمز لا يحتوي عنوان TRON')
+    await pg.evaluate("window.__qrData='none'")
+    await pg.click('#scan'); await pg.locator('#scanner').wait_for(state='visible', timeout=5000); await pg.click('#scan-close')
+    assert not await vis('scanner'); step('زر الإلغاء يغلق الماسح')
+    await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw')
     # إرسال TRX عادي: لا عمولة
     await pg.evaluate('window.__log=[]')
     await pg.click('[data-coin=TRX]'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(8000)

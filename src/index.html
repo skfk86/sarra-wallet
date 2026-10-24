@@ -440,6 +440,17 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 </div>
 
+<!-- ===== ماسح QR داخل التطبيق (بديل عند عدم توفر ماسح Google) ===== -->
+<div id="scanner" role="dialog" aria-modal="true" aria-label="مسح رمز QR" hidden style="position:fixed;inset:0;z-index:80;background:#000;display:flex;flex-direction:column">
+  <video id="scan-video" playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0"></video>
+  <div aria-hidden="true" style="z-index:1;pointer-events:none;position:absolute;left:50%;top:45%;width:240px;height:240px;transform:translate(-50%,-50%);border:3px solid var(--ac);border-radius:24px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)"></div>
+  <div style="z-index:2;position:absolute;left:0;right:0;bottom:0;padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);display:flex;flex-direction:column;gap:12px;align-items:center">
+    <p style="color:#fff;font-size:14px;text-align:center">وجّه الكاميرا نحو رمز QR لعنوان TRON</p>
+    <button class="btn btn-ghost" id="scan-close" style="max-width:320px">إلغاء</button>
+  </div>
+  <canvas id="scan-canvas" hidden></canvas>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -459,6 +470,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 <script src="config.js"></script>
 <script src="vendor/tronweb.js"></script>
 <script src="vendor/qrcode.js"></script>
+<script src="vendor/jsqr.js"></script>
 <script src="wallet-core.js"></script>
 <script>
 (function () {
@@ -531,6 +543,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   if (P.App) {
     P.App.addListener('backButton', function () {
       var cur = state.stack[state.stack.length - 1];
+      if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
       if (cur && cur !== 'home' && TAB_SCREENS.indexOf(cur) >= 0) { resetTo('home'); return; }
@@ -539,7 +552,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     });
     var hiddenAt = 0;
     P.App.addListener('appStateChange', function (s) {
-      if (!s.isActive) { hiddenAt = Date.now(); return; }
+      if (!s.isActive) { hiddenAt = Date.now(); if (!$('scanner').hidden) stopScan(); return; }
       if (hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MS && core.isUnlocked()) { core.lock(); openPin('unlock'); }
     });
   }
@@ -911,28 +924,73 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       prepareSend();
     };
   });
-  // مسح QR عبر ماسح Google (لا يحتاج إذن الكاميرا)
+  // مسح QR: ماسح Google أولاً (لا يحتاج إذن الكاميرا)، وإن لم يتوفر أو فشل
+  // نفتح ماسحاً داخل التطبيق بالكاميرا (jsQR) يعمل على أي هاتف
   var Scanner = P.BarcodeScanner;
-  if (!Scanner) $('scan').hidden = true;
+  function useScanResult(raw) {
+    var addr = String(raw || '').trim().replace(/^tron:/i, '').split(/[?&/]/)[0];
+    if (core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
+    toast('الرمز لا يحتوي عنوان TRON صحيحاً', true);
+    return false;
+  }
+  function isCancel(e) { return /cancel/i.test((e && (e.message || e.code)) || ''); }
   $('scan').onclick = async function () {
-    try {
-      var av = await Scanner.isGoogleBarcodeScannerModuleAvailable();
-      if (!av.available) {
-        toast('جارٍ تجهيز الماسح لأول مرة، حاول بعد لحظات');
-        await Scanner.installGoogleBarcodeScannerModule();
-        return;
+    if (Scanner && typeof Scanner.scan === 'function') {
+      try {
+        var av = await Scanner.isGoogleBarcodeScannerModuleAvailable();
+        if (av && av.available) {
+          var r = await Scanner.scan({ formats: ['QR_CODE'] });
+          var raw = r && r.barcodes && r.barcodes[0] && r.barcodes[0].rawValue;
+          if (raw) useScanResult(raw);
+          return;
+        }
+        // الوحدة غير منزّلة بعد: نبدأ تنزيلها للمرة القادمة ونستخدم الماسح الداخلي الآن
+        Scanner.installGoogleBarcodeScannerModule().catch(function () {});
+      } catch (e) {
+        if (isCancel(e)) return;
       }
-      var r = await Scanner.scan({ formats: ['QR_CODE'] });
-      var raw = r && r.barcodes && r.barcodes[0] && r.barcodes[0].rawValue;
-      if (!raw) return;
-      var addr = String(raw).trim().replace(/^tron:/i, '').split(/[?&/]/)[0];
-      if (core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; }
-      else toast('الرمز لا يحتوي عنوان TRON صحيحاً', true);
-    } catch (e) {
-      var msg = (e && e.message) || '';
-      if (!/cancel/i.test(msg)) toast('تعذّر المسح', true);
     }
+    webScan();
   };
+
+  var scanStream = null, scanLoop = 0;
+  async function webScan() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.jsQR) {
+      toast('المسح غير مدعوم على هذا الجهاز. انسخ العنوان والصقه', true);
+      return;
+    }
+    try {
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    } catch (e) {
+      toast(/denied|permission|notallowed/i.test(e && (e.name + e.message)) ? 'اسمح للتطبيق باستخدام الكاميرا من إعدادات الهاتف' : 'تعذّر فتح الكاميرا', true);
+      return;
+    }
+    var video = $('scan-video'), canvas = $('scan-canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+    video.srcObject = scanStream;
+    $('scanner').hidden = false;
+    try { await video.play(); } catch (e) {}
+    var tick = function () {
+      if (!scanStream) return;
+      if (video.readyState >= 2 && video.videoWidth) {
+        var w = Math.min(video.videoWidth, 800), hgt = Math.round(video.videoHeight * w / video.videoWidth);
+        canvas.width = w; canvas.height = hgt;
+        ctx.drawImage(video, 0, 0, w, hgt);
+        var img = ctx.getImageData(0, 0, w, hgt);
+        var code = window.jsQR(img.data, w, hgt, { inversionAttempts: 'dontInvert' });
+        if (code && code.data) { stopScan(); useScanResult(code.data); return; }
+      }
+      scanLoop = requestAnimationFrame(tick);
+    };
+    scanLoop = requestAnimationFrame(tick);
+  }
+  function stopScan() {
+    cancelAnimationFrame(scanLoop);
+    if (scanStream) scanStream.getTracks().forEach(function (t) { t.stop(); });
+    scanStream = null;
+    $('scan-video').srcObject = null;
+    $('scanner').hidden = true;
+  }
+  $('scan-close').onclick = stopScan;
 
   $('paste').onclick = async function () {
     try {

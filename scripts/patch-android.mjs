@@ -38,6 +38,10 @@ let xml = readFileSync(manifest, 'utf8');
 if (!xml.includes('com.google.mlkit.vision.DEPENDENCIES')) {
   xml = xml.replace(/(<application\b[^>]*>)/, '$1\n        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />');
 }
+// الكاميرا للماسح الداخلي (بديل ماسح Google)
+if (!xml.includes('android.permission.CAMERA')) {
+  xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />');
+}
 if (!xml.includes('android.permission.USE_BIOMETRIC')) {
   xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.USE_BIOMETRIC" />');
 }
@@ -46,4 +50,4 @@ xml = xml.replace(/android:allowBackup="true"/, 'android:allowBackup="false"');
 if (!xml.includes('android:allowBackup')) xml = xml.replace(/<application\b/, '<application android:allowBackup="false"');
 if (!xml.includes('android:fullBackupContent')) xml = xml.replace(/<application\b/, '<application android:fullBackupContent="false"');
 writeFileSync(manifest, xml);
-console.log('AndroidManifest patched (ML Kit barcode_ui, USE_BIOMETRIC, allowBackup=false)');
+console.log('AndroidManifest patched (ML Kit barcode_ui, CAMERA, USE_BIOMETRIC, allowBackup=false)');
