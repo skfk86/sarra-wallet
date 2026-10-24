@@ -946,9 +946,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // ===== الرئيسية =====
   function shortAddr(a) { return a ? a.slice(0, 4) + '…' + a.slice(-4) : ''; }
   function netName() { return NETWORK === 'mainnet' ? 'شبكة TRON' : 'شبكة الاختبار (Nile)'; }
-  async function loadHome() {
+  // التنقل بين الأقسام لا يعيد الجلب إن كانت البيانات حديثة (أقل من 20 ثانية)، حتى لا نتجاوز حد طلبات TronGrid
+  var FRESH_MS = 20000;
+  state.fetchedAt = { home: 0, history: 0 };
+  async function loadHome(force) {
     $('net-label').textContent = netName();
     renderBalances();
+    if (force !== true && state.balances && Date.now() - state.fetchedAt.home < FRESH_MS) return;
+    state.fetchedAt.home = Date.now();
     try {
       var b = await core.getBalances();
       state.balances = b;
@@ -956,7 +961,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var trx = Number(WalletCore.fromUnits(b.trxUnits, 6));
       $('fee-hint').textContent = trx < 15 ? 'أضف TRX لدفع رسوم الإرسال' : 'رصيد الرسوم كافٍ';
       $('low-trx').hidden = !(trx < 15 && b.usdtUnits > 0n);
-    } catch (e) { toast(WalletCore.errorText(e), true); }
+    } catch (e) {
+      state.fetchedAt.home = 0;
+      // عند وجود رصيد معروض مسبقاً لا نزعج المستخدم برسالة عند كل تنقّل؛ نُظهرها عند التحديث اليدوي أو أول تحميل
+      if (force === true || !state.balances) toast(WalletCore.errorText(e), true);
+    }
     loadHistory();
   }
   function renderBalances() {
@@ -972,7 +981,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
-  $('refresh').onclick = loadHome;
+  $('refresh').onclick = function () { state.fetchedAt.history = 0; loadHome(true); };
 
   // ===== السجل =====
   function emptyMsg(box, text) {
@@ -1008,13 +1017,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function loadHistory() {
     var box = $('history');
     try { renderTxList(box, (await core.getHistory(null, 5))); }
-    catch (e) { emptyMsg(box, WalletCore.errorText(e)); }
+    catch (e) { if (!box.querySelector('button')) emptyMsg(box, WalletCore.errorText(e)); }
   }
   async function loadHistoryFull() {
     var box = $('history-full');
+    if (state.historyCache && Date.now() - state.fetchedAt.history < FRESH_MS) { applyFilter(); return; }
     if (!state.historyCache) emptyMsg(box, 'جارٍ التحميل…');
+    state.fetchedAt.history = Date.now();
     try { state.historyCache = await core.getHistory(null, 50); applyFilter(); }
-    catch (e) { emptyMsg(box, WalletCore.errorText(e)); }
+    catch (e) { state.fetchedAt.history = 0; if (!state.historyCache) emptyMsg(box, WalletCore.errorText(e)); else applyFilter(); }
   }
   function applyFilter() {
     var list = (state.historyCache || []).filter(function (t) {
@@ -1470,15 +1481,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       } catch (e) { emptyMsg(box, p2pErr(e)); }
       return;
     }
+    var side = state.p2p.tab === 'sell' ? 'buy' : 'sell';
+    state.p2p.cache = state.p2p.cache || {};
+    var c0 = state.p2p.cache[side];
+    if (c0 && Date.now() - c0.at < 15000) { state.p2p.offers = c0.offers; state.p2p.listSide = side; renderOffers(); return; }
     emptyMsg(box, 'جارٍ التحميل…');
     try {
-      var side = state.p2p.tab === 'sell' ? 'buy' : 'sell';
       var r = await p2p('offers.list', { side: side }, true);
       state.p2p.feeBps = r.fee_bps; state.p2p.minTrade = r.min_trade;
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
-      state.p2p.offers = r.offers; state.p2p.listSide = side;
+      state.p2p.offers = r.offers; state.p2p.listSide = side; state.p2p.cache[side] = { at: Date.now(), offers: r.offers };
       renderOffers();
     } catch (e) { emptyMsg(box, p2pErr(e)); }
   }
@@ -1573,7 +1587,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     btn.disabled = true;
     try {
       var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6) });
-      openOrder(r.order.id, true);
+      state.p2p.cache = {}; openOrder(r.order.id, true);
     } catch (e) { $('buy-err').textContent = p2pErr(e); $('buy-err').hidden = false; btn.disabled = false; }
   };
 
@@ -1633,7 +1647,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
         pay_window_min: state.p2p.win, side: state.p2p.newSide
       });
-      toast('تم نشر الإعلان');
+      state.p2p.cache = {}; toast('تم نشر الإعلان');
       state.p2p.tab = 'mine';
       document.querySelectorAll('[data-p2ptab]').forEach(function (x) { x.classList.toggle('on', x.dataset.p2ptab === 'mine'); });
       resetTo('p2p');
@@ -1864,7 +1878,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         var b = this;
         authorize('إيداع في الضمان', async function () {
           b.disabled = true; toast('جارٍ الإيداع…');
-          try { await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); toast('تم الإيداع، بانتظار تأكيد الضمان'); }
+          try { await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
           catch (e) { toast(WalletCore.errorText(e), true); }
           b.disabled = false; refreshOrder('order.refresh');
         });

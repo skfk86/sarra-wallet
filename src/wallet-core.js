@@ -41,6 +41,22 @@
     { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ name: '', type: 'bool' }] },
     { type: 'function', name: 'allowance', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }
   ];
+  // إعادة المحاولة عند رفض TronGrid المؤقت (429 / حد الطلبات / انقطاع لحظي) مع انتظار متزايد
+  function isTransient(e) {
+    var s = String((e && (e.message || e.code || e.status)) || e || '') + ' ' + String(e && e.response && e.response.status || '');
+    return /429|rate|limit|timeout|network|fetch|ECONN|socket|503|502|Failed to fetch/i.test(s);
+  }
+  async function withRetry(fn, tries) {
+    tries = tries || 3;
+    for (var i = 0; ; i++) {
+      try { return await fn(); }
+      catch (e) {
+        if (i >= tries - 1 || !isTransient(e)) throw e;
+        await new Promise(function (r) { setTimeout(r, 700 * Math.pow(2, i) + Math.random() * 300); });
+      }
+    }
+  }
+
   // TronWeb يعيد العنوان بصيغ مختلفة حسب الإصدار: base58، أو hex بـ 41، أو 0x، أو 40 خانة
   function normalizeAddress(tw, v) {
     if (Array.isArray(v)) v = v[0];
@@ -337,9 +353,9 @@
         var addr = address || (await this.getAddress());
         var tw = client();
         tw.setAddress(addr);
-        var trxSun = await tw.trx.getBalance(addr);
+        var trxSun = await withRetry(function () { return tw.trx.getBalance(addr); });
         var contract = tw.contract(TRC20_ABI, net.usdt);
-        var usdtRaw = await contract.balanceOf(addr).call();
+        var usdtRaw = await withRetry(function () { return contract.balanceOf(addr).call(); });
         var usdtUnits = BigInt(usdtRaw.toString());
         return {
           trxUnits: BigInt(trxSun),
@@ -486,8 +502,10 @@
         var n = limit || 20;
         var headers = apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {};
         var hexTw = client();
-        var usdtReq = fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: headers })
-          .then(function (r) { if (!r.ok) throw new Error('HISTORY_FAILED'); return r.json(); });
+        var usdtReq = withRetry(function () {
+          return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: headers })
+            .then(function (r) { if (!r.ok) throw new Error(r.status === 429 ? 'RATE_429' : 'HISTORY_FAILED'); return r.json(); });
+        });
         var trxReq = fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions?limit=' + n + '&only_confirmed=true', { headers: headers })
           .then(function (r) { return r.ok ? r.json() : { data: [] }; })
           .catch(function () { return { data: [] }; });
