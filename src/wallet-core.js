@@ -458,23 +458,44 @@
         return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status, fee: feePaid };
       },
 
-      // آخر معاملات USDT (TRC20) من TronGrid
+      // آخر المعاملات: USDT (TRC20) وTRX معاً، مرتّبة من الأحدث
       getHistory: async function (address, limit) {
         var addr = address || (await this.getAddress());
-        var url = net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + (limit || 20) + '&contract_address=' + net.usdt;
-        var res = await fetch(url, { headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {} });
-        if (!res.ok) throw new Error('HISTORY_FAILED');
-        var json = await res.json();
-        return (json.data || []).map(function (t) {
+        var n = limit || 20;
+        var headers = apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {};
+        var hexTw = client();
+        var usdtReq = fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: headers })
+          .then(function (r) { if (!r.ok) throw new Error('HISTORY_FAILED'); return r.json(); });
+        var trxReq = fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions?limit=' + n + '&only_confirmed=true', { headers: headers })
+          .then(function (r) { return r.ok ? r.json() : { data: [] }; })
+          .catch(function () { return { data: [] }; });
+        var results = await Promise.all([usdtReq, trxReq]);
+        var list = (results[0].data || []).map(function (t) {
           var incoming = t.to === addr;
           return {
-            txid: t.transaction_id,
-            incoming: incoming,
+            coin: 'USDT', txid: t.transaction_id, incoming: incoming,
             counterparty: incoming ? t.from : t.to,
             amount: formatAmount(t.value, Number(t.token_info && t.token_info.decimals) || USDT_DECIMALS),
             time: t.block_timestamp
           };
         });
+        (results[1].data || []).forEach(function (t) {
+          var c = t.raw_data && t.raw_data.contract && t.raw_data.contract[0];
+          if (!c || c.type !== 'TransferContract') return;
+          if (t.ret && t.ret[0] && t.ret[0].contractRet && t.ret[0].contractRet !== 'SUCCESS') return;
+          var v = c.parameter && c.parameter.value;
+          if (!v) return;
+          var from = hexTw.address.fromHex(v.owner_address), to = hexTw.address.fromHex(v.to_address);
+          var incoming = to === addr;
+          list.push({
+            coin: 'TRX', txid: t.txID, incoming: incoming,
+            counterparty: incoming ? from : to,
+            amount: formatAmount(v.amount, TRX_DECIMALS),
+            time: t.block_timestamp
+          });
+        });
+        list.sort(function (a, b) { return b.time - a.time; });
+        return list.slice(0, n);
       }
     };
   }

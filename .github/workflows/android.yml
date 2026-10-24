@@ -33,6 +33,12 @@ jobs:
       - name: Run core tests
         run: npm test
 
+      - name: Run UI tests (Chromium)
+        run: |
+          pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+          bash test/ui/run.sh
+
       - name: Copy vendor libraries
         run: npm run vendor
 

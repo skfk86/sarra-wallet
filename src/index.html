@@ -78,7 +78,7 @@ dl.kv div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;bor
 dl.kv div:last-child{border-bottom:0}
 dl.kv dt{color:var(--mu);font-size:14px}
 dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
-.toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:#2A3644;color:var(--tx);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:99;max-width:90vw;text-align:center}
+.toast{pointer-events:none;position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:#2A3644;color:var(--tx);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:99;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.error{background:#5A262B}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:sp 0.8s linear infinite}
@@ -773,7 +773,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     list.forEach(function (t) {
       var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
       row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid #161E28;cursor:pointer;color:inherit;text-align:start';
-      row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' USDT، عرض على المستكشف');
+      var coin = t.coin || 'USDT';
+      row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' ' + coin + '، عرض على المستكشف');
       row.onclick = function () { window.open(core.network.explorer + t.txid, '_blank'); };
       var b = document.createElement('span'); b.className = 'b';
       b.style.cssText = t.incoming ? 'background:#10241D;color:#2BD9A0' : 'background:#1E2935;color:#C5D0DB';
@@ -787,7 +788,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
       amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? '#2BD9A0' : '#EEF2F6');
-      amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' USDT';
+      amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' ' + coin;
       row.appendChild(b); row.appendChild(mid); row.appendChild(amt);
       box.appendChild(row);
     });
@@ -1029,7 +1030,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function requestQuote() {
     var v = $('sw-in').value, seq = ++swapSeq;
     $('sw-err').hidden = true; $('sw-go').disabled = true; state.swapQuote = null;
-    if (!v || !Number(v.replace(/[,،]/g, ''))) { $('sw-out').textContent = '0'; $('sw-min').textContent = '—'; return; }
+    var valid = false;
+    try { valid = !!v && WalletCore.toUnits(v, 6) > 0n; } catch (e) {}
+    if (!valid) { $('sw-out').textContent = '0'; $('sw-min').textContent = '—'; flushSwapErr(); return; }
     $('sw-out').textContent = '…';
     try {
       var q = await core.quoteSwap(state.swapDir, v);
@@ -1047,6 +1050,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       $('sw-out').textContent = '0'; $('sw-min').textContent = '—';
       $('sw-err').textContent = WalletCore.errorText(e); $('sw-err').hidden = false;
     }
+    flushSwapErr();
+  }
+  // خطأ من محاولة تبديل سابقة يُعرض بعد انتهاء إعادة التسعير، حتى لا يمسحه
+  function flushSwapErr() {
+    if (!state.swapErrMsg) return;
+    $('sw-err').textContent = state.swapErrMsg; $('sw-err').hidden = false;
+    state.swapErrMsg = null;
   }
   $('sw-go').onclick = function () {
     var q = state.swapQuote; if (!q) return;
@@ -1072,8 +1082,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       show('success');
     } catch (e) {
       state.stack = ['home'];
+      state.swapErrMsg = WalletCore.errorText(e);
       show('swap');
-      $('sw-err').textContent = WalletCore.errorText(e); $('sw-err').hidden = false;
     } finally { state.txBusy = false; }
   }
 
