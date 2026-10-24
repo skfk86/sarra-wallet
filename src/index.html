@@ -5,9 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co">
 <title>صُرّة</title>
+<meta name="theme-color" content="#0B0F14">
+<script>
+// يُطبَّق قبل الرسم حتى لا تومض الشاشة باللون الخطأ
+(function () {
+  var pref = 'auto'; try { pref = localStorage.getItem('sarra.theme') || 'auto'; } catch (e) {}
+  var dark = pref === 'dark' || (pref === 'auto' && !(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches));
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
+:root{color-scheme:dark;--tx3:#A3B0BE;--faint:#5E6E80;--dot:#33445A;--hi:#2A3644;--tab:rgba(14,19,25,.92);--danger-bg:#5A262B;--danger-tx:#FFD6D9;--danger:#FF8A8F;--danger-mu:#C98A8E;--tag-bg:#3A2A10;--tag:#F5C26B;--trx:#FF5A5F;--usdt:#26A17B;--ok-tx:#A9C9BC;--in-bg:#10241D;--in:#2BD9A0;--out-bg:#1E2935;--out:#C5D0DB;--row:#161E28;--shadow:none;--hero:linear-gradient(145deg,#132A24 0%,#131A22 60%);--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
+:root[data-theme="light"]{color-scheme:light;--bg:#F3F5F8;--s1:#FFFFFF;--s2:#EDF0F4;--line:#E1E6EC;--div:#EBEEF2;--tx:#0F1720;--tx2:#334155;--tx3:#475569;--mu:#64748B;--faint:#94A3B8;--dot:#CBD5E1;--hi:#FFFFFF;--tab:rgba(255,255,255,.94);--ac:#0FA678;--on-ac:#FFFFFF;--warn-bg:#FFF6E9;--warn-bd:#F5D9AE;--warn:#8A4B08;--err-bg:#FDEEEF;--err-bd:#F4C7CB;--err:#B42330;--ok-bg:#E8F7F1;--ok-bd:#BFE8D7;--ok-tx:#1E5B47;--danger-bg:#D93645;--danger-tx:#FFFFFF;--danger:#C62B3A;--danger-mu:#B8606A;--tag-bg:#FFF1D6;--tag:#9A5B00;--trx:#E5333B;--in-bg:#E3F6EF;--in:#0B8A63;--out-bg:#EDF0F4;--out:#475569;--row:#EEF1F4;--shadow:0 1px 2px rgba(15,23,32,.04),0 4px 14px rgba(15,23,32,.05);--hero:linear-gradient(145deg,#E3F7EF 0%,#FFFFFF 65%)}
+html,body,.card,.field,.list,.btn,.chip,.icon-btn,.tabbar,.sheet,.key,.ad{transition:background-color .25s,border-color .25s,color .25s}
+.card,.list,.ad,.field{box-shadow:var(--shadow)}
+.btn:active,.chip:active,.action:active span.ic,.li:active{transform:scale(.98)}
+.btn,.chip,.action span.ic{transition:transform .12s,background-color .25s}
+.btn-primary:not(:disabled){box-shadow:0 6px 18px -8px var(--ac)}
+#s-home .card:first-of-type{background:var(--hero)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;overscroll-behavior:none}
@@ -37,7 +53,7 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 .note{display:flex;gap:10px;align-items:flex-start;border-radius:16px;padding:12px 14px;font-size:13px;line-height:1.7}
 .note.warn{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn)}
 .note.err{background:var(--err-bg);border:1px solid var(--err-bd);color:var(--err)}
-.note.ok{background:var(--ok-bg);border:1px solid var(--ok-bd);color:#A9C9BC}
+.note.ok{background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ok-tx)}
 .ltr{direction:ltr;unicode-bidi:isolate}
 .mono{font-family:'IBM Plex Mono',monospace}
 /* الرئيسية */
@@ -54,15 +70,15 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 /* كلمات الاسترجاع */
 .words{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;direction:ltr}
 .words li{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border-radius:10px;background:var(--bg);border:1px solid var(--div)}
-.words li span:first-child{font-size:11px;color:#5E6E80;width:16px}
+.words li span:first-child{font-size:11px;color:var(--faint);width:16px}
 .blur{filter:blur(7px);user-select:none}
 /* PIN */
 .dots{display:flex;gap:16px;justify-content:center;direction:ltr}
-.dot{width:16px;height:16px;border-radius:50%;border:2px solid #33445A}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--dot)}
 .dot.on{background:var(--ac);border-color:var(--ac)}
 .keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;direction:ltr}
 .key{height:64px;border-radius:18px;border:0;background:var(--s1);font-size:26px;font-weight:600;cursor:pointer}
-.key.fn{background:transparent;color:#A3B0BE;display:flex;align-items:center;justify-content:center}
+.key.fn{background:transparent;color:var(--tx3);display:flex;align-items:center;justify-content:center}
 .key:active{background:var(--s2)}
 .shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
@@ -78,14 +94,14 @@ dl.kv div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;bor
 dl.kv div:last-child{border-bottom:0}
 dl.kv dt{color:var(--mu);font-size:14px}
 dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
-.toast{pointer-events:none;position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:#2A3644;color:var(--tx);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:99;max-width:90vw;text-align:center}
+.toast{pointer-events:none;position:fixed;bottom:calc(env(safe-area-inset-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--tx);color:var(--bg);padding:12px 20px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:99;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.error{background:#5A262B}
+.toast.error{background:var(--danger-bg);color:var(--danger-tx)}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:sp 0.8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .skeleton{color:transparent;background:var(--s2);border-radius:8px}
 /* شريط التنقل */
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#0E1319;border-top:1px solid var(--div);display:none;grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom)}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--tab);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--div);display:none;grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom)}
 .tabbar.show{display:grid}
 .tab{height:66px;background:none;border:0;color:var(--mu);font-size:11px;font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .tab.on{color:var(--ac);font-weight:600}
@@ -96,22 +112,22 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .chip.on{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:4px}
 .seg button{height:40px;border-radius:10px;border:0;background:transparent;color:var(--mu);font-size:14px;font-weight:600;cursor:pointer}
-.seg button.on{background:#2A3644;color:var(--tx);font-weight:700}
+.seg button.on{background:var(--hi);box-shadow:var(--shadow);color:var(--tx);font-weight:700}
 .list{background:var(--s1);border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column}
 .li{display:flex;align-items:center;gap:12px;padding:14px 16px;background:none;border:0;width:100%;text-align:start;cursor:pointer;color:var(--tx)}
 .li+.li{border-top:1px solid var(--div)}
 .li .ic{width:36px;height:36px;flex-shrink:0;border-radius:10px;background:var(--s2);color:var(--tx2);display:flex;align-items:center;justify-content:center}
 .li .t{flex-grow:1;display:flex;flex-direction:column;font-size:14px;font-weight:600}
 .li .t small{font-size:12px;font-weight:400;color:var(--mu)}
-.li.danger,.li.danger .ic{color:#FF8A8F}
-.switch{width:52px;height:32px;flex-shrink:0;border-radius:999px;border:0;padding:3px;background:#2A3644;display:flex;justify-content:flex-end;cursor:pointer}
+.li.danger,.li.danger .ic{color:var(--danger)}
+.switch{width:52px;height:32px;flex-shrink:0;border-radius:999px;border:0;padding:3px;background:var(--dot);display:flex;justify-content:flex-end;cursor:pointer}
 .switch span{width:26px;height:26px;border-radius:50%;background:var(--mu)}
 .switch[aria-checked="true"]{background:var(--ac);justify-content:flex-start}
 .switch[aria-checked="true"] span{background:var(--on-ac)}
 .soon{flex-grow:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 12px}
 .soon .badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ac)}
-.tag-bk{font-size:11px;padding:2px 8px;border-radius:6px;background:#3A2A10;color:#F5C26B;font-weight:600;white-space:nowrap}
-.vbadge{font-size:11px;padding:1px 6px;border-radius:6px;background:#10241D;color:var(--ac);font-weight:600;white-space:nowrap}
+.tag-bk{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--tag-bg);color:var(--tag);font-weight:600;white-space:nowrap}
+.vbadge{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--ok-bg);color:var(--ac);font-weight:600;white-space:nowrap}
 .steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .steps3 span{font-size:12px;text-align:center;padding:8px 2px 6px;border-top:3px solid var(--s2);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
@@ -127,7 +143,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <img src="assets/logo.png" alt="شعار صُرّة" width="96" height="96" style="border-radius:28px;display:block">
     <div style="display:flex;flex-direction:column;gap:10px">
       <h1 style="font-size:32px;line-height:1.35">دولارك في جيبك،<br>وأنت المتحكم.</h1>
-      <p style="color:#A3B0BE;line-height:1.8">احفظ وأرسل واستلم USDT في ثوانٍ، بدون بنك وبدون وسيط.</p>
+      <p style="color:var(--tx3);line-height:1.8">احفظ وأرسل واستلم USDT في ثوانٍ، بدون بنك وبدون وسيط.</p>
     </div>
   </div>
   <button class="btn btn-primary" data-go="create">إنشاء محفظة جديدة</button>
@@ -138,7 +154,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen" id="s-backup" aria-label="كلمات الاسترجاع">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
   <h1>كلمات الاسترجاع</h1>
-  <p style="color:#A3B0BE;line-height:1.8;font-size:14px">هذه الكلمات الـ12 هي المفتاح الوحيد لأموالك. اكتبها على ورقة بالترتيب واحفظها في مكان آمن.</p>
+  <p style="color:var(--tx3);line-height:1.8;font-size:14px">هذه الكلمات الـ12 هي المفتاح الوحيد لأموالك. اكتبها على ورقة بالترتيب واحفظها في مكان آمن.</p>
   <div class="card" style="position:relative;padding:14px">
     <ol class="words" id="words"></ol>
     <button class="btn btn-ghost" id="reveal" style="position:absolute;inset:0;margin:auto;width:auto;height:48px;padding:0 20px;background:var(--s2)">اضغط لإظهار الكلمات</button>
@@ -195,7 +211,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <div class="note warn" id="low-trx" role="alert" hidden style="flex-direction:column;gap:10px">
     <span><b>رصيد الرسوم غير كافٍ.</b> لكي ترسل USDT تحتاج TRX في محفظتك لدفع رسوم الشبكة (15 TRX على الأقل). أرسل TRX إلى عنوانك عبر شبكة TRON (TRC20).</span>
-    <button type="button" class="chip" data-go="receive" style="align-self:flex-start;background:transparent;border-color:#4A3218;color:#FFC58A">عرض عنواني</button>
+    <button type="button" class="chip" data-go="receive" style="align-self:flex-start;background:transparent;border-color:var(--warn-bd);color:var(--warn)">عرض عنواني</button>
   </div>
   <nav class="actions" aria-label="إجراءات">
     <button class="action main" data-go="send"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال</button>
@@ -203,10 +219,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
   </nav>
   <div class="card" style="padding:0">
-    <div class="asset"><span class="coin" style="background:#26A17B;color:#fff" aria-hidden="true">₮</span>
+    <div class="asset"><span class="coin" style="background:var(--usdt);color:#fff" aria-hidden="true">₮</span>
       <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">دولار رقمي</span><span class="muted" style="font-size:12px">USDT</span></div>
       <span class="ltr" style="font-weight:600" id="row-usdt">—</span></div>
-    <div class="asset"><span class="coin" style="background:var(--s2);color:#FF5A5F" aria-hidden="true"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
+    <div class="asset"><span class="coin" style="background:var(--s2);color:var(--trx)" aria-hidden="true"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
       <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">رصيد الرسوم</span><span class="muted" style="font-size:12px">TRX · لدفع رسوم الشبكة</span></div>
       <span class="ltr" style="font-weight:600" id="row-trx">—</span></div>
   </div>
@@ -306,6 +322,12 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <span class="t">قفل الآن</span>
     </button>
   </div>
+  <h2 class="muted" style="font-size:13px">المظهر</h2>
+  <div class="seg" id="theme-seg" role="radiogroup" aria-label="المظهر" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <button type="button" role="radio" data-theme-opt="auto" aria-checked="true" class="on">تلقائي</button>
+    <button type="button" role="radio" data-theme-opt="dark" aria-checked="false">ليلي</button>
+    <button type="button" role="radio" data-theme-opt="light" aria-checked="false">نهاري</button>
+  </div>
   <h2 class="muted" style="font-size:13px">النسخ الاحتياطي</h2>
   <div class="list">
     <button type="button" class="li" id="sec-reveal">
@@ -320,7 +342,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="list">
     <button type="button" class="li danger" id="sec-wipe">
       <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>
-      <span class="t">حذف المحفظة من هذا الجهاز<small style="color:#C98A8E">لن تستعيدها إلا بكلمات الاسترجاع</small></span>
+      <span class="t">حذف المحفظة من هذا الجهاز<small style="color:var(--danger-mu)">لن تستعيدها إلا بكلمات الاسترجاع</small></span>
     </button>
   </div>
   <p class="muted" style="text-align:center;font-size:12px">صُرّة · بدون إعلانات · <span id="sec-net"></span></p>
@@ -489,7 +511,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <label class="lbl" for="adm-ban-addr">عنوان المحفظة (يبدأ بـ T)</label>
     <div class="field"><input id="adm-ban-addr" dir="ltr" autocomplete="off" spellcheck="false"></div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
-      <button class="btn" id="adm-ban" style="background:#5A262B;color:#FFD6D9;height:48px;font-size:15px">حظر</button>
+      <button class="btn" id="adm-ban" style="background:var(--danger-bg);color:var(--danger-tx);height:48px;font-size:15px">حظر</button>
       <button class="btn btn-ghost" id="adm-unban" style="height:48px;font-size:15px">رفع الحظر</button>
     </div>
   </div>
@@ -557,11 +579,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="sheet">
     <h2 id="intro-title" style="font-size:20px">قبل أن تبدأ: أمران مهمان</h2>
     <div class="row" style="align-items:flex-start">
-      <span class="icon-btn flat" aria-hidden="true" style="color:#FFC58A;background:#241A10;cursor:default"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+      <span class="icon-btn flat" aria-hidden="true" style="color:var(--warn);background:var(--warn-bg);cursor:default"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
       <p style="font-size:14px;line-height:1.8"><b>شبكة TRON (TRC20) فقط.</b> عند استلام أو إرسال أي مبلغ، تأكد أن الطرف الآخر يختار شبكة TRON. المبالغ المرسلة من شبكة أخرى تضيع.</p>
     </div>
     <div class="row" style="align-items:flex-start">
-      <span class="icon-btn flat" aria-hidden="true" style="color:#FF5A5F;cursor:default"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
+      <span class="icon-btn flat" aria-hidden="true" style="color:var(--trx);cursor:default"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
       <p style="font-size:14px;line-height:1.8"><b>الرسوم تُدفع بعملة TRX.</b> لكي ترسل USDT تحتاج قليلاً من TRX في محفظتك (15 TRX على الأقل). الاستلام لا يحتاج رسوماً.</p>
     </div>
     <button class="btn btn-primary" id="intro-ok">فهمت</button>
@@ -574,7 +596,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <h2 id="forgot-title" style="font-size:18px">نسيت رمز القفل؟</h2>
     <p class="muted" style="font-size:14px;line-height:1.8">لا يمكن استرجاع الرمز. لكن أموالك محفوظة على الشبكة، وتستعيدها بكلمات الاسترجاع الـ12: نحذف المحفظة من هذا الجهاز، ثم تستوردها بالكلمات وتختار رمزاً جديداً.</p>
     <div class="note err"><span>لا تتابع إلا إن كانت الكلمات الـ12 مكتوبة عندك. بدونها ستفقد الوصول لأموالك نهائياً.</span></div>
-    <button class="btn" id="forgot-yes" style="background:#5A262B;color:#FFD6D9">الكلمات عندي، احذف واستورد</button>
+    <button class="btn" id="forgot-yes" style="background:var(--danger-bg);color:var(--danger-tx)">الكلمات عندي، احذف واستورد</button>
     <button class="btn btn-ghost" id="forgot-no">إلغاء</button>
   </div>
 </div>
@@ -584,7 +606,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="sheet">
     <h2 id="wipe-title" style="font-size:18px">حذف المحفظة؟</h2>
     <p class="muted" style="font-size:14px;line-height:1.8">ستُحذف المحفظة من هذا الجهاز. أموالك تبقى على الشبكة، ولن تصل إليها إلا بكلمات الاسترجاع الـ12. تأكد أنها مكتوبة عندك.</p>
-    <button class="btn" id="wipe-yes" style="background:#5A262B;color:#FFD6D9">نعم، احذف</button>
+    <button class="btn" id="wipe-yes" style="background:var(--danger-bg);color:var(--danger-tx)">نعم، احذف</button>
     <button class="btn btn-ghost" id="wipe-no">إلغاء</button>
   </div>
 </div>
@@ -743,7 +765,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var n = document.createElement('span'); n.textContent = i + 1;
       var t = document.createElement('span'); t.className = 'mono';
       t.textContent = revealed ? w : '••••••';
-      if (!revealed) t.style.color = '#33445A';
+      if (!revealed) t.style.color = 'var(--dot)';
       li.appendChild(n); li.appendChild(t); ol.appendChild(li);
     });
   }
@@ -953,12 +975,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!list.length) return emptyMsg(box, 'لا توجد معاملات');
     list.forEach(function (t) {
       var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
-      row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid #161E28;cursor:pointer;color:inherit;text-align:start';
+      row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid var(--row);cursor:pointer;color:inherit;text-align:start';
       var coin = t.coin || 'USDT';
       row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' ' + coin + '، عرض على المستكشف');
       row.onclick = function () { window.open(core.network.explorer + t.txid, '_blank'); };
       var b = document.createElement('span'); b.className = 'b';
-      b.style.cssText = t.incoming ? 'background:#10241D;color:#2BD9A0' : 'background:#1E2935;color:#C5D0DB';
+      b.style.cssText = t.incoming ? 'background:var(--in-bg);color:var(--in)' : 'background:var(--out-bg);color:var(--out)';
       b.innerHTML = t.incoming
         ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
         : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
@@ -968,7 +990,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       t2.textContent = new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + shortAddr(t.counterparty);
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
-      amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? '#2BD9A0' : '#EEF2F6');
+      amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? 'var(--in)' : 'var(--tx)');
       amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' ' + coin;
       row.appendChild(b); row.appendChild(mid); row.appendChild(amt);
       box.appendChild(row);
@@ -1822,7 +1844,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     r.messages.forEach(function (m) {
       var mine = m.sender === (state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.address);
       var who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
-      var b = el('div', 'max-width:85%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;' + (mine ? 'align-self:flex-start;background:#10241D' : 'align-self:flex-end;background:var(--s2)'));
+      var b = el('div', 'max-width:85%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;' + (mine ? 'align-self:flex-start;background:var(--ok-bg)' : 'align-self:flex-end;background:var(--s2)'));
       b.appendChild(el('span', 'display:block;font-size:11px;color:var(--mu)', mine ? 'أنت' : who));
       b.appendChild(document.createTextNode(m.body));
       chat.appendChild(b);
@@ -1876,6 +1898,24 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     resetTo('welcome');
     routes.import();
   };
+
+  // ===== المظهر: تلقائي / ليلي / نهاري =====
+  function applyTheme(pref) {
+    var dark = pref === 'dark' || (pref === 'auto' && !(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches));
+    var t = dark ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    var bg = dark ? '#0B0F14' : '#F3F5F8';
+    document.querySelector('meta[name=theme-color]').setAttribute('content', bg);
+    var SB = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.StatusBar;
+    if (SB) { SB.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(function () {}); SB.setBackgroundColor({ color: bg }).catch(function () {}); }
+    document.querySelectorAll('[data-theme-opt]').forEach(function (b) { var on = b.dataset.themeOpt === pref; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+  }
+  var themePref = 'auto'; try { themePref = localStorage.getItem('sarra.theme') || 'auto'; } catch (e) {}
+  applyTheme(themePref);
+  document.querySelectorAll('[data-theme-opt]').forEach(function (b) {
+    b.onclick = function () { themePref = b.dataset.themeOpt; try { localStorage.setItem('sarra.theme', themePref); } catch (e) {} applyTheme(themePref); };
+  });
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () { if (themePref === 'auto') applyTheme('auto'); });
 
   // ===== البداية =====
   (async function start() {
