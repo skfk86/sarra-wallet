@@ -1427,9 +1427,21 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
 
   // الملف يُنشأ تلقائياً على الخادم باسم افتراضي؛ لا نسأل المستخدم عن اسمه
+  // بيانات حسابك في السوق تُحفظ على الجهاز 6 ساعات: فتح التطبيق لا يكلّف الخادم شيئاً.
+  // تُحدَّث فوراً بعد أي تغيير (الاسم، التوثيق، نشر إعلان) لأن تلك المواضع تطلبها من جديد.
+  var ME_TTL = 6 * 3600 * 1000;
+  async function fetchMe(force) {
+    var key = 'sarra.me.' + (await core.getAddress());
+    if (!force) {
+      try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < ME_TTL && c.me && c.me.profile) return c.me; } catch (e) {}
+    }
+    var me = await p2p('me');
+    try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), me: me })); } catch (e) {}
+    return me;
+  }
   async function ensureProfile() {
     if (state.p2p.me && state.p2p.me.profile) return true;
-    try { state.p2p.me = await p2p('me'); } catch (e) { toast(p2pErr(e), true); return false; }
+    try { state.p2p.me = await fetchMe(false); } catch (e) { toast(p2pErr(e), true); return false; }
     renderMe(); pollMyOrders();
     return !!state.p2p.me.profile;
   }
@@ -1450,7 +1462,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('nick-go').onclick = async function () {
     try {
       await p2p('profile.set', { nickname: $('nick-in').value });
-      state.p2p.me = await p2p('me'); renderMe();
+      state.p2p.me = await fetchMe(true); renderMe();
       $('nick-sheet').classList.remove('show'); toast('تم حفظ اسمك');
     } catch (e) { $('nick-err').textContent = p2pErr(e); $('nick-err').hidden = false; }
   };
@@ -1495,7 +1507,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var side = state.p2p.tab === 'sell' ? 'buy' : 'sell';
     state.p2p.cache = state.p2p.cache || {};
     var c0 = state.p2p.cache[side];
-    if (c0 && Date.now() - c0.at < 15000) { state.p2p.offers = c0.offers; state.p2p.listSide = side; renderOffers(); return; }
+    if (c0 && Date.now() - c0.at < 30000) { state.p2p.offers = c0.offers; state.p2p.listSide = side; renderOffers(); return; }
     emptyMsg(box, 'جارٍ التحميل…');
     try {
       var r;
@@ -1570,6 +1582,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       // البيع لإعلان شراء يتطلب التوثيق (لتستلم على حسابك الموثّق في بنكك)
       if (!(await ensureProfile())) return;
       var pf = state.p2p.me.profile;
+      if (pf.verify_status !== 'approved') { try { state.p2p.me = await fetchMe(true); renderMe(); pf = state.p2p.me.profile; } catch (e) {} }
       if (pf.verify_status !== 'approved') { toast('وثّق حسابك أولاً لتبيع', true); openVerify(); return; }
       $('buy-sellnote').hidden = false;
       $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك (تحتاج TRX للرسوم).';
@@ -1614,7 +1627,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   });
   $('p2p-new-btn').onclick = async function () {
     if (!(await ensureProfile())) return;
-    try { state.p2p.me = await p2p('me'); renderMe(); } catch (e) {}
+    try { state.p2p.me = await fetchMe(true); renderMe(); } catch (e) {}
     var pf = state.p2p.me && state.p2p.me.profile;
     if (!pf || pf.verify_status !== 'approved') { openVerify(); return; }
     var r = state.p2p.rate, rg = state.p2p.range;
@@ -1724,7 +1737,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         image_sha256: await sha256Hex(state.p2p.idImg), change: !!state.p2p.verifyChange
       }, false, state.p2p.idImg);
       state.p2p.idImg = null; state.p2p.verifyChange = false;
-      state.p2p.me = await p2p('me'); renderMe();
+      state.p2p.me = await fetchMe(true); renderMe();
       toast('أُرسل طلب التوثيق');
       openVerify(true);
     } catch (e) { $('ver-err').textContent = p2pErr(e); $('ver-err').hidden = false; }
@@ -1838,7 +1851,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 
   // ===== شاشة الطلب =====
   function openOrder(id, fresh) {
-    state.p2p.orderId = id; state.p2p.order = null;
+    state.p2p.orderId = id; state.p2p.order = null; state.p2p.orderSig = null;
     $('ord-chat').textContent = ''; $('ord-actions').textContent = ''; $('ord-kv').textContent = '';
     $('ord-status').textContent = 'جارٍ التحميل…'; $('ord-status').className = 'note';
     if (fresh) { state.stack.pop(); }
@@ -1947,12 +1960,26 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   setInterval(function () { if (state.stack[state.stack.length - 1] === 'order') tickTimer(); }, 1000);
   // تحديث تلقائي للطلب المفتوح كل 6 ثوانٍ
-  setInterval(function () {
+  // شاشة الطلب: كل 6 ثوانٍ نفحص "نسخة" الطلب من قاعدة البيانات (رقمان فقط، بدون Edge Function)،
+  // ونجلب الطلب كاملاً من الخادم فقط عندما يتغير شيء (حالة جديدة أو رسالة جديدة).
+  // البائع بانتظار الإيداع: نسأل OxaPay عبر الخادم كل 30 ثانية احتياطاً لإشعار الإيداع.
+  var orderTick = 0;
+  setInterval(async function () {
     var cur = state.stack[state.stack.length - 1];
-    if (cur === 'order' && state.p2p.orderId && !document.hidden && core.isUnlocked()) {
-      var s = state.p2p.order && state.p2p.order.status;
-      refreshOrder(s === 'awaiting_deposit' && state.p2p.role === 'seller' ? 'order.refresh' : 'order.get');
-    }
+    if (cur !== 'order' || !state.p2p.orderId || document.hidden || !core.isUnlocked()) return;
+    orderTick++;
+    var o = state.p2p.order, id = state.p2p.orderId;
+    if (o && o.status === 'awaiting_deposit' && state.p2p.role === 'seller' && orderTick % 5 === 0) return refreshOrder('order.refresh');
+    // انتهت مهلة الإيداع: الخادم يلغي الطلب عند أول سؤال، فنسأله
+    if (o && o.status === 'awaiting_deposit' && o.deposit_expires_at && Date.now() > Date.parse(o.deposit_expires_at) + 60000 && orderTick % 5 === 0) return refreshOrder('order.get');
+    var tok = state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.inbox_token;
+    if (!tok || state.p2p.role === 'admin') return refreshOrder('order.get');
+    try {
+      var ver = await rpc('p2p_order_ver', { p_token: tok, p_order: id });
+      if (state.p2p.orderId !== id) return;
+      var sig = ver ? ver.v + ':' + ver.m + ':' + ver.s : 'x';
+      if (sig !== state.p2p.orderSig) { state.p2p.orderSig = sig; refreshOrder('order.get'); }
+    } catch (e) { if (e.message === 'NO_REST' || orderTick % 3 === 0) refreshOrder('order.get'); }
   }, 6000);
 
   // ===== قبل أن تبدأ (يظهر مرة واحدة بعد إنشاء المحفظة) =====
@@ -1985,16 +2012,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     return false;
   }
   // فحص خفيف عبر "صندوق" في قاعدة البيانات: رقم واحد، بدون توقيع ولا Edge Function.
-  // كل 30 ثانية إن كان لديك طلب مفتوح أو إعلان نشط، وإلا كل 3 دقائق، ويتوقف والتطبيق في الخلفية.
+  // كل 30 ثانية إن كان لديك طلب مفتوح أو إعلان نشط، وإلا عند فتح التطبيق فقط (واحتياطياً كل 10 دقائق)، ويتوقف والتطبيق في الخلفية.
   state.p2p.pending = 0;
   var pollTimer = null;
   function setBadges(n) { ['p2p-badge', 'orders-badge'].forEach(function (id) { $(id).hidden = !n; $(id).textContent = String(n); }); }
   async function pollMyOrders() {
     clearTimeout(pollTimer);
-    var next = 180000;
+    var next = 600000;
     try {
       if (P2P_URL && !document.hidden && core.isUnlocked()) {
-        if (!state.p2p.me || !state.p2p.me.profile) { state.p2p.me = await p2p('me'); renderMe(); }
+        if (!state.p2p.me || !state.p2p.me.profile) { state.p2p.me = await fetchMe(false); renderMe(); }
         var tok = state.p2p.me.profile.inbox_token, n, busy;
         if (tok) {
           var ib = await rpc('p2p_inbox', { p_token: tok }).catch(function () { return null; });
