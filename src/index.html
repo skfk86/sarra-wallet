@@ -134,6 +134,12 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
 .ad{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
 .btn-sell{background:var(--danger-bg)!important;color:var(--danger-tx)!important}
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:60}
+.drawer-bg.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;bottom:0;right:0;width:min(82vw,320px);background:var(--s1);border-left:1px solid var(--line);z-index:61;transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;gap:8px;padding:calc(env(safe-area-inset-top) + 18px) 14px calc(env(safe-area-inset-bottom) + 18px);box-shadow:-8px 0 30px rgba(0,0,0,.25)}
+.drawer.show{transform:none}
+.app-card{display:flex;gap:14px;align-items:center;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+.app-ic{width:56px;height:56px;border-radius:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px}
 .ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
@@ -197,7 +203,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen with-tabs" id="s-home" aria-label="الرئيسية">
   <header class="row between">
     <div class="row">
-      <div class="icon-btn" style="color:var(--ac);cursor:default" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></div>
+      <button type="button" class="icon-btn" id="menu-btn" aria-label="القائمة" aria-controls="drawer" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg></button>
       <div style="display:flex;flex-direction:column"><span style="font-size:18px;font-weight:700">صُرّة</span><span class="muted" style="font-size:12px" id="net-label"></span></div>
     </div>
     <button class="icon-btn" id="refresh" aria-label="تحديث الرصيد"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
@@ -576,6 +582,55 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 </div>
 
+<!-- ===== القائمة الجانبية ===== -->
+<div class="drawer-bg" id="drawer-bg"></div>
+<aside class="drawer" id="drawer" aria-label="القائمة" aria-hidden="true">
+  <div class="row" style="gap:12px;padding:6px 4px 14px;border-bottom:1px solid var(--div)">
+    <img src="assets/logo.png" alt="" style="width:48px;height:48px;border-radius:14px">
+    <div style="display:flex;flex-direction:column;min-width:0"><b style="font-size:18px">صُرّة</b><span class="muted" style="font-size:12px">محفظة الدولار الرقمي · <span id="drawer-ver"></span></span></div>
+  </div>
+  <nav class="list" style="border:0;background:none;box-shadow:none">
+    <button type="button" class="li" data-menu="about"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><span class="t">عن التطبيق<small>كيف يعمل، الرسوم، الأمان</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="apps"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">تطبيقاتنا الأخرى<small>تطبيقات سودانية من نفس المطوّر</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="security"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span><span class="t">الأمان والمظهر<small>البصمة، النسخ الاحتياطي، الوضع الليلي</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+  </nav>
+  <div class="grow"></div>
+  <p class="muted" style="font-size:12px;text-align:center;line-height:1.8">صُنع في السودان 🇸🇩<br>بدون إعلانات · مفاتيحك عندك</p>
+</aside>
+
+<!-- ===== عن التطبيق ===== -->
+<section class="screen" id="s-about" aria-label="عن التطبيق">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">عن التطبيق</h1></div>
+  <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--hero)">
+    <img src="assets/logo.png" alt="" style="width:72px;height:72px;border-radius:20px">
+    <b style="font-size:22px">صُرّة</b>
+    <p class="muted" style="font-size:14px;line-height:1.8">محفظة سودانية للدولار الرقمي (USDT) على شبكة TRON: احفظ قيمة مالك، أرسل واستلم في ثوانٍ، واشترِ وبِع بالجنيه عبر بنكك بضمان.</p>
+    <span class="muted" style="font-size:12px" id="about-ver"></span>
+  </div>
+  <h2 class="muted" style="font-size:13px">كيف يحميك التطبيق</h2>
+  <div class="list">
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="t">مفاتيحك على جهازك فقط<small>المحفظة غير احتجازية: لا نحن ولا أي جهة نستطيع تجميد أموالك أو الوصول إليها</small></span></div>
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t">سوق P2P بضمان<small>البائع يحجز USDT أولاً، ولا تُحرَّر إلا بعد تأكيد استلام الجنيه</small></span></div>
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span><span class="t">بائعون موثّقون<small>كل بائع يوثّق هويته وحساب بنكك، ونتحقق من رصيده على الشبكة</small></span></div>
+  </div>
+  <h2 class="muted" style="font-size:13px">الرسوم</h2>
+  <dl class="kv card" style="padding:4px 16px">
+    <div><dt>الإرسال والاستلام</dt><dd>رسوم شبكة TRON فقط</dd></div>
+    <div><dt>التبديل</dt><dd><bdi id="about-swapfee">0.5%</bdi> + رسوم SunSwap</dd></div>
+    <div><dt>سوق P2P</dt><dd>0.5% + 1 USDT رسوم الشبكة</dd></div>
+    <div><dt>الإعلانات</dt><dd>لا يوجد</dd></div>
+  </dl>
+  <div class="note warn"><span>احفظ كلمات الاسترجاع الـ12 على ورقة. من يملكها يملك أموالك، ومن يفقدها يفقدها. لن نطلبها منك أبداً.</span></div>
+  <p class="muted" style="font-size:12px;text-align:center;line-height:1.8">تطوير علوش · السودان</p>
+</section>
+
+<!-- ===== تطبيقاتنا الأخرى ===== -->
+<section class="screen" id="s-apps" aria-label="تطبيقاتنا الأخرى">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">تطبيقاتنا الأخرى</h1></div>
+  <p class="muted" style="font-size:14px;line-height:1.8">تطبيقات سودانية، مجانية، صُنعت لتخدم الناس هنا.</p>
+  <div id="apps-list" style="display:flex;flex-direction:column;gap:10px"></div>
+</section>
+
 <!-- ===== شريط التنقل ===== -->
 <nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
   <button type="button" class="tab" data-tab="home"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>المحفظة</button>
@@ -741,6 +796,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   if (P.App) {
     P.App.addListener('backButton', function () {
       var cur = state.stack[state.stack.length - 1];
+      if ($('drawer').classList.contains('show')) { openDrawer(false); return; }
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
@@ -2064,6 +2120,46 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   pollTimer = setTimeout(pollMyOrders, 8000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) pollMyOrders(); });
+
+  // ===== القائمة الجانبية =====
+  var APP_VERSION = CFG.version || '';
+  function openDrawer(on) {
+    $('drawer').classList.toggle('show', on); $('drawer-bg').classList.toggle('show', on);
+    $('drawer').setAttribute('aria-hidden', on ? 'false' : 'true'); $('menu-btn').setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  $('menu-btn').onclick = function () { $('drawer-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION : ''; openDrawer(true); };
+  $('drawer-bg').onclick = function () { openDrawer(false); };
+  document.querySelectorAll('[data-menu]').forEach(function (b) {
+    b.onclick = function () {
+      openDrawer(false);
+      var m = b.dataset.menu;
+      if (m === 'security') return resetTo('security');
+      if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
+      if (m === 'apps') { renderApps(); show('apps'); }
+    };
+  });
+  // تطبيقات المطوّر: الرابط إلى Google Play (اسم الحزمة إن عُرف، وإلا بحث باسم التطبيق)
+  var OTHER_APPS = [
+    { name: 'طقس السودان', sub: 'ود السحاب', desc: 'طقس 67 مدينة سودانية، رادار الأمطار والغبار، ومستشار زراعي.', icon: '⛅', bg: '#E3F1FF', pkg: CFG.weatherPkg || '', q: 'طقس السودان ود السحاب' },
+    { name: 'CodeNile', sub: 'تعلّم البرمجة بالعربي', desc: 'تحديات JavaScript يومية ومسارات تعليمية من الصفر.', icon: '💻', bg: '#EDE7FF', pkg: 'com.codenile.app', q: 'CodeNile' }
+  ];
+  function playUrl(a) { return a.pkg ? 'https://play.google.com/store/apps/details?id=' + a.pkg : 'https://play.google.com/store/search?q=' + encodeURIComponent(a.q) + '&c=apps'; }
+  function renderApps() {
+    var box = $('apps-list'); box.textContent = '';
+    OTHER_APPS.forEach(function (a) {
+      var c = el('div'); c.className = 'app-card';
+      var ic = el('span', 'background:' + a.bg, a.icon); ic.className = 'app-ic'; c.appendChild(ic);
+      var t = el('div', 'flex-grow:1;display:flex;flex-direction:column;gap:2px;min-width:0');
+      t.appendChild(el('b', 'font-size:16px', a.name));
+      t.appendChild(el('span', 'font-size:12px;color:var(--ac);font-weight:600', a.sub));
+      t.appendChild(el('span', 'font-size:12px;color:var(--mu);line-height:1.6', a.desc));
+      c.appendChild(t);
+      var go = el('button', 'height:36px;padding:0 14px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;font-size:13px;cursor:pointer;flex-shrink:0', 'تحميل');
+      go.type = 'button'; go.onclick = function () { window.open(playUrl(a), '_blank'); };
+      c.appendChild(go);
+      box.appendChild(c);
+    });
+  }
 
   // ===== المظهر: تلقائي / ليلي / نهاري =====
   function applyTheme(pref) {

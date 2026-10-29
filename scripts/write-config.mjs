@@ -1,8 +1,12 @@
 // يكتب src/config.js من متغيرات البيئة وقت البناء (GitHub Secrets)
 // حتى لا يُحفظ مفتاح TronGrid داخل المستودع العام.
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 
+const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const config = {
+  version: pkg.version,
+  // اسم حزمة تطبيق الطقس على Google Play (اختياري؛ بدونه يفتح بحثاً باسم التطبيق)
+  weatherPkg: process.env.SARRA_WEATHER_PKG || '',
   network: process.env.SARRA_NETWORK || 'mainnet',
   trongridApiKey: process.env.TRONGRID_API_KEY || '',
   // عنوان TRON الذي تصله عمولة التبديل (فارغ = العمولة معطّلة)
