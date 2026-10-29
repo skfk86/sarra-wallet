@@ -1084,13 +1084,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('wipe-no').onclick = function () { $('wipe-sheet').classList.remove('show'); };
   $('wipe-yes').onclick = function () {
     $('wipe-sheet').classList.remove('show');
-    openPin('verify', async function () {
-      await core.wipe();
-      await bioDisable();
-      state.balances = null; state.historyCache = null;
-      resetTo('welcome');
-      toast('تم حذف المحفظة من هذا الجهاز');
-    });
+    openPin('verify', function () { wipeAndRestart('wiped'); });
   };
 
   // ===== استلام =====
@@ -1998,12 +1992,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('forgot-no').onclick = function () { $('forgot-sheet').classList.remove('show'); };
   $('forgot-yes').onclick = async function () {
     $('forgot-sheet').classList.remove('show');
+    await wipeAndRestart('import');
+  };
+
+  // بعد حذف المحفظة نعيد تشغيل التطبيق من الصفر: لا يبقى في الذاكرة أي شيء من المحفظة القديمة
+  // (الرصيد والسجل على الشاشة، بيانات السوق، رمز الصندوق، الشارات، الطلب المفتوح...)
+  async function wipeAndRestart(next) {
     await core.wipe();
     await bioDisable();
-    state.balances = null; state.historyCache = null;
-    resetTo('welcome');
-    routes.import();
-  };
+    try {
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sarra.me.') === 0) localStorage.removeItem(k); });
+      sessionStorage.setItem('sarra.after-wipe', next);
+    } catch (e) {}
+    location.reload();
+  }
 
   // ===== تنبيه الطلبات التي تنتظر إجراءً منك (لا إشعارات خارجية، نفحص كل 30 ثانية والتطبيق مفتوح) =====
   function needsMyAction(o, me) {
@@ -2064,8 +2066,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   (async function start() {
     var has = false;
     try { has = await core.hasWallet(); } catch (e) { showFatal(e); }
+    var after = null;
+    try { after = sessionStorage.getItem('sarra.after-wipe'); sessionStorage.removeItem('sarra.after-wipe'); } catch (e) {}
     if (has) openPin('unlock');
-    else resetTo('welcome');
+    else {
+      resetTo('welcome');
+      if (after === 'import') routes.import();
+      if (after === 'wiped') toast('تم حذف المحفظة من هذا الجهاز');
+    }
   })();
 })();
 </script>

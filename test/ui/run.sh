@@ -13,3 +13,4 @@ run "Mainnet: التبديل والعمولة" tronweb-mainnet.js '{"network":"m
 run "P2P: السوق والطلبات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_p2p.py
 run "التنقل بين الأقسام وحد الطلبات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_tabs.py
 run "التوسع بتكلفة صفر" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_free.py
+run "حذف المحفظة ثم إنشاء جديدة" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_wipe.py
