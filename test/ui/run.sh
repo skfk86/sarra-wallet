@@ -5,6 +5,7 @@ run() {
   DIR=$(mktemp -d); mkdir -p "$DIR/vendor"
   cp -r src/index.html src/wallet-core.js src/assets "$DIR/"
   cp "test/ui/stubs/$2" "$DIR/vendor/tronweb.js"; cp test/ui/stubs/qrcode.js test/ui/stubs/jsqr.js "$DIR/vendor/"
+  [ -f node_modules/ethers/dist/ethers.umd.min.js ] && cp node_modules/ethers/dist/ethers.umd.min.js "$DIR/vendor/ethers.js"
   echo "window.SARRA_CONFIG = $3;" > "$DIR/config.js"
   echo "== $1 =="; python3 "test/ui/$4" "$DIR"
 }
@@ -16,3 +17,4 @@ run "التوسع بتكلفة صفر" tronweb-mainnet.js '{"network":"mainnet",
 run "حذف المحفظة ثم إنشاء جديدة" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_wipe.py
 run "القائمة الجانبية" tronweb-mainnet.js '{"network":"mainnet","version":"0.1.0","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_menu.py
 run "الإرسال برقم الهاتف" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_phone.py
+run "الشبكات المتعددة (BNB Chain وEthereum وPolygon)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_evm.py

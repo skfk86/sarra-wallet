@@ -29,7 +29,7 @@
     };
   };
   TW.isAddress=(a)=>/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a);
-  TW.createRandom=()=>({mnemonic:{phrase:'river smile cotton eagle harvest lamp orbit velvet sand thunder maple quiet'}});
+  TW.createRandom=()=>({mnemonic:{phrase:'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'}});
   TW.fromMnemonic=(m)=>{ if(m.split(' ').length!==12) throw new Error('bad'); return {address:ADDR,privateKey:'0x'+'ab'.repeat(32)}; };
   window.TronWeb={TronWeb:TW};
 })();

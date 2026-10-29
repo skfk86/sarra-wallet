@@ -4,7 +4,7 @@
   "private": true,
   "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
   "scripts": {
-    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js",
+    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js && cp node_modules/ethers/dist/ethers.umd.min.js src/vendor/ethers.js",
     "test": "node test/core.test.mjs && node --experimental-strip-types --no-warnings test/p2p-logic.test.ts",
     "config": "node scripts/write-config.mjs",
     "patch:android": "node scripts/patch-android.mjs",
@@ -23,7 +23,8 @@
     "@capgo/capacitor-native-biometric": "^6.0.0",
     "jsqr": "^1.4.0",
     "qrcode-generator": "^1.4.4",
-    "tronweb": "^6.0.0"
+    "tronweb": "^6.0.0",
+    "ethers": "6.13.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.0"

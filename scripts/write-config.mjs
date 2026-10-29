@@ -5,6 +5,8 @@ import { writeFileSync, readFileSync } from 'node:fs';
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const config = {
   version: pkg.version,
+  // شبكات BNB Chain وEthereum وPolygon (على الشبكة الرئيسية فقط)
+  evm: (process.env.SARRA_EVM || 'on') !== 'off',
   // اسم حزمة تطبيق الطقس على Google Play (اختياري؛ بدونه يفتح بحثاً باسم التطبيق)
   weatherPkg: process.env.SARRA_WEATHER_PKG || '',
   network: process.env.SARRA_NETWORK || 'mainnet',

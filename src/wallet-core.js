@@ -25,6 +25,37 @@
     }
   };
 
+  // ===== الشبكات المتوافقة مع EVM (من نفس الكلمات الـ12) =====
+  // خوادم عامة مجانية؛ كل هاتف يتصل مباشرة بحده الخاص، ونجرّب التالي إن فشل الأول
+  var EVM_CHAINS = {
+    bsc: {
+      id: 56, name: 'BNB Chain', short: 'BEP20', native: 'BNB', color: '#F0B90B', explorer: 'https://bscscan.com',
+      rpcs: ['https://bsc-dataseed.bnbchain.org', 'https://bsc-rpc.publicnode.com', 'https://bsc-dataseed1.defibit.io'],
+      tokens: [{ sym: 'USDT', addr: '0x55d398326f99059fF775485246999027B3197955', dec: 18 },
+               { sym: 'USDC', addr: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', dec: 18 }]
+    },
+    eth: {
+      id: 1, name: 'Ethereum', short: 'ERC20', native: 'ETH', color: '#627EEA', explorer: 'https://etherscan.io',
+      rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+      tokens: [{ sym: 'USDT', addr: '0xdAC17F958D2ee523a2206206994597C13D831ec7', dec: 6 },
+               { sym: 'USDC', addr: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', dec: 6 }]
+    },
+    polygon: {
+      id: 137, name: 'Polygon', short: 'Polygon', native: 'POL', color: '#8247E5', explorer: 'https://polygonscan.com',
+      rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon-rpc.com'],
+      tokens: [{ sym: 'USDT', addr: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', dec: 6 },
+               { sym: 'USDC', addr: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', dec: 6 }]
+    }
+  };
+  var EVM_PATH = "m/44'/60'/0'/0/0";
+  var ERC20_IFACE_ABI = ['function balanceOf(address) view returns (uint256)', 'function transfer(address,uint256) returns (bool)'];
+  function E() { return root.ethers || null; }
+  function evmFromMnemonic(mnemonic) {
+    var ethers = E(); if (!ethers) return null;
+    var w = ethers.HDNodeWallet.fromPhrase(normalizeMnemonic(mnemonic), undefined, EVM_PATH);
+    return { address: w.address, privateKey: w.privateKey };
+  }
+
   var USDT_DECIMALS = 6;
   var TRX_DECIMALS = 6;
   var PBKDF2_ITERATIONS = 600000;
@@ -201,7 +232,8 @@
     var TW = TronWebClass();
     var acc = TW.fromMnemonic(normalizeMnemonic(mnemonic), DERIVATION_PATH);
     var pk = String(acc.privateKey).replace(/^0x/, '');
-    return { address: acc.address, privateKey: pk };
+    var evm = null; try { evm = evmFromMnemonic(mnemonic); } catch (e) {}
+    return { address: acc.address, privateKey: pk, evm: evm };
   }
 
   // ===== كائن المحفظة =====
@@ -264,6 +296,27 @@
       return 'PENDING';
     }
 
+    // مزوّد EVM لكل خادم عام، ونجرّب الخادم التالي عند الفشل
+    var evmProviders = {};
+    function evmProvider(c, url) {
+      var ethers = E(), key = c.id + url;
+      if (!evmProviders[key]) evmProviders[key] = new ethers.JsonRpcProvider(url, c.id, { staticNetwork: true, batchMaxCount: 1 });
+      return evmProviders[key];
+    }
+    async function evmCall(c, fn) {
+      var last;
+      for (var i = 0; i < c.rpcs.length; i++) {
+        try { return await fn(evmProvider(c, c.rpcs[i])); }
+        catch (e) {
+          last = e;
+          var code = e && e.message;
+          // أخطاء منطقية (رصيد غير كافٍ...) لا تُعاد مع خادم آخر
+          if (/^(INSUFFICIENT_|LOW_GAS|TX_FAILED|BAD_|INVALID_|SELF_SEND)/.test(code || '')) throw e;
+        }
+      }
+      throw last && /^[A-Z_]+$/.test(last.message || '') ? last : new Error('EVM_NETWORK');
+    }
+
     // القراءة (الرصيد والسجل) بدون مفتاح أولاً: حد TronGrid بدون مفتاح يُحسب لكل جهاز على حدة،
     // فلا يشترك كل المستخدمين في حد مفتاح واحد. عند الرفض (429) نستخدم المفتاح لدقيقة ثم نعود.
     // الإرسال والتبديل يستخدمان المفتاح دائماً لأنهما الأهم.
@@ -318,6 +371,7 @@
         var acc = accountFromMnemonic(mnemonic);
         var box = await encryptSecret(normalizeMnemonic(mnemonic), pin);
         box.address = acc.address; // العنوان عام، لا بأس بحفظه لعرض الرصيد قبل فتح القفل
+        if (acc.evm) box.evmAddress = acc.evm.address;
         await storage().set(VAULT_KEY, JSON.stringify(box));
         await storage().remove(GUARD_KEY);
         session = acc;
@@ -513,6 +567,88 @@
       },
 
       // آخر المعاملات: USDT (TRC20) وTRX معاً، مرتّبة من الأحدث
+      // ===== الشبكات المتوافقة مع EVM =====
+      evmEnabled: function () { return !!E() && net === NETWORKS.mainnet && opts.evm === true; },
+      evmChains: function () { return EVM_CHAINS; },
+      evmAddress: async function () {
+        if (session && session.evm) return session.evm.address;
+        var raw = await storage().get(VAULT_KEY);
+        return raw ? (JSON.parse(raw).evmAddress || null) : null;
+      },
+      isEvmAddress: function (a) { var ethers = E(); return !!ethers && /^0x[0-9a-fA-F]{40}$/.test(String(a || '')) && ethers.isAddress(a); },
+      // أرصدة كل الشبكات: { bsc: { native: units, USDT: units, USDC: units } | null, ... }
+      evmBalances: async function () {
+        var addr = await this.evmAddress(); if (!addr) return null;
+        var out = {};
+        await Promise.all(Object.keys(EVM_CHAINS).map(async function (k) {
+          var c = EVM_CHAINS[k];
+          try {
+            out[k] = await evmCall(c, async function (p) {
+              var ethers = E(), iface = new ethers.Interface(ERC20_IFACE_ABI), r = {};
+              var calls = [p.getBalance(addr)].concat(c.tokens.map(function (t) {
+                return p.call({ to: t.addr, data: iface.encodeFunctionData('balanceOf', [addr]) });
+              }));
+              var res = await Promise.all(calls);
+              r.native = BigInt(res[0]);
+              c.tokens.forEach(function (t, i) { r[t.sym] = BigInt(iface.decodeFunctionResult('balanceOf', res[i + 1])[0]); });
+              return r;
+            });
+          } catch (e) { out[k] = null; }
+        }));
+        return out;
+      },
+      // إرسال عملة أصلية أو USDT/USDC على شبكة EVM. نوقّع المعاملة مرة واحدة ثم نبثّها
+      // (إعادة بث نفس المعاملة الموقّعة لخادم آخر آمنة: لها نفس الرقم ولا تُنفَّذ مرتين)
+      evmSend: async function (chainKey, sym, to, amountStr) {
+        if (!session || !session.evm) throw new Error('LOCKED');
+        var ethers = E(), c = EVM_CHAINS[chainKey];
+        if (!c) throw new Error('BAD_NETWORK');
+        if (!this.isEvmAddress(to)) throw new Error('INVALID_EVM_ADDRESS');
+        to = ethers.getAddress(to);
+        if (to.toLowerCase() === session.evm.address.toLowerCase()) throw new Error('SELF_SEND');
+        var isNative = sym === c.native, tok = isNative ? null : c.tokens.filter(function (t) { return t.sym === sym; })[0];
+        if (!isNative && !tok) throw new Error('BAD_TOKEN');
+        var units = toUnits(amountStr, isNative ? 18 : tok.dec);
+        if (units <= 0n) throw new Error('INVALID_AMOUNT');
+        var from = session.evm.address, iface = new ethers.Interface(ERC20_IFACE_ABI);
+        var tx = isNative ? { to: to, value: units, data: '0x' } : { to: tok.addr, value: 0n, data: iface.encodeFunctionData('transfer', [to, units]) };
+        var signed = await evmCall(c, async function (p) {
+          var bal = BigInt(await p.getBalance(from));
+          if (!isNative) {
+            var tb = BigInt(iface.decodeFunctionResult('balanceOf', await p.call({ to: tok.addr, data: iface.encodeFunctionData('balanceOf', [from]) }))[0]);
+            if (tb < units) throw new Error('INSUFFICIENT_TOKEN');
+          }
+          var nonce = await p.getTransactionCount(from, 'pending');
+          var fee = await p.getFeeData();
+          var gas = BigInt(await p.estimateGas({ from: from, to: tx.to, value: tx.value, data: tx.data }));
+          gas = gas * 12n / 10n;
+          var t = { chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas };
+          var price;
+          if (fee.maxFeePerGas) { t.type = 2; t.maxFeePerGas = fee.maxFeePerGas; t.maxPriorityFeePerGas = fee.maxPriorityFeePerGas || 0n; price = fee.maxFeePerGas; }
+          else { t.type = 0; t.gasPrice = fee.gasPrice; price = fee.gasPrice; }
+          var cost = gas * BigInt(price) + (isNative ? units : 0n);
+          if (bal < cost) throw new Error(isNative ? 'INSUFFICIENT_NATIVE' : 'LOW_GAS');
+          return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
+        });
+        var hash = ethers.Transaction.from(signed).hash;
+        await evmCall(c, function (p) { return p.broadcastTransaction(signed).catch(function (e) {
+          // إن كانت المعاملة بُثّت من قبل فهذا نجاح
+          if (/already known|nonce too low|ALREADY_EXISTS/i.test(String(e && (e.message || e.shortMessage)))) return null;
+          throw e;
+        }); });
+        // انتظار التأكيد حتى ~40 ثانية
+        var status = 'PENDING';
+        for (var i = 0; i < 13; i++) {
+          await new Promise(function (r) { setTimeout(r, 3000); });
+          try {
+            var rc = await evmCall(c, function (p) { return p.getTransactionReceipt(hash); });
+            if (rc) { if (rc.status === 0) throw new Error('TX_FAILED'); status = 'SUCCESS'; break; }
+          } catch (e) { if (e.message === 'TX_FAILED') throw e; }
+        }
+        return { txid: hash, url: c.explorer + '/tx/' + hash, status: status };
+      },
+      evmExplorer: async function (chainKey) { var a = await this.evmAddress(); var c = EVM_CHAINS[chainKey]; return c && a ? c.explorer + '/address/' + a : ''; },
+
       getHistory: async function (address, limit) {
         var addr = address || (await this.getAddress());
         var n = limit || 20;
@@ -559,6 +695,12 @@
   }
 
   var ERRORS_AR = {
+    INVALID_EVM_ADDRESS: 'العنوان غير صحيح لهذه الشبكة. عناوين BNB Chain وEthereum وPolygon تبدأ بـ 0x',
+    INSUFFICIENT_TOKEN: 'الرصيد غير كافٍ على هذه الشبكة',
+    INSUFFICIENT_NATIVE: 'الرصيد غير كافٍ للمبلغ مع رسوم الشبكة',
+    LOW_GAS: 'تحتاج عملة الشبكة (BNB أو ETH أو POL) في محفظتك لدفع رسوم الإرسال على هذه الشبكة',
+    EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
+    BAD_NETWORK: 'شبكة غير مدعومة', BAD_TOKEN: 'عملة غير مدعومة على هذه الشبكة',
     INVALID_AMOUNT: 'المبلغ غير صحيح',
     TOO_MANY_DECIMALS: 'أقصى عدد للخانات العشرية 6',
     WRONG_PIN: 'رمز القفل غير صحيح',
@@ -587,6 +729,8 @@
 
   var api = {
     normalizeAddress: normalizeAddress,
+    EVM_CHAINS: EVM_CHAINS,
+    evmFromMnemonic: evmFromMnemonic,
     createCore: createCore,
     errorText: errorText,
     toUnits: toUnits,

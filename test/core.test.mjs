@@ -16,6 +16,23 @@ const W = require('../src/wallet-core.js');
 let pass = 0;
 const t = async (name, fn) => { await fn(); pass++; console.log('✓', name); };
 
+await t('محفظة EVM من نفس الكلمات (متجه اختبار معروف)', async () => {
+  const { createRequire: cr } = await import('node:module');
+  let ethers = null;
+  try { ethers = cr(import.meta.url)('../node_modules/ethers/dist/ethers.umd.min.js'); } catch (e) {}
+  if (!ethers) { console.log('  (تخطّي: ethers غير مثبّت)'); return; }
+  globalThis.ethers = ethers;
+  // المتجه المعروف لعبارة الاختبار القياسية في Hardhat/Foundry
+  const w = W.evmFromMnemonic('test test test test test test test test test test test junk');
+  assert.equal(w.address, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+  // الفواصل والأحرف الكبيرة لا تغيّر العنوان
+  assert.equal(W.evmFromMnemonic('Test, test test test test test test test test test test JUNK').address, w.address);
+  const c = W.EVM_CHAINS;
+  assert.deepEqual(Object.keys(c), ['bsc', 'eth', 'polygon']);
+  for (const k of Object.keys(c)) for (const t of c[k].tokens) assert.ok(ethers.isAddress(t.addr) && ethers.getAddress(t.addr) === t.addr, k + ' ' + t.sym);
+  assert.equal(c.bsc.tokens[0].dec, 18); assert.equal(c.eth.tokens[0].dec, 6);
+});
+
 await t('قراءة عنوان WETH من SunSwap بكل الصيغ', () => {
   const tw = { address: { fromHex: (x) => x === '41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18' ? 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR' : 'X' } };
   const W2 = 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR';
