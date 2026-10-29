@@ -156,7 +156,8 @@ export const LIMITS: Record<string, [number, number]> = {
   order_cancel: [5, 86400],   // 5 إلغاءات في اليوم
   message: [30, 3600],        // 30 رسالة في الساعة
   profile: [5, 86400],        // 5 تغييرات اسم في اليوم
-  verify: [3, 86400]          // 3 طلبات توثيق في اليوم
+  verify: [3, 86400],         // 3 طلبات توثيق في اليوم
+  phone_lookup: [30, 86400]   // 30 بحثاً برقم هاتف في اليوم (يمنع تجربة آلاف الأرقام)
 };
 export const MAX_ACTIVE_OFFERS = 3;
 
@@ -208,4 +209,23 @@ export function refundAmount(amount: string | number, netFee: string | number): 
   const r = toMicro(amount) - toMicro(netFee);
   if (r <= 0n) throw new Error('FEE_TOO_HIGH');
   return fromMicro(r);
+}
+
+// ===== الإرسال برقم الهاتف =====
+// يقبل 0912345678 أو +249912345678 أو 249 912 345 678 والأرقام العربية، ويعيد الصيغة المحلية 0XXXXXXXXX
+export function normalizePhone(v: unknown): string {
+  const s = String(v ?? '').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632)).replace(/[\s\-()]/g, '').replace(/^00/, '+');
+  const n = s.replace(/^\+?249/, '0');
+  if (!/^0\d{9}$/.test(n)) throw new Error('BAD_PHONE');
+  return n;
+}
+// "محمد أحمد علي" ← "محمد أ•••" : يكفي ليتأكد المرسل، ولا يكشف الاسم كاملاً
+export function maskName(full: string | null | undefined): string {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '•••';
+  return parts[0] + (parts[1] ? ' ' + parts[1].charAt(0) + '•••' : '');
+}
+export function maskPhone(p: string | null | undefined): string {
+  const s = String(p || '');
+  return s.length >= 7 ? s.slice(0, 3) + '•••' + s.slice(-3) : '';
 }

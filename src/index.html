@@ -263,9 +263,9 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" role="tab" class="on" data-coin="USDT" aria-selected="true">USDT</button>
     <button type="button" role="tab" data-coin="TRX" aria-selected="false">TRX</button>
   </div>
-  <label class="lbl" for="to">عنوان المستلم</label>
+  <label class="lbl" for="to">المستلم: عنوان المحفظة أو رقم الهاتف</label>
   <div class="field">
-    <input id="to" dir="ltr" placeholder="T…" autocomplete="off" autocapitalize="none" spellcheck="false">
+    <input id="to" dir="ltr" placeholder="T… أو 09xxxxxxxx" autocomplete="off" autocapitalize="none" spellcheck="false">
     <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
     <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
   </div>
@@ -338,6 +338,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></span>
       <span class="t">إخفاء الأرصدة<small>عند فتح التطبيق</small></span>
       <button type="button" class="switch" role="switch" id="sw-hide" aria-checked="false" aria-label="إخفاء الأرصدة"><span></span></button>
+    </div>
+    <div class="li" style="cursor:default" id="phone-row" hidden>
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></span>
+      <span class="t">استقبال التحويلات برقم هاتفك<small id="phone-sub">للحسابات الموثّقة فقط</small></span>
+      <button type="button" class="switch" role="switch" id="sw-phone" aria-checked="false" aria-label="استقبال التحويلات برقم هاتفك"><span></span></button>
     </div>
     <div class="li" style="cursor:default">
       <span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
@@ -1162,8 +1167,38 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('sec-net').textContent = netName();
     $('sw-bio').setAttribute('aria-checked', bioEnabled() ? 'true' : 'false');
     bioAvailable().then(function (ok) { $('bio-row').hidden = !ok; });
+    syncPhoneRow();
   }
   $('sw-hide').onclick = function () { setHidden(!state.hidden); };
+  // استقبال التحويلات برقم الهاتف: للموثّقين فقط
+  async function syncPhoneRow() {
+    $('phone-row').hidden = !P2P_URL;
+    if (!P2P_URL) return;
+    try {
+      var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
+      // الحالة المحفوظة "غير موثّق" قد تكون قديمة (قبِل المشرف التوثيق بعدها): نتحقق من الخادم
+      if (me.profile.verify_status !== 'approved') me = await fetchMe(true);
+      state.p2p.me = me; var pf = me.profile;
+      $('sw-phone').setAttribute('aria-checked', pf.phone_link ? 'true' : 'false');
+      $('phone-sub').textContent = pf.verify_status !== 'approved' ? 'يتطلب توثيق حسابك أولاً'
+        : pf.phone_link ? 'يستطيع من يعرف رقمك ' + (pf.phone_masked || '') + ' أن يرسل لك' : 'الرقم الموثّق: ' + (pf.phone_masked || '');
+    } catch (e) {}
+  }
+  $('sw-phone').onclick = async function () {
+    if (!(await ensureProfile())) return;
+    var pf = state.p2p.me.profile, on = !pf.phone_link;
+    if (on && pf.verify_status !== 'approved') { try { state.p2p.me = await fetchMe(true); pf = state.p2p.me.profile; } catch (e) {} }
+    if (on && pf.verify_status !== 'approved') {
+      if (await askConfirm('استقبال التحويلات برقم هاتفك متاح للحسابات الموثّقة، لأن رقمك يُراجَع مع هويتك. وثّق حسابك الآن؟')) openVerify();
+      return;
+    }
+    if (on && !(await askConfirm('من يعرف رقمك سيستطيع أن يرسل لك USDT، وسيرى اسمك الأول والحرف الأول من اسم والدك فقط. لن يُعرض عنوان محفظتك. تفعيل؟'))) return;
+    try {
+      await p2p('phone.link', { on: on });
+      state.p2p.me = await fetchMe(true); renderMe(); syncPhoneRow();
+      toast(on ? 'تم التفعيل: يمكن الإرسال إليك برقم هاتفك' : 'تم الإيقاف');
+    } catch (e) { toast(p2pErr(e), true); }
+  };
   $('sw-bio').onclick = function () {
     if (bioEnabled()) { bioDisable().then(function () { prepareSecurity(); toast('تم إيقاف البصمة'); }); return; }
     openPin('verify', async function (pin) {
@@ -1324,18 +1359,33 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('amt').value = WalletCore.fromUnits(u, 6);
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
-  $('review').onclick = function () {
+  // رقم هاتف سوداني؟ (09xxxxxxxx أو +249… بالأرقام العربية أو الإنجليزية)
+  function asPhone(v) {
+    var s = String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[\s\-()]/g, '').replace(/^00/, '+').replace(/^\+?249/, '0');
+    return /^0\d{9}$/.test(s) ? s : null;
+  }
+  $('review').onclick = async function () {
     $('send-err').hidden = true;
-    var to = $('to').value.trim(), amt = $('amt').value;
+    var to = $('to').value.trim(), amt = $('amt').value, via = null;
+    var phone = !core.isValidAddress(to) && asPhone(to);
+    if (phone) {
+      if (!P2P_URL) return sendError('الإرسال برقم الهاتف غير متاح في هذه النسخة');
+      var btn = $('review'); btn.disabled = true;
+      try { via = await p2p('phone.lookup', { phone: phone }); to = via.address; }
+      catch (e) { btn.disabled = false; return sendError(p2pErr(e)); }
+      btn.disabled = false;
+    }
     if (!core.isValidAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_ADDRESS')));
     var units;
     try { units = WalletCore.toUnits(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
     var have = coinUnits();
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
     if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
-    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin };
+    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin, via: via };
     $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
-    $('c-to').textContent = to;
+    // بالرقم: نعرض الاسم المخفي جزئياً والرقم، ولا نعرض العنوان
+    if (via) { $('c-to').textContent = via.name + ' · ' + via.phone + ' · موثّق ✓'; $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
+    else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
     $('sheet').classList.add('show');
   };
   $('cancel-send').onclick = function () { $('sheet').classList.remove('show'); };
@@ -1481,6 +1531,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
     MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
+    PHONE_NOT_FOUND: 'لا توجد محفظة مرتبطة بهذا الرقم. اطلب من صاحبه تفعيل "استقبال التحويلات برقم هاتفك" من صفحة الأمان', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
+    RATE_LIMITED_PHONE_LOOKUP: 'بحثت عن أرقام كثيرة اليوم. حاول غداً أو استخدم عنوان المحفظة', SELF_SEND: 'لا يمكنك الإرسال إلى نفسك',
     VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
     BAD_FULL_NAME: 'اكتب اسمك كاملاً كما في الهوية', BAD_PHONE: 'رقم الهاتف غير صحيح (مثل 0912345678)', BAD_ID_IMAGE: 'صورة الهوية غير واضحة أو كبيرة جداً. التقط صورة أخرى',
     UPLOAD_FAILED: 'تعذّر رفع الصورة. حاول مرة أخرى', RATE_LIMITED_VERIFY: 'محاولات توثيق كثيرة اليوم',

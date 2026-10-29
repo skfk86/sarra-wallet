@@ -178,6 +178,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   if (action === 'me') {
     const rate = await getRate();
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
+    pub.phone_masked = L.maskPhone(profile.phone);
     delete pub.id_doc_path; delete pub.phone; delete pub.prev_kyc;
     return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, net_fee: NET_FEE, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
@@ -209,6 +210,30 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (changing) await db.from('offers').update({ active: false }).eq('seller', me).eq('active', true);
     await audit(null, me, changing ? 'verify_change' : 'verify_submit');
     return { ok: true, verify_status: 'pending' };
+  }
+
+  // ===== الإرسال برقم الهاتف (اختياري، للموثّقين فقط) =====
+  if (action === 'phone.link') {
+    const on = p.on === true;
+    if (on && (profile.verify_status !== 'approved' || !profile.phone)) throw new Error('VERIFY_REQUIRED');
+    if (on) {
+      // رقم واحد لمحفظة واحدة، حتى لا يصل تحويل إلى شخص آخر
+      const { data: taken } = await db.from('profiles').select('address').eq('phone', profile.phone).eq('phone_link', true).neq('address', me).limit(1).maybeSingle();
+      if (taken) throw new Error('PHONE_TAKEN');
+    }
+    await db.from('profiles').update({ phone_link: on }).eq('address', me);
+    await audit(null, me, on ? 'phone_link_on' : 'phone_link_off');
+    return { ok: true, phone_link: on };
+  }
+  if (action === 'phone.lookup') {
+    const phone = L.normalizePhone(p.phone);
+    await limit(me, 'phone_lookup');
+    const { data: r } = await db.from('profiles').select('address,full_name').eq('phone', phone).eq('phone_link', true)
+      .eq('verify_status', 'approved').eq('banned', false).limit(1).maybeSingle();
+    if (!r) throw new Error('PHONE_NOT_FOUND');
+    if (r.address === me) throw new Error('SELF_SEND');
+    // العنوان يُستخدم للإرسال فقط؛ التطبيق لا يعرضه، ويعرض الاسم مخفياً جزئياً
+    return { address: r.address, name: L.maskName(r.full_name), phone: L.maskPhone(phone), verified: true };
   }
 
   if (action === 'balance.check') {

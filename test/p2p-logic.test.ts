@@ -150,4 +150,14 @@ t('رسوم الشبكة: لا خسارة على المنصة', () => {
   for (const a of ['10', '50', '100', '1000']) assert.equal(L.toMicro(L.tradeFee(a, 50, '1')) - L.toMicro('1'), L.toMicro(L.feeFor(a, 50)));
 });
 
+t('الإرسال برقم الهاتف', () => {
+  for (const v of ['0912345678', '+249912345678', '249 912 345 678', '00249912345678', '٠٩١٢٣٤٥٦٧٨', '091-234-5678'])
+    assert.equal(L.normalizePhone(v), '0912345678', v);
+  for (const v of ['12345', '09123', 'abc', '', '+20912345678']) assert.throws(() => L.normalizePhone(v), /BAD_PHONE/, v);
+  assert.equal(L.maskName('محمد أحمد علي'), 'محمد أ•••');
+  assert.equal(L.maskName('علوش'), 'علوش');
+  assert.equal(L.maskPhone('0912345678'), '091•••678');
+  assert.ok(L.LIMITS.phone_lookup[0] <= 50);
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
