@@ -148,6 +148,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .flow li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.7;color:var(--tx2);counter-increment:f}
 .flow li::before{content:counter(f);flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--ok-bg);color:var(--ac);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
 .buy-bar{position:sticky;bottom:0;margin:0 -20px;padding:12px 20px calc(env(safe-area-inset-bottom) + 16px);background:linear-gradient(to top,var(--bg) 75%,transparent)}
+.side-tog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:4px;box-shadow:var(--shadow)}
+.side-tog button{height:46px;border-radius:12px;border:0;background:none;color:var(--mu);font:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:background-color .2s,color .2s}
+.side-tog button.on[data-p2ptab=market]{background:var(--ac);color:var(--on-ac)}
+.side-tog button.on[data-p2ptab=sell]{background:var(--danger-bg);color:var(--danger-tx)}
+.rate-strip{display:flex;align-items:center;gap:12px;background:var(--hero);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ac);flex-shrink:0;box-shadow:0 0 0 0 var(--ac);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(43,217,160,.55)}70%{box-shadow:0 0 0 8px rgba(43,217,160,0)}100%{box-shadow:0 0 0 0 rgba(43,217,160,0)}}
+.info-line{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.7;color:var(--mu)}
+.fab{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:39;height:52px;padding:0 18px 0 16px;border-radius:999px;border:0;background:var(--ac);color:var(--on-ac);font:inherit;font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 10px 24px -8px var(--ac)}
+.fab:active{transform:scale(.96)}
 .ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
@@ -413,28 +423,42 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </section>
 
 <!-- ===== P2P: السوق ===== -->
-<section class="screen with-tabs" id="s-p2p" aria-label="سوق P2P">
-  <div class="row between">
-    <h1 style="font-size:20px">سوق P2P</h1>
-    <button type="button" class="chip" id="p2p-nick-btn" style="max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" aria-label="تعديل اسمك في السوق"></button>
+<section class="screen with-tabs" id="s-p2p" aria-label="سوق P2P" style="gap:14px;padding-bottom:calc(env(safe-area-inset-bottom) + 150px)">
+  <div class="row between" style="gap:8px">
+    <div style="display:flex;flex-direction:column;min-width:0">
+      <h1 style="font-size:22px">سوق P2P</h1>
+      <span class="muted" style="font-size:12px">اشترِ وبِع USDT بالجنيه عبر بنكك، بضمان</span>
+    </div>
+    <div class="row" style="gap:8px;flex-shrink:0">
+      <button type="button" class="icon-btn" id="p2p-admin-btn" hidden aria-label="لوحة الأدمن"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></button>
+      <button type="button" class="icon-btn" id="p2p-orders-btn" aria-label="طلباتي" style="position:relative"><svg class="i" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg><span class="nbadge" id="orders-badge" hidden style="top:-6px;left:-6px"></span></button>
+    </div>
   </div>
-  <div class="card" id="p2p-rate" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px" hidden>
-    <div style="display:flex;flex-direction:column;min-width:0"><span class="muted" style="font-size:12px">سعر الصرف المرجعي</span><b style="font-size:20px" id="p2p-rate-val"></b></div>
-    <span class="muted" style="font-size:12px;text-align:left" id="p2p-rate-range"></span>
+
+  <div class="rate-strip" id="p2p-rate" hidden>
+    <span class="live" aria-hidden="true"></span>
+    <div style="display:flex;flex-direction:column;min-width:0;flex-grow:1"><span class="muted" style="font-size:11px">سعر الصرف المرجعي</span><b style="font-size:18px" id="p2p-rate-val"></b></div>
+    <span class="muted" style="font-size:11px;text-align:left;line-height:1.6" id="p2p-rate-range"></span>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
-    <button type="button" class="btn btn-ghost" id="p2p-orders-btn" style="height:48px;font-size:15px;position:relative">طلباتي<span class="nbadge" id="orders-badge" hidden style="top:6px;left:10px"></span></button>
-    <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ نشر إعلان</button>
-  </div>
-  <div class="seg" role="tablist" aria-label="عرض" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+
+  <div class="side-tog" role="tablist" aria-label="نوع الصفقة">
     <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">أريد الشراء</button>
     <button type="button" role="tab" data-p2ptab="sell" aria-selected="false">أريد البيع</button>
-    <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
   </div>
-  <div class="note ok" id="p2p-hint"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
-  <div class="field" id="p2p-filter" style="height:48px"><input id="p2p-amt" inputmode="decimal" dir="ltr" placeholder="كم USDT تريد؟ (فلترة)"><span class="muted" style="font-size:13px;flex-shrink:0">USDT</span></div>
-  <button type="button" class="btn btn-ghost" id="p2p-admin-btn" hidden style="height:48px;font-size:15px">لوحة الأدمن</button>
+
+  <div class="row" style="gap:8px">
+    <div class="field grow" id="p2p-filter" style="height:44px;padding:4px 6px;min-width:0"><svg class="i" viewBox="0 0 24 24" style="color:var(--mu);flex-shrink:0;margin-inline-start:6px"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="p2p-amt" inputmode="decimal" dir="ltr" placeholder="الكمية بالـ USDT" style="height:36px"><span class="muted" style="font-size:12px;flex-shrink:0;margin-inline-end:6px">USDT</span></div>
+    <button type="button" class="chip" role="tab" data-p2ptab="mine" aria-selected="false" style="height:44px;flex-shrink:0;border-radius:14px">إعلاناتي</button>
+  </div>
+
+  <div class="row" style="gap:8px;align-items:center;justify-content:space-between">
+    <div class="info-line" id="p2p-hint"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;color:var(--ac)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+  </div>
+  <button type="button" class="chip" id="p2p-nick-btn" style="align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:32px;font-size:12px" aria-label="تعديل اسمك في السوق"></button>
+
   <div id="p2p-list"><p class="muted">جارٍ التحميل…</p></div>
+
+  <button type="button" class="fab" id="p2p-new-btn" aria-label="نشر إعلان"><svg class="i" viewBox="0 0 24 24" style="width:22px;height:22px;stroke-width:2.4"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>إعلان</span></button>
 </section>
 
 <!-- ===== P2P: شراء من إعلان ===== -->
@@ -1532,7 +1556,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   function renderMe() {
     var me = state.p2p.me; if (!me || !me.profile) return;
-    $('p2p-nick-btn').textContent = me.profile.nickname + ' ✎';
+    $('p2p-nick-btn').textContent = 'اسمك في السوق: ' + me.profile.nickname + ' ✎';
     $('p2p-admin-btn').hidden = !me.is_admin;
     if (me.rate) { state.p2p.rate = me.rate; state.p2p.range = me.range; }
     if (me.fee_bps != null) state.p2p.feeBps = me.fee_bps;
@@ -1651,7 +1675,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   document.querySelectorAll('[data-p2ptab]').forEach(function (b) {
     b.onclick = function () {
       state.p2p.tab = b.dataset.p2ptab;
-      $('p2p-hint').firstChild.textContent = state.p2p.tab === 'sell'
+      $('p2p-hint').hidden = state.p2p.tab === 'mine';
+      $('p2p-hint').querySelector('span').textContent = state.p2p.tab === 'sell'
         ? 'هنا أشخاص يريدون الشراء، وأنت البائع: تحتاج الكمية في محفظتك، تودعها في الضمان، يحوّل لك المشتري الجنيه عبر بنكك، ثم تحرّر USDT بعد التأكد من وصول المبلغ.'
         : 'البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".';
       $('p2p-filter').hidden = state.p2p.tab === 'mine';
