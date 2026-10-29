@@ -413,8 +413,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" class="btn btn-primary" id="p2p-new-btn" style="height:48px;font-size:15px">+ نشر إعلان</button>
   </div>
   <div class="seg" role="tablist" aria-label="عرض" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-    <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">شراء</button>
-    <button type="button" role="tab" data-p2ptab="sell" aria-selected="false">بيع</button>
+    <button type="button" role="tab" class="on" data-p2ptab="market" aria-selected="true">أريد الشراء</button>
+    <button type="button" role="tab" data-p2ptab="sell" aria-selected="false">أريد البيع</button>
     <button type="button" role="tab" data-p2ptab="mine" aria-selected="false">إعلاناتي</button>
   </div>
   <div class="note ok" id="p2p-hint"><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
@@ -435,6 +435,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div><dt id="buy-recv-l">ستستلم في محفظتك</dt><dd class="ltr" id="buy-recv" style="color:var(--ac)">—</dd></div>
   </dl>
   <div class="note ok" id="buy-sellnote" hidden><span></span></div>
+  <div class="note ok" id="buy-mybal" hidden><span></span></div>
   <div class="note err" id="buy-err" hidden></div>
   <div class="grow"></div>
   <button class="btn btn-primary" id="buy-go" disabled>فتح الطلب</button>
@@ -1542,12 +1543,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         price.appendChild(el('b', 'font-size:22px;direction:ltr', fmt(o.price_sdg)));
         price.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'ج.س'));
         pr.appendChild(price);
-        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', (o.side === 'buy' ? 'يريد ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT'));
+        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', (o.side === 'buy' ? 'يريد أن يشتري منك حتى ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT'));
         pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
         var tg = el('span', 'align-self:flex-start', o.side === 'buy' ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; pr.appendChild(tg);
         bot.appendChild(pr);
         var isBuyAd = o.side === 'buy';
-        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', isBuyAd ? 'بيع' : 'شراء');
+        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', isBuyAd ? 'بيع له' : 'شراء');
         if (isBuyAd) go.className = 'btn-sell';
         go.type = 'button';
         go.onclick = function () { state.p2p.offer = o; openBuy(want); };
@@ -1561,7 +1562,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     b.onclick = function () {
       state.p2p.tab = b.dataset.p2ptab;
       $('p2p-hint').firstChild.textContent = state.p2p.tab === 'sell'
-        ? 'تبيع USDT لمشترٍ ينتظر: تودع الكمية في الضمان، يحوّل لك الجنيه عبر بنكك، ثم تحرّر USDT بعد التأكد من وصول المبلغ.'
+        ? 'هنا أشخاص يريدون الشراء، وأنت البائع: تحتاج الكمية في محفظتك، تودعها في الضمان، يحوّل لك المشتري الجنيه عبر بنكك، ثم تحرّر USDT بعد التأكد من وصول المبلغ.'
         : 'البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".';
       $('p2p-filter').hidden = state.p2p.tab === 'mine';
       document.querySelectorAll('[data-p2ptab]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
@@ -1580,7 +1581,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (pf.verify_status !== 'approved') { toast('وثّق حسابك أولاً لتبيع', true); openVerify(); return; }
       $('buy-sellnote').hidden = false;
       $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك (تحتاج TRX للرسوم).';
-    } else $('buy-sellnote').hidden = true;
+      // رصيدك أنت كبائع (من الشبكة مباشرة، بدون الخادم)
+      state.p2p.myBal = null; $('buy-mybal').hidden = false; $('buy-mybal').className = 'note ok'; $('buy-mybal').firstChild.textContent = 'جارٍ فحص رصيدك…';
+      core.getBalances().then(function (b) {
+        state.p2p.myBal = { usdt: Number(WalletCore.fromUnits(b.usdtUnits, 6)), trx: Number(WalletCore.fromUnits(b.trxUnits, 6)) };
+        calcBuy();
+      }).catch(function () { $('buy-mybal').hidden = true; });
+    } else { $('buy-sellnote').hidden = true; $('buy-mybal').hidden = true; state.p2p.myBal = null; }
     $('buy-title').textContent = sell ? 'بيع USDT' : 'شراء USDT';
     $('buy-total-l').textContent = sell ? 'ستستلم عبر بنكك' : 'ستحوّل عبر بنكك';
     $('buy-recv-l').textContent = sell ? 'يستلم المشتري' : 'ستستلم في محفظتك';
@@ -1601,6 +1608,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('buy-total').textContent = v ? fmt(v * o.price_sdg) + ' ج.س' : '—';
     $('buy-fee').textContent = v ? fmt(fee, 6) + ' USDT (' + ((state.p2p.feeBps || 50) / 100) + '%' + (net ? ' + ' + net + ' رسوم الشبكة' : '') + ')' : '—';
     $('buy-recv').textContent = v ? fmt(v - fee, 6) + ' USDT' : '—';
+    // البيع لإعلان شراء: أنت البائع، فنتحقق من رصيدك قبل فتح الطلب برسالة موجهة لك
+    var mb = state.p2p.myBal;
+    if (o.side === 'buy' && mb) {
+      var lowU = v > 0 && mb.usdt < v, lowT = mb.trx < 15;
+      $('buy-mybal').className = 'note ' + (lowU || lowT ? 'err' : 'ok');
+      $('buy-mybal').firstChild.textContent = 'رصيدك: ' + fmt(mb.usdt) + ' USDT · ' + fmt(mb.trx) + ' TRX' +
+        (lowU ? ' — لتبيع ' + fmt(v) + ' USDT تحتاجها في محفظتك أولاً' : lowT ? ' — تحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان' : '');
+      if (lowU || lowT) ok = false;
+    }
     $('buy-go').disabled = !ok;
   }
   $('buy-amt').oninput = calcBuy;
@@ -1611,7 +1627,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6) });
       state.p2p.cache = {}; openOrder(r.order.id, true);
-    } catch (e) { $('buy-err').textContent = p2pErr(e); $('buy-err').hidden = false; btn.disabled = false; }
+    } catch (e) {
+      var msg = p2pErr(e), sellToBuyer = state.p2p.offer && state.p2p.offer.side === 'buy';
+      if (sellToBuyer && e.message === 'INSUFFICIENT_SELLER_USDT') msg = 'لتبيع لهذا المشتري تحتاج الكمية كاملة من USDT في محفظتك، ورصيدك أقل منها.';
+      if (sellToBuyer && e.message === 'SELLER_NEEDS_TRX') msg = 'لتبيع تحتاج 15 TRX على الأقل في محفظتك لدفع رسوم الإيداع في الضمان.';
+      $('buy-err').textContent = msg; $('buy-err').hidden = false; btn.disabled = false;
+    }
   };
 
   // ===== إعلان جديد =====
