@@ -710,12 +710,18 @@
         var p = { fromChain: a.chain, toChain: b.chain, fromToken: a.addr, toToken: b.addr, fromAmount: units.toString(),
           fromAddress: fromAddr, toAddress: toAddr, slippage: '0.005', order: 'CHEAPEST', integrator: opts.lifiIntegrator || 'sarra-wallet' };
         if (opts.lifiFee && Number(opts.lifiFee) > 0) p.fee = String(Math.min(Number(opts.lifiFee), 0.01));
-        var r = await lifi('/quote?' + new URLSearchParams(p).toString());
+        var r;
+        try { r = await lifi('/quote?' + new URLSearchParams(p).toString()); }
+        catch (e) {
+          // إن رفضت الخدمة العمولة على مسار ما (مثل بعض مسارات TRON) نعرض النقل بدون عمولة بدل أن يفشل
+          if (!p.fee || e.message === 'BRIDGE_BUSY') throw e;
+          delete p.fee; r = await lifi('/quote?' + new URLSearchParams(p).toString());
+        }
         var est = r.estimate || {}, sum = function (xs) { return (xs || []).reduce(function (s, x) { return s + Number(x.amountUSD || 0); }, 0); };
         return { fromNet: fromNet, toNet: toNet, sym: sym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
           feesUsd: sum(est.feeCosts), gasUsd: sum(est.gasCosts), seconds: Number(est.executionDuration || 0),
-          approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now() };
+          appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now() };
       },
       bridgeExecute: async function (q) {
         if (!session) throw new Error('LOCKED');

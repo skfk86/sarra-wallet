@@ -46,7 +46,7 @@ async def main():
     q=Q[-1]; assert q['fromChain']=='TRN' and q['toChain']=='56' and q['fromAmount']=='100000000' and q['fromAddress'].startswith('T') and q['toAddress'].startswith('0x') and q['integrator']=='sarra-wallet' and 'fee' not in q, q
     print('✓ طلب السعر صحيح: 100 USDT من محفظتك على TRON إلى عنوانك 0x على BNB Chain، بدون عمولة إضافية')
     out=await pg.inner_text('#br-out'); fee=await pg.inner_text('#br-fee')
-    assert '99' in out and 'BNB Chain' in out and fee=='≈ $1.50', (out,fee); print('✓ بطاقة السعر: ستستلم ~99 USDT، الرسوم $1.50، المسار Symbiosis')
+    assert '99' in out and 'BNB Chain' in out and fee=='≈ $1.50', (out,fee); assert await pg.inner_text('#br-app')=='مجاناً'; print('✓ بطاقة السعر: ستستلم ~99 USDT، الرسوم $1.50، المسار Symbiosis')
     await pg.click('#br-go'); await pin('123456'); await pg.wait_for_timeout(3000)
     log=await pg.evaluate('window.__log')
     kinds=[l[0] for l in log]; assert 'APPROVE' in kinds and kinds.index('APPROVE')<kinds.index('SIGN')<kinds.index('BROADCAST'), log

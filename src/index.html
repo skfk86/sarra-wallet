@@ -505,7 +505,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <dl class="kv card" id="br-quote" style="padding:4px 16px" hidden>
     <div><dt>ستستلم تقريباً</dt><dd class="ltr" id="br-out">—</dd></div>
     <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="br-min">—</dd></div>
-    <div><dt>رسوم الخدمة والشبكة</dt><dd class="ltr" id="br-fee">—</dd></div>
+    <div><dt>رسوم الجسر والشبكة</dt><dd class="ltr" id="br-fee">—</dd></div>
+    <div><dt>عمولة صُرّة</dt><dd id="br-app">—</dd></div>
     <div><dt>المدة المتوقعة</dt><dd id="br-time">—</dd></div>
     <div><dt>المسار</dt><dd class="ltr" id="br-tool">—</dd></div>
   </dl>
@@ -1804,6 +1805,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       $('br-fee').textContent = '≈ $' + (q.feesUsd + q.gasUsd).toFixed(2);
       $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : '—';
       $('br-tool').textContent = q.tool || 'LI.FI';
+      $('br-app').textContent = q.appFee ? (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '% (≈ $' + (Number(q.amount) * q.appFee).toFixed(2) + ')' : 'مجاناً';
       $('br-quote').hidden = false; $('br-go').hidden = false;
     } catch (e) { brErr(WalletCore.errorText(e)); }
     finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
