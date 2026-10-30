@@ -173,6 +173,31 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .pct button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--s2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
 .pct button.max{color:var(--ac);border-color:var(--ac)}
 #to:placeholder-shown{direction:rtl;text-align:right}
+.acc-hero{display:flex;align-items:center;gap:14px;padding:4px 2px}
+.acc-av{width:60px;height:60px;border-radius:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--ac),#0e7a5a)}
+.acc-pill{align-self:flex-start;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--s2);color:var(--tx2)}
+.acc-pill.ok{background:var(--ok-bg);color:var(--ac)}.acc-pill.wait{background:var(--warn-bg);color:var(--warn)}.acc-pill.bad{background:var(--err-bg);color:var(--err)}
+.acc-sid{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-radius:20px;color:#fff;background:linear-gradient(135deg,#0f9b6e,#0b5e8a)}
+.rv-anim{position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center}
+.rv-anim svg{width:44px;height:44px;fill:none;stroke:var(--ac);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;animation:rvPulse 1.8s ease-in-out infinite}
+.rv-anim span{position:absolute;inset:0;border-radius:50%;border:2px solid var(--ac);opacity:0;animation:rvRing 2.4s ease-out infinite}
+.rv-anim span:nth-child(2){animation-delay:.8s}.rv-anim span:nth-child(3){animation-delay:1.6s}
+@keyframes rvRing{0%{transform:scale(.45);opacity:.7}100%{transform:scale(1.15);opacity:0}}
+@keyframes rvPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.rv-steps{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;font-size:12px}
+.rv-steps span{padding:6px 10px;border-radius:999px;background:var(--s2);color:var(--mu)}
+.rv-steps .on{background:var(--ok-bg);color:var(--ac)}.rv-steps .cur{background:var(--warn-bg);color:var(--warn);animation:rvPulse 1.6s ease-in-out infinite}
+.celebrate{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(5,10,15,.55);backdrop-filter:blur(4px)}
+.celebrate.show{display:flex;animation:fadeIn .25s}
+.celebrate .box{position:relative;width:min(88vw,340px);background:var(--s1);border-radius:28px;padding:28px 22px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;animation:popIn .45s cubic-bezier(.2,1.4,.4,1);overflow:hidden}
+.celebrate .badge-big{width:84px;height:84px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px var(--ok-bg)}
+.celebrate .badge-big svg{width:44px;height:44px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:draw .6s .3s forwards}
+.celebrate i{position:absolute;top:-10px;width:8px;height:14px;border-radius:2px;animation:fall 2.2s linear forwards}
+@keyframes popIn{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fall{to{transform:translateY(520px) rotate(540deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){.rv-anim span,.rv-anim svg,.celebrate i{animation:none}}
 .recent{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .recent::-webkit-scrollbar{display:none}
 .recent button{flex-shrink:0;height:32px;padding:0 12px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--tx2);font-size:12px;font-family:ui-monospace,monospace;cursor:pointer;direction:ltr}
@@ -300,7 +325,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" role="tab" class="on" data-coin="USDT" aria-selected="true">USDT</button>
     <button type="button" role="tab" data-coin="TRX" aria-selected="false">TRX</button>
   </div>
-  <label class="lbl" for="to" id="to-lbl">المستلم: عنوان المحفظة أو رقم الهاتف</label>
+  <label class="lbl" for="to" id="to-lbl">المستلم</label>
   <div class="field">
     <input id="to" dir="ltr" placeholder="T… أو 09xxxxxxxx" autocomplete="off" autocapitalize="none" spellcheck="false">
     <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
@@ -334,6 +359,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </div>
   </div>
   <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
+  <div class="netinfo" id="recv-sid" hidden style="justify-content:space-between">
+    <div style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:12px">معرّف صُرّة · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:22px;letter-spacing:1px;color:var(--tx)"></b></div>
+    <button type="button" class="chip" id="recv-sid-copy" style="height:34px">نسخ</button>
+  </div>
   <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   <div class="netinfo" role="note" id="recv-fee"><span></span></div>
 </section>
@@ -373,6 +402,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen with-tabs" id="s-security" aria-label="الأمان">
   <h1 style="font-size:20px">الأمان</h1>
   <div class="note ok"><span>المفتاح الخاص مشفّر على هذا الجهاز ولا يُرسل لأي سيرفر.</span></div>
+  <h2 class="muted" style="font-size:13px">الحساب</h2>
+  <div class="list">
+    <button type="button" class="li" id="sec-acc"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">حسابي وبياناتي<small id="sec-acc-sub">معرّف صُرّة، التوثيق، رقم الهاتف</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+  </div>
   <h2 class="muted" style="font-size:13px">الحماية</h2>
   <div class="list">
     <div class="li" style="cursor:default" id="bio-row" hidden>
@@ -618,6 +651,13 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">توثيق الحساب</h1></div>
   <div class="steps3" aria-hidden="true"><span class="on">1 البيانات</span><span>2 المراجعة</span><span>3 البيع</span></div>
   <div class="note" id="ver-state" hidden></div>
+  <div id="ver-pending" hidden style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:30px 10px">
+    <div class="rv-anim" aria-hidden="true" style="width:130px;height:130px"><span></span><span></span><span></span><svg viewBox="0 0 24 24" style="width:58px;height:58px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <b style="font-size:19px">أرسلنا بياناتك للمراجعة</b>
+    <p class="muted" style="font-size:14px;line-height:1.9;margin:0;max-width:300px">المشرف يتحقق من الاسم والهوية الآن، وعادةً يتم ذلك خلال ساعات. ستصلك رسالة في التطبيق فور القبول.</p>
+    <div class="rv-steps"><span class="on">✓ أُرسلت البيانات</span><span class="cur">● قيد المراجعة</span><span>○ التوثيق</span></div>
+    <button class="btn btn-ghost" data-go="home" style="width:100%;max-width:300px;margin-top:6px">العودة للمحفظة</button>
+  </div>
   <div id="ver-form" style="display:flex;flex-direction:column;gap:14px">
     <p class="muted" style="font-size:13px;line-height:1.8">التوثيق مطلوب مرة واحدة قبل نشر أي إعلان بيع، لحماية المشترين. بياناتك لا تظهر لأحد، والمشتري يرى فقط اسمك وحساب بنكك عند فتح طلب معك. تُحذف صورة الهوية بعد المراجعة.</p>
     <label class="lbl" for="ver-name">الاسم الرباعي كما في الهوية وبنكك</label>
@@ -699,6 +739,17 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </section>
 
 <!-- ===== نافذة تأكيد عامة ===== -->
+<div class="celebrate" id="celebrate" role="dialog" aria-modal="true" aria-labelledby="cel-t">
+  <div class="box">
+    <div class="badge-big"><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg></div>
+    <b id="cel-t" style="font-size:20px">تم توثيق حسابك 🎉</b>
+    <p class="muted" style="font-size:14px;line-height:1.8;margin:0">أصبح بإمكانك الآن:</p>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;text-align:right;width:100%">
+      <span>✓ نشر إعلانات البيع والشراء في سوق P2P</span><span>✓ الاستلام برقم هاتفك على كل الشبكات</span><span>✓ شارة "موثّق" تزيد ثقة المتعاملين معك</span>
+    </div>
+    <button class="btn btn-primary" id="cel-ok" style="width:100%">رائع</button>
+  </div>
+</div>
 <input type="file" id="rcpt-file" accept="image/*" hidden>
 <div class="sheet-bg" id="rcpt-view" role="dialog" aria-modal="true" aria-label="إيصالات الدفع">
   <div class="sheet" style="max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px">
@@ -749,21 +800,38 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== حسابي ===== -->
 <section class="screen" id="s-account" aria-label="حسابي">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">حسابي وبياناتي</h1></div>
-  <div class="card" style="display:flex;flex-direction:column;gap:12px">
-    <div class="row between"><b style="font-size:16px">حالة التوثيق</b><span class="badge" id="acc-badge">—</span></div>
-    <p class="muted" style="font-size:13px;line-height:1.8;margin:0" id="acc-hint"></p>
-    <dl class="kv" id="acc-data" hidden>
-      <div><dt>الاسم</dt><dd id="acc-name">—</dd></div>
-      <div><dt>رقم الهاتف</dt><dd class="ltr" id="acc-phone">—</dd></div>
-      <div><dt>حساب بنكك</dt><dd class="ltr" id="acc-bank">—</dd></div>
-    </dl>
-    <button class="btn btn-primary" id="acc-go">وثّق حسابك</button>
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">حسابي</h1></div>
+  <div class="acc-hero">
+    <div class="acc-av" id="acc-av">ص</div>
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+      <b id="acc-name" style="font-size:18px">—</b>
+      <span class="acc-pill" id="acc-badge">—</span>
+    </div>
   </div>
-  <div class="card" style="display:flex;flex-direction:column;gap:12px" id="acc-phone-card">
-    <div class="row" style="gap:12px"><span style="font-size:28px">📱</span><div><b style="font-size:16px">استقبل برقم هاتفك</b><div class="muted" style="font-size:13px;line-height:1.7">بدل العنوان الطويل، يكفي أن يكتب المرسل رقمك.</div></div></div>
-    <div class="note ok" id="acc-phone-on" hidden><span></span></div>
-    <button class="btn btn-ghost" id="acc-phone-btn">تفعيل</button>
+  <div class="acc-sid" id="acc-sid-card">
+    <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;opacity:.85">معرّف صُرّة</span><b class="ltr" id="acc-sid" style="font-size:26px;letter-spacing:2px">— —</b><span style="font-size:11px;opacity:.85">أعطه لأي مستخدم صُرّة ليحوّل لك على أي شبكة</span></div>
+    <button type="button" class="icon-btn" id="acc-sid-copy" aria-label="نسخ المعرّف" style="background:rgba(255,255,255,.18);color:#fff;border:0"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+  </div>
+  <div id="acc-pending" class="card" hidden style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:24px 18px">
+    <div class="rv-anim" aria-hidden="true"><span></span><span></span><span></span><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <b style="font-size:16px">نراجع بياناتك الآن</b>
+    <p class="muted" style="font-size:13px;line-height:1.8;margin:0">عادةً خلال ساعات. سنُعلمك هنا فور القبول، ويمكنك استخدام المحفظة كالمعتاد.</p>
+  </div>
+  <p class="muted" style="font-size:13px;line-height:1.8;margin:0" id="acc-hint"></p>
+  <h2 class="muted" style="font-size:13px" id="acc-data-h">بيانات التوثيق</h2>
+  <div class="list" id="acc-data">
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">الاسم<small id="acc-name2">—</small></span></div>
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></span><span class="t">رقم الهاتف<small class="ltr" style="text-align:right" id="acc-phone">—</small></span></div>
+    <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span><span class="t">حساب بنكك<small class="ltr" style="text-align:right" id="acc-bank">—</small></span></div>
+    <button type="button" class="li" id="acc-go"><span class="ic" style="color:var(--ac)"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span class="t" style="color:var(--ac)">تعديل البيانات<small>يُراجَع التعديل قبل اعتماده</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+  </div>
+  <h2 class="muted" style="font-size:13px">الاستلام</h2>
+  <div class="list" id="acc-phone-card">
+    <div class="li" style="cursor:default">
+      <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span>
+      <span class="t">الاستلام برقم هاتفك<small id="acc-phone-on">للحسابات الموثّقة</small></span>
+      <button type="button" class="switch" role="switch" id="acc-phone-btn" aria-checked="false" aria-label="الاستلام برقم هاتفك"><span></span></button>
+    </div>
   </div>
 </section>
 
@@ -813,7 +881,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--hero)">
     <img src="assets/logo.png" alt="" style="width:72px;height:72px;border-radius:20px">
     <b style="font-size:22px">صُرّة</b>
-    <p class="muted" style="font-size:14px;line-height:1.8">محفظة سودانية للدولار الرقمي (USDT) على شبكة TRON: احفظ قيمة مالك، أرسل واستلم في ثوانٍ، واشترِ وبِع بالجنيه عبر بنكك بضمان.</p>
+    <p class="muted" style="font-size:14px;line-height:1.8">محفظة سودانية للدولار الرقمي على 4 شبكات (TRON وBNB Chain وEthereum وPolygon): احفظ قيمة مالك، أرسل واستلم في ثوانٍ، واشترِ وبِع بالجنيه عبر بنكك بضمان.</p>
     <span class="muted" style="font-size:12px" id="about-ver"></span>
   </div>
   <h2 class="muted" style="font-size:13px">كيف يحميك التطبيق</h2>
@@ -824,7 +892,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <h2 class="muted" style="font-size:13px">الرسوم</h2>
   <dl class="kv card" style="padding:4px 16px">
-    <div><dt>الإرسال والاستلام</dt><dd>رسوم شبكة TRON فقط</dd></div>
+    <div><dt>الإرسال والاستلام</dt><dd>رسوم الشبكة فقط، بدون عمولة</dd></div>
     <div><dt>التبديل</dt><dd><bdi id="about-swapfee">0.5%</bdi> + رسوم SunSwap</dd></div>
     <div><dt>سوق P2P</dt><dd>0.5% + 1 USDT رسوم الشبكة</dd></div>
     <div><dt>الإعلانات</dt><dd>لا يوجد</dd></div>
@@ -867,11 +935,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <h2 id="intro-title" style="font-size:20px">قبل أن تبدأ: أمران مهمان</h2>
     <div class="row" style="align-items:flex-start">
       <span class="icon-btn flat" aria-hidden="true" style="color:var(--warn);background:var(--warn-bg);cursor:default"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
-      <p style="font-size:14px;line-height:1.8"><b>شبكة TRON (TRC20) فقط.</b> عند استلام أو إرسال أي مبلغ، تأكد أن الطرف الآخر يختار شبكة TRON. المبالغ المرسلة من شبكة أخرى تضيع.</p>
+      <p style="font-size:14px;line-height:1.8"><b>الشبكة يجب أن تتطابق.</b> محفظتك تعمل على TRON وBNB Chain وEthereum وPolygon. عند الاستلام اختر الشبكة نفسها التي يرسل عليها الطرف الآخر، فالمبلغ المرسل على شبكة مختلفة قد يضيع.</p>
     </div>
     <div class="row" style="align-items:flex-start">
       <span class="icon-btn flat" aria-hidden="true" style="color:var(--trx);cursor:default"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
-      <p style="font-size:14px;line-height:1.8"><b>الرسوم تُدفع بعملة TRX.</b> لكي ترسل USDT تحتاج قليلاً من TRX في محفظتك (15 TRX على الأقل). الاستلام لا يحتاج رسوماً.</p>
+      <p style="font-size:14px;line-height:1.8"><b>رسوم الشبكة بعملتها.</b> للإرسال على TRON تحتاج قليلاً من TRX، وعلى BNB Chain قليلاً من BNB، وهكذا. الاستلام مجاني دائماً. أرخص شبكة لإرسال USDT: BNB Chain.</p>
     </div>
     <button class="btn btn-primary" id="intro-ok">فهمت</button>
   </div>
@@ -1252,7 +1320,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 
   // ===== الرئيسية =====
   function shortAddr(a) { return a ? a.slice(0, 4) + '…' + a.slice(-4) : ''; }
-  function netName() { return NETWORK === 'mainnet' ? 'شبكة TRON' : 'شبكة الاختبار (Nile)'; }
+  function netName() { return NETWORK === 'mainnet' ? (Object.keys(EVM).length ? 'TRON · BNB Chain · Ethereum · Polygon' : 'شبكة TRON') : 'شبكة الاختبار (Nile)'; }
   // التنقل بين الأقسام لا يعيد الجلب إن كانت البيانات حديثة (أقل من 20 ثانية)، حتى لا نتجاوز حد طلبات TronGrid
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
@@ -1474,7 +1542,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('sw-hide').onclick = function () { setHidden(!state.hidden); };
   // استقبال التحويلات برقم الهاتف: للموثّقين فقط
   async function syncPhoneRow() {
-    $('phone-row').hidden = !P2P_URL;
+    $('phone-row').hidden = true; $('sec-acc').parentNode.hidden = !P2P_URL; $('sec-acc').parentNode.previousElementSibling.hidden = !P2P_URL;
     if (!P2P_URL) return;
     try {
       var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
@@ -1527,21 +1595,43 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try { var me = await fetchMe(true); me = await autoPhoneLink(me); state.p2p.me = me; } catch (e) {}
     renderAccount();
   }
+  // احتفال قبول التوثيق: يظهر مرة واحدة عند تحوّل الحالة من "قيد المراجعة" إلى "موثّق"
+  function checkApproval(key, me) {
+    try {
+      var k = key + '.vs', prev = localStorage.getItem(k), now = me && me.profile && me.profile.verify_status;
+      if (now) localStorage.setItem(k, now);
+      if (prev === 'pending' && now === 'approved') celebrate();
+    } catch (e) {}
+  }
+  function celebrate() {
+    var box = $('celebrate').querySelector('.box'); box.querySelectorAll('i').forEach(function (x) { x.remove(); });
+    var colors = ['#16a37a', '#f5b301', '#ef4444', '#3b82f6', '#a855f7'];
+    for (var i = 0; i < 26; i++) { var c = document.createElement('i'); c.style.left = (Math.random() * 100) + '%'; c.style.background = colors[i % 5]; c.style.animationDelay = (Math.random() * .6) + 's'; box.appendChild(c); }
+    $('celebrate').classList.add('show');
+  }
+  $('cel-ok').onclick = function () { $('celebrate').classList.remove('show'); if (state.stack[state.stack.length - 1] === 'account' && state.p2p.me) renderAccount(); };
+  $('sec-acc').onclick = function () { openAccount(); };
+  $('acc-sid-copy').onclick = function () { var id = state.p2p.me && state.p2p.me.profile.sarra_id; if (id) copyText(String(id)); };
   function renderAccount() {
     var pf = state.p2p.me.profile, st = pf.verify_status || 'none', t = ACC_ST[st] || ACC_ST.none;
-    $('acc-badge').textContent = t[0]; $('acc-hint').textContent = t[1] + (st === 'rejected' && pf.verify_note ? ' السبب: ' + pf.verify_note : '');
-    $('acc-badge').style.color = st === 'approved' ? 'var(--ac)' : st === 'rejected' ? 'var(--err)' : 'var(--warn)';
-    $('acc-data').hidden = st !== 'approved' && st !== 'pending';
-    $('acc-name').textContent = pf.full_name || '—'; $('acc-phone').textContent = pf.phone_masked || '—'; $('acc-bank').textContent = pf.bankak_account || '—';
-    var go = $('acc-go'); go.disabled = st === 'pending';
-    go.textContent = st === 'approved' ? 'تعديل البيانات' : st === 'pending' ? 'بانتظار المراجعة' : 'وثّق حسابك';
-    go.className = 'btn ' + (st === 'approved' ? 'btn-ghost' : 'btn-primary');
-    var on = !!pf.phone_link;
-    $('acc-phone-on').hidden = !on; $('acc-phone-on').firstChild.textContent = 'مفعّل: من يعرف رقمك ' + (pf.phone_masked || '') + ' يستطيع أن يرسل لك على TRON وBNB Chain وEthereum وPolygon.';
-    var pb = $('acc-phone-btn');
-    pb.textContent = on ? 'إيقاف الاستقبال برقمي' : st === 'approved' ? 'تفعيل الاستقبال برقمي' : st === 'pending' ? 'يُفعَّل بعد قبول التوثيق' : 'وثّق حسابك أولاً';
-    pb.disabled = st === 'pending' && !on;
-    pb.className = 'btn ' + (on ? 'btn-ghost' : 'btn-primary');
+    var name = st === 'approved' || st === 'pending' ? (pf.full_name || pf.nickname) : (pf.nickname || 'حسابي');
+    $('acc-name').textContent = name; $('acc-av').textContent = String(name || 'ص').trim().charAt(0) || 'ص';
+    $('acc-badge').textContent = t[0]; $('acc-badge').className = 'acc-pill ' + (st === 'approved' ? 'ok' : st === 'pending' ? 'wait' : st === 'rejected' ? 'bad' : '');
+    $('acc-sid').textContent = pf.sarra_id ? fmtSid(pf.sarra_id) : '— —';
+    $('acc-pending').hidden = st !== 'pending';
+    $('acc-hint').textContent = st === 'pending' ? '' : t[1] + (st === 'rejected' && pf.verify_note ? ' السبب: ' + pf.verify_note : '');
+    $('acc-hint').hidden = st === 'pending';
+    var hasData = st === 'approved' || st === 'pending';
+    $('acc-name2').textContent = pf.full_name || '—'; $('acc-phone').textContent = pf.phone_masked || '—'; $('acc-bank').textContent = pf.bankak_account || '—';
+    document.querySelectorAll('#acc-data .li:not(#acc-go)').forEach(function (r) { r.hidden = !hasData; });
+    $('acc-data-h').textContent = hasData ? 'بيانات التوثيق' : 'التوثيق';
+    var go = $('acc-go'); go.hidden = st === 'pending'; go.disabled = false;
+    go.querySelector('.t').firstChild.textContent = st === 'approved' ? 'تعديل البيانات' : 'وثّق حسابك';
+    go.querySelector('small').textContent = st === 'approved' ? 'يُراجَع التعديل قبل اعتماده' : 'الاسم ورقم الهاتف وحساب بنكك وصورة الهوية';
+    $('acc-data').hidden = st === 'pending'; $('acc-data-h').hidden = st === 'pending';
+    var on = !!pf.phone_link, pb = $('acc-phone-btn');
+    pb.setAttribute('aria-checked', on ? 'true' : 'false');
+    $('acc-phone-on').textContent = on ? 'من يعرف رقمك ' + (pf.phone_masked || '') + ' يرسل لك على كل الشبكات' : st === 'approved' ? 'غير مفعّل' : 'يتطلب توثيق الحساب';
   }
   $('acc-go').onclick = function () { var st = state.p2p.me.profile.verify_status; openVerify(false, st === 'approved'); };
   $('acc-phone-btn').onclick = async function () {
@@ -1549,7 +1639,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!pf.phone_link && pf.verify_status !== 'approved') { try { localStorage.setItem('sarra.wantPhone', '1'); } catch (e) {} return openVerify(); }
     await $('sw-phone').onclick(); renderAccount();
   };
+  async function syncRecvSid() {
+    if (!P2P_URL) return;
+    try { var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false); state.p2p.me = me;
+      var sid = me.profile.sarra_id; if (!sid) me = state.p2p.me = await fetchMe(true), sid = me.profile.sarra_id;
+      if (sid) { $('recv-sid-v').textContent = fmtSid(sid); $('recv-sid').hidden = false; } } catch (e) {}
+  }
+  $('recv-sid-copy').onclick = function () { copyText(String((state.p2p.me && state.p2p.me.profile.sarra_id) || '')); };
   async function syncRecvPhone() {
+    syncRecvSid();
     var b = $('recv-phone'); b.hidden = true;
     if (!P2P_URL || state.recvNet !== 'tron') return;
     try {
@@ -1657,9 +1755,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     renderNetbar($('send-nets'), state.sendNet, function (k) { state.sendNet = k; $('amt').value = ''; renderCoinSeg(); prepareSend(); });
     var n = netOf(state.sendNet), b = state.balances;
     $('amt-unit').textContent = state.coin;
-    $('to').placeholder = n.evm ? 'عنوان يبدأ بـ 0x أو رقم هاتف' : 'عنوان يبدأ بـ T أو رقم هاتف';
+    $('to').placeholder = n.evm ? 'عنوان 0x، أو معرّف صُرّة، أو رقم هاتف' : 'عنوان T، أو معرّف صُرّة، أو رقم هاتف';
     $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
-    $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name + ': عنوان أو رقم هاتف' : 'المستلم: عنوان المحفظة أو رقم الهاتف';
+    $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name : 'المستلم';
     $('send-warn').firstChild.textContent = n.evm
       ? 'الشبكة: ' + n.name + ' (' + n.short + ') · تأكد أن المستلم على نفس الشبكة'
       : 'الشبكة: TRON (TRC20) · تأكد أن المستلم على نفس الشبكة';
@@ -1775,6 +1873,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('amt').value = WalletCore.fromUnits(u, state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin)); updUsd();
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
+  // معرّف صُرّة: 8 أرقام لا يبدأ بصفر (الهاتف يبدأ بصفر)
+  function asSarraId(v) {
+    var s = String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[\s\-#@]/g, '');
+    return /^[1-9]\d{7}$/.test(s) ? s : null;
+  }
+  function fmtSid(id) { var s = String(id || ''); return s.length === 8 ? s.slice(0, 4) + ' ' + s.slice(4) : s; }
+  function recipLabel(v) {
+    if (v.id) return (v.name || '') + ' · معرّف ' + fmtSid(v.id) + (v.verified ? ' · موثّق ✓' : '');
+    return v.name + ' · ' + v.phone + ' · موثّق ✓';
+  }
   // رقم هاتف سوداني؟ (09xxxxxxxx أو +249… بالأرقام العربية أو الإنجليزية)
   function asPhone(v) {
     var s = String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[\s\-()]/g, '').replace(/^00/, '+').replace(/^\+?249/, '0');
@@ -1786,13 +1894,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var n = netOf(state.sendNet);
     if (n.evm) {
       if (core.isValidAddress(to)) return sendError('هذا عنوان TRON. اختر شبكة TRON للإرسال إليه، أو اطلب من المستلم عنواناً على ' + n.name);
-      var ephone = asPhone(to), evia = null;
-      if (ephone) {
-        if (!P2P_URL) return sendError('الإرسال برقم الهاتف غير متاح في هذه النسخة');
+      var ephone = asPhone(to), esid = asSarraId(to), evia = null;
+      if (ephone || esid) {
+        if (!P2P_URL) return sendError('الإرسال بالمعرّف أو الرقم غير متاح في هذه النسخة');
         var eb = $('review'); eb.disabled = true;
-        try { evia = await p2p('phone.lookup', { phone: ephone }); } catch (e) { eb.disabled = false; return sendError(p2pErr(e)); }
+        try { evia = esid ? await p2p('id.lookup', { id: esid }) : await p2p('phone.lookup', { phone: ephone }); } catch (e) { eb.disabled = false; return sendError(p2pErr(e)); }
         eb.disabled = false;
-        if (!evia.evm_address) return sendError('صاحب هذا الرقم لم يفعّل الاستلام على ' + n.name + ' بعد (يحتاج تحديث التطبيق وفتحه مرة). أرسل له على شبكة TRON');
+        if (!evia.evm_address) return sendError('المستلم يستخدم نسخة قديمة من صُرّة، فلم يُسجَّل عنوانه على ' + n.name + ' بعد. أرسل له على شبكة TRON، أو اطلب منه تحديث التطبيق وفتحه');
         to = evia.evm_address;
       }
       if (!core.isEvmAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_EVM_ADDRESS')));
@@ -1803,20 +1911,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (have != null && eu > have) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_TOKEN')));
       var nat = evmUnits(state.sendNet, n.native);
       if (nat != null && nat === 0n) return sendError('تحتاج ' + n.native + ' في محفظتك على ' + n.name + ' لدفع رسوم الإرسال');
-      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet, phone: ephone || null };
+      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet, phone: ephone || (esid ? String(esid) : null) };
       $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
-      if (evia) { $('c-to').textContent = evia.name + ' · ' + evia.phone + ' · موثّق ✓'; $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
+      if (evia) { $('c-to').textContent = recipLabel(evia); $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
       else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
       $('c-net').textContent = n.name + ' (' + n.short + ')';
       $('sheet').classList.add('show');
       return;
     }
     $('c-net').textContent = 'TRON (TRC20)';
-    var phone = !core.isValidAddress(to) && asPhone(to);
+    var phone = !core.isValidAddress(to) && (asPhone(to) || (asSarraId(to) ? String(asSarraId(to)) : null));
     if (phone) {
-      if (!P2P_URL) return sendError('الإرسال برقم الهاتف غير متاح في هذه النسخة');
+      if (!P2P_URL) return sendError('الإرسال بالمعرّف أو الرقم غير متاح في هذه النسخة');
       var btn = $('review'); btn.disabled = true;
-      try { via = await p2p('phone.lookup', { phone: phone }); to = via.address; }
+      try { via = asSarraId(phone) ? await p2p('id.lookup', { id: phone }) : await p2p('phone.lookup', { phone: phone }); to = via.address; }
       catch (e) { btn.disabled = false; return sendError(p2pErr(e)); }
       btn.disabled = false;
     }
@@ -1829,7 +1937,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin, via: via, phone: phone || null };
     $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
     // بالرقم: نعرض الاسم المخفي جزئياً والرقم، ولا نعرض العنوان
-    if (via) { $('c-to').textContent = via.name + ' · ' + via.phone + ' · موثّق ✓'; $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
+    if (via) { $('c-to').textContent = recipLabel(via); $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
     else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
     $('sheet').classList.add('show');
   };
@@ -2103,6 +2211,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
     MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
+    ID_NOT_FOUND: 'لا يوجد مستخدم صُرّة بهذا المعرّف. تأكد من الأرقام الثمانية', BAD_ID: 'المعرّف 8 أرقام',
+    RATE_LIMITED_ID_LOOKUP: 'محاولات بحث كثيرة اليوم، حاول غداً',
     PHONE_NOT_FOUND: 'هذا الرقم غير مفعّل للاستلام. اطلب من صاحبه: القائمة ← حسابي وبياناتي ← "تفعيل الاستقبال برقمي"', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
     RATE_LIMITED_PHONE_LOOKUP: 'بحثت عن أرقام كثيرة اليوم. حاول غداً أو استخدم عنوان المحفظة', SELF_SEND: 'لا يمكنك الإرسال إلى نفسك',
     VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
@@ -2168,8 +2278,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!force) {
       try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < ME_TTL && c.me && c.me.profile) return c.me; } catch (e) {}
     }
-    var me = await p2p('me');
+    var evm = null; try { evm = await core.evmAddress(); } catch (e) {}
+    var me = await p2p('me', evm ? { evm: evm } : {});
     try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), me: me })); } catch (e) {}
+    checkApproval(key, me);
     return me;
   }
   async function ensureProfile() {
@@ -2500,7 +2612,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     steps.forEach(function (x, i) { x.classList.toggle('on', i === 0 || (i === 1 && s === 'pending')); });
     st.hidden = s === 'none' && !state.p2p.verifyChange;
     if (state.p2p.verifyChange) { st.className = 'note warn'; st.textContent = 'لتغيير حساب بنكك أرسل بياناتك مع الحساب الجديد (بنفس اسمك). تتوقف إعلاناتك الحالية حتى يُقبل الطلب.'; if (pf.full_name) $('ver-name').value = pf.full_name; }
-    if (s === 'pending') { st.className = 'note warn'; st.textContent = 'طلبك قيد المراجعة. سنفعّل البيع بعد التحقق من بياناتك.'; }
+    $('ver-pending').hidden = s !== 'pending'; document.querySelector('#s-p2p-verify .steps3').hidden = s === 'pending';
+    if (s === 'pending') st.hidden = true;
     if (s === 'rejected') { st.className = 'note err'; st.textContent = 'رُفض طلب التوثيق' + (pf.verify_note ? ': ' + pf.verify_note : '') + '. صحّح البيانات وأرسل مرة أخرى.'; }
     $('ver-form').hidden = s === 'pending';
     $('ver-err').hidden = true;

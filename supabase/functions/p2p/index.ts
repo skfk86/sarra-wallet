@@ -180,6 +180,11 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'me') {
+    // تسجيل عنوان 0x للمحفظة (لاستلام التحويلات بالمعرّف أو الرقم على BNB/Ethereum/Polygon)
+    if (L.isEvmAddr(p.evm) && profile.evm_address !== p.evm) {
+      await db.from('profiles').update({ evm_address: String(p.evm) }).eq('address', me);
+      profile.evm_address = String(p.evm);
+    }
     const rate = await getRate();
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
     pub.phone_masked = L.maskPhone(profile.phone);
@@ -239,6 +244,17 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (r.address === me) throw new Error('SELF_SEND');
     // العنوان يُستخدم للإرسال فقط؛ التطبيق لا يعرضه، ويعرض الاسم مخفياً جزئياً
     return { address: r.address, evm_address: r.evm_address || null, name: L.maskName(r.full_name), phone: L.maskPhone(phone), verified: true };
+  }
+
+  // التحويل بمعرّف صُرّة: يعيد عنوانَي المستلم (TRON و0x) فيُرسَل على أي شبكة يختارها المرسل
+  if (action === 'id.lookup') {
+    const sid = L.normalizeSarraId(p.id);
+    await limit(me, 'id_lookup');
+    const { data: r } = await db.from('profiles').select('address,evm_address,nickname,full_name,verify_status').eq('sarra_id', sid).eq('banned', false).maybeSingle();
+    if (!r) throw new Error('ID_NOT_FOUND');
+    if (r.address === me) throw new Error('SELF_SEND');
+    const verified = r.verify_status === 'approved';
+    return { address: r.address, evm_address: r.evm_address || null, name: verified ? L.maskName(r.full_name) : r.nickname, verified, id: sid };
   }
 
   if (action === 'balance.check') {

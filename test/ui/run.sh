@@ -22,3 +22,4 @@ run "نقل بين الشبكات (LI.FI)" tronweb-mainnet.js '{"network":"mainn
 run "Android Keystore" tronweb-mainnet.js '{"network":"mainnet"}' run_keystore.py
 run "إيصالات بنكك" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_receipt.py
 run "الدعم والخصوصية وحذف البيانات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_support.py
+run "معرّف صُرّة والتوثيق" tronweb-mainnet.js '{"network":"mainnet","evm":true,"p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_sid.py

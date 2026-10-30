@@ -158,7 +158,8 @@ export const LIMITS: Record<string, [number, number]> = {
   profile: [5, 86400],        // 5 تغييرات اسم في اليوم
   verify: [3, 86400],         // 3 طلبات توثيق في اليوم
   phone_lookup: [30, 86400],  // 30 بحثاً برقم هاتف في اليوم (يمنع تجربة آلاف الأرقام)
-  receipt: [10, 86400]        // 10 إيصالات في اليوم
+  receipt: [10, 86400],       // 10 إيصالات في اليوم
+  id_lookup: [60, 86400]      // 60 بحثاً بالمعرّف في اليوم
 };
 export const MAX_ACTIVE_OFFERS = 3;
 
@@ -268,4 +269,11 @@ export function canViewReceipts(role: string | null): boolean {
 
 export function isEvmAddr(a: unknown): boolean {
   return typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a);
+}
+
+// معرّف صُرّة: 8 أرقام لا يبدأ بصفر (رقم الهاتف يبدأ بصفر فلا تداخل). يقبل المسافات والأرقام العربية
+export function normalizeSarraId(v: unknown): number {
+  const s = String(v ?? '').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632)).replace(/[\s\-#@]/g, '');
+  if (!/^[1-9]\d{7}$/.test(s)) throw new Error('BAD_ID');
+  return Number(s);
 }

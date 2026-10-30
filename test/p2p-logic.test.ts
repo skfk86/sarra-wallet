@@ -191,4 +191,10 @@ t('إيصالات بنكك: النوع من البايتات، والحجم، و
   assert.ok(!L.canViewReceipts('buyer') && !L.canViewReceipts(null));
 });
 
+t('معرّف صُرّة: 8 أرقام، لا يتداخل مع الهاتف', () => {
+  for (const v of ['48291736', '4829 1736', '#48291736', '@4829-1736', '٤٨٢٩١٧٣٦']) assert.equal(L.normalizeSarraId(v), 48291736, v);
+  for (const v of ['0912345678', '1234567', '123456789', '04829173', 'abc', '']) assert.throws(() => L.normalizeSarraId(v), /BAD_ID/, v);
+  assert.ok(L.isEvmAddr('0x' + 'a'.repeat(40)) && !L.isEvmAddr('0x12') && !L.isEvmAddr('T' + 'a'.repeat(33)));
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
