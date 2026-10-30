@@ -12,21 +12,21 @@
     "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
-    "@capacitor-mlkit/barcode-scanning": "^6.0.0",
-    "@capacitor/android": "^6.1.0",
-    "@capacitor/app": "^6.0.0",
-    "@capacitor/clipboard": "^6.0.0",
-    "@capacitor/core": "^6.1.0",
-    "@capacitor/preferences": "^6.0.0",
-    "@capacitor/share": "^6.0.0",
-    "@capacitor/status-bar": "^6.0.0",
-    "@capgo/capacitor-native-biometric": "^6.0.0",
+    "@capacitor-mlkit/barcode-scanning": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/clipboard": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
+    "@capgo/capacitor-native-biometric": "^8.0.0",
     "jsqr": "^1.4.0",
     "qrcode-generator": "^1.4.4",
     "tronweb": "^6.0.0",
     "ethers": "6.13.4"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.1.0"
+    "@capacitor/cli": "^8.0.0"
   }
 }
