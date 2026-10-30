@@ -231,6 +231,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos{display:inline-flex;flex-direction:row-reverse}
 .net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .net-stack .logos img:last-child{margin-inline-start:0}
+.recv-lim{display:grid;grid-template-columns:1fr 1fr;gap:8px}.recv-lim>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}.recv-lim span{font-size:12px;color:var(--mu)}.recv-lim b{font-size:15px;direction:ltr;text-align:right}
 </style>
 </head>
 <body>
@@ -364,6 +365,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <button class="btn btn-ghost" id="share" style="height:48px;border-radius:14px;font-size:15px">مشاركة</button>
     </div>
   </div>
+  <div class="recv-lim" id="recv-lim"><div><span>أقل مبلغ للاستلام</span><b id="recv-min"></b></div><div><span>أقصى مبلغ للتحويلة</span><b id="recv-max"></b></div></div>
   <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
   <div class="netinfo" id="recv-sid" hidden style="justify-content:space-between">
     <div style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:12px">معرّف صُرّة · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:22px;letter-spacing:1px;color:var(--tx)"></b></div>
@@ -1738,6 +1740,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     w.textContent = evm
       ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + '). هذا العنوان يعمل على BNB Chain وEthereum وPolygon، والعملة تصل على الشبكة التي أُرسلت عليها. لا ترسل إليه من TRON.'
       : 'اطلب من المرسل اختيار شبكة TRON (TRC20). أي مبلغ من شبكة أخرى مثل BEP20 أو ERC20 يضيع.';
+    // حدود مقترحة لكل شبكة: الأدنى حتى لا تأكل رسوم المرسل المبلغ، والأعلى للأمان (جرّب بمبلغ صغير أولاً)
+    var LIM = { tron: [10, 10000], bsc: [1, 10000], polygon: [1, 10000], eth: [50, 10000] }[n.key] || [1, 10000];
+    $('recv-min').textContent = LIM[0] + ' USDT'; $('recv-max').textContent = LIM[1].toLocaleString('en') + ' USDT';
+    w.textContent += ' المبالغ الأقل من ' + LIM[0] + ' USDT قد تأكلها رسوم المرسل، وللمبالغ الكبيرة جرّب بمبلغ صغير أولاً ثم أرسل الباقي على دفعات.';
     $('recv-fee').firstChild.textContent = evm
       ? '⛽ لترسل لاحقاً من ' + n.name + ' تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.'
       : '⛽ لترسل لاحقاً تحتاج TRX لرسوم الشبكة، 15 TRX على الأقل.';
