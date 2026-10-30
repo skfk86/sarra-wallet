@@ -265,3 +265,7 @@ export function canUploadReceipt(order: Order, role: string | null): boolean {
 export function canViewReceipts(role: string | null): boolean {
   return role === 'seller' || role === 'admin';
 }
+
+export function isEvmAddr(a: unknown): boolean {
+  return typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a);
+}

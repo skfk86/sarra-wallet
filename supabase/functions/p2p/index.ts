@@ -209,6 +209,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (profile.id_doc_path) await db.storage.from('kyc').remove([profile.id_doc_path]);
     await db.from('profiles').update({
       verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null,
+      phone_link_pref: p.phone_link !== false, ...(L.isEvmAddr(p.evm) ? { evm_address: String(p.evm) } : {}),
       prev_kyc: changing ? { full_name: profile.full_name, phone: profile.phone, bankak_account: profile.bankak_account, verified_at: profile.verified_at } : null
     }).eq('address', me);
     if (changing) await db.from('offers').update({ active: false }).eq('seller', me).eq('active', true);
@@ -225,19 +226,19 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       const { data: taken } = await db.from('profiles').select('address').eq('phone', profile.phone).eq('phone_link', true).neq('address', me).limit(1).maybeSingle();
       if (taken) throw new Error('PHONE_TAKEN');
     }
-    await db.from('profiles').update({ phone_link: on }).eq('address', me);
+    await db.from('profiles').update({ phone_link: on, ...(on && L.isEvmAddr(p.evm) ? { evm_address: String(p.evm) } : {}) }).eq('address', me);
     await audit(null, me, on ? 'phone_link_on' : 'phone_link_off');
     return { ok: true, phone_link: on };
   }
   if (action === 'phone.lookup') {
     const phone = L.normalizePhone(p.phone);
     await limit(me, 'phone_lookup');
-    const { data: r } = await db.from('profiles').select('address,full_name').eq('phone', phone).eq('phone_link', true)
+    const { data: r } = await db.from('profiles').select('address,full_name,evm_address').eq('phone', phone).eq('phone_link', true)
       .eq('verify_status', 'approved').eq('banned', false).limit(1).maybeSingle();
     if (!r) throw new Error('PHONE_NOT_FOUND');
     if (r.address === me) throw new Error('SELF_SEND');
     // العنوان يُستخدم للإرسال فقط؛ التطبيق لا يعرضه، ويعرض الاسم مخفياً جزئياً
-    return { address: r.address, name: L.maskName(r.full_name), phone: L.maskPhone(phone), verified: true };
+    return { address: r.address, evm_address: r.evm_address || null, name: L.maskName(r.full_name), phone: L.maskPhone(phone), verified: true };
   }
 
   if (action === 'balance.check') {
@@ -444,7 +445,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
   if (action === 'admin.verify.decide') {
     const approve = p.approve === true;
-    const { data: r } = await db.from('profiles').select('id_doc_path,prev_kyc').eq('address', String(p.address)).eq('verify_status', 'pending').maybeSingle();
+    const { data: r } = await db.from('profiles').select('id_doc_path,prev_kyc,phone,phone_link_pref').eq('address', String(p.address)).eq('verify_status', 'pending').maybeSingle();
     if (!r) throw new Error('NOT_FOUND');
     // تُحذف صورة الهوية بعد القرار؛ لا نحتفظ بها
     if (r.id_doc_path) await db.storage.from('kyc').remove([r.id_doc_path]);
@@ -453,7 +454,12 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const patch = approve ? { verify_status: 'approved', verified_at: new Date().toISOString() }
       : r.prev_kyc ? { verify_status: 'approved', ...r.prev_kyc }
       : { verify_status: 'rejected', verified_at: null };
-    await db.from('profiles').update({ ...patch, id_doc_path: null, verify_note: note, prev_kyc: null }).eq('address', String(p.address));
+    let link: Record<string, boolean> = {};
+    if (approve && r.phone_link_pref && r.phone) {
+      const { data: taken } = await db.from('profiles').select('address').eq('phone', r.phone).eq('phone_link', true).neq('address', String(p.address)).limit(1).maybeSingle();
+      if (!taken) link = { phone_link: true };
+    }
+    await db.from('profiles').update({ ...patch, ...link, id_doc_path: null, verify_note: note, prev_kyc: null }).eq('address', String(p.address));
     await audit(null, me, approve ? 'verify_approve' : 'verify_reject', { address: p.address });
     return { ok: true };
   }

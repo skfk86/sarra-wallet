@@ -46,7 +46,7 @@ async def main():
     # إرسال برقم غير مسجل
     await pg.click('.tab[data-tab=home]'); await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(500)
     await pg.fill('#to','0911111111'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(800)
-    assert 'لا توجد محفظة مرتبطة' in await pg.inner_text('#send-err'); print('✓ رقم غير مسجّل: رسالة واضحة')
+    assert 'غير مفعّل للاستلام' in await pg.inner_text('#send-err'); print('✓ رقم غير مسجّل: رسالة واضحة')
     # إرسال برقم مسجل (بأرقام عربية ومسافات)
     await pg.fill('#to','٠٩٢ ٢٢٢ ٣٣٣٣'); await pg.click('#review'); await pg.wait_for_timeout(800)
     assert st['lookups'][-1]=='0922223333'; print('✓ يقبل الأرقام العربية والمسافات')

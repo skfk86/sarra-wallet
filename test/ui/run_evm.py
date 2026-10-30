@@ -40,6 +40,11 @@ async def main():
     await pg.route('https://api.coingecko.com/**', lambda r: r.fulfill(json={'tether':{'usd':1,'usd_24h_change':0.01},'usd-coin':{'usd':1,'usd_24h_change':-0.02},'tron':{'usd':0.25,'usd_24h_change':2.5},'binancecoin':{'usd':600,'usd_24h_change':-1.2},'ethereum':{'usd':3000,'usd_24h_change':0.8},'polygon-ecosystem-token':{'usd':0.5,'usd_24h_change':-3.1}}))
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
       await pg.route(f'https://{host}/**', rpc); await pg.route(f'https://{host}', rpc)
+    async def p2pmock(route):
+      b=json.loads(route.request.post_data); m=json.loads(b['message']) if 'message' in b else {'action':b.get('action'),'params':{}}
+      if m['action']=='phone.lookup': return await route.fulfill(json={'address':'TFr'+'i'*31,'evm_address':'0x2222222222222222222222222222222222222222','name':'أحمد م•••','phone':'092•••333','verified':True})
+      return await route.fulfill(json={'offers':[]})
+    await pg.route('https://mock.supabase.co/**', p2pmock)
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
@@ -97,6 +102,17 @@ async def main():
     # السجل
     await pg.click('#s-send [data-back]'); await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(500)
     assert 'Polygon' in await pg.inner_text('#evm-hist'); print('✓ السجل: روابط مستكشف كل شبكة')
+    # الإرسال برقم الهاتف على BNB Chain: يذهب لعنوان 0x الخاص بصاحب الرقم
+    await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(300)
+    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(800)
+    await pg.click('#send-nets [data-net=bsc]'); await pg.wait_for_timeout(300)
+    await pg.click('#coin-seg [data-coin=USDT]'); await pg.fill('#to','0922223333'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(800)
+    t=await pg.inner_text('#c-to'); assert 'أحمد م•••' in t and 'BNB Chain' in await pg.inner_text('#c-net'), t
+    n=len(E.sent) if False else len(sent)
+    await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(6000)
+    tx=await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return t.data}", sent[-1][1])
+    assert len(sent)>n and '2222222222222222222222222222222222222222' in tx.lower(), tx
+    print('✓ الإرسال برقم الهاتف على BNB Chain يذهب لعنوان 0x الخاص بصاحب الرقم')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
     assert not errs, errs
     await b.close()

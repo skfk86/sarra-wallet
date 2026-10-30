@@ -17,7 +17,7 @@ run "التوسع بتكلفة صفر" tronweb-mainnet.js '{"network":"mainnet",
 run "حذف المحفظة ثم إنشاء جديدة" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_wipe.py
 run "القائمة الجانبية" tronweb-mainnet.js '{"network":"mainnet","version":"0.1.0","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_menu.py
 run "الإرسال برقم الهاتف" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_phone.py
-run "الشبكات المتعددة (BNB Chain وEthereum وPolygon)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_evm.py
+run "الشبكات المتعددة (BNB Chain وEthereum وPolygon)" tronweb-mainnet.js '{"network":"mainnet","evm":true,"p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_evm.py
 run "نقل بين الشبكات (LI.FI)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_bridge.py
 run "Android Keystore" tronweb-mainnet.js '{"network":"mainnet"}' run_keystore.py
 run "إيصالات بنكك" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_receipt.py

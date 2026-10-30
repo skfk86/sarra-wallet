@@ -1483,7 +1483,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.p2p.me = me = await autoPhoneLink(me); var pf = me.profile;
       $('sw-phone').setAttribute('aria-checked', pf.phone_link ? 'true' : 'false');
       $('phone-sub').textContent = pf.verify_status !== 'approved' ? 'يتطلب توثيق حسابك أولاً'
-        : pf.phone_link ? 'يستطيع من يعرف رقمك ' + (pf.phone_masked || '') + ' أن يرسل لك' : 'الرقم الموثّق: ' + (pf.phone_masked || '');
+        : pf.phone_link ? 'يستطيع من يعرف رقمك ' + (pf.phone_masked || '') + ' أن يرسل لك على كل الشبكات' : 'الرقم الموثّق: ' + (pf.phone_masked || '');
     } catch (e) {}
   }
   $('sw-phone').onclick = async function () {
@@ -1496,17 +1496,23 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     if (on && !(await askConfirm('من يعرف رقمك سيستطيع أن يرسل لك USDT، وسيرى اسمك الأول والحرف الأول من اسم والدك فقط. لن يُعرض عنوان محفظتك. تفعيل؟'))) return;
     try {
-      await p2p('phone.link', { on: on });
+      await p2p('phone.link', { on: on, evm: on ? await core.evmAddress() : undefined });
       state.p2p.me = await fetchMe(true); renderMe(); syncPhoneRow();
       toast(on ? 'تم التفعيل: يمكن الإرسال إليك برقم هاتفك' : 'تم الإيقاف');
     } catch (e) { toast(p2pErr(e), true); }
   };
   // بعد قبول التوثيق: نفعّل الاستقبال بالرقم تلقائياً إن اختاره المستخدم عند التوثيق
   async function autoPhoneLink(me) {
-    var pf = me && me.profile; if (!pf || pf.verify_status !== 'approved' || pf.phone_link) return me;
+    var pf = me && me.profile; if (!pf || pf.verify_status !== 'approved') return me;
+    var evm = null; try { evm = await core.evmAddress(); } catch (e) {}
+    // مفعّل لكن بلا عنوان 0x (قبل دعم كل الشبكات): نضيفه بصمت
+    if (pf.phone_link) {
+      if (evm && !pf.evm_address) { try { await p2p('phone.link', { on: true, evm: evm }); me = await fetchMe(true); } catch (e) {} }
+      return me;
+    }
     var want; try { want = localStorage.getItem('sarra.wantPhone'); } catch (e) {}
     if (want !== '1') return me;
-    try { await p2p('phone.link', { on: true }); localStorage.removeItem('sarra.wantPhone'); me = await fetchMe(true); toast('تم تفعيل الاستقبال برقم هاتفك'); }
+    try { await p2p('phone.link', { on: true, evm: evm || undefined }); localStorage.removeItem('sarra.wantPhone'); me = await fetchMe(true); toast('تم تفعيل الاستقبال برقم هاتفك'); }
     catch (e) { if (/PHONE_TAKEN/.test(e && e.message)) try { localStorage.removeItem('sarra.wantPhone'); } catch (x) {} }
     return me;
   }
@@ -1531,7 +1537,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     go.textContent = st === 'approved' ? 'تعديل البيانات' : st === 'pending' ? 'بانتظار المراجعة' : 'وثّق حسابك';
     go.className = 'btn ' + (st === 'approved' ? 'btn-ghost' : 'btn-primary');
     var on = !!pf.phone_link;
-    $('acc-phone-on').hidden = !on; $('acc-phone-on').firstChild.textContent = 'مفعّل: من يعرف رقمك ' + (pf.phone_masked || '') + ' يستطيع أن يرسل لك USDT على شبكة TRON.';
+    $('acc-phone-on').hidden = !on; $('acc-phone-on').firstChild.textContent = 'مفعّل: من يعرف رقمك ' + (pf.phone_masked || '') + ' يستطيع أن يرسل لك على TRON وBNB Chain وEthereum وPolygon.';
     var pb = $('acc-phone-btn');
     pb.textContent = on ? 'إيقاف الاستقبال برقمي' : st === 'approved' ? 'تفعيل الاستقبال برقمي' : st === 'pending' ? 'يُفعَّل بعد قبول التوثيق' : 'وثّق حسابك أولاً';
     pb.disabled = st === 'pending' && !on;
@@ -1651,9 +1657,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     renderNetbar($('send-nets'), state.sendNet, function (k) { state.sendNet = k; $('amt').value = ''; renderCoinSeg(); prepareSend(); });
     var n = netOf(state.sendNet), b = state.balances;
     $('amt-unit').textContent = state.coin;
-    $('to').placeholder = n.evm ? 'عنوان يبدأ بـ 0x' : 'عنوان يبدأ بـ T أو رقم هاتف';
+    $('to').placeholder = n.evm ? 'عنوان يبدأ بـ 0x أو رقم هاتف' : 'عنوان يبدأ بـ T أو رقم هاتف';
     $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
-    $('to-lbl').textContent = n.evm ? 'عنوان المستلم على ' + n.name : 'المستلم: عنوان المحفظة أو رقم الهاتف';
+    $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name + ': عنوان أو رقم هاتف' : 'المستلم: عنوان المحفظة أو رقم الهاتف';
     $('send-warn').firstChild.textContent = n.evm
       ? 'الشبكة: ' + n.name + ' (' + n.short + ') · تأكد أن المستلم على نفس الشبكة'
       : 'الشبكة: TRON (TRC20) · تأكد أن المستلم على نفس الشبكة';
@@ -1780,7 +1786,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var n = netOf(state.sendNet);
     if (n.evm) {
       if (core.isValidAddress(to)) return sendError('هذا عنوان TRON. اختر شبكة TRON للإرسال إليه، أو اطلب من المستلم عنواناً على ' + n.name);
-      if (asPhone(to)) return sendError('الإرسال برقم الهاتف متاح على شبكة TRON فقط');
+      var ephone = asPhone(to), evia = null;
+      if (ephone) {
+        if (!P2P_URL) return sendError('الإرسال برقم الهاتف غير متاح في هذه النسخة');
+        var eb = $('review'); eb.disabled = true;
+        try { evia = await p2p('phone.lookup', { phone: ephone }); } catch (e) { eb.disabled = false; return sendError(p2pErr(e)); }
+        eb.disabled = false;
+        if (!evia.evm_address) return sendError('صاحب هذا الرقم لم يفعّل الاستلام على ' + n.name + ' بعد (يحتاج تحديث التطبيق وفتحه مرة). أرسل له على شبكة TRON');
+        to = evia.evm_address;
+      }
       if (!core.isEvmAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_EVM_ADDRESS')));
       var dec = evmDec(state.sendNet, state.coin), eu;
       try { eu = WalletCore.toUnits(amt, dec > 6 ? 6 : dec); } catch (e) { return sendError(WalletCore.errorText(e)); }
@@ -1789,9 +1803,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (have != null && eu > have) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_TOKEN')));
       var nat = evmUnits(state.sendNet, n.native);
       if (nat != null && nat === 0n) return sendError('تحتاج ' + n.native + ' في محفظتك على ' + n.name + ' لدفع رسوم الإرسال');
-      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet };
+      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet, phone: ephone || null };
       $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
-      $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = '';
+      if (evia) { $('c-to').textContent = evia.name + ' · ' + evia.phone + ' · موثّق ✓'; $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
+      else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
       $('c-net').textContent = n.name + ' (' + n.short + ')';
       $('sheet').classList.add('show');
       return;
@@ -2088,7 +2103,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
     MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
-    PHONE_NOT_FOUND: 'لا توجد محفظة مرتبطة بهذا الرقم. اطلب من صاحبه تفعيل "استقبال التحويلات برقم هاتفك" من صفحة الأمان', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
+    PHONE_NOT_FOUND: 'هذا الرقم غير مفعّل للاستلام. اطلب من صاحبه: القائمة ← حسابي وبياناتي ← "تفعيل الاستقبال برقمي"', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
     RATE_LIMITED_PHONE_LOOKUP: 'بحثت عن أرقام كثيرة اليوم. حاول غداً أو استخدم عنوان المحفظة', SELF_SEND: 'لا يمكنك الإرسال إلى نفسك',
     VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
     BAD_FULL_NAME: 'اكتب اسمك كاملاً كما في الهوية', BAD_PHONE: 'رقم الهاتف غير صحيح (مثل 0912345678)', BAD_ID_IMAGE: 'صورة الهوية غير واضحة أو كبيرة جداً. التقط صورة أخرى',
@@ -2526,7 +2541,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       await p2p('verify.submit', {
         full_name: $('ver-name').value, phone: asPhone($('ver-phone').value) || $('ver-phone').value, bankak_account: $('ver-acct').value,
-        image_sha256: await sha256Hex(state.p2p.idImg), change: !!state.p2p.verifyChange
+        image_sha256: await sha256Hex(state.p2p.idImg), change: !!state.p2p.verifyChange,
+        phone_link: $('ver-phone-link').checked, evm: (await core.evmAddress().catch(function () { return null; })) || undefined
       }, false, state.p2p.idImg);
       try { localStorage.setItem('sarra.wantPhone', $('ver-phone-link').checked ? '1' : '0'); } catch (e) {}
       state.p2p.idImg = null; state.p2p.verifyChange = false;
