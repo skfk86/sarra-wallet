@@ -642,6 +642,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen" id="s-p2p-admin" aria-label="لوحة الأدمن">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">لوحة الأدمن</h1></div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px" id="adm-stats"></div>
+  <button class="btn btn-ghost" id="adm-tickets">تذاكر الدعم</button>
+  <div id="adm-tickets-list" style="display:flex;flex-direction:column;gap:10px"></div>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
     <h2 style="font-size:16px">سعر الصرف المرجعي</h2>
     <label class="lbl" for="adm-rate">جنيه سوداني لكل USDT</label>
@@ -735,6 +737,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <nav class="list" style="border:0;background:none;box-shadow:none">
     <button type="button" class="li" data-menu="account"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">حسابي وبياناتي<small>التوثيق، رقم الهاتف، حساب بنكك</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="support"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="t">الدعم الفني<small>اكتب لنا ونرد عليك داخل التطبيق</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="privacy"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="t">الخصوصية وحذف البيانات<small>ما نجمعه وكيف تحذفه</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="about"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><span class="t">عن التطبيق<small>كيف يعمل، الرسوم، الأمان</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="apps"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">تطبيقاتنا الأخرى<small>تطبيقات سودانية من نفس المطوّر</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="security"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span><span class="t">الأمان والمظهر<small>البصمة، النسخ الاحتياطي، الوضع الليلي</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -761,6 +765,46 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="note ok" id="acc-phone-on" hidden><span></span></div>
     <button class="btn btn-ghost" id="acc-phone-btn">تفعيل</button>
   </div>
+</section>
+
+<!-- ===== الدعم الفني ===== -->
+<section class="screen" id="s-support" aria-label="الدعم الفني">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">الدعم الفني</h1></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <b>قبل أن تكتب لنا</b>
+    <ul class="muted" style="font-size:13px;line-height:1.9;margin:0;padding-inline-start:18px">
+      <li>لن نطلب منك كلمات الاسترجاع أو رمز القفل أبداً. من يطلبها محتال.</li>
+      <li>المعاملة على الشبكة لا يمكن إلغاؤها بعد إرسالها، حتى من فريقنا.</li>
+      <li>في صفقة P2P: افتح نزاعاً من صفحة الصفقة نفسها، فهو أسرع من التذكرة.</li>
+    </ul>
+  </div>
+  <label class="lbl" for="sup-topic">الموضوع</label>
+  <select id="sup-topic" class="field" style="height:52px;padding:0 12px;color:var(--tx)">
+    <option value="send">الإرسال والاستلام</option><option value="p2p">سوق P2P</option><option value="swap">التبديل</option>
+    <option value="bridge">النقل بين الشبكات</option><option value="account">الحساب والتوثيق</option><option value="other">أخرى</option>
+  </select>
+  <label class="lbl" for="sup-body">اكتب مشكلتك</label>
+  <div class="field"><textarea id="sup-body" rows="4" maxlength="2000" placeholder="مثلاً: أرسلت 10 USDT ولم تصل… (أضف رابط المعاملة إن وُجد)"></textarea></div>
+  <p class="err" id="sup-err" hidden></p>
+  <button class="btn btn-primary" id="sup-send">إرسال للدعم</button>
+  <h2 style="font-size:16px;margin-top:8px">تذاكري</h2>
+  <div id="sup-list" style="display:flex;flex-direction:column;gap:10px"></div>
+</section>
+
+<!-- ===== الخصوصية ===== -->
+<section class="screen" id="s-privacy" aria-label="الخصوصية">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">الخصوصية وحذف البيانات</h1></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.9">
+    <b>لا نجمع شيئاً لاستخدام المحفظة</b>
+    <p class="muted" style="margin:0">كلمات الاسترجاع ومفاتيحك تبقى مشفّرة على هاتفك فقط، ولا تصل إلينا أبداً. الأرصدة والمعاملات تُقرأ مباشرة من الشبكات العامة.</p>
+    <b>عند استخدام سوق P2P أو الإرسال برقم الهاتف فقط</b>
+    <p class="muted" style="margin:0">نحفظ: اسمك، رقم هاتفك، حساب بنكك، وعنوان محفظتك العام. صورة الهوية تُحذف بعد مراجعة التوثيق. إيصالات بنكك في الصفقات يراها البائع والمشرف فقط. سجل الصفقات المالية يُحفظ لحل النزاعات.</p>
+    <b>خدمات خارجية</b>
+    <p class="muted" style="margin:0">OxaPay (ضمان صفقات P2P)، LI.FI (النقل بين الشبكات)، CoinGecko (الأسعار)، TronGrid وخوادم الشبكات العامة. لا إعلانات ولا تتبع.</p>
+    <b>حذف بياناتك</b>
+    <p class="muted" style="margin:0">زر الحذف أدناه يمسح اسمك ورقمك وحساب بنكك وتذاكرك من خوادمنا فوراً. يبقى سجل الصفقات مرتبطاً بعنوان المحفظة فقط. لحذف المحفظة من هاتفك: الأمان ← حذف المحفظة.</p>
+  </div>
+  <button class="btn btn-ghost" id="del-data" style="color:var(--err)">حذف بياناتي من خوادم صُرّة</button>
 </section>
 
 <!-- ===== عن التطبيق ===== -->
@@ -1971,6 +2015,61 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     } catch (e) { tr.hidden = true; brErr(WalletCore.errorText(e)); }
     finally { state.txBusy = false; }
   }
+
+  // ===== الدعم الفني وحذف البيانات =====
+  function supportUrl() { return CFG.supportUrl || (P2P_URL ? P2P_URL.replace(/\/p2p$/, '/support') : ''); }
+  var SUP_TOPIC = { send: 'الإرسال والاستلام', p2p: 'سوق P2P', swap: 'التبديل', bridge: 'النقل بين الشبكات', account: 'الحساب والتوثيق', other: 'أخرى' };
+  async function support(action, params) {
+    var url = supportUrl(); if (!url) throw new Error('NETWORK');
+    var body = await core.signRequest(action, params || {}), res;
+    try { res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+    catch (e) { throw new Error('NETWORK'); }
+    var j = await res.json().catch(function () { return {}; });
+    if (!res.ok || j.error) throw new Error(j.error || 'SERVER');
+    return j;
+  }
+  function ticketCard(t, admin) {
+    var c = el('div'); c.className = 'card'; c.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:14px';
+    c.appendChild(el('span', 'font-size:12px;color:var(--mu)', (SUP_TOPIC[t.topic] || '') + ' · ' + new Date(t.created_at).toLocaleDateString('ar-EG') + ' · ' + (t.status === 'open' ? 'بانتظار الرد' : 'تم الرد')));
+    if (admin) c.appendChild(el('span', 'font-size:11px;color:var(--mu);direction:ltr;text-align:right;word-break:break-all', t.address));
+    c.appendChild(el('div', 'font-size:14px;line-height:1.8;white-space:pre-wrap', t.body));
+    if (t.reply) c.appendChild(el('div', 'font-size:14px;line-height:1.8;white-space:pre-wrap;background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:12px;padding:10px', '💬 الدعم: ' + t.reply));
+    return c;
+  }
+  function openSupport() { show('support'); $('sup-err').hidden = true; loadTickets(); }
+  async function loadTickets() {
+    var box = $('sup-list'); box.textContent = 'جارٍ التحميل…';
+    try { var l = (await support('ticket.mine')).tickets; box.textContent = ''; if (!l.length) box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لا توجد تذاكر بعد')); l.forEach(function (t) { box.appendChild(ticketCard(t)); }); }
+    catch (e) { box.textContent = p2pErr(e); }
+  }
+  $('sup-send').onclick = async function () {
+    var b = $('sup-body').value.trim(), btn = this; $('sup-err').hidden = true;
+    if (b.length < 5) { $('sup-err').textContent = 'اكتب تفاصيل المشكلة'; $('sup-err').hidden = false; return; }
+    if (/\b([a-z]{3,8}\s+){11,}[a-z]{3,8}\b/i.test(b)) { $('sup-err').textContent = 'يبدو أنك كتبت كلمات الاسترجاع. احذفها فوراً: لا تشاركها مع أحد، حتى الدعم.'; $('sup-err').hidden = false; return; }
+    btn.disabled = true;
+    try { await support('ticket.create', { topic: $('sup-topic').value, body: b }); $('sup-body').value = ''; toast('وصلت رسالتك، وسنرد عليك هنا'); loadTickets(); }
+    catch (e) { $('sup-err').textContent = e.message === 'RATE_LIMITED' ? 'أرسلت تذاكر كثيرة اليوم. انتظر الرد' : p2pErr(e); $('sup-err').hidden = false; }
+    btn.disabled = false;
+  };
+  $('del-data').onclick = async function () {
+    if (!(await askConfirm('سيُمسح اسمك ورقم هاتفك وحساب بنكك وتوثيقك وتذاكرك من خوادمنا، وتتوقف إعلاناتك. محفظتك وأموالك لا تتأثر. متابعة؟'))) return;
+    authorize('تأكيد حذف البيانات', async function () {
+      try { await support('account.delete'); try { localStorage.removeItem('sarra.me.' + (await core.getAddress())); localStorage.removeItem('sarra.wantPhone'); } catch (x) {} state.p2p.me = null; toast('تم حذف بياناتك من الخوادم'); }
+      catch (e) { toast(e.message === 'OPEN_ORDERS' ? 'لديك صفقة مفتوحة. أنهِها أولاً ثم احذف بياناتك' : p2pErr(e), true); }
+    });
+  };
+  $('adm-tickets').onclick = async function () {
+    var box = $('adm-tickets-list'); box.textContent = 'جارٍ التحميل…';
+    try {
+      var l = (await support('admin.tickets')).tickets; box.textContent = '';
+      if (!l.length) box.textContent = 'لا توجد تذاكر مفتوحة';
+      l.forEach(function (t) {
+        var c = ticketCard(t, true), r = el('button', null, t.reply ? 'تعديل الرد' : 'رد'); r.type = 'button'; r.className = 'btn btn-ghost'; r.style.height = '40px';
+        r.onclick = async function () { var txt = await askConfirm('ردك على التذكرة:', true); if (!txt) return; try { await support('admin.reply', { id: t.id, reply: txt }); toast('أُرسل الرد'); $('adm-tickets').onclick(); } catch (e) { toast(p2pErr(e), true); } };
+        c.appendChild(r); box.appendChild(c);
+      });
+    } catch (e) { box.textContent = p2pErr(e); }
+  };
   // ===== سوق P2P =====
   // كل طلب يُوقَّع بمفتاح المحفظة على الجهاز؛ الخادم يتحقق من التوقيع ولا يرى المفتاح أبداً
   var P2P_URL = CFG.p2pUrl || '';
@@ -2793,6 +2892,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
       if (m === 'account') openAccount();
+      if (m === 'support') openSupport();
+      if (m === 'privacy') show('privacy');
     };
   });
   // تطبيقات المطوّر: الرابط إلى Google Play (اسم الحزمة إن عُرف، وإلا بحث باسم التطبيق)

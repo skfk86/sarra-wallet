@@ -1,0 +1,77 @@
+name: Release (signed AAB + APK)
+
+# يدوي فقط: لا نشر تلقائي. يبني نسخة الإصدار ويوقّعها بمفتاحك من GitHub Secrets.
+# الأسرار المطلوبة: ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - name: Check signing secrets
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KS" ]; then echo "::error::ANDROID_KEYSTORE_B64 غير موجود. راجع docs/RELEASE.md"; exit 1; fi
+
+      - run: npm install
+      - run: npm test
+      - name: UI tests
+        run: |
+          pip install --quiet playwright pillow
+          python3 -m playwright install --with-deps chromium
+          bash test/ui/run.sh
+      - run: npm run vendor
+      - name: Write build config (mainnet)
+        env:
+          TRONGRID_API_KEY: ${{ secrets.TRONGRID_API_KEY }}
+          SARRA_NETWORK: mainnet
+          SARRA_FEE_ADDRESS: ${{ vars.SARRA_FEE_ADDRESS || secrets.SARRA_FEE_ADDRESS }}
+          SARRA_FEE_BPS: ${{ vars.SARRA_FEE_BPS || '50' }}
+        run: npm run config
+      - run: npx cap add android
+      - run: npm run patch:android
+      - run: python3 scripts/make-splash.py
+      - run: npx cap sync android
+
+      - name: Version from package.json
+        run: |
+          V=$(node -p "require('./package.json').version")
+          CODE=$(( $(date +%s) / 60 ))
+          sed -i "s/versionCode [0-9]*/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
+          echo "Version $V ($CODE)"
+
+      - name: Build release (unsigned)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease
+
+      - name: Sign
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KS" | base64 -d > release.jks
+          mkdir -p out
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.jks -storepass "$KS_PASS" -keypass "$KEY_PASS" \
+            -signedjar out/sarra-release.aab android/app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/zipalign -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk out/aligned.apk
+          $BT/apksigner sign --ks release.jks --ks-pass "pass:$KS_PASS" --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASS" --out out/sarra-release.apk out/aligned.apk
+          $BT/apksigner verify --print-certs out/sarra-release.apk | head -3
+          rm -f release.jks out/aligned.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sarra-release
+          path: out/

@@ -1,0 +1,39 @@
+name: Database backup (encrypted)
+
+# نسخة احتياطية أسبوعية مشفّرة لقاعدة بيانات Supabase (مجانية، تُحفظ 30 يوماً في GitHub)
+# الأسرار: SUPABASE_DB_URL (من Supabase ← Connect ← Session pooler)، BACKUP_PASSPHRASE (كلمة سر طويلة تحفظها عندك)
+on:
+  schedule:
+    - cron: '17 1 * * 5'   # كل جمعة 01:17 UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PP: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$PP" ]; then echo "::warning::أضف SUPABASE_DB_URL و BACKUP_PASSPHRASE لتفعيل النسخ الاحتياطي"; exit 1; fi
+      - name: Install pg_dump 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+      - name: Dump and encrypt
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          PP: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          F=sarra-$(date +%Y%m%d).sql.gz.gpg
+          /usr/lib/postgresql/17/bin/pg_dump "$DB" --schema=public --no-owner --no-privileges | gzip -9 \
+            | gpg --batch --yes --pinentry-mode loopback --passphrase "$PP" --symmetric --cipher-algo AES256 -o "$F"
+          ls -lh "$F"; echo "F=$F" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: ${{ env.F }}
+          retention-days: 30
