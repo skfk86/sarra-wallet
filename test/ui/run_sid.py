@@ -47,6 +47,7 @@ async def main():
     assert await pg.locator('#celebrate.show').count()==0 and not await pg.locator('#acc-pending').is_visible(); print('✓ الاحتفال يظهر مرة واحدة فقط'); await pg.click('#s-account [data-back]')
     # الإرسال بالمعرّف على TRON
     await pg.click('.tab[data-tab=home]'); await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(600)
+    await pg.click('#send-nets [data-net=tron]'); await pg.wait_for_timeout(300)
     await pg.fill('#to','1111 2222'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(800)
     assert 'لا يوجد مستخدم' in await pg.inner_text('#send-err'); print('✓ معرّف غير موجود: رسالة واضحة')
     await pg.fill('#to','7351 9024'); await pg.click('#review'); await pg.wait_for_timeout(800)

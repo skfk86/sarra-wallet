@@ -1062,7 +1062,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var $ = function (id) { return document.getElementById(id); };
 
   var state = { mnemonic: null, pinMode: 'create', firstPin: '', pin: '', pinCb: null, balances: null, hidden: false, lastTx: null, stack: [], coin: 'USDT', filter: 'all', historyCache: null };
-  state.evmBal = null; state.recvNet = 'tron'; state.sendNet = 'tron';
+  // الشبكة الافتراضية: BNB Chain (رسوم سنتات) إن كانت مفعّلة، وإلا TRON
+  var MAIN_NET = EVM.bsc ? 'bsc' : 'tron';
+  state.evmBal = null; state.recvNet = MAIN_NET; state.sendNet = MAIN_NET;
   var TAB_SCREENS = ['home', 'history', 'p2p', 'security'];
 
   // تفضيل إخفاء الأرصدة (غير حساس)
@@ -1655,7 +1657,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function syncRecvPhone() {
     syncRecvSid();
     var b = $('recv-phone'); b.hidden = true;
-    if (!P2P_URL || state.recvNet !== 'tron') return;
+    if (!P2P_URL) return;
     try {
       var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
       state.p2p.me = me = await autoPhoneLink(me); var pf = me.profile;

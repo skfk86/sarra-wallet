@@ -66,6 +66,7 @@ async def main():
     await pg.click('#s-send [data-back]'); await pg.wait_for_timeout(300)
     # استلام
     await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(400)
+    await pg.click('#recv-nets [data-net=tron]'); await pg.wait_for_timeout(300)
     tron_addr=await pg.inner_text('#addr')
     await pg.click('#recv-nets [data-net=bsc]'); await pg.wait_for_timeout(300)
     a=await pg.inner_text('#addr'); w=await pg.inner_text('#recv-warn')
