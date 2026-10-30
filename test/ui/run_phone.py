@@ -54,6 +54,21 @@ async def main():
     assert 'أحمد م•••' in t and '092•••333' in t and FRIEND not in t, t; print('✓ التأكيد يعرض الاسم مخفياً جزئياً، ولا يعرض العنوان')
     await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(5000)
     log=await pg.evaluate('window.__log'); assert ['USDT',FRIEND,'1000000'] in log, log; print('✓ الإرسال يذهب إلى محفظة صاحب الرقم مباشرة على الشبكة')
+    # آخر المستلمين: الرقم يُحفظ ويظهر زراً سريعاً
+    await pg.click('[data-go=home]') if await pg.locator('#s-success [data-go=home]').is_visible() else None
+    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(500)
+    assert '0922223333' in await pg.inner_text('#recent'); print('✓ "آخر المستلمين" يحفظ الرقم لإعادة الإرسال بضغطة')
+    await pg.click('#s-send [data-back]')
+    # الاستلام: اختصار واضح لحالة الرقم
+    await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(1000)
+    assert '091•••678' in await pg.inner_text('#recv-phone'); print('✓ صفحة الاستلام تعرض "يمكن الإرسال إليك برقمك"')
+    # حسابي: يفتح من الاستلام ومن القائمة، والتفعيل التلقائي بعد التوثيق
+    st['link']=False; await pg.evaluate("localStorage.setItem('sarra.wantPhone','1')")
+    await pg.click('#recv-phone'); await pg.wait_for_timeout(1500)
+    assert await pg.locator('#s-account').is_visible() and 'موثّق' in await pg.inner_text('#acc-badge')
+    assert st['link']==True and 'إيقاف' in await pg.inner_text('#acc-phone-btn'); print('✓ "حسابي": اختار المستخدم الاستقبال برقمه عند التوثيق، فتفعّل تلقائياً بعد القبول')
+    assert await pg.inner_text('#acc-go')=='تعديل البيانات'; await pg.click('#acc-go'); await pg.wait_for_timeout(400)
+    assert await pg.locator('#s-p2p-verify').is_visible(); print('✓ زر "تعديل البيانات" واضح في صفحة حسابي')
     assert not errs, errs
     await b.close()
 asyncio.run(main())

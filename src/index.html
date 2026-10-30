@@ -126,7 +126,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .switch[aria-checked="true"]{background:var(--ac);justify-content:flex-start}
 .switch[aria-checked="true"] span{background:var(--on-ac)}
 .soon{flex-grow:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 12px}
-.soon .badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ac)}
+.soon .badge,#acc-badge{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ac)}
 .tag-bk{font-size:11px;padding:2px 8px;border-radius:6px;background:var(--tag-bg);color:var(--tag);font-weight:600;white-space:nowrap}
 .vbadge{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--ok-bg);color:var(--ac);font-weight:600;white-space:nowrap}
 .steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
@@ -334,6 +334,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </div>
   </div>
   <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
+  <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   <div class="netinfo" role="note" id="recv-fee"><span></span></div>
 </section>
 
@@ -614,7 +615,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== P2P: التوثيق ===== -->
 <section class="screen" id="s-p2p-verify" aria-label="توثيق الحساب">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">توثيق حساب البائع</h1></div>
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">توثيق الحساب</h1></div>
   <div class="steps3" aria-hidden="true"><span class="on">1 البيانات</span><span>2 المراجعة</span><span>3 البيع</span></div>
   <div class="note" id="ver-state" hidden></div>
   <div id="ver-form" style="display:flex;flex-direction:column;gap:14px">
@@ -631,6 +632,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <img id="ver-prev" alt="" hidden style="max-width:100%;max-height:180px;border-radius:12px">
     </label>
     <input type="file" id="ver-file" accept="image/*" capture="environment" hidden>
+    <label class="row" style="gap:10px;font-size:14px;line-height:1.7;cursor:pointer"><input type="checkbox" id="ver-phone-link" checked style="width:20px;height:20px;accent-color:var(--ac);flex-shrink:0">اسمح للآخرين بالإرسال لي برقم هاتفي</label>
     <div class="note err" id="ver-err" hidden></div>
     <button class="btn btn-primary" id="ver-go">إرسال للمراجعة</button>
   </div>
@@ -724,6 +726,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div style="display:flex;flex-direction:column;min-width:0"><b style="font-size:18px">صُرّة</b><span class="muted" style="font-size:12px">محفظة الدولار الرقمي · <span id="drawer-ver"></span></span></div>
   </div>
   <nav class="list" style="border:0;background:none;box-shadow:none">
+    <button type="button" class="li" data-menu="account"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">حسابي وبياناتي<small>التوثيق، رقم الهاتف، حساب بنكك</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="about"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><span class="t">عن التطبيق<small>كيف يعمل، الرسوم، الأمان</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="apps"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">تطبيقاتنا الأخرى<small>تطبيقات سودانية من نفس المطوّر</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="security"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span><span class="t">الأمان والمظهر<small>البصمة، النسخ الاحتياطي، الوضع الليلي</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -731,6 +734,26 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="grow"></div>
   <p class="muted" style="font-size:12px;text-align:center;line-height:1.8">صُنع في السودان 🇸🇩<br>بدون إعلانات · مفاتيحك عندك</p>
 </aside>
+
+<!-- ===== حسابي ===== -->
+<section class="screen" id="s-account" aria-label="حسابي">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">حسابي وبياناتي</h1></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px">
+    <div class="row between"><b style="font-size:16px">حالة التوثيق</b><span class="badge" id="acc-badge">—</span></div>
+    <p class="muted" style="font-size:13px;line-height:1.8;margin:0" id="acc-hint"></p>
+    <dl class="kv" id="acc-data" hidden>
+      <div><dt>الاسم</dt><dd id="acc-name">—</dd></div>
+      <div><dt>رقم الهاتف</dt><dd class="ltr" id="acc-phone">—</dd></div>
+      <div><dt>حساب بنكك</dt><dd class="ltr" id="acc-bank">—</dd></div>
+    </dl>
+    <button class="btn btn-primary" id="acc-go">وثّق حسابك</button>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:12px" id="acc-phone-card">
+    <div class="row" style="gap:12px"><span style="font-size:28px">📱</span><div><b style="font-size:16px">استقبل برقم هاتفك</b><div class="muted" style="font-size:13px;line-height:1.7">بدل العنوان الطويل، يكفي أن يكتب المرسل رقمك.</div></div></div>
+    <div class="note ok" id="acc-phone-on" hidden><span></span></div>
+    <button class="btn btn-ghost" id="acc-phone-btn">تفعيل</button>
+  </div>
+</section>
 
 <!-- ===== عن التطبيق ===== -->
 <section class="screen" id="s-about" aria-label="عن التطبيق">
@@ -1405,7 +1428,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
       // الحالة المحفوظة "غير موثّق" قد تكون قديمة (قبِل المشرف التوثيق بعدها): نتحقق من الخادم
       if (me.profile.verify_status !== 'approved') me = await fetchMe(true);
-      state.p2p.me = me; var pf = me.profile;
+      state.p2p.me = me = await autoPhoneLink(me); var pf = me.profile;
       $('sw-phone').setAttribute('aria-checked', pf.phone_link ? 'true' : 'false');
       $('phone-sub').textContent = pf.verify_status !== 'approved' ? 'يتطلب توثيق حسابك أولاً'
         : pf.phone_link ? 'يستطيع من يعرف رقمك ' + (pf.phone_masked || '') + ' أن يرسل لك' : 'الرقم الموثّق: ' + (pf.phone_masked || '');
@@ -1426,6 +1449,59 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       toast(on ? 'تم التفعيل: يمكن الإرسال إليك برقم هاتفك' : 'تم الإيقاف');
     } catch (e) { toast(p2pErr(e), true); }
   };
+  // بعد قبول التوثيق: نفعّل الاستقبال بالرقم تلقائياً إن اختاره المستخدم عند التوثيق
+  async function autoPhoneLink(me) {
+    var pf = me && me.profile; if (!pf || pf.verify_status !== 'approved' || pf.phone_link) return me;
+    var want; try { want = localStorage.getItem('sarra.wantPhone'); } catch (e) {}
+    if (want !== '1') return me;
+    try { await p2p('phone.link', { on: true }); localStorage.removeItem('sarra.wantPhone'); me = await fetchMe(true); toast('تم تفعيل الاستقبال برقم هاتفك'); }
+    catch (e) { if (/PHONE_TAKEN/.test(e && e.message)) try { localStorage.removeItem('sarra.wantPhone'); } catch (x) {} }
+    return me;
+  }
+  var ACC_ST = { none: ['غير موثّق', 'وثّق حسابك مرة واحدة لتفتح: الاستقبال برقم هاتفك، ونشر إعلانات البيع في السوق.'],
+    pending: ['قيد المراجعة', 'أرسلت بياناتك، وسيراجعها المشرف قريباً. ستصلك الميزات فور القبول.'],
+    rejected: ['مرفوض', 'رُفض الطلب. صحّح بياناتك وأرسلها مرة أخرى.'],
+    approved: ['موثّق ✓', 'حسابك موثّق. يمكنك تعديل رقمك أو حساب بنكك في أي وقت، ويُراجع التعديل قبل اعتماده.'] };
+  async function openAccount() {
+    show('account');
+    $('acc-hint').textContent = 'جارٍ التحميل…'; $('acc-go').disabled = true;
+    if (!(await ensureProfile())) { $('acc-hint').textContent = 'تعذّر الاتصال. حاول لاحقاً.'; return; }
+    try { var me = await fetchMe(true); me = await autoPhoneLink(me); state.p2p.me = me; } catch (e) {}
+    renderAccount();
+  }
+  function renderAccount() {
+    var pf = state.p2p.me.profile, st = pf.verify_status || 'none', t = ACC_ST[st] || ACC_ST.none;
+    $('acc-badge').textContent = t[0]; $('acc-hint').textContent = t[1] + (st === 'rejected' && pf.verify_note ? ' السبب: ' + pf.verify_note : '');
+    $('acc-badge').style.color = st === 'approved' ? 'var(--ac)' : st === 'rejected' ? 'var(--err)' : 'var(--warn)';
+    $('acc-data').hidden = st !== 'approved' && st !== 'pending';
+    $('acc-name').textContent = pf.full_name || '—'; $('acc-phone').textContent = pf.phone_masked || '—'; $('acc-bank').textContent = pf.bankak_account || '—';
+    var go = $('acc-go'); go.disabled = st === 'pending';
+    go.textContent = st === 'approved' ? 'تعديل البيانات' : st === 'pending' ? 'بانتظار المراجعة' : 'وثّق حسابك';
+    go.className = 'btn ' + (st === 'approved' ? 'btn-ghost' : 'btn-primary');
+    var on = !!pf.phone_link;
+    $('acc-phone-on').hidden = !on; $('acc-phone-on').firstChild.textContent = 'مفعّل: من يعرف رقمك ' + (pf.phone_masked || '') + ' يستطيع أن يرسل لك USDT على شبكة TRON.';
+    var pb = $('acc-phone-btn');
+    pb.textContent = on ? 'إيقاف الاستقبال برقمي' : st === 'approved' ? 'تفعيل الاستقبال برقمي' : st === 'pending' ? 'يُفعَّل بعد قبول التوثيق' : 'وثّق حسابك أولاً';
+    pb.disabled = st === 'pending' && !on;
+    pb.className = 'btn ' + (on ? 'btn-ghost' : 'btn-primary');
+  }
+  $('acc-go').onclick = function () { var st = state.p2p.me.profile.verify_status; openVerify(false, st === 'approved'); };
+  $('acc-phone-btn').onclick = async function () {
+    var pf = state.p2p.me.profile;
+    if (!pf.phone_link && pf.verify_status !== 'approved') { try { localStorage.setItem('sarra.wantPhone', '1'); } catch (e) {} return openVerify(); }
+    await $('sw-phone').onclick(); renderAccount();
+  };
+  async function syncRecvPhone() {
+    var b = $('recv-phone'); b.hidden = true;
+    if (!P2P_URL || state.recvNet !== 'tron') return;
+    try {
+      var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
+      state.p2p.me = me = await autoPhoneLink(me); var pf = me.profile;
+      $('recv-phone-t').textContent = pf.phone_link ? 'يمكن الإرسال إليك برقمك ' + (pf.phone_masked || '') : 'استقبل برقم هاتفك بدل هذا العنوان الطويل';
+      b.hidden = false;
+    } catch (e) {}
+  }
+  $('recv-phone').onclick = openAccount;
   $('sw-bio').onclick = function () {
     if (bioEnabled()) { bioDisable().then(function () { prepareSecurity(); toast('تم إيقاف البصمة'); }); return; }
     openPin('verify', async function (pin) {
@@ -1483,6 +1559,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('qr-logo').src = netLogo(n.key);
     var rc = $('recv-coins'); rc.textContent = 'يستقبل:';
     n.coins.forEach(function (c) { var im = document.createElement('img'); im.src = symLogo(c); im.alt = c; im.title = c; rc.appendChild(im); });
+    syncRecvPhone();
     var qr = qrcode(0, 'Q'); qr.addData(a); qr.make();
     var img = document.createElement('img');
     img.src = qr.createDataURL(8, 0); img.alt = '';
@@ -2339,9 +2416,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     btn.disabled = true;
     try {
       await p2p('verify.submit', {
-        full_name: $('ver-name').value, phone: $('ver-phone').value, bankak_account: $('ver-acct').value,
+        full_name: $('ver-name').value, phone: asPhone($('ver-phone').value) || $('ver-phone').value, bankak_account: $('ver-acct').value,
         image_sha256: await sha256Hex(state.p2p.idImg), change: !!state.p2p.verifyChange
       }, false, state.p2p.idImg);
+      try { localStorage.setItem('sarra.wantPhone', $('ver-phone-link').checked ? '1' : '0'); } catch (e) {}
       state.p2p.idImg = null; state.p2p.verifyChange = false;
       state.p2p.me = await fetchMe(true); renderMe();
       toast('أُرسل طلب التوثيق');
@@ -2671,6 +2749,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (m === 'security') return resetTo('security');
       if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
+      if (m === 'account') openAccount();
     };
   });
   // تطبيقات المطوّر: الرابط إلى Google Play (اسم الحزمة إن عُرف، وإلا بحث باسم التطبيق)
