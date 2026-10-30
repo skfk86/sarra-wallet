@@ -360,6 +360,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="netbar" id="recv-nets" role="tablist" aria-label="الشبكة"></div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:22px;border-radius:24px">
     <div class="recv-coins" id="recv-coins"></div>
+    <button type="button" class="linkbtn" id="recv-coins-help" style="align-self:center">ما العملات والشبكات المدعومة؟</button>
     <div class="qrwrap"><div class="qr" id="qr" role="img" aria-label="رمز QR لعنوان المحفظة"></div><img class="qlogo" id="qr-logo" alt=""></div>
     <span class="muted" id="recv-label">عنوان محفظتك على شبكة TRON</span>
     <span class="ltr mono" id="addr" style="font-size:14px;text-align:center;word-break:break-all;line-height:1.6"></span>
@@ -801,6 +802,18 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div id="rcpt-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>
 </div>
+<div class="sheet-bg" id="coins-sheet" role="dialog" aria-modal="true" aria-labelledby="coins-t">
+  <div class="sheet" style="gap:12px;max-height:88vh;overflow:auto">
+    <b id="coins-t" style="font-size:18px">العملات والشبكات المدعومة</b>
+    <p class="muted" style="font-size:13px;margin:0;line-height:1.8">تستقبل وترسل صُرّة نفس العملات على كل شبكة:</p>
+    <div class="list" id="coins-list"></div>
+    <div class="note warn" style="font-size:13px;line-height:1.9;flex-direction:column;align-items:flex-start"><span><b>⚠️ الشبكة يجب أن تتطابق عند الطرفين.</b> من بينانس مثلاً اسحب USDT على <b>BSC (BEP20)</b> إلى عنوانك الذي يبدأ بـ 0x.</span></div>
+    <div class="note ok" style="font-size:13px;line-height:1.9"><span>عنوانك <b>0x</b> واحد لـ BNB Chain وPolygon وEthereum، وعنوان <b>T</b> مختلف لـ TRON.</span></div>
+    <div class="note warn" style="font-size:13px;line-height:1.9"><span>عملة غير موجودة في القائمة (مثل DAI على BNB Chain) لا تضيع، لكنها لا تظهر في التطبيق. تصل إليها باستيراد كلماتك في محفظة أخرى.</span></div>
+    <div class="note err" style="font-size:13px;line-height:1.9"><span><b>لا ترسل من شبكات غير مدعومة</b> مثل Bitcoin أو Solana أو TON: المبلغ يضيع لأن صُرّة لا تملك عنواناً عليها.</span></div>
+    <button class="btn btn-ghost" id="coins-close">فهمت</button>
+  </div>
+</div>
 <div class="sheet-bg" id="gas-sheet" role="dialog" aria-modal="true" aria-labelledby="gas-t">
   <div class="sheet" style="gap:12px">
     <div style="display:flex;align-items:center;gap:10px"><span style="font-size:30px" aria-hidden="true">⛽</span><b id="gas-t" style="font-size:18px">ما هو وقود الشبكة؟</b></div>
@@ -846,9 +859,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div style="display:flex;flex-direction:column;min-width:0"><b style="font-size:18px">صُرّة</b><span class="muted" style="font-size:12px">محفظة الدولار الرقمي · <span id="drawer-ver"></span></span></div>
   </div>
   <nav class="list" style="border:0;background:none;box-shadow:none">
-    <button type="button" class="li" data-menu="account"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">حسابي وبياناتي<small>التوثيق، رقم الهاتف، حساب بنكك</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="account"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg></span><span class="t">حسابي وبياناتي<small>معرّف صُرّة، التوثيق، حساب بنكك</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="support"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="t">الدعم الفني<small>اكتب لنا ونرد عليك داخل التطبيق</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="privacy"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="t">الخصوصية وحذف البيانات<small>ما نجمعه وكيف تحذفه</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button type="button" class="li" data-menu="coins"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="9" r="6"/><path d="M15.5 9.5a6 6 0 1 1-6 6"/></svg></span><span class="t">العملات والشبكات المدعومة<small>ما يمكنك استقباله وإرساله</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="about"><span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span><span class="t">عن التطبيق<small>كيف يعمل، الرسوم، الأمان</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="apps"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">تطبيقاتنا الأخرى<small>تطبيقات سودانية من نفس المطوّر</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
     <button type="button" class="li" data-menu="security"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span><span class="t">الأمان والمظهر<small>البصمة، النسخ الاحتياطي، الوضع الليلي</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -1179,6 +1193,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if ($('coins-sheet').classList.contains('show')) { $('coins-sheet').classList.remove('show'); return; }
       if ($('gas-sheet').classList.contains('show')) { $('gas-sheet').classList.remove('show'); return; }
       if ($('ask-sheet').classList.contains('show')) { $('ask-no').click(); return; }
       if ($('nick-sheet').classList.contains('show')) { $('nick-no').click(); return; }
@@ -1506,6 +1521,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('gas-net').textContent = n.evm ? n.name + ' (' + n.short + ')' : 'TRON (TRC20)';
     $('gas-sheet').dataset.net = n.key; $('gas-sheet').classList.add('show');
   }
+  function openCoinsHelp() {
+    var box = $('coins-list'); box.textContent = '';
+    NETS.forEach(function (n) {
+      var r = el('div'); r.className = 'li'; r.style.cursor = 'default';
+      var ic = el('span'); ic.className = 'ic'; var im = document.createElement('img'); im.src = netLogo(n.key); im.alt = ''; im.style.cssText = 'width:26px;height:26px;border-radius:50%'; ic.appendChild(im); r.appendChild(ic);
+      var t = el('span'); t.className = 't'; var sh = n.evm ? n.short : 'TRC20'; t.appendChild(document.createTextNode(sh && sh !== n.name ? n.name + ' (' + sh + ')' : n.name));
+      t.appendChild(el('small', null, n.coins.join(' · ') + ' — الرسوم بـ ' + (n.evm ? n.native : 'TRX'))); r.appendChild(t);
+      box.appendChild(r);
+    });
+    $('coins-sheet').classList.add('show');
+  }
+  $('recv-coins-help').onclick = openCoinsHelp;
+  $('coins-close').onclick = function () { $('coins-sheet').classList.remove('show'); };
+  $('coins-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
   $('gas-close').onclick = function () { $('gas-sheet').classList.remove('show'); };
   $('gas-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
   $('gas-recv').onclick = function () { $('gas-sheet').classList.remove('show'); state.recvNet = $('gas-sheet').dataset.net || MAIN_NET; if (state.stack[state.stack.length - 1] === 'receive') loadReceive(); else show('receive'); };
@@ -3249,6 +3278,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       openDrawer(false);
       var m = b.dataset.menu;
       if (m === 'security') return resetTo('security');
+      if (m === 'coins') { openCoinsHelp(); return; }
       if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
       if (m === 'account') openAccount();

@@ -83,6 +83,10 @@ async def main():
     assert 'BNB' in await pg.inner_text('#gas-sheet') and 'Convert' in await pg.inner_text('#gas-sheet')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/gas.png')
     await pg.click('#gas-close'); print('✓ شرح وقود الشبكة من شاشة الاستلام')
+    await pg.click('#recv-coins-help'); await pg.wait_for_timeout(300)
+    t=await pg.inner_text('#coins-sheet'); assert 'BNB Chain (BEP20)' in t and 'USDT · USDC · BNB' in t and 'TRON (TRC20)' in t and 'Solana' in t, t
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/coins.png')
+    await pg.click('#coins-close'); print('✓ قائمة العملات والشبكات المدعومة مع التحذيرات')
     await pg.click('#s-receive [data-back]')
     # إرسال
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(400)
