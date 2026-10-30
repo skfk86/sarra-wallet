@@ -1177,6 +1177,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (name === 'p2p') loadP2P();
   }
   function back() {
+    if (state.stack[state.stack.length - 1] === 'pin' && state.unlockWait) { var w = state.unlockWait; state.unlockWait = null; state.unlockCancelAt = Date.now(); w.reject(new Error('CANCELLED')); }
     state.stack.pop();
     var prev = state.stack[state.stack.length - 1];
     if (prev) show(prev, false);
@@ -2477,6 +2478,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var SUP_TOPIC = { send: 'الإرسال والاستلام', p2p: 'سوق P2P', swap: 'التبديل', bridge: 'النقل بين الشبكات', account: 'الحساب والتوثيق', other: 'أخرى' };
   async function support(action, params) {
     var url = supportUrl(); if (!url) throw new Error('NETWORK');
+    await ensureUnlocked();
     var body = await core.signRequest(action, params || {}), res;
     try { res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
     catch (e) { throw new Error('NETWORK'); }
@@ -2530,6 +2532,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // كل طلب يُوقَّع بمفتاح المحفظة على الجهاز؛ الخادم يتحقق من التوقيع ولا يرى المفتاح أبداً
   var P2P_URL = CFG.p2pUrl || '';
   var P2P_ERRORS = {
+    BAD_AMOUNT: 'المبلغ غير صحيح', BAD_MESSAGE: 'طلب غير صالح. حدّث التطبيق', BAD_NONCE: 'طلب غير صالح. حاول مرة أخرى', BAD_WINDOW: 'اختر مهلة الدفع',
+    DB_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER: 'تعذّر الاتصال بالخادم. حاول بعد قليل',
+    FEE_TOO_HIGH: 'المبلغ صغير جداً مقارنة بالرسوم', NETWORK: 'لا يوجد اتصال بالإنترنت أو الخادم لا يرد', UNAUTHORIZED: 'تعذّر التحقق من المحفظة. أعد فتح التطبيق',
+    UNKNOWN_ACTION: 'هذه الميزة تحتاج تحديث التطبيق', OPEN_ORDERS: 'لديك صفقات مفتوحة. أكملها أولاً', CANCELLED: 'أُلغيت العملية', REPLAY: 'أُرسل الطلب مرتين. حاول مرة أخرى',
     BAD_RECEIPT_TYPE: 'الملف ليس صورة صالحة. ارفع لقطة شاشة من تطبيق بنكك', RECEIPT_TOO_SMALL: 'الصورة صغيرة أو غير واضحة. ارفع لقطة شاشة كاملة', RECEIPT_TOO_LARGE: 'الصورة كبيرة جداً', MAX_RECEIPTS: 'وصلت للحد الأقصى: 3 إيصالات للصفقة',
     NO_PROFILE: 'اختر اسمك في السوق أولاً', BANNED: 'هذا الحساب موقوف في السوق',
     OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
@@ -2546,7 +2552,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',
     ID_NOT_FOUND: 'لا يوجد مستخدم صُرّة بهذا المعرّف. تأكد من الأرقام الثمانية', BAD_ID: 'المعرّف 8 أرقام',
     RATE_LIMITED_ID_LOOKUP: 'محاولات بحث كثيرة اليوم، حاول غداً',
-    PHONE_NOT_FOUND: 'هذا الرقم غير مفعّل للاستلام. اطلب من صاحبه: القائمة ← حسابي وبياناتي ← "تفعيل الاستقبال برقمي"', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
+    PHONE_NOT_FOUND: 'الإرسال برقم الهاتف لم يعد متاحاً. استخدم معرّف صُرّة', PHONE_TAKEN: 'هذا الرقم مرتبط بمحفظة أخرى',
     RATE_LIMITED_PHONE_LOOKUP: 'بحثت عن أرقام كثيرة اليوم. حاول غداً أو استخدم عنوان المحفظة', SELF_SEND: 'لا يمكنك الإرسال إلى نفسك',
     VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
     BAD_FULL_NAME: 'اكتب اسمك كاملاً كما في الهوية', BAD_PHONE: 'رقم الهاتف غير صحيح (مثل 0912345678)', BAD_ID_IMAGE: 'صورة الهوية غير واضحة أو كبيرة جداً. التقط صورة أخرى',
@@ -2565,8 +2571,35 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!res.ok) throw new Error('REST_' + res.status);
     return res.json();
   }
-  function p2pErr(e) { var c = e && e.message; return P2P_ERRORS[c] || (c && WalletCore.errorText(e)) || 'تعذّر الاتصال بالسوق'; }
+  function p2pErr(e) {
+    var c = e && e.message; if (P2P_ERRORS[c]) return P2P_ERRORS[c];
+    if (/^RATE_LIMITED/.test(c || '')) return 'محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى';
+    var t = c && WalletCore.errorText(e);
+    // لا نعرض رمزاً إنجليزياً خاماً للمستخدم أبداً
+    if (!t || /^[A-Z][A-Z0-9_]{3,}$/.test(t) || t === c) return 'حدث خطأ غير متوقع. حاول مرة أخرى، وإن تكرر راسل الدعم (' + (c || '?') + ')';
+    return t;
+  }
+  // إن أُقفلت المحفظة (في الخلفية مثلاً) نطلب الرمز فوراً ثم نكمل العملية نفسها، بدل رسالة نصية بلا لوحة أرقام
+  document.addEventListener('pointerdown', function () { state.lastTap = Date.now(); }, true);
+  function ensureUnlocked() {
+    if (core.isUnlocked()) return Promise.resolve();
+    if (state.unlockWait) return state.unlockWait.p;
+    // طلبات الخلفية (التحديث الدوري) لا تفتح لوحة الرمز فجأة: فقط ما بدأه المستخدم بلمسة
+    if (Date.now() - (state.lastTap || 0) > 4000) return Promise.reject(new Error('LOCKED'));
+    // ألغى المستخدم للتو: لا نعيد فتح اللوحة تلقائياً عند الرجوع للشاشة (يحاول مجدداً بنفسه)
+    if (state.unlockCancelAt && Date.now() - state.unlockCancelAt < 4000) return Promise.reject(new Error('CANCELLED'));
+    // شاشة فتح القفل ظاهرة أصلاً (بداية التشغيل أو القفل التلقائي): ننتظرها بدل فتح لوحة ثانية
+    if (state.pinMode === 'unlock' && state.stack[state.stack.length - 1] === 'pin') return new Promise(function (res) { var t = setInterval(function () { if (core.isUnlocked()) { clearInterval(t); res(); } }, 400); });
+    var w = {}; w.p = new Promise(function (res, rej) { w.resolve = res; w.reject = rej; });
+    state.unlockWait = w;
+    var back = state.stack[state.stack.length - 1];
+    openPin('verify', function () { state.unlockWait = null; state.stack.pop(); if (back && back !== 'pin') show(back, false); w.resolve(); });
+    $('pin-sub').textContent = 'أُقفلت المحفظة للحماية. أدخل رمزك للمتابعة';
+    if (bioEnabled()) setTimeout(bioForPin, 350);
+    return w.p;
+  }
   async function p2p(action, params, isPublic, attachment) {
+    if (!isPublic) await ensureUnlocked();
     var body = isPublic ? Object.assign({ action: action }, params || {}) : await core.signRequest(action, params || {});
     if (attachment) body.attachment = attachment;
     var res;
