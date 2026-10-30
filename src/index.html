@@ -232,6 +232,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .net-stack .logos img:last-child{margin-inline-start:0}
 .recv-lim{display:grid;grid-template-columns:1fr 1fr;gap:8px}.recv-lim>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}.recv-lim span{font-size:12px;color:var(--mu)}.recv-lim b{font-size:15px;direction:ltr;text-align:right}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
 </style>
 </head>
 <body>
@@ -345,7 +346,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="muted ltr" style="font-size:13px;margin-top:-6px;text-align:left" id="amt-usd"></div>
     <div class="row between" style="gap:8px;flex-wrap:wrap"><span class="muted" style="font-size:13px">المتاح: <bdi class="ltr" id="avail">—</bdi></span><div class="pct"><button type="button" data-pct="25">25%</button><button type="button" data-pct="50">50%</button><button type="button" class="max" id="max">الكل</button></div></div>
   </div>
-  <div class="netinfo" role="note"><img id="send-net-logo" alt=""><div><div id="send-warn"><span></span></div><div id="send-fee-note" class="muted"><span></span></div></div></div>
+  <div class="netinfo" role="note"><img id="send-net-logo" alt=""><div><div id="send-warn"><span></span></div><div id="send-fee-note" class="muted"><span></span> <button type="button" class="linkbtn" id="send-gas-help" hidden>ما هذا؟</button></div></div></div>
   <div class="note err" id="send-err" hidden></div>
   <div class="grow"></div>
   <button class="btn btn-primary" id="review">مراجعة الإرسال</button>
@@ -372,7 +373,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" class="chip" id="recv-sid-copy" style="height:34px">نسخ</button>
   </div>
   <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
-  <div class="netinfo" role="note" id="recv-fee"><span></span></div>
+  <div class="netinfo" role="note" id="recv-fee"><span></span> <button type="button" class="linkbtn" id="recv-gas-help">كيف أحصل عليه؟</button></div>
 </section>
 
 <!-- ===== تم الإرسال ===== -->
@@ -772,6 +773,22 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div id="rcpt-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>
 </div>
+<div class="sheet-bg" id="gas-sheet" role="dialog" aria-modal="true" aria-labelledby="gas-t">
+  <div class="sheet" style="gap:12px">
+    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:30px" aria-hidden="true">⛽</span><b id="gas-t" style="font-size:18px">ما هو وقود الشبكة؟</b></div>
+    <p style="font-size:14px;line-height:1.9;margin:0">محفظتك فيها <b>أموالك</b> (مثل USDT) و<b>وقود الشبكة</b> (<bdi id="gas-coin">BNB</bdi>). أي إرسال أو تبديل أو إيداع يحتاج وقوداً قليلاً، والشبكة لا تقبل الوقود إلا بعملتها، لا بـ USDT.</p>
+    <div class="note warn" style="font-size:13px;line-height:1.8"><span>إذا كان الوقود صفراً لا تستطيع التبديل داخل المحفظة أيضاً، لأن التبديل نفسه يحتاج وقوداً. مثل سيارة خزانها فارغ: لا تستطيع قيادتها إلى محطة الوقود.</span></div>
+    <b style="font-size:15px">املأ الوقود مرة واحدة من بينانس:</b>
+    <ol style="margin:0;padding-inline-start:20px;font-size:14px;line-height:2">
+      <li>في بينانس افتح <b>Convert</b> وحوّل نحو 1 USDT إلى <bdi class="gas-coin2">BNB</bdi> (مجاناً).</li>
+      <li>اسحب <bdi class="gas-coin2">BNB</bdi> إلى عنوانك في صُرّة، واختر شبكة <b id="gas-net">BSC (BEP20)</b>.</li>
+      <li>اسحب USDT إلى <b>نفس العنوان</b> وعلى نفس الشبكة.</li>
+    </ol>
+    <div class="note ok" style="font-size:13px;line-height:1.8"><span>✓ دولار واحد من الوقود يكفي لعشرات المعاملات (كل معاملة أقل من سنت على BNB Chain وPolygon). وإن نسيته فمالك لا يضيع: يصل ويبقى آمناً حتى تضيف الوقود.</span></div>
+    <button class="btn btn-primary" id="gas-recv">عرض عنواني</button>
+    <button class="btn btn-ghost" id="gas-close">فهمت</button>
+  </div>
+</div>
 <div class="sheet-bg" id="ask-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-text">
   <div class="sheet">
     <p id="ask-text" style="font-size:15px;line-height:1.8"></p>
@@ -1134,6 +1151,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if ($('gas-sheet').classList.contains('show')) { $('gas-sheet').classList.remove('show'); return; }
       if ($('ask-sheet').classList.contains('show')) { $('ask-no').click(); return; }
       if ($('nick-sheet').classList.contains('show')) { $('nick-no').click(); return; }
       if (cur && cur !== 'home' && TAB_SCREENS.indexOf(cur) >= 0) { resetTo('home'); return; }
@@ -1453,6 +1471,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     });
     $('coin-sheet').classList.add('show');
   }
+  // شرح وقود الشبكة
+  function openGasHelp(k) {
+    var n = netOf(k || 'bsc'), coin = n.evm ? n.native : 'TRX';
+    $('gas-coin').textContent = coin; document.querySelectorAll('.gas-coin2').forEach(function (x) { x.textContent = coin; });
+    $('gas-net').textContent = n.evm ? n.name + ' (' + n.short + ')' : 'TRON (TRC20)';
+    $('gas-sheet').dataset.net = n.key; $('gas-sheet').classList.add('show');
+  }
+  $('gas-close').onclick = function () { $('gas-sheet').classList.remove('show'); };
+  $('gas-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
+  $('gas-recv').onclick = function () { $('gas-sheet').classList.remove('show'); state.recvNet = $('gas-sheet').dataset.net || MAIN_NET; if (state.stack[state.stack.length - 1] === 'receive') loadReceive(); else show('receive'); };
+  $('send-gas-help').onclick = function () { openGasHelp(state.sendNet); };
+  $('recv-gas-help').onclick = function () { openGasHelp(state.recvNet); };
   $('cs-close').onclick = function () { $('coin-sheet').classList.remove('show'); };
   $('coin-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
   // إجمالي الأصول بالدولار (العملات المستقرة بدولار، والبقية بسعرها إن عُرف)
@@ -1801,10 +1831,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (n.evm) {
       var u = evmUnits(state.sendNet, state.coin), nu = evmUnits(state.sendNet, n.native);
       $('avail').textContent = u == null ? '—' : fmt(WalletCore.fromUnits(u, evmDec(state.sendNet, state.coin)), 6) + ' ' + state.coin;
-      $('send-fee-note').firstChild.textContent = '⛽ الرسوم بعملة ' + n.native + ' · متاح ' + (nu == null ? '—' : fmt(WalletCore.fromUnits(nu, 18), 6));
+      var noGas = nu != null && nu === 0n;
+      $('send-fee-note').firstChild.textContent = noGas ? '⛽ لا يوجد ' + n.native + ' لدفع رسوم الشبكة، فلن يتم الإرسال.' : '⛽ الرسوم بعملة ' + n.native + ' · متاح ' + (nu == null ? '—' : fmt(WalletCore.fromUnits(nu, 18), 6));
+      $('send-fee-note').style.color = noGas ? 'var(--err)' : '';
+      $('send-gas-help').hidden = false; $('send-gas-help').textContent = noGas ? 'كيف أضيفه؟' : 'ما هذا؟';
     } else {
       $('avail').textContent = b ? (state.coin === 'USDT' ? b.usdt : b.trx) + ' ' + state.coin : '—';
-      $('send-fee-note').firstChild.innerHTML = '';
+      $('send-fee-note').firstChild.innerHTML = ''; $('send-gas-help').hidden = false; $('send-gas-help').textContent = 'ما هذا؟'; $('send-fee-note').style.color = '';
       $('send-fee-note').firstChild.textContent = '⛽ الرسوم بعملة TRX · متاح ' + (b ? b.trx : '—');
     }
     if (Object.keys(EVM).length && !state.evmBal) core.evmBalances().then(function (eb) { if (!eb) return; state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'send') prepareSend(); }).catch(function () {});
@@ -2007,6 +2040,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.stack = ['home'];
       show('send');
       sendError(WalletCore.errorText(e));
+      if (e && (e.message === 'LOW_GAS' || e.message === 'INSUFFICIENT_TRX')) openGasHelp(state.sendNet);
     } finally { state.txBusy = false; }
   }
   function setSuccessTitle(status) {

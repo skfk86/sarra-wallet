@@ -79,6 +79,10 @@ async def main():
     assert (await pg.inner_text('#recv-min'))=='1 USDT' and '10,000' in await pg.inner_text('#recv-max')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/recv.png')
     print('✓ حدود الاستلام لكل شبكة')
+    await pg.click('#recv-gas-help'); await pg.wait_for_timeout(300)
+    assert 'BNB' in await pg.inner_text('#gas-sheet') and 'Convert' in await pg.inner_text('#gas-sheet')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/gas.png')
+    await pg.click('#gas-close'); print('✓ شرح وقود الشبكة من شاشة الاستلام')
     await pg.click('#s-receive [data-back]')
     # إرسال
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(400)
