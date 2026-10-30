@@ -1103,6 +1103,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
+  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); } }; // للاختبارات الآلية فقط
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
     Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: c.tokens.map(function (t) { return t.sym; }).concat([c.native]), evm: true }; }));
   function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
@@ -1284,7 +1285,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try { var r = await Bio.isAvailable(); return !!r.isAvailable; } catch (e) { return false; }
   }
   function bioVerify(title) {
-    return Bio.verifyIdentity({ reason: title, title: title, subtitle: 'صُرّة', negativeButtonText: 'استخدم الرمز' });
+    return Bio.verifyIdentity({ reason: title, title: title, subtitle: 'صُرّة', negativeButtonText: 'استخدم الرمز' }).then(async function () {
+      // إن أُقفلت المحفظة في الخلفية نعيد فتحها بالرمز المحفوظ بالبصمة، وإلا تفشل العملية بـ "افتح القفل أولاً"
+      if (!core.isUnlocked()) { var c = await Bio.getCredentials({ server: BIO_SERVER }); await core.unlock(c.password); }
+    });
   }
   async function bioForPin() {
     if (!bioEnabled()) return;
@@ -1384,7 +1388,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (mode === 'verify') {
       $('pin-sub').textContent = 'جارٍ التحقق…';
       try {
-        await core.verifyPin(pin);
+        if (core.isUnlocked()) await core.verifyPin(pin); else await core.unlock(pin); // يعيد فتح المحفظة إن أُقفلت
         var cb = state.pinCb; state.pinCb = null;
         if (cb) cb(pin);
       } catch (e) { setPinMode('verify'); pinError(await lockMsg(e)); }
@@ -2101,6 +2105,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       show('send');
       sendError(WalletCore.errorText(e));
       if (e && (e.message === 'LOW_GAS' || e.message === 'INSUFFICIENT_TRX')) openGasHelp(state.sendNet);
+      if (e && e.message === 'LOCKED') { state.resume = ['home', 'send']; openPin('unlock'); }
     } finally { state.txBusy = false; }
   }
   function setSuccessTitle(status) {

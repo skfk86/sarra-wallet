@@ -119,6 +119,13 @@ async def main():
     # السجل
     await pg.click('#s-send [data-back]'); await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(500)
     assert 'Polygon' in await pg.inner_text('#evm-hist'); print('✓ السجل: روابط مستكشف كل شبكة')
+    # أُقفلت المحفظة والمستخدم على شاشة التأكيد: رمز التأكيد يعيد فتحها ويكمل الإرسال
+    await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(500); await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(600)
+    await pg.click('#send-nets [data-net=bsc]'); await pg.click('#coin-seg [data-coin=USDT]')
+    await pg.fill('#to',TO); await pg.fill('#amt','0.5'); await pg.click('#review'); await pg.wait_for_timeout(500)
+    await pg.evaluate('window.__core.lock()')
+    n0=len(sent); await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(5000)
+    assert len(sent)>n0, await pg.inner_text('#send-err'); print('✓ بعد القفل: رمز التأكيد يعيد فتح المحفظة ويكمل الإرسال')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
     assert not errs, errs
     await b.close()
