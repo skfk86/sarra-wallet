@@ -748,10 +748,12 @@
       },
       // ===== نقل بين الشبكات عبر LI.FI (بدون مفتاح؛ الحد لكل جهاز) =====
       bridgeEnabled: function () { return this.evmEnabled() && opts.bridge !== false; },
-      bridgeQuote: async function (fromNet, toNet, sym, amountStr) {
+      // toSym اختياري: عند تساويه مع الشبكة نفسها يصبح تبديلاً داخل الشبكة (مثل USDT ↔ BNB على BNB Chain)
+      bridgeQuote: async function (fromNet, toNet, sym, amountStr, toSym) {
         if (!session) throw new Error('LOCKED');
-        if (fromNet === toNet) throw new Error('SAME_NETWORK');
-        var a = bridgeAsset(fromNet, sym), b = bridgeAsset(toNet, sym);
+        toSym = toSym || sym;
+        if (fromNet === toNet && (fromNet === 'tron' || toSym === sym)) throw new Error('SAME_NETWORK');
+        var a = bridgeAsset(fromNet, sym), b = bridgeAsset(toNet, toSym);
         if (!a || !b) throw new Error('BAD_TOKEN');
         var units = toUnits(amountStr, a.dec);
         if (units <= 0n) throw new Error('INVALID_AMOUNT');
@@ -771,7 +773,7 @@
           delete p.fee; r = await lifi('/quote?' + new URLSearchParams(p).toString());
         }
         var est = r.estimate || {}, sum = function (xs) { return (xs || []).reduce(function (s, x) { return s + Number(x.amountUSD || 0); }, 0); };
-        return { fromNet: fromNet, toNet: toNet, sym: sym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
+        return { fromNet: fromNet, toNet: toNet, sym: sym, toSym: toSym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
           feesUsd: sum(est.feeCosts), gasUsd: sum(est.gasCosts), seconds: Number(est.executionDuration || 0),
           appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now(),

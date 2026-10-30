@@ -92,6 +92,21 @@ async def main():
     new=[l[0] for l in (await pg.evaluate('window.__log'))[lg:]]
     assert 'SIGN' not in new and 'لا تطابق' in await pg.inner_text('#br-err'), new; print('✓ هجوم مرفوض على TRON: معاملة باسم محفظة أخرى لا تُوقَّع')
     EVIL['on']=None
+    # التبديل داخل BNB Chain: USDT ← BNB
+    await pg.click('#s-bridge [data-back]'); await pg.wait_for_timeout(400); await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1200)
+    assert await pg.locator('#sw-nets').is_visible() and await pg.locator('#swap-evm').is_visible() and not await pg.locator('#swap-on').is_visible(); print('✓ شاشة التبديل تفتح على BNB Chain افتراضياً')
+    assert await pg.get_attribute('#es-from [data-coin=USDT]','aria-checked')=='true' and await pg.get_attribute('#es-to [data-coin=BNB]','aria-checked')=='true'
+    await pg.fill('#es-amt','5'); await pg.click('#es-quote-btn'); await pg.wait_for_timeout(800)
+    q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='56' and q['toToken']=='0x0000000000000000000000000000000000000000' and q['fromAmount']==str(5*10**18) and q['toAddress']==q['fromAddress'], q
+    assert await pg.locator('#es-quote').is_visible(); print('✓ سعر التبديل USDT ← BNB داخل نفس الشبكة وإلى محفظتك نفسها')
+    n=len(E.sent); await pg.click('#es-go'); await pin('123456')
+    for _ in range(40):
+      if len(E.sent)-n>=2: break
+      await pg.wait_for_timeout(500)
+    t=[await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return {to:t.to,data:t.data,cid:Number(t.chainId)}}", x[1]) for x in E.sent[n:]]
+    assert len(t)==2 and t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['cid']==56, t; print('✓ التبديل: موافقة ثم معاملة LI.FI موقّعة على BNB Chain')
+    await pg.click('#sw-nets [data-net=tron]'); await pg.wait_for_timeout(600)
+    assert not await pg.locator('#swap-evm').is_visible(); print('✓ اختيار TRON يعيد التبديل عبر SunSwap')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>!e.closest('.netbar')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
     assert bad==0, bad; print('✓ لا تجاوز لعرض الشاشة')
     assert not errs, errs

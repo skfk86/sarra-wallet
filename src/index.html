@@ -233,6 +233,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos img:last-child{margin-inline-start:0}
 .recv-lim{display:grid;grid-template-columns:1fr 1fr;gap:8px}.recv-lim>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}.recv-lim span{font-size:12px;color:var(--mu)}.recv-lim b{font-size:15px;direction:ltr;text-align:right}
 .linkbtn{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
+#swap-evm[hidden]{display:none!important}
+#es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
 </style>
 </head>
 <body>
@@ -479,6 +481,29 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <!-- ===== التبديل (قريباً) ===== -->
 <section class="screen" id="s-swap" aria-label="تبديل">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">تبديل</h1></div>
+  <div class="netbar" id="sw-nets" role="tablist" hidden></div>
+  <div id="swap-evm" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px 18px">
+      <div class="row between"><span class="muted">من</span><button type="button" class="chip" id="es-max" style="height:28px">الكل: <bdi class="ltr" id="es-bal">—</bdi></button></div>
+      <div class="seg" id="es-from" role="radiogroup" aria-label="من عملة"></div>
+      <input id="es-amt" inputmode="decimal" placeholder="0" autocomplete="off" class="ltr" style="background:none;border:0;outline:none;font-size:28px;font-weight:700;padding:0;color:var(--tx)">
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px 18px">
+      <span class="muted">إلى</span>
+      <div class="seg" id="es-to" role="radiogroup" aria-label="إلى عملة"></div>
+    </div>
+    <dl class="kv card" id="es-quote" style="padding:4px 16px" hidden>
+      <div><dt>ستستلم تقريباً</dt><dd class="ltr" id="es-out">—</dd></div>
+      <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="es-min">—</dd></div>
+      <div><dt>رسوم الشبكة والمنصة</dt><dd class="ltr" id="es-fee">—</dd></div>
+      <div><dt>عمولة صُرّة</dt><dd id="es-app">—</dd></div>
+      <div><dt>المنصة</dt><dd class="ltr" id="es-tool">—</dd></div>
+    </dl>
+    <div class="note ok" id="es-note" style="font-size:13px"><span></span></div>
+    <p class="err" id="es-err" hidden></p>
+    <button class="btn btn-ghost" id="es-quote-btn">عرض السعر</button>
+    <button class="btn btn-primary" id="es-go" hidden>تأكيد التبديل</button>
+  </div>
   <div class="soon" id="swap-off" hidden>
     <span class="badge" id="swap-off-badge">غير متاح</span>
     <h2 style="font-size:20px">التبديل غير متاح على هذه الشبكة</h2>
@@ -2055,7 +2080,89 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   state.swapDir = 'TRX_USDT';
   var swapTimer = null, swapSeq = 0;
   function swapSyms() { return state.swapDir === 'TRX_USDT' ? ['TRX', 'USDT'] : ['USDT', 'TRX']; }
+  // ===== التبديل على BNB Chain وPolygon وEthereum (LI.FI داخل نفس الشبكة) =====
+  var ES = { net: null, from: 'USDT', to: null, q: null };
+  function esReset() { ES.q = null; $('es-quote').hidden = true; $('es-go').hidden = true; $('es-err').hidden = true; }
+  function esErr(m) { $('es-err').textContent = m; $('es-err').hidden = !m; }
+  function renderSwapEvm() {
+    var n = netOf(ES.net), cs = n.coins;
+    if (cs.indexOf(ES.from) < 0) ES.from = cs[0];
+    if (!ES.to || ES.to === ES.from || cs.indexOf(ES.to) < 0) ES.to = ES.from === n.native ? 'USDT' : n.native;
+    [['es-from', 'from'], ['es-to', 'to']].forEach(function (x) {
+      var seg = $(x[0]); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + cs.length + ',minmax(0,1fr))';
+      cs.forEach(function (c) {
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.coin = c; var im = document.createElement('img'); im.src = symLogo(c); im.alt = ''; b.appendChild(im); b.appendChild(document.createTextNode(c));
+        var on = ES[x[1]] === c, dis = x[1] === 'to' && c === ES.from; b.className = on ? 'on' : ''; b.disabled = dis; b.setAttribute('aria-checked', on ? 'true' : 'false');
+        b.onclick = function () { ES[x[1]] = c; if (x[1] === 'from' && ES.to === c) ES.to = null; esReset(); renderSwapEvm(); };
+        seg.appendChild(b);
+      });
+    });
+    var bal = balOn(ES.from, ES.net); $('es-bal').textContent = bal == null ? '—' : (Math.floor(bal * 1e6) / 1e6) + ' ' + ES.from;
+    $('es-note').firstChild.textContent = '⛽ تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة. التبديل عبر LI.FI بأفضل سعر متاح على ' + n.name + '، داخل محفظتك نفسها.';
+  }
+  $('es-amt').addEventListener('input', esReset);
+  $('es-max').onclick = function () {
+    var n = netOf(ES.net), b = balOn(ES.from, ES.net); if (b == null) return;
+    if (ES.from === n.native) b = Math.max(0, b - 0.001); // نترك وقوداً للرسوم
+    $('es-amt').value = String(Math.floor(b * 1e6) / 1e6); esReset();
+  };
+  $('es-quote-btn').onclick = async function () {
+    esReset();
+    var n = netOf(ES.net), amt = $('es-amt').value.trim().replace(',', '.');
+    if (!(Number(amt) > 0)) return esErr('أدخل المبلغ');
+    var bal = balOn(ES.from, ES.net); if (bal != null && Number(amt) > bal) return esErr('الرصيد غير كافٍ');
+    var nat = evmUnits(ES.net, n.native); if (nat != null && nat === 0n) { esErr('تحتاج ' + n.native + ' لدفع رسوم الشبكة'); return openGasHelp(ES.net); }
+    var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
+    try {
+      var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); ES.q = q;
+      var f = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
+      $('es-out').textContent = f(q.toAmount) + ' ' + ES.to; $('es-min').textContent = f(q.toAmountMin) + ' ' + ES.to;
+      $('es-fee').textContent = '≈ $' + (q.feesUsd + q.gasUsd).toFixed(2); $('es-tool').textContent = q.tool || 'LI.FI';
+      $('es-app').textContent = q.appFee ? (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%' : 'مجاناً';
+      $('es-quote').hidden = false; $('es-go').hidden = false;
+    } catch (e) { esErr(WalletCore.errorText(e)); }
+    finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
+  };
+  $('es-go').onclick = function () {
+    if (!ES.q || state.txBusy) return;
+    var q = ES.q, run = async function () {
+      state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
+      $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
+      try {
+        var r = await core.bridgeExecute(q); ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+        for (var i = 0; i < 20; i++) {
+          var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
+          if (st.status === 'DONE') { toast('تم التبديل ✓'); break; }
+          if (st.status === 'FAILED' || st.status === 'REFUNDED') { esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
+          await new Promise(function (res) { setTimeout(res, 4000); });
+        }
+        $('es-quote').hidden = true; $('es-amt').value = '';
+        core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderSwapEvm(); } }).catch(function () {});
+      } catch (e) { esErr(WalletCore.errorText(e)); if (e && e.message === 'LOW_GAS') openGasHelp(q.fromNet); }
+      finally { state.txBusy = false; }
+    };
+    var askPin = function () { openPin('verify', run); };
+    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run).catch(askPin); else askPin();
+  };
+  function swapNets() { return NETS.filter(function (n) { return n.key === 'tron' || (n.evm && core.bridgeEnabled && core.bridgeEnabled()); }); }
   async function prepareSwap() {
+    var sn = swapNets();
+    if (!ES.net) ES.net = MAIN_NET;
+    if (sn.length > 1) {
+      var box = $('sw-nets'); box.hidden = false; box.textContent = '';
+      sn.forEach(function (n) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (n.key === ES.net ? ' on' : ''); b.dataset.net = n.key;
+        var lg = document.createElement('img'); lg.src = netLogo(n.key); lg.alt = ''; b.appendChild(lg); var t = document.createElement('span'); t.textContent = n.name; b.appendChild(t);
+        b.onclick = function () { ES.net = n.key; esReset(); prepareSwap(); }; box.appendChild(b);
+      });
+    } else ES.net = 'tron';
+    var evm = ES.net !== 'tron';
+    $('swap-evm').hidden = !evm;
+    if (evm) {
+      $('swap-off').hidden = true; $('swap-on').style.display = 'none'; renderSwapEvm();
+      if (!state.evmBal) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'swap') renderSwapEvm(); } }).catch(function () {});
+      return;
+    }
     $('sw-err').hidden = true;
     var ok = await core.swapSupported();
     $('swap-off').hidden = ok;
