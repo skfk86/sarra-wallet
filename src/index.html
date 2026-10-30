@@ -697,6 +697,14 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </section>
 
 <!-- ===== نافذة تأكيد عامة ===== -->
+<input type="file" id="rcpt-file" accept="image/*" hidden>
+<div class="sheet-bg" id="rcpt-view" role="dialog" aria-modal="true" aria-label="إيصالات الدفع">
+  <div class="sheet" style="max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px">
+    <div class="row between"><b style="font-size:17px">إيصالات تحويل بنكك</b><button type="button" class="icon-btn flat" id="rcpt-close" aria-label="إغلاق">✕</button></div>
+    <p class="muted" style="font-size:12px;line-height:1.7;margin:0">تأكد من الإيصال داخل تطبيق بنكك نفسه قبل التحرير. الصور يمكن تزويرها، والمبلغ الذي وصل لحسابك هو المرجع.</p>
+    <div id="rcpt-list" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
 <div class="sheet-bg" id="ask-sheet" role="dialog" aria-modal="true" aria-labelledby="ask-text">
   <div class="sheet">
     <p id="ask-text" style="font-size:15px;line-height:1.8"></p>
@@ -1967,6 +1975,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // كل طلب يُوقَّع بمفتاح المحفظة على الجهاز؛ الخادم يتحقق من التوقيع ولا يرى المفتاح أبداً
   var P2P_URL = CFG.p2pUrl || '';
   var P2P_ERRORS = {
+    BAD_RECEIPT_TYPE: 'الملف ليس صورة صالحة. ارفع لقطة شاشة من تطبيق بنكك', RECEIPT_TOO_SMALL: 'الصورة صغيرة أو غير واضحة. ارفع لقطة شاشة كاملة', RECEIPT_TOO_LARGE: 'الصورة كبيرة جداً', MAX_RECEIPTS: 'وصلت للحد الأقصى: 3 إيصالات للصفقة',
     NO_PROFILE: 'اختر اسمك في السوق أولاً', BANNED: 'هذا الحساب موقوف في السوق',
     OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
     AMOUNT_UNAVAILABLE: 'الكمية خارج حدود الإعلان أو غير متوفرة', TOO_MANY_OPEN: 'لديك 3 طلبات مفتوحة. أكملها أولاً',
@@ -2543,6 +2552,33 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     show('order');
     refreshOrder('order.get');
   }
+  // ===== إيصالات بنكك =====
+  function pickReceipt() { $('rcpt-file').value = ''; $('rcpt-file').click(); }
+  $('rcpt-file').onchange = async function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return toast('اختر صورة الإيصال (لقطة شاشة من تطبيق بنكك)', true);
+    if (f.size > 15 * 1048576) return toast('الصورة كبيرة جداً', true);
+    toast('جارٍ رفع الإيصال…');
+    try {
+      var data = await compressImage(f);
+      var id = state.p2p.orderId;
+      var r = await p2p('receipt.upload', { id: id, sha256: await sha256Hex(data) }, false, data);
+      if (state.p2p.orderId === id) renderOrder(r);
+      toast('تم رفع الإيصال، ويراه البائع الآن');
+    } catch (e) { toast(p2pErr(e), true); }
+  };
+  async function showReceipts() {
+    var box = $('rcpt-list'); box.textContent = 'جارٍ التحميل…'; $('rcpt-view').classList.add('show');
+    try {
+      var list = (await p2p('receipt.list', { id: state.p2p.orderId })).receipts; box.textContent = '';
+      list.forEach(function (x) {
+        var im = el('img', 'width:100%;border-radius:12px;border:1px solid var(--line);background:var(--s1)'); im.src = x.url; im.alt = 'إيصال';
+        box.appendChild(im); box.appendChild(el('span', 'font-size:11px;color:var(--mu);direction:ltr;text-align:right', new Date(x.created_at).toLocaleString('ar-EG')));
+      });
+      if (!list.length) box.textContent = 'لا توجد إيصالات';
+    } catch (e) { box.textContent = p2pErr(e); }
+  }
+  $('rcpt-close').onclick = function () { $('rcpt-view').classList.remove('show'); $('rcpt-list').textContent = ''; };
   async function refreshOrder(action, params) {
     var id = state.p2p.orderId; if (!id) return;
     try {
@@ -2600,6 +2636,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       });
       actionBtn('تحقق من الإيداع', 'ghost', function () { refreshOrder('order.refresh'); });
     }
+    var rc = o.receipts || 0;
+    if (role === 'buyer' && ['funded', 'paid', 'disputed'].indexOf(s) >= 0 && rc < 3) actionBtn(rc ? '📎 رفع إيصال آخر (' + rc + '/3)' : '📎 رفع إيصال تحويل بنكك', s === 'funded' ? 'ghost' : 'primary', pickReceipt);
+    if ((role === 'seller' || role === 'admin') && rc) actionBtn('🧾 عرض إيصال الدفع (' + rc + ')', 'ghost', showReceipts);
     if (role === 'buyer' && s === 'funded') actionBtn('حوّلت المبلغ عبر بنكك', 'primary', function () { doAction('mark_paid', 'هل حوّلت ' + fmt(o.total_sdg) + ' ج.س فعلاً إلى حساب البائع؟ الادعاء الكاذب يؤدي لحظر حسابك.'); });
     if (role === 'seller' && (s === 'funded' || s === 'paid')) actionBtn('استلمت المبلغ · حرّر USDT', 'primary', function () { doAction('release', 'تأكد أن ' + fmt(o.total_sdg) + ' ج.س وصلت فعلاً إلى حسابك في بنكك. لا يمكن التراجع بعد التحرير.', true); });
     if ((role === 'buyer' || role === 'seller') && s === 'paid') actionBtn('فتح نزاع', 'danger', async function () {

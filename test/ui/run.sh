@@ -20,3 +20,4 @@ run "الإرسال برقم الهاتف" tronweb-mainnet.js '{"network":"mainn
 run "الشبكات المتعددة (BNB Chain وEthereum وPolygon)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_evm.py
 run "نقل بين الشبكات (LI.FI)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_bridge.py
 run "Android Keystore" tronweb-mainnet.js '{"network":"mainnet"}' run_keystore.py
+run "إيصالات بنكك" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_receipt.py

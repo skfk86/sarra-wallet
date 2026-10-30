@@ -335,7 +335,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { orders: list.map((o) => ({ ...publicOrder(o, null, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller] })) };
   }
 
-  if (action === 'order.get' || action === 'order.action' || action === 'message.send' || action === 'order.refresh') {
+  if (action === 'order.get' || action === 'order.action' || action === 'message.send' || action === 'order.refresh' || action === 'receipt.upload' || action === 'receipt.list') {
     const { data: o0 } = await db.from('orders').select('*').eq('id', p.id).maybeSingle();
     if (!o0) throw new Error('NOT_FOUND');
     const role = L.roleOf(o0 as L.Order, me, ADMINS);
@@ -376,6 +376,34 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       o = locked;
     }
 
+    if (action === 'receipt.upload') {
+      if (!L.canUploadReceipt(o as L.Order, role)) throw new Error('NOT_ALLOWED');
+      const r = L.validateReceipt(attachment);
+      if (await sha256Hex(attachment) !== String(p.sha256)) throw new Error('BAD_RECEIPT_TYPE');
+      const { count } = await db.from('order_receipts').select('id', { count: 'exact', head: true }).eq('order_id', o.id);
+      if ((count || 0) >= L.MAX_RECEIPTS) throw new Error('MAX_RECEIPTS');
+      await limit(me, 'receipt');
+      const ext = r.mime === 'image/png' ? 'png' : r.mime === 'image/webp' ? 'webp' : 'jpg';
+      const path = o.id + '/' + Date.now() + '.' + ext;
+      const { error: upErr } = await db.storage.from('receipts').upload(path, r.bytes, { contentType: r.mime, upsert: false });
+      if (upErr) throw new Error('UPLOAD_FAILED');
+      const hash = await sha256Hex(attachment);
+      const { error: insErr } = await db.from('order_receipts').insert({ order_id: o.id, uploader: me, path, mime: r.mime, size_bytes: r.bytes.length, sha256: hash });
+      if (insErr) { await db.storage.from('receipts').remove([path]); throw new Error('DB_ERROR'); }
+      await audit(o.id, me, 'receipt_upload', { size: r.bytes.length, mime: r.mime, sha256: hash.slice(0, 16) });
+      await db.from('messages').insert({ order_id: o.id, sender: me, body: '📎 رفع المشتري إيصال تحويل بنكك' });
+    }
+    if (action === 'receipt.list') {
+      if (!L.canViewReceipts(role)) throw new Error('NOT_ALLOWED');
+      const { data: rs } = await db.from('order_receipts').select('id,path,mime,size_bytes,created_at').eq('order_id', o.id).order('id');
+      const out = await Promise.all((rs || []).map(async (x) => {
+        const { data: su } = await db.storage.from('receipts').createSignedUrl(x.path, 300);
+        return { id: x.id, created_at: x.created_at, size: x.size_bytes, url: su?.signedUrl || null };
+      }));
+      await audit(o.id, me, 'receipt_view', { count: out.length, as: role });
+      return { receipts: out };
+    }
+
     if (action === 'message.send') {
       const body = String(p.body || '').trim().slice(0, 1000);
       if (!body) throw new Error('EMPTY_MESSAGE');
@@ -387,7 +415,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const { data: offer } = await db.from('offers').select('bankak_name,bankak_account').eq('id', o.offer_id).single();
     const { data: msgs } = await db.from('messages').select('id,sender,body,created_at').eq('order_id', o.id).order('id').limit(200);
     const profs = await profilesMap([o.buyer, o.seller]);
-    return { order: { ...publicOrder(o, offer, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller] }, role, messages: msgs || [] };
+    const { count: rcount } = await db.from('order_receipts').select('id', { count: 'exact', head: true }).eq('order_id', o.id);
+    return { order: { ...publicOrder(o, offer, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller], receipts: rcount || 0 }, role, messages: msgs || [] };
   }
 
   if (action === 'admin.queue') {

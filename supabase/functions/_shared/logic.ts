@@ -157,7 +157,8 @@ export const LIMITS: Record<string, [number, number]> = {
   message: [30, 3600],        // 30 رسالة في الساعة
   profile: [5, 86400],        // 5 تغييرات اسم في اليوم
   verify: [3, 86400],         // 3 طلبات توثيق في اليوم
-  phone_lookup: [30, 86400]   // 30 بحثاً برقم هاتف في اليوم (يمنع تجربة آلاف الأرقام)
+  phone_lookup: [30, 86400],  // 30 بحثاً برقم هاتف في اليوم (يمنع تجربة آلاف الأرقام)
+  receipt: [10, 86400]        // 10 إيصالات في اليوم
 };
 export const MAX_ACTIVE_OFFERS = 3;
 
@@ -239,4 +240,28 @@ export function paymentMatches(info: Record<string, any> | null | undefined, ord
   const amt = Number(info.amount);
   if (!isFinite(amt) || amt + 0.000001 < Number(order.amount_usdt)) return false;
   return true;
+}
+
+// ===== إيصالات بنكك =====
+export const MAX_RECEIPTS = 3;
+const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/png': (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
+  'image/webp': (b) => String.fromCharCode(b[0], b[1], b[2], b[3]) === 'RIFF' && String.fromCharCode(b[8], b[9], b[10], b[11]) === 'WEBP'
+};
+// النوع يُحدَّد من محتوى الملف نفسه (البايتات الأولى)، لا من الاسم أو التصريح فقط
+export function validateReceipt(dataUrl: string): { mime: string; bytes: Uint8Array } {
+  const m = String(dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) throw new Error('BAD_RECEIPT_TYPE');
+  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+  if (bytes.length < 10000) throw new Error('RECEIPT_TOO_SMALL');
+  if (bytes.length > 2097152) throw new Error('RECEIPT_TOO_LARGE');
+  if (!MAGIC[m[1]](bytes)) throw new Error('BAD_RECEIPT_TYPE');
+  return { mime: m[1], bytes };
+}
+export function canUploadReceipt(order: Order, role: string | null): boolean {
+  return role === 'buyer' && ['funded', 'paid', 'disputed'].includes(order.status);
+}
+export function canViewReceipts(role: string | null): boolean {
+  return role === 'seller' || role === 'admin';
 }

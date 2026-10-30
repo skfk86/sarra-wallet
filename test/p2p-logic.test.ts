@@ -171,4 +171,24 @@ t('الإيداع يُقبل فقط إن طابق الطلب (المبلغ وا�
   assert.ok(!L.paymentMatches(null, o));
 });
 
+t('إيصالات بنكك: النوع من البايتات، والحجم، ومن يرفع ومن يرى', () => {
+  const b64 = (arr: number[], n: number) => Buffer.concat([Buffer.from(arr), Buffer.alloc(n)]).toString('base64');
+  const jpg = 'data:image/jpeg;base64,' + b64([0xff, 0xd8, 0xff, 0xe0], 20000);
+  assert.equal(L.validateReceipt(jpg).mime, 'image/jpeg');
+  const png = 'data:image/png;base64,' + b64([0x89, 0x50, 0x4e, 0x47], 20000);
+  assert.equal(L.validateReceipt(png).mime, 'image/png');
+  // ملف HTML/PDF متنكّر كصورة يُرفض
+  assert.throws(() => L.validateReceipt('data:image/jpeg;base64,' + b64([0x3c, 0x68, 0x74, 0x6d], 20000)), /BAD_RECEIPT_TYPE/);
+  assert.throws(() => L.validateReceipt('data:application/pdf;base64,' + b64([0x25, 0x50, 0x44, 0x46], 20000)), /BAD_RECEIPT_TYPE/);
+  assert.throws(() => L.validateReceipt('data:image/jpeg;base64,' + b64([0xff, 0xd8, 0xff], 100)), /RECEIPT_TOO_SMALL/);
+  assert.throws(() => L.validateReceipt('data:image/jpeg;base64,' + b64([0xff, 0xd8, 0xff], 2200000)), /RECEIPT_TOO_LARGE/);
+  const o = { id: 'x', seller: 'S', buyer: 'B', status: 'funded', amount_usdt: '10' };
+  assert.ok(L.canUploadReceipt(o, 'buyer'));
+  assert.ok(!L.canUploadReceipt(o, 'seller'));
+  assert.ok(!L.canUploadReceipt({ ...o, status: 'released' }, 'buyer'));
+  assert.ok(!L.canUploadReceipt({ ...o, status: 'awaiting_deposit' }, 'buyer'));
+  assert.ok(L.canViewReceipts('seller') && L.canViewReceipts('admin'));
+  assert.ok(!L.canViewReceipts('buyer') && !L.canViewReceipts(null));
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
