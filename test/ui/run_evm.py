@@ -62,11 +62,12 @@ async def main():
     await pin('123456'); await pin('123456'); await pg.wait_for_timeout(2500); await pg.click('#intro-ok'); await pg.wait_for_timeout(1500)
     await pg.wait_for_timeout(1000)
     syms=await pg.locator('#assets .coin-row').evaluate_all('els=>els.map(e=>e.dataset.asset)')
-    assert set(syms)=={'USDT','USDC','TRX','BNB','ETH','POL'} and syms[0]=='USDT', syms; print('✓ قائمة العملات: '+' · '.join(syms)+' (مرتبة بالقيمة)')
+    assert {'USDT','USDC','TRX','BNB','ETH','POL','BTC','XRP','SOL','DOGE','PEPE'}<=set(syms) and syms[0]=='USDT' and len(syms)==19, syms; print('✓ قائمة العملات: '+' · '.join(syms)+' (مرتبة بالقيمة)')
     logos=await pg.locator('#assets .cl>img').evaluate_all('els=>els.map(e=>e.naturalWidth>0 && e.src.split("/").pop())')
     assert all(logos) and 'usdt.png' in logos, logos; print('✓ الشعارات الحقيقية للعملات محمّلة')
     await pg.wait_for_timeout(500); assert await pg.locator('#assets .spark').count()>=3; print('✓ خط سعر الأسبوع بجانب كل عملة متغيرة السعر')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-full.png', full_page=True)
     await pg.click('#assets [data-asset=BNB]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and await pg.locator('#ch-svg path').count()==2
     assert '$' in await pg.inner_text('#ch-price') and 'أعلى' in await pg.inner_text('#ch-hi')
@@ -75,8 +76,8 @@ async def main():
     assert await pg.locator('#ch-svg circle').count()==1
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/chart.png')
     await pg.click('#cs-close'); await pg.wait_for_timeout(300)
-    await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(400); assert not await pg.locator('#cs-chart').is_visible(); await pg.click('#cs-close')
-    print('✓ رسم السعر: 5 فترات، لمس لعرض السعر في أي لحظة، أعلى وأدنى سعر، ومخفي للعملات المستقرة')
+    await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(600); assert await pg.locator('#cs-chart').is_visible(); await pg.click('#cs-close')
+    print('✓ رسم السعر: 5 فترات، لمس لعرض السعر في أي لحظة، أعلى وأدنى سعر، ويظهر لكل العملات')
     assert await pg.locator('#bal-chip .logos img').count()==4; await pg.click('#toggle-bal'); await pg.wait_for_timeout(200)
     assert '••••' in await pg.inner_text('#bal-usdt') and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-hidden.png')

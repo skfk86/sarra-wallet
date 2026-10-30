@@ -1514,7 +1514,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var sparkAt = 0;
   function loadSpark() {
     if (NETWORK !== 'mainnet' || state.spark || Date.now() - sparkAt < 600000) return; sparkAt = Date.now();
-    var ids = COINS.filter(function (c) { return !c.stable; }).map(function (c) { return c.cg; }).join(',');
+    var ids = COINS.map(function (c) { return c.cg; }).join(',');
     fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&sparkline=true&ids=' + ids)
       .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
       .then(function (j) {
@@ -1524,7 +1524,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       }).catch(function () {});
   }
   function sparkSvg(a) {
-    var mn = Math.min.apply(null, a), mx = Math.max.apply(null, a), rg = mx - mn || 1, up = a[a.length - 1] >= a[0];
+    var mn = Math.min.apply(null, a), mx = Math.max.apply(null, a), rg = Math.max(mx - mn, mx * 0.01) || 1, up = a[a.length - 1] >= a[0];
     var d = a.map(function (v, i) { return (i ? 'L' : 'M') + (i / (a.length - 1) * 60).toFixed(1) + ' ' + (2 + (1 - (v - mn) / rg) * 20).toFixed(1); }).join(' ');
     var w = document.createElement('span'); w.className = 'spark'; w.setAttribute('aria-hidden', 'true');
     w.innerHTML = '<svg viewBox="0 0 60 24" preserveAspectRatio="none"><path d="' + d + '" fill="none" stroke="' + (up ? '#16a37a' : '#e5484d') + '" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
@@ -1535,9 +1535,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function chgEl(chg) { if (chg == null || !isFinite(chg)) return null; var e = el('em', null, (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'); e.className = 'chg ' + (chg >= 0 ? 'up' : 'dn'); return e; }
   function renderAssets() {
     var box = $('assets'); box.textContent = '';
-    var hidden = 0;
-    var rows = COINS.filter(function (c) { var t = coinTotal(c); if (c.extra && !(t > 0)) { hidden++; return false; } return true; }).map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
-    rows.sort(function (a, b) { return (b.v || 0) - (a.v || 0); });
+    var rows = COINS.map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
+    // الأعلى قيمة أولاً، ثم العملات الأساسية، ثم بقية العملات المدعومة بترتيبها
+    rows.forEach(function (r, i) { r.i = i; });
+    rows.sort(function (a, b) { return ((b.v || 0) - (a.v || 0)) || ((a.c.extra ? 1 : 0) - (b.c.extra ? 1 : 0)) || (a.i - b.i); });
     rows.forEach(function (r) {
       var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.asset = c.sym;
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
@@ -1545,7 +1546,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
       var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); var ce = NETWORK === 'mainnet' && r.p ? chgEl(r.p.chg) : null; if (ce) { sub.appendChild(document.createTextNode(' ')); sub.appendChild(ce); }
       mid.appendChild(sub); row.appendChild(mid);
-      var sp = !c.stable && state.spark && state.spark[c.cg]; if (sp) row.appendChild(sparkSvg(sp));
+      var sp = state.spark && state.spark[c.cg]; if (sp) row.appendChild(sparkSvg(sp));
       var end = el('div'); end.className = 'cr-end';
       end.appendChild(el('b', null, state.hidden ? '••••' : r.t == null ? '—' : fmt(r.t, c.stable ? 2 : 6)));
       end.appendChild(el('span', null, state.hidden ? '' : r.v == null ? '' : '≈ ' + usd(r.v)));
@@ -1553,7 +1554,6 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       row.onclick = function () { openCoin(c); };
       box.appendChild(row);
     });
-    if (hidden) { var more = el('button', null, '+ ' + hidden + ' عملة أخرى مدعومة · تظهر هنا عند استلامها'); more.type = 'button'; more.className = 'linkbtn'; more.style.cssText = 'display:block;margin:10px auto 0'; more.onclick = openCoinsHelp; box.appendChild(more); }
     $('price-src').textContent = NETWORK === 'mainnet' && state.prices ? 'الأسعار: CoinGecko' : '';
   }
   function openCoin(c) {
@@ -1579,7 +1579,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       box.appendChild(row);
     });
     $('coin-sheet').classList.add('show');
-    CH.coin = c; $('cs-chart').hidden = NETWORK !== 'mainnet' || !!c.stable; if (!$('cs-chart').hidden) loadChart();
+    CH.coin = c; $('cs-chart').hidden = NETWORK !== 'mainnet'; if (!$('cs-chart').hidden) loadChart();
   }
   // ===== الرسم البياني للسعر (CoinGecko، SVG بدون مكتبات) =====
   var CH = { coin: null, days: 1, pts: null };
@@ -1604,7 +1604,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   function drawChart(hover) {
     var pts = CH.pts, svg = $('ch-svg'); if (!pts || pts.length < 2) return;
-    var W = 320, H = 150, P = 8, ys = pts.map(function (x) { return x[1]; }), mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys), rg = mx - mn || mx || 1;
+    var W = 320, H = 150, P = 8, ys = pts.map(function (x) { return x[1]; }), mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys), rg = Math.max(mx - mn, mx * 0.01) || 1; mn = Math.min(mn, mx - rg + (rg - (mx - mn)) / 2); // لا نضخّم تذبذب العملات المستقرة
     var X = function (i) { return i / (pts.length - 1) * W; }, Y = function (v) { return P + (1 - (v - mn) / rg) * (H - 2 * P); };
     var up = ys[ys.length - 1] >= ys[0], col = up ? '#16a37a' : '#e5484d';
     var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join(' ');
