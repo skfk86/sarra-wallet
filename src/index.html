@@ -164,6 +164,26 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .netbar::-webkit-scrollbar{display:none}
 .netbar .chip{flex-shrink:0;display:flex;align-items:center;gap:6px}
 .netbar .chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.netgrid{display:grid;gap:8px;overflow:visible}
+.netgrid .chip{height:auto;min-height:62px;flex-direction:column;justify-content:center;gap:5px;padding:8px 4px;border-radius:16px;font-size:12px;line-height:1.2;text-align:center;min-width:0}
+.netgrid .chip img{width:24px;height:24px;border-radius:50%;display:block}
+.netgrid .chip.on{background:var(--ac-bg,var(--s1));color:var(--tx);border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}
+.seg button img{width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-inline-end:6px}
+.pct{display:flex;gap:6px}
+.pct button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--s2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
+.pct button.max{color:var(--ac);border-color:var(--ac)}
+#to:placeholder-shown{direction:rtl;text-align:right}
+.recent{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.recent::-webkit-scrollbar{display:none}
+.recent button{flex-shrink:0;height:32px;padding:0 12px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--tx2);font-size:12px;font-family:ui-monospace,monospace;cursor:pointer;direction:ltr}
+.netinfo{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--tx2)}
+.netinfo img{width:28px;height:28px;border-radius:50%;flex-shrink:0}
+.netinfo b{color:var(--tx)}
+.qrwrap{position:relative;width:232px;height:232px;margin:0 auto}
+.qrwrap .qlogo{position:absolute;left:50%;top:50%;width:46px;height:46px;transform:translate(-50%,-50%);border-radius:50%;background:#fff;padding:4px;box-shadow:0 0 0 4px #fff}
+.recv-coins{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mu)}
+.recv-coins img{width:20px;height:20px;border-radius:50%}
+#addr .hl{color:var(--ac);font-weight:700}
 .coin-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;background:none;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer}
 .coin-row+.coin-row{border-top:1px solid var(--div)}
 .coin-row:active{background:var(--s2)}
@@ -286,13 +306,14 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
     <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
   </div>
+  <div class="recent" id="recent" hidden></div>
   <label class="lbl" for="amt">المبلغ</label>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
     <div class="row ltr"><input id="amt" inputmode="decimal" placeholder="0.00" style="flex-grow:1;min-width:0;background:none;border:0;outline:none;font-size:34px;font-weight:700;padding:0"><span class="muted" style="font-size:16px;font-weight:600" id="amt-unit">USDT</span></div>
-    <div class="row between"><span class="muted">المتاح: <bdi class="ltr" id="avail">—</bdi></span><button class="icon-btn flat" id="max" style="width:auto;height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--ac)">الكل</button></div>
+    <div class="muted ltr" style="font-size:13px;margin-top:-6px;text-align:left" id="amt-usd"></div>
+    <div class="row between" style="gap:8px;flex-wrap:wrap"><span class="muted" style="font-size:13px">المتاح: <bdi class="ltr" id="avail">—</bdi></span><div class="pct"><button type="button" data-pct="25">25%</button><button type="button" data-pct="50">50%</button><button type="button" class="max" id="max">الكل</button></div></div>
   </div>
-  <div class="note warn" role="note" id="send-warn"><span>أرسل فقط إلى عنوان على <b>شبكة TRON (TRC20)</b>، يبدأ بحرف T. إن كان المستلم يستخدم منصة مثل Binance، فليختر شبكة TRON عند نسخ عنوان الإيداع.</span></div>
-  <div class="note ok" role="note" id="send-fee-note"><span>رسوم الشبكة تُخصم من رصيد TRX: <bdi class="ltr" id="send-trx">—</bdi> TRX متاح.</span></div>
+  <div class="netinfo" role="note"><img id="send-net-logo" alt=""><div><div id="send-warn"><span></span></div><div id="send-fee-note" class="muted"><span></span></div></div></div>
   <div class="note err" id="send-err" hidden></div>
   <div class="grow"></div>
   <button class="btn btn-primary" id="review">مراجعة الإرسال</button>
@@ -303,7 +324,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">استلام</h1></div>
   <div class="netbar" id="recv-nets" role="tablist" aria-label="الشبكة"></div>
   <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:22px;border-radius:24px">
-    <div class="qr" id="qr" role="img" aria-label="رمز QR لعنوان المحفظة"></div>
+    <div class="recv-coins" id="recv-coins"></div>
+    <div class="qrwrap"><div class="qr" id="qr" role="img" aria-label="رمز QR لعنوان المحفظة"></div><img class="qlogo" id="qr-logo" alt=""></div>
     <span class="muted" id="recv-label">عنوان محفظتك على شبكة TRON</span>
     <span class="ltr mono" id="addr" style="font-size:14px;text-align:center;word-break:break-all;line-height:1.6"></span>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">
@@ -312,7 +334,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </div>
   </div>
   <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
-  <div class="note ok" role="note" id="recv-fee"><span><b>تحتاج TRX لترسل لاحقاً:</b> رسوم الشبكة تُدفع بعملة TRX. احرص أن يكون في محفظتك 15 TRX على الأقل لتتمكن من إرسال USDT.</span></div>
+  <div class="netinfo" role="note" id="recv-fee"><span></span></div>
 </section>
 
 <!-- ===== تم الإرسال ===== -->
@@ -868,14 +890,19 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
     Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: c.tokens.map(function (t) { return t.sym; }).concat([c.native]), evm: true }; }));
   function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
+  var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
+  function netLogo(k) { return 'assets/coins/' + (NET_LOGO[k] || 'trx') + '.png'; }
+  function symLogo(sym) { return 'assets/coins/' + String(sym).toLowerCase() + '.png'; }
   function renderNetbar(box, cur, onPick) {
     box.hidden = NETS.length < 2; box.textContent = '';
     NETS.forEach(function (n) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (n.key === cur ? ' on' : '');
       b.dataset.net = n.key; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', n.key === cur ? 'true' : 'false');
-      var dot = document.createElement('i'); dot.style.background = n.key === cur ? 'currentColor' : n.color; b.appendChild(dot);
-      b.appendChild(document.createTextNode(n.name)); b.onclick = function () { onPick(n.key); }; box.appendChild(b);
+      var lg = document.createElement('img'); lg.src = netLogo(n.key); lg.alt = ''; b.appendChild(lg);
+      var t = document.createElement('span'); t.textContent = n.name; b.appendChild(t);
+      b.onclick = function () { onPick(n.key); }; box.appendChild(b);
     });
+    box.classList.add('netgrid'); box.style.gridTemplateColumns = 'repeat(' + NETS.length + ',minmax(0,1fr))';
   }
   function evmUnits(k, sym) {
     var b = state.evmBal && state.evmBal[k]; if (!b) return null;
@@ -1446,13 +1473,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('recv-warn').firstChild.innerHTML = '';
     var w = $('recv-warn').firstChild;
     w.textContent = evm
-      ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + ') عند الإرسال. هذا العنوان نفسه يعمل على BNB Chain وEthereum وPolygon، لكن العملة تصل على الشبكة التي أُرسلت عليها فقط. لا ترسل إليه من شبكة TRON.'
-      : 'اطلب من المرسل اختيار شبكة TRON (TRC20) عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط.';
+      ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + '). هذا العنوان يعمل على BNB Chain وEthereum وPolygon، والعملة تصل على الشبكة التي أُرسلت عليها. لا ترسل إليه من TRON.'
+      : 'اطلب من المرسل اختيار شبكة TRON (TRC20). أي مبلغ من شبكة أخرى مثل BEP20 أو ERC20 يضيع.';
     $('recv-fee').firstChild.textContent = evm
-      ? 'لترسل لاحقاً من ' + n.name + ' تحتاج قليلاً من ' + n.native + ' لدفع رسوم الشبكة.'
-      : 'تحتاج TRX لترسل لاحقاً: رسوم الشبكة تُدفع بعملة TRX. احرص أن يكون في محفظتك 15 TRX على الأقل.';
-    $('addr').textContent = a;
-    var qr = qrcode(0, 'M'); qr.addData(a); qr.make();
+      ? '⛽ لترسل لاحقاً من ' + n.name + ' تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.'
+      : '⛽ لترسل لاحقاً تحتاج TRX لرسوم الشبكة، 15 TRX على الأقل.';
+    var ad = $('addr'); ad.textContent = '';
+    [[a.slice(0, 4), 'hl'], [a.slice(4, -4), ''], [a.slice(-4), 'hl']].forEach(function (x) { var sp = document.createElement('span'); sp.textContent = x[0]; if (x[1]) sp.className = x[1]; ad.appendChild(sp); });
+    $('qr-logo').src = netLogo(n.key);
+    var rc = $('recv-coins'); rc.textContent = 'يستقبل:';
+    n.coins.forEach(function (c) { var im = document.createElement('img'); im.src = symLogo(c); im.alt = c; im.title = c; rc.appendChild(im); });
+    var qr = qrcode(0, 'Q'); qr.addData(a); qr.make();
     var img = document.createElement('img');
     img.src = qr.createDataURL(8, 0); img.alt = '';
     $('qr').textContent = ''; $('qr').appendChild(img);
@@ -1480,7 +1511,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     seg.style.gridTemplateColumns = 'repeat(' + n.coins.length + ',minmax(0,1fr))';
     seg.textContent = '';
     n.coins.forEach(function (c) {
-      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.coin = c; b.textContent = c;
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.coin = c; var ci = document.createElement('img'); ci.src = symLogo(c); ci.alt = ''; b.appendChild(ci); b.appendChild(document.createTextNode(c));
       var on = c === state.coin; b.className = on ? 'on' : ''; b.setAttribute('aria-selected', on ? 'true' : 'false');
       b.onclick = function () { state.coin = c; $('amt').value = ''; renderCoinSeg(); prepareSend(); };
       seg.appendChild(b);
@@ -1491,30 +1522,50 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     renderNetbar($('send-nets'), state.sendNet, function (k) { state.sendNet = k; $('amt').value = ''; renderCoinSeg(); prepareSend(); });
     var n = netOf(state.sendNet), b = state.balances;
     $('amt-unit').textContent = state.coin;
-    $('to').placeholder = n.evm ? '0x…' : 'T… أو 09xxxxxxxx';
+    $('to').placeholder = n.evm ? 'عنوان يبدأ بـ 0x' : 'عنوان يبدأ بـ T أو رقم هاتف';
+    $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
     $('to-lbl').textContent = n.evm ? 'عنوان المستلم على ' + n.name : 'المستلم: عنوان المحفظة أو رقم الهاتف';
     $('send-warn').firstChild.textContent = n.evm
-      ? 'أرسل فقط إلى عنوان على شبكة ' + n.name + ' (' + n.short + ')، يبدأ بـ 0x. إن كان المستلم على منصة مثل Binance فليختر نفس الشبكة عند نسخ عنوان الإيداع.'
-      : 'أرسل فقط إلى عنوان على شبكة TRON (TRC20)، يبدأ بحرف T، أو إلى رقم هاتف مسجّل. إن كان المستلم يستخدم منصة مثل Binance، فليختر شبكة TRON عند نسخ عنوان الإيداع.';
+      ? 'الشبكة: ' + n.name + ' (' + n.short + ') · تأكد أن المستلم على نفس الشبكة'
+      : 'الشبكة: TRON (TRC20) · تأكد أن المستلم على نفس الشبكة';
     if (n.evm) {
       var u = evmUnits(state.sendNet, state.coin), nu = evmUnits(state.sendNet, n.native);
       $('avail').textContent = u == null ? '—' : fmt(WalletCore.fromUnits(u, evmDec(state.sendNet, state.coin)), 6) + ' ' + state.coin;
-      $('send-fee-note').firstChild.textContent = 'رسوم الشبكة تُدفع بعملة ' + n.native + ': ' + (nu == null ? '—' : fmt(WalletCore.fromUnits(nu, 18), 6)) + ' ' + n.native + ' متاح.';
+      $('send-fee-note').firstChild.textContent = '⛽ الرسوم بعملة ' + n.native + ' · متاح ' + (nu == null ? '—' : fmt(WalletCore.fromUnits(nu, 18), 6));
     } else {
       $('avail').textContent = b ? (state.coin === 'USDT' ? b.usdt : b.trx) + ' ' + state.coin : '—';
       $('send-fee-note').firstChild.innerHTML = '';
-      $('send-fee-note').firstChild.textContent = 'رسوم الشبكة تُخصم من رصيد TRX: ' + (b ? b.trx : '—') + ' TRX متاح.';
+      $('send-fee-note').firstChild.textContent = '⛽ الرسوم بعملة TRX · متاح ' + (b ? b.trx : '—');
     }
     if (Object.keys(EVM).length && !state.evmBal) core.evmBalances().then(function (eb) { if (!eb) return; state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'send') prepareSend(); }).catch(function () {});
   }
   state.coin = state.coin || 'USDT'; renderCoinSeg();
+  // آخر المستلمين لكل شبكة (على هذا الجهاز فقط)
+  function recentList(net) { try { return JSON.parse(localStorage.getItem('sarra.recent.' + net) || '[]'); } catch (e) { return []; } }
+  function saveRecent(net, to) { try { var l = recentList(net).filter(function (x) { return x !== to; }); l.unshift(to); localStorage.setItem('sarra.recent.' + net, JSON.stringify(l.slice(0, 5))); } catch (e) {} }
+  function renderRecent() {
+    var box = $('recent'), l = recentList(state.sendNet); box.textContent = ''; box.hidden = !l.length;
+    l.forEach(function (a) { var b = document.createElement('button'); b.type = 'button'; b.textContent = asPhone(a) ? a : a.slice(0, 6) + '…' + a.slice(-4); b.title = a;
+      b.onclick = function () { $('to').value = a; $('send-err').hidden = true; }; box.appendChild(b); });
+  }
+  function updUsd() {
+    var c = COINS.filter(function (x) { return x.sym === state.coin; })[0], pr = c && priceOf(c), v = Number($('amt').value);
+    $('amt-usd').textContent = pr && pr.usd && v > 0 ? '≈ $' + fmt(v * pr.usd, 2) : '';
+  }
+  $('amt').addEventListener('input', updUsd);
+  document.querySelectorAll('.pct [data-pct]').forEach(function (b) { b.onclick = function () {
+    var u = coinUnits(); if (u == null) return;
+    var dec = state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin);
+    $('amt').value = WalletCore.fromUnits(u * BigInt(b.dataset.pct) / 100n, dec); updUsd();
+  }; });
   // مسح QR: ماسح Google أولاً (لا يحتاج إذن الكاميرا)، وإن لم يتوفر أو فشل
   // نفتح ماسحاً داخل التطبيق بالكاميرا (jsQR) يعمل على أي هاتف
   var Scanner = P.BarcodeScanner;
   function useScanResult(raw) {
-    var addr = String(raw || '').trim().replace(/^tron:/i, '').split(/[?&/]/)[0];
-    if (core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
-    toast('الرمز لا يحتوي عنوان TRON صحيحاً', true);
+    var addr = String(raw || '').trim().replace(/^(tron|ethereum|bnb|polygon):/i, '').split(/[?&/@]/)[0];
+    var evm = state.sendNet !== 'tron';
+    if (evm ? core.isEvmAddress(addr) : core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
+    toast(evm ? 'الرمز لا يحتوي عنواناً صحيحاً يبدأ بـ 0x' : 'الرمز لا يحتوي عنوان TRON صحيحاً', true);
     return false;
   }
   function isCancel(e) { return /cancel/i.test((e && (e.message || e.code)) || ''); }
@@ -1586,7 +1637,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var u = coinUnits(); if (u == null) return;
     // عند إرسال كل TRX نترك 2 TRX للرسوم
     if (state.coin === 'TRX') u = u > 2000000n ? u - 2000000n : 0n;
-    $('amt').value = WalletCore.fromUnits(u, 6);
+    $('amt').value = WalletCore.fromUnits(u, state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin)); updUsd();
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
   // رقم هاتف سوداني؟ (09xxxxxxxx أو +249… بالأرقام العربية أو الإنجليزية)
@@ -1631,7 +1682,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var have = coinUnits();
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
     if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
-    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin, via: via };
+    state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin, via: via, phone: phone || null };
     $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
     // بالرقم: نعرض الاسم المخفي جزئياً والرقم، ولا نعرض العنوان
     if (via) { $('c-to').textContent = via.name + ' · ' + via.phone + ' · موثّق ✓'; $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
@@ -1659,7 +1710,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.lastTx = r; state.historyCache = null; state.pending = null; state.balances = null;
       setSuccessTitle(r.status);
       $('ok-amt').textContent = p.amt + ' ' + p.coin;
-      $('ok-to').textContent = shortAddr(p.to);
+      $('ok-to').textContent = shortAddr(p.to); saveRecent(p.net || 'tron', p.phone || p.to);
       $('to').value = ''; $('amt').value = '';
       state.stack = ['home'];
       show('success');
