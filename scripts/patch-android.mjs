@@ -1,7 +1,7 @@
 // يُشغَّل بعد `npx cap add android`
 // يمنع لقطات الشاشة وتسجيلها في التطبيق كله (FLAG_SECURE)،
 // ويخفي محتوى التطبيق في قائمة التطبيقات الأخيرة.
-import { readFileSync, writeFileSync, existsSync, cpSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, cpSync, copyFileSync } from 'node:fs';
 
 const cfg = JSON.parse(readFileSync('capacitor.config.json', 'utf8'));
 const pkg = cfg.appId;
@@ -21,6 +21,8 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // سرّ الجهاز في Android Keystore (يحمي تشفير المحفظة مع رمز PIN)
+        registerPlugin(DeviceKeyPlugin.class);
         super.onCreate(savedInstanceState);
         // محفظة أموال: منع لقطات الشاشة وتسجيلها
         getWindow().setFlags(
@@ -31,6 +33,8 @@ public class MainActivity extends BridgeActivity {
 }
 `);
 console.log('FLAG_SECURE applied to ' + file);
+copyFileSync('android-src/DeviceKeyPlugin.java', file.replace('MainActivity.java', 'DeviceKeyPlugin.java'));
+console.log('DeviceKeyPlugin (Android Keystore) added');
 
 // ماسح QR من Google: تنزيل الوحدة تلقائياً عند التثبيت + إذن البصمة
 const manifest = 'android/app/src/main/AndroidManifest.xml';

@@ -164,4 +164,40 @@ await t('رسائل الأخطاء بالعربية', () => {
   assert.match(W.errorText(new Error('xyz')), /الشبكة/);
 });
 
+await t('Keystore: التشفير يحتاج PIN + سرّ الجهاز معاً', async () => {
+  const DK = Buffer.alloc(32, 7).toString('base64'), DK2 = Buffer.alloc(32, 9).toString('base64');
+  const box = await W.encryptSecret('secret words', '123456', DK);
+  assert.equal(box.v, 2); assert.equal(box.dk, 1);
+  assert.equal(await W.decryptSecret(box, '123456', DK), 'secret words');
+  await assert.rejects(W.decryptSecret(box, '123456'), /DEVICE_KEY_LOST/, 'PIN صحيح بدون سرّ الجهاز لا يكفي');
+  await assert.rejects(W.decryptSecret(box, '123456', DK2), /WRONG_PIN/, 'سرّ جهاز آخر لا يفتح');
+});
+
+await t('Keystore: ترقية المحفظة القديمة، تغيير PIN، إعادة التشغيل، وفقدان سرّ الجهاز', async () => {
+  const DK = Buffer.alloc(32, 3).toString('base64');
+  let dk = null;
+  const mk = () => W.createCore({ network: 'nile', deviceKey: async () => dk });
+  const m = 'river smile cotton eagle harvest lamp orbit velvet sand thunder maple quiet';
+  // محفظة قديمة بتشفير PIN فقط
+  let core = mk(); await core.wipe(); await core.saveWallet(m, '246810');
+  assert.equal(await core.protectionLevel(), 'pin');
+  // بعد التحديث يتوفر سرّ الجهاز: أول فتح ناجح يرقّي التشفير
+  dk = DK; core = mk(); await core.unlock('246810');
+  assert.equal(await core.protectionLevel(), 'device');
+  // إعادة تشغيل التطبيق: كائن جديد، نفس السرّ، يفتح
+  core = mk(); await core.unlock('246810');
+  // تغيير PIN يبقي حماية الجهاز
+  await core.changePin('246810', '135790'); assert.equal(await core.protectionLevel(), 'device');
+  core = mk(); await core.unlock('135790'); await assert.rejects(core.unlock('246810'), /WRONG_PIN/);
+  assert.equal(await core.revealMnemonic('135790'), m);
+  // فقدان سرّ الجهاز (إعادة ضبط Keystore): رسالة واضحة، ولا تُحسب محاولة خاطئة
+  dk = null; core = mk();
+  for (let i = 0; i < 6; i++) await assert.rejects(core.unlock('135790'), /DEVICE_KEY_LOST/);
+  assert.equal(await core.lockoutRemaining(), 0);
+  // الاستعادة بالكلمات تعمل دائماً، وتُنشئ تشفيراً جديداً بسرّ الجهاز الجديد
+  dk = Buffer.alloc(32, 5).toString('base64'); core = mk(); await core.wipe(); await core.saveWallet(m, '111333');
+  core = mk(); await core.unlock('111333'); assert.equal(await core.protectionLevel(), 'device');
+  await core.wipe();
+});
+
 console.log(`\n${pass} اختبارات نجحت`);

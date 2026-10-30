@@ -164,17 +164,23 @@
       ['encrypt', 'decrypt']
     );
   }
-  async function encryptSecret(secret, pin) {
+  // v2: كلمة المرور = PIN + سرّ عشوائي 256-bit محفوظ في Android Keystore (لا يمكن استخراجه من الجهاز).
+  // من ينسخ ملفات التطبيق لا يستطيع تجربة المليون احتمال لرمز PIN خارج الهاتف، لأن السرّ ليس معه.
+  function secretPass(pin, dk) { return dk ? pin + '\u0000' + dk : pin; }
+  async function encryptSecret(secret, pin, dk) {
     var salt = randomBytes(16);
     var iv = randomBytes(12);
-    var key = await deriveKey(pin, salt);
+    var key = await deriveKey(secretPass(pin, dk), salt);
     var ct = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, enc.encode(secret));
-    return { v: 1, kdf: 'PBKDF2-SHA256', it: PBKDF2_ITERATIONS, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+    var box = { v: dk ? 2 : 1, kdf: 'PBKDF2-SHA256', it: PBKDF2_ITERATIONS, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+    if (dk) box.dk = 1;
+    return box;
   }
-  async function decryptSecret(box, pin) {
+  async function decryptSecret(box, pin, dk) {
+    if (box.dk && !dk) throw new Error('DEVICE_KEY_LOST');
     try {
       var salt = unb64(box.salt);
-      var key = await subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']).then(function (base) {
+      var key = await subtle.importKey('raw', enc.encode(secretPass(pin, box.dk ? dk : null)), 'PBKDF2', false, ['deriveKey']).then(function (base) {
         return subtle.deriveKey(
           { name: 'PBKDF2', salt: salt, iterations: box.it || PBKDF2_ITERATIONS, hash: 'SHA-256' },
           base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
@@ -247,6 +253,12 @@
     var MIN_FEE_SUN = 100000n; // لا عمولة أقل من 0.1 TRX
     var swapChecked = null;
     var session = null; // { address, privateKey } — في الذاكرة فقط بعد فتح القفل
+    // سرّ الجهاز من Android Keystore (null في المتصفح والاختبارات: نعود لتشفير PIN وحده)
+    async function deviceKey() {
+      if (typeof opts.deviceKey !== 'function') return null;
+      try { var k = await opts.deviceKey(); return typeof k === 'string' && k.length >= 40 ? k : null; } catch (e) { return null; }
+    }
+    function keepPublic(box, old) { box.address = old.address; if (old.evmAddress) box.evmAddress = old.evmAddress; return box; }
 
     // ===== حماية رمز القفل من التخمين =====
     // كل محاولة خاطئة (فتح، تحقق، عرض الكلمات، تغيير الرمز) تُحسب وتُحفظ
@@ -261,9 +273,16 @@
       var raw = await storage().get(VAULT_KEY);
       if (!raw) throw new Error('NO_WALLET');
       var box = JSON.parse(raw);
+      var dk = await deviceKey();
+      // سرّ الجهاز مفقود: ليس خطأ PIN، فلا يُحسب محاولة. الحل: الاستعادة بكلمات الاسترجاع
+      if (box.dk && !dk) throw new Error('DEVICE_KEY_LOST');
       try {
-        var mnemonic = await decryptSecret(box, pin);
+        var mnemonic = await decryptSecret(box, pin, dk);
         if (g.fails) await storage().set(GUARD_KEY, JSON.stringify({ fails: 0, until: 0 }));
+        // ترقية تلقائية: محفظة قديمة (PIN فقط) تُعاد بتشفير الجهاز بعد أول فتح ناجح
+        if (dk && !box.dk) {
+          try { var nb = keepPublic(await encryptSecret(mnemonic, pin, dk), box); await storage().set(VAULT_KEY, JSON.stringify(nb)); box = nb; } catch (e) {}
+        }
         return { box: box, mnemonic: mnemonic };
       } catch (e) {
         g.fails++;
@@ -448,7 +467,7 @@
       saveWallet: async function (mnemonic, pin) {
         if (!/^\d{6}$/.test(pin)) throw new Error('PIN_FORMAT');
         var acc = accountFromMnemonic(mnemonic);
-        var box = await encryptSecret(normalizeMnemonic(mnemonic), pin);
+        var box = await encryptSecret(normalizeMnemonic(mnemonic), pin, await deviceKey());
         box.address = acc.address; // العنوان عام، لا بأس بحفظه لعرض الرصيد قبل فتح القفل
         if (acc.evm) box.evmAddress = acc.evm.address;
         await storage().set(VAULT_KEY, JSON.stringify(box));
@@ -480,8 +499,7 @@
       changePin: async function (oldPin, newPin) {
         if (!/^\d{6}$/.test(newPin)) throw new Error('PIN_FORMAT');
         var v = await openVault(oldPin);
-        var box = await encryptSecret(v.mnemonic, newPin);
-        box.address = v.box.address;
+        var box = keepPublic(await encryptSecret(v.mnemonic, newPin, await deviceKey()), v.box);
         await storage().set(VAULT_KEY, JSON.stringify(box));
         return true;
       },
@@ -496,6 +514,8 @@
         return Math.max(0, g.until - Date.now());
       },
 
+      // مستوى حماية المحفظة الحالية: 'device' (Keystore + PIN) أو 'pin'
+      protectionLevel: async function () { var raw = await storage().get(VAULT_KEY); return raw && JSON.parse(raw).dk ? 'device' : 'pin'; },
       wipe: async function () { session = null; await storage().remove(VAULT_KEY); await storage().remove(GUARD_KEY); },
 
       getBalances: async function (address) {
@@ -868,6 +888,7 @@
     BAD_NETWORK: 'شبكة غير مدعومة', BAD_TOKEN: 'عملة غير مدعومة على هذه الشبكة',
     INVALID_AMOUNT: 'المبلغ غير صحيح',
     TOO_MANY_DECIMALS: 'أقصى عدد للخانات العشرية 6',
+    DEVICE_KEY_LOST: 'تعذّر الوصول لمفتاح الحماية المحفوظ في هاتفك (يحدث بعد إعادة ضبط الهاتف أو نقل البيانات). احذف المحفظة من الأمان واستعدها بكلماتك الـ 12، فأموالك آمنة على الشبكة',
     WRONG_PIN: 'رمز القفل غير صحيح',
     LOCKED_OUT: 'محاولات كثيرة خاطئة. انتظر قليلاً ثم حاول مجدداً',
     PIN_FORMAT: 'رمز القفل يجب أن يكون 6 أرقام',
