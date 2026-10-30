@@ -1,9 +1,7 @@
 name: Release (signed AAB + APK)
 
 # مؤتمت بالكامل: يعمل تلقائياً بعد نجاح "Build Android APK" على main (ويمكن تشغيله يدوياً).
-# السرّ الوحيد المطلوب: SIGNING_PASSWORD (كلمة سر طويلة، 16 حرفاً على الأقل).
-# أول مرة: يُنشئ مفتاح التوقيع، ويحفظه في المستودع مشفّراً بـ AES-256 (signing/release.jks.gpg)
-# كل مرة بعدها: يفك تشفيره ويوقّع به. لا نشر تلقائي على Google Play.
+# المفتاح في أسرار المستودع فقط (يُنشئه "Setup signing key (one time)"). لا نشر تلقائي على Google Play.
 on:
   workflow_run:
     workflows: ["Build Android APK"]
@@ -12,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release
@@ -31,34 +29,12 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
 
-      - name: Check SIGNING_PASSWORD
+      - name: Load signing key from secrets
         env:
-          PW: ${{ secrets.SIGNING_PASSWORD }}
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
-          if [ ${#PW} -lt 16 ]; then
-            echo "::error::أضف السرّ SIGNING_PASSWORD (16 حرفاً على الأقل) في Settings ← Secrets and variables ← Actions"
-            exit 1
-          fi
-
-      - name: Signing key (create once, then reuse)
-        env:
-          PW: ${{ secrets.SIGNING_PASSWORD }}
-        run: |
-          mkdir -p signing
-          if [ -f signing/release.jks.gpg ]; then
-            gpg --batch --quiet --pinentry-mode loopback --passphrase "$PW" -d signing/release.jks.gpg > release.jks \
-              || { echo "::error::تعذّر فك مفتاح التوقيع: SIGNING_PASSWORD تغيّر عن المرة الأولى"; exit 1; }
-            echo "NEW_KEY=0" >> $GITHUB_ENV
-          else
-            keytool -genkeypair -keystore release.jks -storetype PKCS12 -alias sarra -keyalg RSA -keysize 4096 -validity 10000 \
-              -storepass "$PW" -keypass "$PW" -dname "CN=Sarra Wallet, O=Sarra, C=SD"
-            gpg --batch --yes --pinentry-mode loopback --passphrase "$PW" --symmetric --cipher-algo AES256 -o signing/release.jks.gpg release.jks
-            printf '%s\n' '# مفتاح توقيع صُرّة' '' 'release.jks.gpg = مفتاح توقيع التطبيق، مشفّر AES-256 بكلمة السر SIGNING_PASSWORD.' 'لا تحذفه ولا تغيّر SIGNING_PASSWORD، وإلا لن تستطيع تحديث التطبيق على Google Play.' 'احتفظ بنسخة منه ومن كلمة السر خارج GitHub.' > signing/README.md
-            git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add signing/; git commit -m "إنشاء مفتاح توقيع الإصدار (مشفّر) [skip ci]"; git push
-            echo "NEW_KEY=1" >> $GITHUB_ENV
-          fi
-          keytool -list -keystore release.jks -storepass "$PW" | grep -i "fingerprint" || true
+          if [ -z "$KS" ]; then echo "::error::لا يوجد مفتاح توقيع. شغّل مرة واحدة: Actions ← Setup signing key (one time)"; exit 1; fi
+          echo "$KS" | base64 -d > release.jks
 
       - run: npm install
       - run: npm run vendor
@@ -92,14 +68,16 @@ jobs:
 
       - name: Sign
         env:
-          PW: ${{ secrets.SIGNING_PASSWORD }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KPW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           mkdir -p out
-          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.jks -storepass "$PW" -keypass "$PW" \
-            -signedjar out/sarra-$VERSION-release.aab android/app/build/outputs/bundle/release/app-release.aab sarra
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore release.jks -storepass "$PW" -keypass "$KPW" \
+            -signedjar out/sarra-$VERSION-release.aab android/app/build/outputs/bundle/release/app-release.aab "$ALIAS"
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           $BT/zipalign -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
-          $BT/apksigner sign --ks release.jks --ks-pass "pass:$PW" --ks-key-alias sarra --key-pass "pass:$PW" --out out/sarra-$VERSION-release.apk aligned.apk
+          $BT/apksigner sign --ks release.jks --ks-pass "pass:$PW" --ks-key-alias "$ALIAS" --key-pass "pass:$KPW" --out out/sarra-$VERSION-release.apk aligned.apk
           $BT/apksigner verify out/sarra-$VERSION-release.apk && echo "✓ التوقيع صحيح"
           rm -f release.jks aligned.apk
 
@@ -107,11 +85,3 @@ jobs:
         with:
           name: sarra-release-${{ env.VERSION }}
           path: out/
-
-      - name: Backup copy of the encrypted key (first time only)
-        if: env.NEW_KEY == '1'
-        uses: actions/upload-artifact@v4
-        with:
-          name: SAVE-THIS-signing-key
-          path: signing/
-          retention-days: 90
