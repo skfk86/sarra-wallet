@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -164,6 +164,21 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .netbar::-webkit-scrollbar{display:none}
 .netbar .chip{flex-shrink:0;display:flex;align-items:center;gap:6px}
 .netbar .chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.coin-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;background:none;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.coin-row+.coin-row{border-top:1px solid var(--div)}
+.coin-row:active{background:var(--s2)}
+.cl{position:relative;width:42px;height:42px;flex-shrink:0}
+.cl>img{width:42px;height:42px;border-radius:50%;display:block;background:#fff}
+.cl .nb{position:absolute;bottom:-3px;left:-5px;display:flex}
+.cl .nb img{width:16px;height:16px;border-radius:50%;border:2px solid var(--s1);margin-left:-6px;background:var(--s1)}
+.cr-mid{flex-grow:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.cr-mid b{font-size:15px}
+.cr-mid span,.cr-end span{font-size:12px;color:var(--mu);white-space:nowrap}
+.cr-end{display:flex;flex-direction:column;align-items:flex-end;gap:2px;direction:ltr}
+.cr-end b{font-size:15px}
+.chg{font-style:normal;font-weight:600;margin-inline-start:4px}
+.chg.up{color:var(--in)}.chg.dn{color:var(--err)}
+.net-mini{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:#fff}
 .ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
@@ -233,7 +248,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="icon-btn" id="refresh" aria-label="تحديث الرصيد"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
   </header>
   <div class="card" style="display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:24px">
-    <div class="row between"><span class="muted" style="font-size:14px">رصيد الدولار الرقمي</span>
+    <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
       <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" style="width:36px;height:32px;background:none"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
     <div class="row between" style="gap:8px">
@@ -250,15 +265,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="action" data-go="receive"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span>استلام</button>
     <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
   </nav>
-  <div class="card" style="padding:0">
-    <div class="asset"><span class="coin" style="background:var(--usdt);color:#fff" aria-hidden="true">₮</span>
-      <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">دولار رقمي</span><span class="muted" style="font-size:12px" id="row-usdt-sub">USDT</span></div>
-      <span class="ltr" style="font-weight:600" id="row-usdt">—</span></div>
-    <div class="asset"><span class="coin" style="background:var(--s2);color:var(--trx)" aria-hidden="true"><svg class="i" style="stroke-width:2" viewBox="0 0 24 24"><path d="M3 4l18 4-9 13z"/><path d="M3 4l9 17"/><path d="M21 8l-9 3"/></svg></span>
-      <div class="grow" style="display:flex;flex-direction:column"><span style="font-weight:600">رصيد الرسوم</span><span class="muted" style="font-size:12px">TRX · لدفع رسوم الشبكة</span></div>
-      <span class="ltr" style="font-weight:600" id="row-trx">—</span></div>
-    <div id="evm-assets"></div>
-  </div>
+  <div class="row between" style="margin-bottom:-6px"><h2>العملات</h2><span class="muted" style="font-size:11px" id="price-src"></span></div>
+  <div class="card" style="padding:4px 0" id="assets"></div>
   <div class="row between"><h2>آخر المعاملات</h2><button class="chip" data-tab="history" style="height:32px">عرض الكل</button></div>
   <div id="history"><p class="muted">جارٍ التحميل…</p></div>
 </section>
@@ -708,6 +716,19 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div id="apps-list" style="display:flex;flex-direction:column;gap:10px"></div>
 </section>
 
+<!-- ===== تفاصيل عملة ===== -->
+<div class="sheet-bg" id="coin-sheet" role="dialog" aria-modal="true" aria-labelledby="cs-name">
+  <div class="sheet" style="gap:16px">
+    <div class="row" style="gap:12px">
+      <img id="cs-logo" alt="" style="width:48px;height:48px;border-radius:50%;background:#fff">
+      <div class="grow" style="display:flex;flex-direction:column;min-width:0"><b id="cs-name" style="font-size:18px"></b><span class="muted" style="font-size:12px" id="cs-price"></span></div>
+      <button type="button" class="icon-btn flat" id="cs-close" aria-label="إغلاق"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:12px">الرصيد على كل الشبكات</span><b id="cs-total" class="ltr" style="font-size:28px;text-align:right"></b><span class="muted ltr" id="cs-usd" style="text-align:right;font-size:13px"></span></div>
+    <div class="list" id="cs-nets"></div>
+  </div>
+</div>
+
 <!-- ===== شريط التنقل ===== -->
 <nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
   <button type="button" class="tab" data-tab="home"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>المحفظة</button>
@@ -1107,6 +1128,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function loadHome(force) {
     $('net-label').textContent = Object.keys(EVM).length ? 'TRON · BNB · Ethereum · Polygon' : netName();
     renderBalances();
+    loadPrices();
     var evmFetch = function () { if (Object.keys(EVM).length) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderBalances(); } }).catch(function () {}); };
     if (force !== true && state.balances && Date.now() - state.fetchedAt.home < FRESH_MS) { if (!state.evmBal) evmFetch(); return; }
     state.fetchedAt.home = Date.now();
@@ -1125,41 +1147,109 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     loadHistory();
   }
-  // مجموع الدولار الرقمي (USDT وUSDC) على كل الشبكات
-  function stableTotal() {
-    var b = state.balances, t = b ? Number(b.usdt) : 0, any = false;
-    Object.keys(EVM).forEach(function (k) {
-      var e = state.evmBal && state.evmBal[k]; if (!e) return;
-      EVM[k].tokens.forEach(function (tk) { var v = Number(WalletCore.fromUnits(e[tk.sym], tk.dec)); if (v) { t += v; any = true; } });
-    });
-    return { total: t, multi: any };
+  // ===== العملات (على طريقة Binance وTrust Wallet) =====
+  var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
+  var COINS = [
+    { sym: 'USDT', name: 'Tether', logo: 'usdt', cg: 'tether', stable: true, nets: ['tron', 'bsc', 'eth', 'polygon'] },
+    { sym: 'USDC', name: 'USD Coin', logo: 'usdc', cg: 'usd-coin', stable: true, nets: ['bsc', 'eth', 'polygon'] },
+    { sym: 'TRX', name: 'TRON', logo: 'trx', cg: 'tron', nets: ['tron'] },
+    { sym: 'BNB', name: 'BNB', logo: 'bnb', cg: 'binancecoin', nets: ['bsc'] },
+    { sym: 'ETH', name: 'Ethereum', logo: 'eth', cg: 'ethereum', nets: ['eth'] },
+    { sym: 'POL', name: 'Polygon', logo: 'pol', cg: 'polygon-ecosystem-token', nets: ['polygon'] }
+  ].map(function (c) { c.nets = c.nets.filter(function (n) { return n === 'tron' || EVM[n]; }); return c; })
+   .filter(function (c) { return c.nets.length; });
+  function coinLogo(k) { return 'assets/coins/' + k + '.png'; }
+  // رصيد عملة على شبكة (رقم) أو null إن لم يُحمّل بعد
+  function balOn(sym, net) {
+    if (net === 'tron') { var b = state.balances; if (!b) return null; return sym === 'USDT' ? Number(b.usdt) : sym === 'TRX' ? Number(b.trx) : null; }
+    var u = evmUnits(net, sym); return u == null ? null : Number(WalletCore.fromUnits(u, evmDec(net, sym)));
   }
-  function renderEvmAssets() {
-    var box = $('evm-assets'); box.textContent = '';
-    Object.keys(EVM).forEach(function (k) {
-      var c = EVM[k], e = state.evmBal && state.evmBal[k];
-      var row = el('div'); row.className = 'asset';
-      var dot = el('span', 'background:' + c.color, c.native.charAt(0)); dot.className = 'net-dot'; row.appendChild(dot);
-      var mid = el('div', 'display:flex;flex-direction:column;flex-grow:1;min-width:0');
-      var nm = el('div', 'display:flex;align-items:center;gap:6px'); nm.appendChild(el('span', 'font-weight:600', c.name));
-      var tg = el('span', 'background:' + c.color, c.short); tg.className = 'net-tag'; nm.appendChild(tg); mid.appendChild(nm);
-      var parts = [];
-      if (e) c.tokens.forEach(function (t) { var v = WalletCore.fromUnits(e[t.sym], t.dec); if (Number(v)) parts.push(fmt(v) + ' ' + t.sym); });
-      mid.appendChild(el('span', 'font-size:12px;color:var(--mu)', !e ? (state.evmBal && state.evmBal[k] === null ? 'تعذّر التحميل، اضغط تحديث' : 'جارٍ التحميل…') : (parts.join(' · ') || 'USDT · USDC · ' + c.native)));
-      row.appendChild(mid);
-      var nat = e ? fmt(WalletCore.fromUnits(e.native, 18), 6) : '—';
-      row.appendChild(el('span', 'font-weight:600;font-size:13px;direction:ltr', state.hidden ? '••••' : nat + ' ' + c.native));
+  function coinTotal(c) {
+    var t = 0, known = false;
+    c.nets.forEach(function (n) { var v = balOn(c.sym, n); if (v != null) { t += v; known = true; } });
+    return known ? t : null;
+  }
+  // الأسعار من CoinGecko (مجاني، من الهاتف مباشرة) وتُحفظ 5 دقائق؛ على شبكة الاختبار لا قيمة للعملات
+  state.prices = null;
+  try { var pc = JSON.parse(localStorage.getItem('sarra.prices') || 'null'); if (pc && Date.now() - pc.at < 6 * 3600000) state.prices = pc.p; } catch (e) {}
+  var pricesAt = 0;
+  function loadPrices() {
+    if (NETWORK !== 'mainnet' || Date.now() - pricesAt < 300000) return;
+    pricesAt = Date.now();
+    var ids = COINS.map(function (c) { return c.cg; }).join(',');
+    fetch('https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_24hr_change=true&ids=' + ids)
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (j) {
+        var p = {}; COINS.forEach(function (c) { if (j[c.cg]) p[c.sym] = { usd: j[c.cg].usd, chg: j[c.cg].usd_24h_change }; });
+        state.prices = p; try { localStorage.setItem('sarra.prices', JSON.stringify({ at: Date.now(), p: p })); } catch (e) {}
+        renderBalances();
+      }).catch(function () { pricesAt = 0; });
+  }
+  function priceOf(c) { if (c.stable) return { usd: 1, chg: state.prices && state.prices[c.sym] ? state.prices[c.sym].chg : null }; return state.prices && state.prices[c.sym] || null; }
+  function usd(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function chgEl(chg) { if (chg == null || !isFinite(chg)) return null; var e = el('em', null, (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'); e.className = 'chg ' + (chg >= 0 ? 'up' : 'dn'); return e; }
+  function renderAssets() {
+    var box = $('assets'); box.textContent = '';
+    var rows = COINS.map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
+    rows.sort(function (a, b) { return (b.v || 0) - (a.v || 0); });
+    rows.forEach(function (r) {
+      var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.coin = c.sym;
+      var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.src = coinLogo(c.logo); im.alt = ''; cl.appendChild(im);
+      row.appendChild(cl);
+      var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
+      var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); var ce = NETWORK === 'mainnet' && r.p ? chgEl(r.p.chg) : null; if (ce) { sub.appendChild(document.createTextNode(' ')); sub.appendChild(ce); }
+      mid.appendChild(sub); row.appendChild(mid);
+      var end = el('div'); end.className = 'cr-end';
+      end.appendChild(el('b', null, state.hidden ? '••••' : r.t == null ? '—' : fmt(r.t, c.stable ? 2 : 6)));
+      end.appendChild(el('span', null, state.hidden ? '' : r.v == null ? '' : '≈ ' + usd(r.v)));
+      row.appendChild(end);
+      row.onclick = function () { openCoin(c); };
       box.appendChild(row);
     });
+    $('price-src').textContent = NETWORK === 'mainnet' && state.prices ? 'الأسعار: CoinGecko' : '';
+  }
+  function openCoin(c) {
+    var t = coinTotal(c), p = priceOf(c);
+    $('cs-logo').src = coinLogo(c.logo); $('cs-name').textContent = c.name + ' · ' + c.sym;
+    var cp = $('cs-price'); cp.textContent = '';
+    if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd) + (p.chg != null ? '  ' + (p.chg >= 0 ? '+' : '') + p.chg.toFixed(2) + '%' : '')); pb.style.direction = 'ltr'; cp.appendChild(pb); cp.appendChild(document.createTextNode(' خلال 24 ساعة')); }
+    if (c.nets.length > 1) cp.appendChild(document.createTextNode(' · على ' + c.nets.length + ' شبكات'));
+    $('cs-total').textContent = state.hidden ? '••••' : (t == null ? '—' : fmt(t, 6)) + ' ' + c.sym;
+    $('cs-usd').textContent = !state.hidden && t != null && p && NETWORK === 'mainnet' ? '≈ ' + usd(t * p.usd) : '';
+    var box = $('cs-nets'); box.textContent = '';
+    c.nets.forEach(function (n) {
+      var nn = netOf(n), v = balOn(c.sym, n), row = el('div'); row.className = 'li'; row.style.cursor = 'default';
+      var im = el('img'); im.src = coinLogo(NET_LOGO[n]); im.alt = ''; im.className = 'net-mini'; row.appendChild(im);
+      var t2 = el('span'); t2.className = 't'; t2.appendChild(document.createTextNode(nn.name)); t2.appendChild(el('small', null, state.hidden ? '••••' : (v == null ? '—' : fmt(v, 6)) + ' ' + c.sym));
+      row.appendChild(t2);
+      var bs = el('div', 'display:flex;gap:6px;flex-shrink:0');
+      var sb = el('button', 'height:34px;padding:0 12px', 'إرسال'); sb.type = 'button'; sb.className = 'chip';
+      sb.onclick = function () { $('coin-sheet').classList.remove('show'); state.sendNet = n; state.coin = c.sym; renderCoinSeg(); $('amt').value = ''; show('send'); };
+      var rb = el('button', 'height:34px;padding:0 12px', 'استلام'); rb.type = 'button'; rb.className = 'chip';
+      rb.onclick = function () { $('coin-sheet').classList.remove('show'); state.recvNet = n; show('receive'); };
+      bs.appendChild(sb); bs.appendChild(rb); row.appendChild(bs);
+      box.appendChild(row);
+    });
+    $('coin-sheet').classList.add('show');
+  }
+  $('cs-close').onclick = function () { $('coin-sheet').classList.remove('show'); };
+  $('coin-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
+  // إجمالي الأصول بالدولار (العملات المستقرة بدولار، والبقية بسعرها إن عُرف)
+  function portfolioUsd() {
+    var tot = 0, ok = false;
+    COINS.forEach(function (c) { var t = coinTotal(c); if (t == null) return; var p = priceOf(c);
+      if (c.stable) { tot += t; ok = true; } else if (p && NETWORK === 'mainnet') { tot += t * p.usd; ok = true; } });
+    return ok ? tot : null;
   }
   function renderBalances() {
     var b = state.balances;
-    if (Object.keys(EVM).length) { renderEvmAssets(); $('bal-chip').textContent = 'USDT + USDC · كل الشبكات'; $('row-usdt-sub').textContent = 'USDT · TRON (TRC20)'; }
+    renderAssets();
+    if (Object.keys(EVM).length) $('bal-chip').textContent = 'TRON · BNB · ETH · POL';
     if (!b) return;
-    var st = stableTotal();
-    $('bal-usdt').textContent = state.hidden ? '••••' : '$' + (st.multi ? fmt(st.total) : b.usdt);
-    $('row-usdt').textContent = state.hidden ? '••••' : b.usdt;
-    $('row-trx').textContent = state.hidden ? '••••' : b.trx;
+    var multi = Object.keys(EVM).length || (state.prices && NETWORK === 'mainnet');
+    var tot = portfolioUsd();
+    $('bal-usdt').textContent = state.hidden ? '••••' : (multi && tot != null ? usd(tot) : '$' + b.usdt);
+    $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
   }
   function setHidden(v) {
     state.hidden = v;
