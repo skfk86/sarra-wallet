@@ -6,7 +6,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { TronWeb } from 'npm:tronweb@6.0.4';
 import * as L from '../_shared/logic.ts';
 
-const env = (k: string, d = '') => Deno.env.get(k) ?? d;
+// نزيل المسافات والحروف المخفية التي تلتصق عند نسخ المفاتيح من الجوال (مثل U+200B)
+const env = (k: string, d = '') => (Deno.env.get(k) ?? d).replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
 const ADMINS = env('ADMIN_ADDRESSES').split(',').map((s) => s.trim()).filter(Boolean);

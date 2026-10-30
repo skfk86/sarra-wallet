@@ -3,7 +3,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import * as L from '../_shared/logic.ts';
 
-const env = (k: string, d = '') => Deno.env.get(k) ?? d;
+// نزيل المسافات والحروف المخفية التي تلتصق عند نسخ المفاتيح من الجوال (مثل U+200B)
+const env = (k: string, d = '') => (Deno.env.get(k) ?? d).replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
