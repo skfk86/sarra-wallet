@@ -16,7 +16,7 @@ const config = {
   feeBps: Number(process.env.SARRA_FEE_BPS || 50),
   // نقل بين الشبكات عبر LI.FI: عمولة صغيرة 0.2% (ضع 0 لإلغائها). تصلك بعد تسجيل محفظة العمولة في portal.li.fi
   lifiFee: Number(process.env.SARRA_LIFI_FEE ?? '0.002') || 0,
-  lifiIntegrator: process.env.SARRA_LIFI_INTEGRATOR || 'sarra-wallet',
+  lifiIntegrator: process.env.SARRA_LIFI_INTEGRATOR || 'surra-sd',
   bridgeMax: Number(process.env.SARRA_BRIDGE_MAX || 2000),
   // خادم سوق P2P (Supabase Edge Function)
   p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p',
