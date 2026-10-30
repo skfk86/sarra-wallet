@@ -1,4 +1,4 @@
-# الإرسال برقم الهاتف: التفعيل للموثّقين، والبحث، وعرض الاسم مخفياً، والإرسال للعنوان الصحيح
+# أُلغي الإرسال برقم الهاتف: يُرفض برسالة توجّه لمعرّف صُرّة، ولا يظهر في الاستلام ولا في حسابي
 import asyncio, sys, json
 from playwright.async_api import async_playwright
 S=sys.argv[1]
@@ -28,53 +28,17 @@ async def main():
       await pg.wait_for_timeout(2500)
     await pg.click('[data-go=create]'); await pg.click('#reveal'); await pg.check('#agree'); await pg.click('#backup-next')
     await pin('123456'); await pin('123456'); await pg.wait_for_timeout(1000); await pg.click('#intro-ok')
-    # الأمان: غير موثّق
-    await pg.click('.tab[data-tab=security]'); await pg.wait_for_timeout(1000)
-    assert await pg.locator('#sec-acc').is_visible(); await pg.click('#sec-acc'); await pg.wait_for_timeout(1500)
-    assert 'توثيق' in await pg.inner_text('#acc-phone-on') and await pg.get_attribute('#acc-phone-btn','aria-checked')=='false'
-    print('✓ "حسابي وبياناتي" في صفحة الأمان، ومعه خيار الاستلام برقم الهاتف')
-    await pg.click('#acc-phone-btn'); await pg.wait_for_timeout(500)
-    assert await pg.locator('#s-p2p-verify').is_visible() and st['link']==False; print('✓ غير الموثّق: يُفتح له التوثيق أولاً')
-    await pg.click('#s-p2p-verify [data-back]'); await pg.wait_for_timeout(300)
-    # موثّق: تفعيل (قبِل المشرف التوثيق، والنسخة المحفوظة على الجهاز ما زالت تقول غير موثّق)
-    st['verified']=True
-    await pg.reload(); await pg.wait_for_timeout(1500)
-    for c in '123456': await pg.click(f'#keypad button:text-is("{c}")')
-    await pg.wait_for_timeout(2500)
-    await pg.click('.tab[data-tab=security]'); await pg.wait_for_timeout(800); await pg.click('#sec-acc'); await pg.wait_for_timeout(1500)
-    assert st['link']==True and await pg.get_attribute('#acc-phone-btn','aria-checked')=='true' and '091•••678' in await pg.inner_text('#acc-phone-on')
-    print('✓ طلب التفعيل قبل التوثيق: يتفعّل تلقائياً بعد القبول')
-    await pg.click('#acc-phone-btn'); await pg.wait_for_timeout(1000); assert st['link']==False
-    await pg.click('#acc-phone-btn'); await pg.wait_for_timeout(300)
-    assert 'لن يُعرض عنوان محفظتك' in await pg.inner_text('#ask-text'); await pg.click('#ask-yes'); await pg.wait_for_timeout(1500)
-    assert st['link']==True and await pg.get_attribute('#acc-phone-btn','aria-checked')=='true'; print('✓ الإيقاف والتفعيل اليدوي (مع تحذير الخصوصية)')
-    await pg.click('#s-account [data-back]')
-    # إرسال برقم غير مسجل
-    await pg.click('.tab[data-tab=home]'); await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(500)
-    await pg.fill('#to','0911111111'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(800)
-    assert 'غير مفعّل للاستلام' in await pg.inner_text('#send-err'); print('✓ رقم غير مسجّل: رسالة واضحة')
-    # إرسال برقم مسجل (بأرقام عربية ومسافات)
-    await pg.fill('#to','٠٩٢ ٢٢٢ ٣٣٣٣'); await pg.click('#review'); await pg.wait_for_timeout(800)
-    assert st['lookups'][-1]=='0922223333'; print('✓ يقبل الأرقام العربية والمسافات')
-    t=await pg.inner_text('#c-to')
-    assert 'أحمد م•••' in t and '092•••333' in t and FRIEND not in t, t; print('✓ التأكيد يعرض الاسم مخفياً جزئياً، ولا يعرض العنوان')
-    await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(5000)
-    log=await pg.evaluate('window.__log'); assert ['USDT',FRIEND,'1000000'] in log, log; print('✓ الإرسال يذهب إلى محفظة صاحب الرقم مباشرة على الشبكة')
-    # آخر المستلمين: الرقم يُحفظ ويظهر زراً سريعاً
-    await pg.click('[data-go=home]') if await pg.locator('#s-success [data-go=home]').is_visible() else None
-    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(500)
-    assert '0922223333' in await pg.inner_text('#recent'); print('✓ "آخر المستلمين" يحفظ الرقم لإعادة الإرسال بضغطة')
-    await pg.click('#s-send [data-back]')
-    # الاستلام: اختصار واضح لحالة الرقم
-    await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(1000)
-    assert '091•••678' in await pg.inner_text('#recv-phone'); print('✓ صفحة الاستلام تعرض "يمكن الإرسال إليك برقمك"')
-    # حسابي: يفتح من الاستلام ومن القائمة، والتفعيل التلقائي بعد التوثيق
-    st['link']=False; await pg.evaluate("localStorage.setItem('sarra.wantPhone','1')")
-    await pg.click('#recv-phone'); await pg.wait_for_timeout(1500)
-    assert await pg.locator('#s-account').is_visible() and 'موثّق' in await pg.inner_text('#acc-badge')
-    assert st['link']==True and await pg.get_attribute('#acc-phone-btn','aria-checked')=='true'; print('✓ "حسابي": اختار المستخدم الاستقبال برقمه عند التوثيق، فتفعّل تلقائياً بعد القبول')
-    assert 'تعديل البيانات' in await pg.inner_text('#acc-go'); await pg.click('#acc-go'); await pg.wait_for_timeout(400)
-    assert await pg.locator('#s-p2p-verify').is_visible(); print('✓ زر "تعديل البيانات" واضح في صفحة حسابي')
+    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(600)
+    assert 'هاتف' not in (await pg.get_attribute('#to','placeholder'))
+    await pg.fill('#to','0922223333'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(600)
+    assert 'معرّف صُرّة' in await pg.inner_text('#send-err') and not st['lookups']; print('✓ رقم الهاتف في خانة المستلم يُرفض ويوجّه لمعرّف صُرّة دون أي بحث')
+    await pg.click('#s-send [data-back]'); await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(1200)
+    assert not await pg.locator('#recv-phone').is_visible(); print('✓ لا بطاقة "استقبل برقم هاتفك" في شاشة الاستلام')
+    await pg.click('#s-receive [data-back]'); await pg.click('.tab[data-tab=security]'); await pg.wait_for_timeout(500)
+    await pg.click('#sec-acc'); await pg.wait_for_timeout(1500)
+    assert not await pg.locator('#acc-phone-card').is_visible() and 'وثّق حسابك' in await pg.inner_text('#acc-go'); print('✓ "حسابي" بلا خيار الهاتف، وزر التوثيق موجود')
+    await pg.click('#acc-go'); await pg.wait_for_timeout(400)
+    assert await pg.locator('#s-p2p-verify').is_visible() and not await pg.locator('#ver-phone-link').is_visible(); print('✓ التوثيق بلا خيار "الإرسال لي برقم هاتفي"')
     assert not errs, errs
     await b.close()
 asyncio.run(main())

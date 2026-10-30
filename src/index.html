@@ -687,7 +687,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <img id="ver-prev" alt="" hidden style="max-width:100%;max-height:180px;border-radius:12px">
     </label>
     <input type="file" id="ver-file" accept="image/*" capture="environment" hidden>
-    <label class="row" style="gap:10px;font-size:14px;line-height:1.7;cursor:pointer"><input type="checkbox" id="ver-phone-link" checked style="width:20px;height:20px;accent-color:var(--ac);flex-shrink:0">اسمح للآخرين بالإرسال لي برقم هاتفي</label>
+    <label class="row" hidden style="gap:10px;font-size:14px;line-height:1.7;cursor:pointer"><input type="checkbox" id="ver-phone-link" style="width:20px;height:20px;accent-color:var(--ac);flex-shrink:0">اسمح للآخرين بالإرسال لي برقم هاتفي</label>
     <div class="note err" id="ver-err" hidden></div>
     <button class="btn btn-primary" id="ver-go">إرسال للمراجعة</button>
   </div>
@@ -760,7 +760,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <b id="cel-t" style="font-size:20px">تم توثيق حسابك 🎉</b>
     <p class="muted" style="font-size:14px;line-height:1.8;margin:0">أصبح بإمكانك الآن:</p>
     <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;text-align:right;width:100%">
-      <span>✓ نشر إعلانات البيع والشراء في سوق P2P</span><span>✓ الاستلام برقم هاتفك على كل الشبكات</span><span>✓ شارة "موثّق" تزيد ثقة المتعاملين معك</span>
+      <span>✓ نشر إعلانات البيع والشراء في سوق P2P</span><span>✓ اسمك الموثّق يظهر لمن يرسل إليك بمعرّف صُرّة</span><span>✓ شارة "موثّق" تزيد ثقة المتعاملين معك</span>
     </div>
     <button class="btn btn-primary" id="cel-ok" style="width:100%">رائع</button>
   </div>
@@ -856,8 +856,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="li" style="cursor:default"><span class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span><span class="t">حساب بنكك<small class="ltr" style="text-align:right" id="acc-bank">—</small></span></div>
     <button type="button" class="li" id="acc-go"><span class="ic" style="color:var(--ac)"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span><span class="t" style="color:var(--ac)">تعديل البيانات<small>يُراجَع التعديل قبل اعتماده</small></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   </div>
-  <h2 class="muted" style="font-size:13px">الاستلام</h2>
-  <div class="list" id="acc-phone-card">
+  <h2 class="muted" style="font-size:13px" hidden>الاستلام</h2>
+  <div class="list" id="acc-phone-card" hidden>
     <div class="li" style="cursor:default">
       <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></span>
       <span class="t">الاستلام برقم هاتفك<small id="acc-phone-on">للحسابات الموثّقة</small></span>
@@ -1632,6 +1632,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
   // بعد قبول التوثيق: نفعّل الاستقبال بالرقم تلقائياً إن اختاره المستخدم عند التوثيق
   async function autoPhoneLink(me) {
+    return me; // أُلغي الاستلام برقم الهاتف: معرّف صُرّة يكفي
     var pf = me && me.profile; if (!pf || pf.verify_status !== 'approved') return me;
     var evm = null; try { evm = await core.evmAddress(); } catch (e) {}
     // مفعّل لكن بلا عنوان 0x (قبل دعم كل الشبكات): نضيفه بصمت
@@ -1645,7 +1646,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     catch (e) { if (/PHONE_TAKEN/.test(e && e.message)) try { localStorage.removeItem('sarra.wantPhone'); } catch (x) {} }
     return me;
   }
-  var ACC_ST = { none: ['غير موثّق', 'وثّق حسابك مرة واحدة لتفتح: الاستقبال برقم هاتفك، ونشر إعلانات البيع في السوق.'],
+  var ACC_ST = { none: ['غير موثّق', 'وثّق حسابك مرة واحدة لتفتح: نشر إعلانات البيع والشراء في السوق، وشارة "موثّق" بجانب اسمك.'],
     pending: ['قيد المراجعة', 'أرسلت بياناتك، وسيراجعها المشرف قريباً. ستصلك الميزات فور القبول.'],
     rejected: ['مرفوض', 'رُفض الطلب. صحّح بياناتك وأرسلها مرة أخرى.'],
     approved: ['موثّق ✓', 'حسابك موثّق. يمكنك تعديل رقمك أو حساب بنكك في أي وقت، ويُراجع التعديل قبل اعتماده.'] };
@@ -1711,8 +1712,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('recv-sid-copy').onclick = function () { copyText(String((state.p2p.me && state.p2p.me.profile.sarra_id) || '')); };
   async function syncRecvPhone() {
     syncRecvSid();
-    var b = $('recv-phone'); b.hidden = true;
-    if (!P2P_URL) return;
+    $('recv-phone').hidden = true; return;
     try {
       var me = (state.p2p.me && state.p2p.me.profile) ? state.p2p.me : await fetchMe(false);
       state.p2p.me = me = await autoPhoneLink(me); var pf = me.profile;
@@ -1822,7 +1822,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     renderNetbar($('send-nets'), state.sendNet, function (k) { state.sendNet = k; $('amt').value = ''; renderCoinSeg(); prepareSend(); });
     var n = netOf(state.sendNet), b = state.balances;
     $('amt-unit').textContent = state.coin;
-    $('to').placeholder = n.evm ? 'عنوان 0x، أو معرّف صُرّة، أو رقم هاتف' : 'عنوان T، أو معرّف صُرّة، أو رقم هاتف';
+    $('to').placeholder = n.evm ? 'عنوان 0x أو معرّف صُرّة' : 'عنوان T أو معرّف صُرّة';
     $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
     $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name : 'المستلم';
     $('send-warn').firstChild.textContent = n.evm
@@ -1954,6 +1954,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     return v.name + ' · ' + v.phone + ' · موثّق ✓';
   }
   // رقم هاتف سوداني؟ (09xxxxxxxx أو +249… بالأرقام العربية أو الإنجليزية)
+  var PHONE_GONE = 'الإرسال برقم الهاتف لم يعد متاحاً. اطلب من المستلم معرّف صُرّة (8 أرقام) من شاشة الاستلام، أو عنوان محفظته.';
   function asPhone(v) {
     var s = String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[\s\-()]/g, '').replace(/^00/, '+').replace(/^\+?249/, '0');
     return /^0\d{9}$/.test(s) ? s : null;
@@ -1964,11 +1965,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var n = netOf(state.sendNet);
     if (n.evm) {
       if (core.isValidAddress(to)) return sendError('هذا عنوان TRON. اختر شبكة TRON للإرسال إليه، أو اطلب من المستلم عنواناً على ' + n.name);
-      var ephone = asPhone(to), esid = asSarraId(to), evia = null;
-      if (ephone || esid) {
-        if (!P2P_URL) return sendError('الإرسال بالمعرّف أو الرقم غير متاح في هذه النسخة');
+      if (asPhone(to)) return sendError(PHONE_GONE);
+      var ephone = null, esid = asSarraId(to), evia = null;
+      if (esid) {
+        if (!P2P_URL) return sendError('الإرسال بالمعرّف غير متاح في هذه النسخة');
         var eb = $('review'); eb.disabled = true;
-        try { evia = esid ? await p2p('id.lookup', { id: esid }) : await p2p('phone.lookup', { phone: ephone }); } catch (e) { eb.disabled = false; return sendError(p2pErr(e)); }
+        try { evia = esid ? await p2p('id.lookup', { id: esid }) : null; } catch (e) { eb.disabled = false; return sendError(p2pErr(e)); }
         eb.disabled = false;
         if (!evia.evm_address) return sendError('المستلم يستخدم نسخة قديمة من صُرّة، فلم يُسجَّل عنوانه على ' + n.name + ' بعد. أرسل له على شبكة TRON، أو اطلب منه تحديث التطبيق وفتحه');
         to = evia.evm_address;
@@ -1990,11 +1992,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       return;
     }
     $('c-net').textContent = 'TRON (TRC20)';
-    var phone = !core.isValidAddress(to) && (asPhone(to) || (asSarraId(to) ? String(asSarraId(to)) : null));
+    if (!core.isValidAddress(to) && asPhone(to)) return sendError(PHONE_GONE);
+    var phone = !core.isValidAddress(to) && (asSarraId(to) ? String(asSarraId(to)) : null);
     if (phone) {
-      if (!P2P_URL) return sendError('الإرسال بالمعرّف أو الرقم غير متاح في هذه النسخة');
+      if (!P2P_URL) return sendError('الإرسال بالمعرّف غير متاح في هذه النسخة');
       var btn = $('review'); btn.disabled = true;
-      try { via = asSarraId(phone) ? await p2p('id.lookup', { id: phone }) : await p2p('phone.lookup', { phone: phone }); to = via.address; }
+      try { via = await p2p('id.lookup', { id: phone }); to = via.address; }
       catch (e) { btn.disabled = false; return sendError(p2pErr(e)); }
       btn.disabled = false;
     }
