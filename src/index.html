@@ -237,6 +237,13 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
 .seg.scroll{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.seg.scroll::-webkit-scrollbar{display:none}.seg.scroll>button{flex:0 0 auto;min-width:84px;padding:0 12px}
 .recv-coins{flex-wrap:wrap;justify-content:center}
+.chart{display:flex;flex-direction:column;gap:8px}
+.ch-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.ch-head b{font-size:22px}.ch-head #ch-chg{font-size:13px;font-weight:700}.ch-head #ch-date{font-size:12px;margin-inline-start:auto}
+.ch-box{position:relative;height:150px;border-radius:14px;overflow:hidden}.ch-box svg{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.ch-hi,.ch-lo{position:absolute;left:6px;font-size:10px;color:var(--mu);background:var(--s1);padding:1px 6px;border-radius:6px;opacity:.9}.ch-hi{top:2px}.ch-lo{bottom:2px}
+.ch-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mu)}
+.ch-range{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--s2);border-radius:12px;padding:3px}.ch-range button{height:30px;border:0;border-radius:9px;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer}.ch-range button.on{background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.spark{flex:0 0 56px;height:24px;margin:0 6px;opacity:.95}.spark svg{width:100%;height:100%;display:block}
 </style>
 </head>
 <body>
@@ -985,13 +992,18 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== تفاصيل عملة ===== -->
 <div class="sheet-bg" id="coin-sheet" role="dialog" aria-modal="true" aria-labelledby="cs-name">
-  <div class="sheet" style="gap:16px">
+  <div class="sheet" style="gap:16px;max-height:92vh;overflow:auto">
     <div class="row" style="gap:12px">
       <img id="cs-logo" alt="" style="width:48px;height:48px;border-radius:50%;background:#fff">
       <div class="grow" style="display:flex;flex-direction:column;min-width:0"><b id="cs-name" style="font-size:18px"></b><span class="muted" style="font-size:12px" id="cs-price"></span></div>
       <button type="button" class="icon-btn flat" id="cs-close" aria-label="إغلاق"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
     </div>
     <div style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:12px">الرصيد على كل الشبكات</span><b id="cs-total" class="ltr" style="font-size:28px;text-align:right"></b><span class="muted ltr" id="cs-usd" style="text-align:right;font-size:13px"></span></div>
+    <div class="chart" id="cs-chart" hidden>
+      <div class="ch-head"><b class="ltr" id="ch-price">—</b><span class="ltr" id="ch-chg"></span><span class="muted" id="ch-date"></span></div>
+      <div class="ch-box"><svg id="ch-svg" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="رسم السعر"></svg><span class="ch-hi ltr" id="ch-hi"></span><span class="ch-lo ltr" id="ch-lo"></span><span class="ch-load" id="ch-load">جارٍ تحميل الرسم…</span></div>
+      <div class="ch-range" role="tablist"><button type="button" data-days="1" class="on">24 ساعة</button><button type="button" data-days="7">أسبوع</button><button type="button" data-days="30">شهر</button><button type="button" data-days="90">3 أشهر</button><button type="button" data-days="365">سنة</button></div>
+    </div>
     <div class="list" id="cs-nets"></div>
   </div>
 </div>
@@ -1494,6 +1506,29 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         state.prices = p; try { localStorage.setItem('sarra.prices', JSON.stringify({ at: Date.now(), p: p })); } catch (e) {}
         renderBalances();
       }).catch(function () { pricesAt = 0; });
+    loadSpark();
+  }
+  // خط سعر الأسبوع الصغير بجانب كل عملة (طلب واحد لكل العملات، يُحفظ ساعة)
+  state.spark = null;
+  try { var spc = JSON.parse(localStorage.getItem('sarra.spark') || 'null'); if (spc && Date.now() - spc.at < 3600000) state.spark = spc.s; } catch (e) {}
+  var sparkAt = 0;
+  function loadSpark() {
+    if (NETWORK !== 'mainnet' || state.spark || Date.now() - sparkAt < 600000) return; sparkAt = Date.now();
+    var ids = COINS.filter(function (c) { return !c.stable; }).map(function (c) { return c.cg; }).join(',');
+    fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&sparkline=true&ids=' + ids)
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (j) {
+        var o = {}; j.forEach(function (x) { var a = x.sparkline_in_7d && x.sparkline_in_7d.price; if (a && a.length > 8) { var st = a.length / 40, d = []; for (var i = 0; i < 40; i++) d.push(a[Math.floor(i * st)]); d.push(a[a.length - 1]); o[x.id] = d; } });
+        state.spark = o; try { localStorage.setItem('sarra.spark', JSON.stringify({ at: Date.now(), s: o })); } catch (e) {}
+        renderAssets();
+      }).catch(function () {});
+  }
+  function sparkSvg(a) {
+    var mn = Math.min.apply(null, a), mx = Math.max.apply(null, a), rg = mx - mn || 1, up = a[a.length - 1] >= a[0];
+    var d = a.map(function (v, i) { return (i ? 'L' : 'M') + (i / (a.length - 1) * 60).toFixed(1) + ' ' + (2 + (1 - (v - mn) / rg) * 20).toFixed(1); }).join(' ');
+    var w = document.createElement('span'); w.className = 'spark'; w.setAttribute('aria-hidden', 'true');
+    w.innerHTML = '<svg viewBox="0 0 60 24" preserveAspectRatio="none"><path d="' + d + '" fill="none" stroke="' + (up ? '#16a37a' : '#e5484d') + '" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
+    return w;
   }
   function priceOf(c) { if (c.stable) return { usd: 1, chg: state.prices && state.prices[c.sym] ? state.prices[c.sym].chg : null }; return state.prices && state.prices[c.sym] || null; }
   function usd(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -1510,6 +1545,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
       var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); var ce = NETWORK === 'mainnet' && r.p ? chgEl(r.p.chg) : null; if (ce) { sub.appendChild(document.createTextNode(' ')); sub.appendChild(ce); }
       mid.appendChild(sub); row.appendChild(mid);
+      var sp = !c.stable && state.spark && state.spark[c.cg]; if (sp) row.appendChild(sparkSvg(sp));
       var end = el('div'); end.className = 'cr-end';
       end.appendChild(el('b', null, state.hidden ? '••••' : r.t == null ? '—' : fmt(r.t, c.stable ? 2 : 6)));
       end.appendChild(el('span', null, state.hidden ? '' : r.v == null ? '' : '≈ ' + usd(r.v)));
@@ -1543,7 +1579,56 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       box.appendChild(row);
     });
     $('coin-sheet').classList.add('show');
+    CH.coin = c; $('cs-chart').hidden = NETWORK !== 'mainnet' || !!c.stable; if (!$('cs-chart').hidden) loadChart();
   }
+  // ===== الرسم البياني للسعر (CoinGecko، SVG بدون مكتبات) =====
+  var CH = { coin: null, days: 1, pts: null };
+  document.querySelectorAll('.ch-range button').forEach(function (b) {
+    b.onclick = function () { CH.days = Number(b.dataset.days); document.querySelectorAll('.ch-range button').forEach(function (x) { x.classList.toggle('on', x === b); }); loadChart(); };
+  });
+  function fmtPrice(v) { return v >= 1000 ? '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v >= 1 ? '$' + v.toFixed(2) : '$' + Number(v.toPrecision(4)); }
+  async function loadChart() {
+    var c = CH.coin, days = CH.days, key = 'sarra.ch.' + c.cg + '.' + days, data = null;
+    $('ch-load').hidden = false; $('ch-load').textContent = 'جارٍ تحميل الرسم…';
+    try { var cc = JSON.parse(localStorage.getItem(key) || 'null'); if (cc && Date.now() - cc.at < (days === 1 ? 300000 : 3600000)) data = cc.p; } catch (e) {}
+    if (!data) {
+      try {
+        var r = await fetch('https://api.coingecko.com/api/v3/coins/' + c.cg + '/market_chart?vs_currency=usd&days=' + days);
+        if (!r.ok) throw new Error(); data = (await r.json()).prices || [];
+        if (data.length > 160) { var st = data.length / 160, d2 = []; for (var i = 0; i < 160; i++) d2.push(data[Math.floor(i * st)]); d2.push(data[data.length - 1]); data = d2; }
+        try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), p: data })); } catch (e) {}
+      } catch (e) { if (CH.coin === c && CH.days === days) { $('ch-load').textContent = 'تعذّر تحميل الرسم. تحقق من الاتصال.'; } return; }
+    }
+    if (CH.coin !== c || CH.days !== days) return;
+    $('ch-load').hidden = true; CH.pts = data; drawChart();
+  }
+  function drawChart(hover) {
+    var pts = CH.pts, svg = $('ch-svg'); if (!pts || pts.length < 2) return;
+    var W = 320, H = 150, P = 8, ys = pts.map(function (x) { return x[1]; }), mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys), rg = mx - mn || mx || 1;
+    var X = function (i) { return i / (pts.length - 1) * W; }, Y = function (v) { return P + (1 - (v - mn) / rg) * (H - 2 * P); };
+    var up = ys[ys.length - 1] >= ys[0], col = up ? '#16a37a' : '#e5484d';
+    var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join(' ');
+    var g = '<defs><linearGradient id="chg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".28"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>';
+    var area = '<path d="' + line + ' L' + W + ' ' + H + ' L0 ' + H + ' Z" fill="url(#chg)"/>';
+    var path = '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>';
+    var hv = '';
+    var i = hover == null ? pts.length - 1 : hover, cur = pts[i];
+    if (hover != null) hv = '<line x1="' + X(i) + '" x2="' + X(i) + '" y1="0" y2="' + H + '" stroke="var(--mu)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/><circle cx="' + X(i) + '" cy="' + Y(cur[1]) + '" r="4" fill="' + col + '" stroke="var(--s1)" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+    svg.innerHTML = g + area + path + hv;
+    var chg = (cur[1] - ys[0]) / ys[0] * 100;
+    $('ch-price').textContent = fmtPrice(cur[1]);
+    $('ch-chg').textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'; $('ch-chg').style.color = chg >= 0 ? '#16a37a' : '#e5484d';
+    var d = new Date(cur[0]);
+    $('ch-date').textContent = hover == null ? { 1: 'آخر 24 ساعة', 7: 'آخر أسبوع', 30: 'آخر شهر', 90: 'آخر 3 أشهر', 365: 'آخر سنة' }[CH.days] : d.toLocaleString('ar', CH.days <= 7 ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', year: CH.days > 90 ? 'numeric' : undefined });
+    $('ch-hi').textContent = 'أعلى ' + fmtPrice(mx); $('ch-lo').textContent = 'أدنى ' + fmtPrice(mn);
+  }
+  (function () {
+    var svg = $('ch-svg');
+    var at = function (e) { if (!CH.pts) return; var r = svg.getBoundingClientRect(), x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; drawChart(Math.max(0, Math.min(CH.pts.length - 1, Math.round(x / r.width * (CH.pts.length - 1))))); };
+    svg.addEventListener('pointermove', at); svg.addEventListener('pointerdown', at);
+    svg.addEventListener('touchmove', function (e) { e.preventDefault(); at(e); }, { passive: false });
+    var end = function () { drawChart(); }; svg.addEventListener('pointerleave', end); svg.addEventListener('touchend', end); svg.addEventListener('pointerup', function (e) { if (e.pointerType !== 'mouse') end(); });
+  })();
   // شرح وقود الشبكة
   function openGasHelp(k) {
     var n = netOf(k || 'bsc'), coin = n.evm ? n.native : 'TRX';

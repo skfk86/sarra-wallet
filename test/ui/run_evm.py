@@ -37,7 +37,16 @@ async def main():
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':360,'height':780}); PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
-    await pg.route('https://api.coingecko.com/**', lambda r: r.fulfill(json={'tether':{'usd':1,'usd_24h_change':0.01},'usd-coin':{'usd':1,'usd_24h_change':-0.02},'tron':{'usd':0.25,'usd_24h_change':2.5},'binancecoin':{'usd':600,'usd_24h_change':-1.2},'ethereum':{'usd':3000,'usd_24h_change':0.8},'polygon-ecosystem-token':{'usd':0.5,'usd_24h_change':-3.1}}))
+    CG=[]
+    async def cg(r):
+      u=r.request.url
+      if 'coins/markets' in u:
+        import math; return await r.fulfill(json=[{'id':i,'sparkline_in_7d':{'price':[100+10*math.sin(k/6)+(k if i!='tron' else -k) for k in range(168)]}} for i in ['tron','binancecoin','ethereum','polygon-ecosystem-token']])
+      if 'market_chart' in u:
+        CG.append(u); import math
+        n=50; return await r.fulfill(json={'prices':[[1792000000000+k*3600000, 600+30*math.sin(k/5)+k] for k in range(n)]})
+      return await r.fulfill(json={'tether':{'usd':1,'usd_24h_change':0.01},'usd-coin':{'usd':1,'usd_24h_change':-0.02},'tron':{'usd':0.25,'usd_24h_change':2.5},'binancecoin':{'usd':600,'usd_24h_change':-1.2},'ethereum':{'usd':3000,'usd_24h_change':0.8},'polygon-ecosystem-token':{'usd':0.5,'usd_24h_change':-3.1}})
+    await pg.route('https://api.coingecko.com/**', cg)
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
       await pg.route(f'https://{host}/**', rpc); await pg.route(f'https://{host}', rpc)
     async def p2pmock(route):
@@ -56,7 +65,18 @@ async def main():
     assert set(syms)=={'USDT','USDC','TRX','BNB','ETH','POL'} and syms[0]=='USDT', syms; print('✓ قائمة العملات: '+' · '.join(syms)+' (مرتبة بالقيمة)')
     logos=await pg.locator('#assets .cl>img').evaluate_all('els=>els.map(e=>e.naturalWidth>0 && e.src.split("/").pop())')
     assert all(logos) and 'usdt.png' in logos, logos; print('✓ الشعارات الحقيقية للعملات محمّلة')
+    await pg.wait_for_timeout(500); assert await pg.locator('#assets .spark').count()>=3; print('✓ خط سعر الأسبوع بجانب كل عملة متغيرة السعر')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
+    await pg.click('#assets [data-asset=BNB]'); await pg.wait_for_timeout(800)
+    assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and await pg.locator('#ch-svg path').count()==2
+    assert '$' in await pg.inner_text('#ch-price') and 'أعلى' in await pg.inner_text('#ch-hi')
+    await pg.click('.ch-range [data-days="30"]'); await pg.wait_for_timeout(600); assert 'days=30' in CG[-1]
+    bx=await pg.locator('#ch-svg').bounding_box(); await pg.mouse.move(bx['x']+bx['width']*0.3, bx['y']+50); await pg.wait_for_timeout(200)
+    assert await pg.locator('#ch-svg circle').count()==1
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/chart.png')
+    await pg.click('#cs-close'); await pg.wait_for_timeout(300)
+    await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(400); assert not await pg.locator('#cs-chart').is_visible(); await pg.click('#cs-close')
+    print('✓ رسم السعر: 5 فترات، لمس لعرض السعر في أي لحظة، أعلى وأدنى سعر، ومخفي للعملات المستقرة')
     assert await pg.locator('#bal-chip .logos img').count()==4; await pg.click('#toggle-bal'); await pg.wait_for_timeout(200)
     assert '••••' in await pg.inner_text('#bal-usdt') and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-hidden.png')
