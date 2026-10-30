@@ -9,7 +9,7 @@ run() {
   [ -f node_modules/ethers/dist/ethers.umd.min.js ] && cp node_modules/ethers/dist/ethers.umd.min.js "$DIR/vendor/ethers.js"
   echo "window.SARRA_CONFIG = $3;" > "$DIR/config.js"
   [ -n "$ONLY" ] && [ "$4" != "$ONLY" ] && return 0
-  echo "== $1 =="; python3 "test/ui/$4" "$DIR"
+  echo "== $1 =="; python3 "test/ui/$4" "$DIR" $SHOTS
 }
 run "Nile: التدفق الكامل" tronweb.js '{"network":"nile","trongridApiKey":""}' run.py
 run "Mainnet: التبديل والعمولة" tronweb-mainnet.js '{"network":"mainnet","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_mainnet.py

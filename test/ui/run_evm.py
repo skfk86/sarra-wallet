@@ -56,6 +56,11 @@ async def main():
     assert set(syms)=={'USDT','USDC','TRX','BNB','ETH','POL'} and syms[0]=='USDT', syms; print('✓ قائمة العملات: '+' · '.join(syms)+' (مرتبة بالقيمة)')
     logos=await pg.locator('#assets .cl>img').evaluate_all('els=>els.map(e=>e.naturalWidth>0 && e.src.split("/").pop())')
     assert all(logos) and 'usdt.png' in logos, logos; print('✓ الشعارات الحقيقية للعملات محمّلة')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
+    assert await pg.locator('#bal-chip .logos img').count()==4; await pg.click('#toggle-bal'); await pg.wait_for_timeout(200)
+    assert '••••' in await pg.inner_text('#bal-usdt') and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-hidden.png')
+    await pg.click('#toggle-bal'); await pg.wait_for_timeout(200); print('✓ شارة الشبكات بالشعارات، وإخفاء الرصيد مع تبديل الأيقونة')
     row=await pg.inner_text('#assets [data-asset=USDT]'); assert '151' in row and '$1.00' in row and '+0.01%' in row, row; print('✓ USDT: مجموع كل الشبكات 151 مع السعر والتغير اليومي')
     assert '-1.20%' in await pg.inner_text('#assets [data-asset=BNB]') and await pg.locator('#assets [data-asset=BNB] .chg.dn').count()==1; print('✓ التغير السالب بالأحمر')
     tot=await pg.inner_text('#bal-usdt'); assert tot=='$172.75', tot; print('✓ إجمالي الأصول بالدولار: '+tot)

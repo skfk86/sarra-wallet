@@ -225,6 +225,12 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .chg.up{color:var(--in)}.chg.dn{color:var(--err)}
 .net-mini{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:#fff}
 .ad-meta{font-size:12px;color:var(--mu);display:flex;gap:8px;flex-wrap:wrap}
+#toggle-bal .eye-off{display:none}#toggle-bal.off .eye-on{display:none}#toggle-bal.off .eye-off{display:block}
+#bal-usdt{transition:opacity .2s}#bal-usdt.masked{letter-spacing:2px;color:var(--tx2)}
+.net-stack{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--tx2);padding:4px 10px 4px 6px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.net-stack .logos{display:inline-flex;flex-direction:row-reverse}
+.net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.net-stack .logos img:last-child{margin-inline-start:0}
 </style>
 </head>
 <body>
@@ -294,7 +300,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </header>
   <div class="card" style="display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:24px">
     <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
-      <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" style="width:36px;height:32px;background:none"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" aria-pressed="false" style="width:36px;height:32px;background:none"><svg class="i eye-on" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
     <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
     <div class="row between" style="gap:8px">
       <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT · TRC20</span>
@@ -647,7 +653,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
   </fieldset>
   <div class="note ok" id="new-buynote" hidden><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك وتستلم USDT في محفظتك على الشبكة التي اخترتها. لا يلزمك رصيد الآن.</span></div>
-  <div class="note ok" id="new-sellnote"><span id="new-sellnote-t">نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الإيداع في الضمان.</span></div>
+  <div class="note ok" id="new-sellnote"><span id="new-sellnote-t">عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
 </section>
@@ -1135,7 +1141,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var hiddenAt = 0;
     P.App.addListener('appStateChange', function (s) {
       if (!s.isActive) { hiddenAt = Date.now(); if (!$('scanner').hidden) stopScan(); return; }
-      if (hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MS && core.isUnlocked()) { core.lock(); openPin('unlock'); }
+      var picking = state.pickingAt && Date.now() - state.pickingAt < 10 * 60000; state.pickingAt = 0;
+      if (hiddenAt && !picking && Date.now() - hiddenAt > AUTO_LOCK_MS && core.isUnlocked()) { state.resume = state.stack.slice(); core.lock(); openPin('unlock'); }
     });
   }
 
@@ -1322,7 +1329,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     // unlock
     $('pin-sub').textContent = 'جارٍ التحقق…';
-    try { await core.unlock(pin); resetTo('home'); }
+    try {
+      await core.unlock(pin);
+      // بعد القفل التلقائي نعيدك لنفس الشاشة التي كنت فيها بدل الرئيسية
+      var rs = state.resume; state.resume = null;
+      if (rs && rs.length && rs[rs.length - 1] !== 'pin') { state.stack = rs.slice(0, -1); show(rs[rs.length - 1]); } else resetTo('home');
+    }
     catch (e) { setPinMode('unlock'); pinError(await lockMsg(e)); }
   }
 
@@ -1333,7 +1345,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
   async function loadHome(force) {
-    $('net-label').textContent = Object.keys(EVM).length ? 'TRON · BNB · Ethereum · Polygon' : netName();
+    $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
     renderBalances();
     loadPrices();
     var evmFetch = function () { if (Object.keys(EVM).length) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderBalances(); } }).catch(function () {}); };
@@ -1451,20 +1463,29 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function renderBalances() {
     var b = state.balances;
     renderAssets();
-    if (Object.keys(EVM).length) $('bal-chip').textContent = 'TRON · BNB · ETH · POL';
+    if (NETS.length > 1 && !$('bal-chip').dataset.done) {
+      var ch = $('bal-chip'); ch.dataset.done = '1'; ch.textContent = ''; ch.className = 'net-stack';
+      var st = document.createElement('span'); st.className = 'logos';
+      NETS.forEach(function (n) { var im = document.createElement('img'); im.src = netLogo(n.key); im.alt = n.name; im.title = n.name; st.appendChild(im); });
+      ch.appendChild(st); ch.appendChild(document.createTextNode(NETS.length + ' شبكات'));
+      ch.removeAttribute('style'); ch.setAttribute('aria-label', 'الشبكات: ' + NETS.map(function (n) { return n.name; }).join('، '));
+    }
     if (!b) return;
     var multi = Object.keys(EVM).length || (state.prices && NETWORK === 'mainnet');
     var tot = portfolioUsd();
-    $('bal-usdt').textContent = state.hidden ? '••••' : (multi && tot != null ? usd(tot) : '$' + b.usdt);
+    var bu = $('bal-usdt'); bu.classList.toggle('masked', state.hidden);
+    bu.textContent = state.hidden ? '$ ••••••' : (multi && tot != null ? usd(tot) : '$' + b.usdt);
     $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
   }
   function setHidden(v) {
     state.hidden = v;
+    var tb = $('toggle-bal'); tb.classList.toggle('off', v); tb.setAttribute('aria-pressed', v ? 'true' : 'false'); tb.setAttribute('aria-label', v ? 'إظهار الرصيد' : 'إخفاء الرصيد');
     try { localStorage.setItem('sarra.hide', v ? '1' : '0'); } catch (e) {}
     renderBalances();
     $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
+  if (state.hidden) { $('toggle-bal').classList.add('off'); $('toggle-bal').setAttribute('aria-pressed', 'true'); }
   $('refresh').onclick = function () { state.fetchedAt.history = 0; loadHome(true); };
 
   // ===== السجل =====
@@ -1598,10 +1619,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     approved: ['موثّق ✓', 'حسابك موثّق. يمكنك تعديل رقمك أو حساب بنكك في أي وقت، ويُراجع التعديل قبل اعتماده.'] };
   async function openAccount() {
     show('account');
-    $('acc-hint').textContent = 'جارٍ التحميل…'; $('acc-go').disabled = true;
+    if (state.p2p.me && state.p2p.me.profile) renderAccount();
+    else { $('acc-hint').textContent = 'جارٍ التحميل…'; $('acc-go').disabled = true; }
     if (!(await ensureProfile())) { $('acc-hint').textContent = 'تعذّر الاتصال. حاول لاحقاً.'; return; }
-    try { var me = await fetchMe(true); me = await autoPhoneLink(me); state.p2p.me = me; } catch (e) {}
     renderAccount();
+    // تحديث صامت في الخلفية (قد تكون حالة التوثيق تغيّرت)
+    try { var me = await fetchMe(true); me = await autoPhoneLink(me); state.p2p.me = me; if (state.stack[state.stack.length - 1] === 'account') renderAccount(); } catch (e) {}
   }
   // احتفال قبول التوثيق: يظهر مرة واحدة عند تحوّل الحالة من "قيد المراجعة" إلى "موثّق"
   function checkApproval(key, me) {
@@ -2598,8 +2621,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.p2p.newNet = b.dataset.pnet;
       document.querySelectorAll('[data-pnet]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
       $('new-sellnote-t').textContent = state.p2p.newNet === 'BEP20'
-        ? 'نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الإيداع في الضمان.'
-        : 'نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.';
+        ? 'عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.'
+        : 'عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج 15 TRX على الأقل لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.';
       state.p2p.bal = null; if (state.p2p.newSide === 'sell') loadSellerBalance();
     };
   });
@@ -2672,6 +2695,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
     return Array.from(new Uint8Array(d)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
+  $('ver-pick').addEventListener('click', function () { state.pickingAt = Date.now(); });
   $('ver-file').onchange = async function () {
     var f = this.files && this.files[0]; if (!f) return;
     try {
@@ -2813,7 +2837,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     refreshOrder('order.get');
   }
   // ===== إيصالات بنكك =====
-  function pickReceipt() { $('rcpt-file').value = ''; $('rcpt-file').click(); }
+  function pickReceipt() { state.pickingAt = Date.now(); $('rcpt-file').value = ''; $('rcpt-file').click(); }
   $('rcpt-file').onchange = async function () {
     var f = this.files && this.files[0]; if (!f) return;
     if (!/^image\//.test(f.type)) return toast('اختر صورة الإيصال (لقطة شاشة من تطبيق بنكك)', true);
@@ -2873,7 +2897,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     kv(dl, 'يستلم المشتري', fmt(o.buyer_receives, 6) + ' USDT', true);
     kv(dl, 'العمولة ورسوم الشبكة', fmt(o.fee_usdt, 6) + ' USDT', true);
     if (o.pay_deadline && o.status === 'funded') kv(dl, 'آخر موعد للدفع', new Date(o.pay_deadline).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }));
-    if (o.deposit_address && o.status === 'awaiting_deposit') kv(dl, 'مبلغ الإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
+    if (o.deposit_address && o.status === 'awaiting_deposit') {
+      var gw = Math.max(0, Math.round((Number(o.deposit_amount) - Number(o.amount_usdt)) * 1e6) / 1e6);
+      kv(dl, 'كمية البيع', fmt(o.amount_usdt, 6) + ' USDT');
+      kv(dl, 'رسوم بوابة الضمان', fmt(gw, 6) + ' USDT');
+      kv(dl, 'المبلغ الكامل للإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
+      if (role === 'seller') {
+        var bep = o.network === 'BEP20', wn = el('div', 'margin-top:4px;line-height:1.8;font-size:13px');
+        wn.className = 'note warn';
+        wn.textContent = '⚠️ يجب أن يصل إلى الضمان ' + fmt(o.deposit_amount, 6) + ' USDT كاملة (الكمية + رسوم البوابة). أي مبلغ أقل لا يُفعّل الصفقة ويحتاج استرداداً يدوياً. '
+          + 'رسوم الشبكة تُدفع منفصلة بعملة ' + (bep ? 'BNB (أقل من 0.01$)' : 'TRX (نحو 13 TRX)') + ' من محفظتك، ولا تُخصم من USDT. '
+          + 'اضغط زر "إيداع" هنا فقط، ولا ترسل يدوياً من محفظة أو منصة أخرى.';
+        dl.appendChild(wn);
+      }
+    }
     var showBank = !!o.bankak_account && role !== 'seller';
     $('ord-bank').hidden = !showBank;
     if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; $('ord-bamt').textContent = String(o.total_sdg); }
