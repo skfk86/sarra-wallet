@@ -775,7 +775,8 @@
         var est = r.estimate || {}, sum = function (xs) { return (xs || []).reduce(function (s, x) { return s + Number(x.amountUSD || 0); }, 0); };
         return { fromNet: fromNet, toNet: toNet, sym: sym, toSym: toSym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
-          feesUsd: sum(est.feeCosts), gasUsd: sum(est.gasCosts), seconds: Number(est.executionDuration || 0),
+          feesUsd: sum((est.feeCosts || []).filter(function (x) { return !/integrator/i.test(x.name || ''); })), gasUsd: sum(est.gasCosts),
+          gasNative: fromUnits((est.gasCosts || []).reduce(function (s2, x) { return s2 + BigInt(x.amount || 0); }, 0n), 18), seconds: Number(est.executionDuration || 0),
           appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now(),
           action: r.action || {}, toAddr: toAddr, toTok: b };
       },

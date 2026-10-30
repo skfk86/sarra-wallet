@@ -495,8 +495,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <dl class="kv card" id="es-quote" style="padding:4px 16px" hidden>
       <div><dt>ستستلم تقريباً</dt><dd class="ltr" id="es-out">—</dd></div>
       <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="es-min">—</dd></div>
-      <div><dt>رسوم الشبكة والمنصة</dt><dd class="ltr" id="es-fee">—</dd></div>
-      <div><dt>عمولة صُرّة</dt><dd id="es-app">—</dd></div>
+      <div><dt>تدفع</dt><dd class="ltr" id="es-pay">—</dd></div>
+      <div><dt>عمولة صُرّة</dt><dd class="ltr" id="es-app">—</dd></div>
+      <div><dt>رسوم المنصة</dt><dd class="ltr" id="es-plat">—</dd></div>
+      <div><dt>رسوم الشبكة (من رصيد <bdi id="es-gas-c">BNB</bdi>)</dt><dd class="ltr" id="es-fee">—</dd></div>
       <div><dt>المنصة</dt><dd class="ltr" id="es-tool">—</dd></div>
     </dl>
     <div class="note ok" id="es-note" style="font-size:13px"><span></span></div>
@@ -595,7 +597,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <dl class="kv card" id="br-quote" style="padding:4px 16px" hidden>
     <div><dt>ستستلم تقريباً</dt><dd class="ltr" id="br-out">—</dd></div>
     <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="br-min">—</dd></div>
-    <div><dt>رسوم الجسر والشبكة</dt><dd class="ltr" id="br-fee">—</dd></div>
+    <div><dt>رسوم الجسر</dt><dd class="ltr" id="br-plat">—</dd></div>
+    <div><dt>رسوم الشبكة (من رصيد <bdi id="br-gas-c">TRX</bdi>)</dt><dd class="ltr" id="br-fee">—</dd></div>
     <div><dt>عمولة صُرّة</dt><dd id="br-app">—</dd></div>
     <div><dt>المدة المتوقعة</dt><dd id="br-time">—</dd></div>
     <div><dt>المسار</dt><dd class="ltr" id="br-tool">—</dd></div>
@@ -2117,8 +2120,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); ES.q = q;
       var f = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
       $('es-out').textContent = f(q.toAmount) + ' ' + ES.to; $('es-min').textContent = f(q.toAmountMin) + ' ' + ES.to;
-      $('es-fee').textContent = '≈ $' + (q.feesUsd + q.gasUsd).toFixed(2); $('es-tool').textContent = q.tool || 'LI.FI';
-      $('es-app').textContent = q.appFee ? (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%' : 'مجاناً';
+      var usd2 = function (v) { return v < 0.01 ? 'أقل من $0.01' : '≈ $' + v.toFixed(2); };
+      $('es-pay').textContent = f(q.amount) + ' ' + ES.from;
+      $('es-app').textContent = q.appFee ? f(Number(q.amount) * q.appFee) + ' ' + ES.from + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
+      $('es-plat').textContent = q.feesUsd ? usd2(q.feesUsd) : 'مضمّنة في السعر';
+      $('es-gas-c').textContent = n.native;
+      $('es-fee').textContent = (Number(q.gasNative) ? f(q.gasNative) + ' ' + n.native + ' · ' : '') + usd2(q.gasUsd);
+      $('es-tool').textContent = q.tool || 'LI.FI';
       $('es-quote').hidden = false; $('es-go').hidden = false;
     } catch (e) { esErr(WalletCore.errorText(e)); }
     finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
@@ -2149,12 +2157,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var sn = swapNets();
     if (!ES.net) ES.net = MAIN_NET;
     if (sn.length > 1) {
-      var box = $('sw-nets'); box.hidden = false; box.textContent = '';
-      sn.forEach(function (n) {
-        var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (n.key === ES.net ? ' on' : ''); b.dataset.net = n.key;
-        var lg = document.createElement('img'); lg.src = netLogo(n.key); lg.alt = ''; b.appendChild(lg); var t = document.createElement('span'); t.textContent = n.name; b.appendChild(t);
-        b.onclick = function () { ES.net = n.key; esReset(); prepareSwap(); }; box.appendChild(b);
-      });
+      renderNetbar($('sw-nets'), ES.net, function (k) { ES.net = k; esReset(); prepareSwap(); });
     } else ES.net = 'tron';
     var evm = ES.net !== 'tron';
     $('swap-evm').hidden = !evm;
@@ -2286,10 +2289,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var fmt = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
       $('br-out').textContent = fmt(q.toAmount) + ' ' + BR.coin + ' · ' + netOf(BR.to).name;
       $('br-min').textContent = fmt(q.toAmountMin) + ' ' + BR.coin;
-      $('br-fee').textContent = '≈ $' + (q.feesUsd + q.gasUsd).toFixed(2);
+      var usd2b = function (v) { return v < 0.01 ? 'أقل من $0.01' : '≈ $' + v.toFixed(2); }, fn = netOf(BR.from), gc = fn.evm ? fn.native : 'TRX';
+      $('br-plat').textContent = q.feesUsd ? usd2b(q.feesUsd) : 'مضمّنة في السعر';
+      $('br-gas-c').textContent = gc;
+      $('br-fee').textContent = (fn.evm && Number(q.gasNative) ? fmt(q.gasNative) + ' ' + gc + ' · ' : '') + usd2b(q.gasUsd);
       $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : '—';
       $('br-tool').textContent = q.tool || 'LI.FI';
-      $('br-app').textContent = q.appFee ? (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '% (≈ $' + (Number(q.amount) * q.appFee).toFixed(2) + ')' : 'مجاناً';
+      $('br-app').textContent = q.appFee ? fmt(Number(q.amount) * q.appFee) + ' ' + BR.coin + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('br-quote').hidden = false; $('br-go').hidden = false;
     } catch (e) { brErr(WalletCore.errorText(e)); }
     finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }

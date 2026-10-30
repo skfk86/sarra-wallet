@@ -17,7 +17,7 @@ async def lifi(route):
         'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress'],'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}},
         'transactionRequest':{'customData':{'tronTransaction':{'txID':'brtx1','raw_data':{'contract':[{'type':'TriggerSmartContract','parameter':{'value':{'owner_address':('TOTHERx4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='owner' else ME_T),'contract_address':APPR,'call_value':0}}}]},'raw_data_hex':'0a'}}}})
     return await route.fulfill(json={'tool':'allbridge','estimate':{'toAmount':str(int(q['fromAmount'])//10**12*99//100),'toAmountMin':'1','approvalAddress':DIA,
-        'feeCosts':[],'gasCosts':[{'amountUSD':'0.05'}],'executionDuration':300},
+        'feeCosts':[],'gasCosts':[{'amountUSD':'0.05','amount':'80000000000000'}],'executionDuration':300},
         'action':{'fromAmount':q['fromAmount'],'toAddress':('TEvilZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='dest' else q['toAddress'])},
         'transactionRequest':{'to':('0x9999999999999999999999999999999999999999' if EVIL['on']=='to' else DIA),'data':'0xdeadbeef','value':'0x0','gasLimit':'0x30d40','chainId':56}})
   if u.path.endswith('/status'):
@@ -49,7 +49,7 @@ async def main():
     q=Q[-1]; assert q['fromChain']=='TRN' and q['toChain']=='56' and q['fromAmount']=='100000000' and q['fromAddress'].startswith('T') and q['toAddress'].startswith('0x') and q['integrator']=='sarra-wallet' and 'fee' not in q, q
     print('✓ طلب السعر صحيح: 100 USDT من محفظتك على TRON إلى عنوانك 0x على BNB Chain، بدون عمولة إضافية')
     out=await pg.inner_text('#br-out'); fee=await pg.inner_text('#br-fee')
-    assert '99' in out and 'BNB Chain' in out and fee=='≈ $1.50', (out,fee); assert await pg.inner_text('#br-app')=='مجاناً'; print('✓ بطاقة السعر: ستستلم ~99 USDT، الرسوم $1.50، المسار Symbiosis')
+    assert '99' in out and 'BNB Chain' in out and fee=='≈ $1.10' and await pg.inner_text('#br-plat')=='≈ $0.40' and 'TRX' in await pg.inner_text('#br-quote'), (out,fee); assert await pg.inner_text('#br-app')=='مجاناً'; print('✓ بطاقة السعر: ستستلم ~99 USDT، الرسوم $1.50، المسار Symbiosis')
     await pg.click('#br-go'); await pin('123456'); await pg.wait_for_timeout(3000)
     log=await pg.evaluate('window.__log')
     kinds=[l[0] for l in log]; assert 'APPROVE' in kinds and kinds.index('APPROVE')<kinds.index('SIGN')<kinds.index('BROADCAST'), log
@@ -98,7 +98,9 @@ async def main():
     assert await pg.get_attribute('#es-from [data-coin=USDT]','aria-checked')=='true' and await pg.get_attribute('#es-to [data-coin=BNB]','aria-checked')=='true'
     await pg.fill('#es-amt','5'); await pg.click('#es-quote-btn'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='56' and q['toToken']=='0x0000000000000000000000000000000000000000' and q['fromAmount']==str(5*10**18) and q['toAddress']==q['fromAddress'], q
-    assert await pg.locator('#es-quote').is_visible(); print('✓ سعر التبديل USDT ← BNB داخل نفس الشبكة وإلى محفظتك نفسها')
+    assert await pg.locator('#es-quote').is_visible() and '5 USDT' in await pg.inner_text('#es-pay') and 'BNB' in await pg.inner_text('#es-fee')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/swap.png')
+    print('✓ تفاصيل الخصم: تدفع، عمولة صُرّة، رسوم المنصة، رسوم الشبكة بـ BNB'); print('✓ سعر التبديل USDT ← BNB داخل نفس الشبكة وإلى محفظتك نفسها')
     n=len(E.sent); await pg.click('#es-go'); await pin('123456')
     for _ in range(40):
       if len(E.sent)-n>=2: break
