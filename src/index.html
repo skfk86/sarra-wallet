@@ -1193,7 +1193,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var rows = COINS.map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
     rows.sort(function (a, b) { return (b.v || 0) - (a.v || 0); });
     rows.forEach(function (r) {
-      var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.coin = c.sym;
+      var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.asset = c.sym;
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.src = coinLogo(c.logo); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
