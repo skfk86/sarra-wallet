@@ -18,3 +18,4 @@ run "حذف المحفظة ثم إنشاء جديدة" tronweb-mainnet.js '{"net
 run "القائمة الجانبية" tronweb-mainnet.js '{"network":"mainnet","version":"0.1.0","feeAddress":"TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf","feeBps":50}' run_menu.py
 run "الإرسال برقم الهاتف" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_phone.py
 run "الشبكات المتعددة (BNB Chain وEthereum وPolygon)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_evm.py
+run "نقل بين الشبكات (LI.FI)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_bridge.py

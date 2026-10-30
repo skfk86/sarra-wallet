@@ -14,6 +14,10 @@ const config = {
   // عنوان TRON الذي تصله عمولة التبديل (فارغ = العمولة معطّلة)
   feeAddress: (process.env.SARRA_FEE_ADDRESS || '').trim(),
   feeBps: Number(process.env.SARRA_FEE_BPS || 50),
+  // نقل بين الشبكات عبر LI.FI: عمولتك الاختيارية (0.003 = 0.3%) بعد تسجيل محفظة العمولة في portal.li.fi
+  lifiFee: Number(process.env.SARRA_LIFI_FEE || 0),
+  lifiIntegrator: process.env.SARRA_LIFI_INTEGRATOR || 'sarra-wallet',
+  bridgeMax: Number(process.env.SARRA_BRIDGE_MAX || 2000),
   // خادم سوق P2P (Supabase Edge Function)
   p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p',
   // قراءات عامة خفيفة عبر قاعدة البيانات (لا تُحسب ضمن حد Edge Functions). المفتاح عام بطبيعته (publishable)

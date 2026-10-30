@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com https://li.quest">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -58,7 +58,7 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 .mono{font-family:'IBM Plex Mono',monospace}
 /* الرئيسية */
 .balance{font-size:40px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
-.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.actions{display:grid;grid-template-columns:repeat(var(--acols,3),minmax(0,1fr));gap:8px}
 .action{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;cursor:pointer;color:var(--tx);font-size:13px;font-weight:500;padding:0}
 .action span.ic{width:56px;height:56px;border-radius:18px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
 .action.main span.ic{background:var(--ac);color:var(--on-ac);border:0}
@@ -264,6 +264,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="action main" data-go="send"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال</button>
     <button class="action" data-go="receive"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span>استلام</button>
     <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
+    <button class="action" data-go="bridge" id="act-bridge" hidden><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/><path d="m13 9 3 3-3 3"/></svg></span>نقل</button>
   </nav>
   <div class="row between" style="margin-bottom:-6px"><h2>العملات</h2><span class="muted" style="font-size:11px" id="price-src"></span></div>
   <div class="card" style="padding:4px 0" id="assets"></div>
@@ -489,6 +490,31 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </section>
 
 <!-- ===== P2P: شراء من إعلان ===== -->
+<section class="screen" id="s-bridge" aria-label="نقل بين الشبكات">
+  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">نقل بين الشبكات</h1></div>
+  <p class="muted" style="font-size:13px;line-height:1.8;margin:0">انقل عملتك من شبكة إلى أخرى داخل محفظتك نفسها (مثلاً USDT من TRON إلى BNB Chain).</p>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:14px 16px">
+    <span class="muted" style="font-size:13px">من شبكة</span><div class="netbar" id="br-from" role="tablist"></div>
+    <span class="muted" style="font-size:13px">إلى شبكة</span><div class="netbar" id="br-to" role="tablist"></div>
+    <span class="muted" style="font-size:13px">العملة</span><div class="seg" id="br-coin" role="radiogroup"></div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;gap:8px;padding:16px 18px">
+    <div class="row between"><label for="br-amt" class="muted">المبلغ</label><button type="button" class="chip" id="br-max" style="height:28px">الكل: <bdi class="ltr" id="br-bal">—</bdi></button></div>
+    <input id="br-amt" inputmode="decimal" placeholder="0" autocomplete="off" class="ltr" style="background:none;border:0;outline:none;font-size:28px;font-weight:700;padding:0;color:var(--tx)">
+  </div>
+  <dl class="kv card" id="br-quote" style="padding:4px 16px" hidden>
+    <div><dt>ستستلم تقريباً</dt><dd class="ltr" id="br-out">—</dd></div>
+    <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="br-min">—</dd></div>
+    <div><dt>رسوم الخدمة والشبكة</dt><dd class="ltr" id="br-fee">—</dd></div>
+    <div><dt>المدة المتوقعة</dt><dd id="br-time">—</dd></div>
+    <div><dt>المسار</dt><dd class="ltr" id="br-tool">—</dd></div>
+  </dl>
+  <p class="err" id="br-err" hidden></p>
+  <div class="card" id="br-track" hidden style="padding:14px 16px;line-height:1.8"><b id="br-track-t">جارٍ النقل…</b><div class="muted" style="font-size:13px" id="br-track-s"></div><a id="br-track-l" target="_blank" rel="noopener" hidden>تتبّع العملية</a></div>
+  <button class="btn btn-ghost" id="br-quote-btn">عرض السعر</button>
+  <button class="btn btn-primary" id="br-go" hidden>تأكيد النقل</button>
+  <p class="muted" style="font-size:11px;line-height:1.7;margin:0">يتم النقل عبر خدمة LI.FI وجسور لامركزية. تحتاج عملة الشبكة المرسِلة لدفع رسومها (TRX على TRON). لا تغلق التطبيق حتى تُرسل المعاملة.</p>
+</section>
 <section class="screen" id="s-p2p-buy" aria-label="شراء USDT" style="padding-bottom:0">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:20px" id="buy-title">شراء USDT</h1><span class="muted" style="font-size:12px" id="buy-sub"></span></div></div>
@@ -835,7 +861,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var TRONGRID_API_KEY = CFG.trongridApiKey || '';
   var AUTO_LOCK_MS = 60000;
 
-  var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true });
+  var core = WalletCore.createCore({ network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
@@ -882,6 +908,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (name === 'history') loadHistoryFull();
     if (name === 'security') prepareSecurity();
     if (name === 'swap') prepareSwap();
+    if (name === 'bridge') prepareBridge();
     if (name === 'p2p') loadP2P();
   }
   function back() {
@@ -909,7 +936,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     home: function () { resetTo('home'); },
     send: function () { show('send'); },
     receive: function () { show('receive'); },
-    swap: function () { show('swap'); }
+    swap: function () { show('swap'); },
+    bridge: function () { show('bridge'); }
   };
 
   if (P.App) {
@@ -1737,6 +1765,73 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     } finally { state.txBusy = false; }
   }
 
+
+  // ===== نقل بين الشبكات (LI.FI) =====
+  var BR = { from: 'tron', to: 'bsc', coin: 'USDT', q: null };
+  if (core.bridgeEnabled && core.bridgeEnabled() && NETS.length > 1) { $('act-bridge').hidden = false; document.querySelector('.actions').style.setProperty('--acols', '4'); }
+  function brCoins() {
+    var a = netOf(BR.from).coins, b = netOf(BR.to).coins;
+    return a.filter(function (c) { return b.indexOf(c) >= 0; });
+  }
+  function brReset() { BR.q = null; $('br-quote').hidden = true; $('br-go').hidden = true; $('br-err').hidden = true; }
+  function prepareBridge() {
+    if (BR.from === BR.to) BR.to = NETS.filter(function (n) { return n.key !== BR.from; })[0].key;
+    renderNetbar($('br-from'), BR.from, function (k) { BR.from = k; if (BR.to === k) BR.to = NETS.filter(function (n) { return n.key !== k; })[0].key; brReset(); prepareBridge(); });
+    renderNetbar($('br-to'), BR.to, function (k) { if (k === BR.from) return; BR.to = k; brReset(); prepareBridge(); });
+    var cs = brCoins(); if (cs.indexOf(BR.coin) < 0) BR.coin = cs[0] || 'USDT';
+    var seg = $('br-coin'); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + Math.max(cs.length, 1) + ',minmax(0,1fr))';
+    cs.forEach(function (c) { var b = document.createElement('button'); b.type = 'button'; b.textContent = c; b.dataset.brcoin = c; b.className = c === BR.coin ? 'on' : ''; b.setAttribute('aria-checked', c === BR.coin);
+      b.onclick = function () { BR.coin = c; brReset(); prepareBridge(); }; seg.appendChild(b); });
+    var bal = balOn(BR.coin, BR.from);
+    $('br-bal').textContent = bal == null ? '—' : (Math.floor(bal * 1e6) / 1e6) + ' ' + BR.coin;
+    if (!state.balances) core.getBalances().then(function (b) { state.balances = b; if (state.stack[state.stack.length - 1] === 'bridge') prepareBridge(); }).catch(function () {});
+    if (Object.keys(EVM).length && !state.evmBal) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'bridge') prepareBridge(); } }).catch(function () {});
+  }
+  function brErr(m) { var e = $('br-err'); e.textContent = m; e.hidden = !m; }
+  $('br-amt').addEventListener('input', brReset);
+  $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
+  $('br-quote-btn').onclick = async function () {
+    brReset();
+    var amt = $('br-amt').value.trim().replace(',', '.');
+    if (!(Number(amt) > 0)) return brErr('أدخل المبلغ');
+    var bal = balOn(BR.coin, BR.from); if (bal != null && Number(amt) > bal) return brErr('الرصيد غير كافٍ على هذه الشبكة');
+    var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
+    try {
+      var q = await core.bridgeQuote(BR.from, BR.to, BR.coin, amt); BR.q = q;
+      var fmt = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
+      $('br-out').textContent = fmt(q.toAmount) + ' ' + BR.coin + ' · ' + netOf(BR.to).name;
+      $('br-min').textContent = fmt(q.toAmountMin) + ' ' + BR.coin;
+      $('br-fee').textContent = '≈ $' + (q.feesUsd + q.gasUsd).toFixed(2);
+      $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : '—';
+      $('br-tool').textContent = q.tool || 'LI.FI';
+      $('br-quote').hidden = false; $('br-go').hidden = false;
+    } catch (e) { brErr(WalletCore.errorText(e)); }
+    finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
+  };
+  $('br-go').onclick = function () {
+    if (!BR.q || state.txBusy) return;
+    var q = BR.q, run = function () { doBridge(q); };
+    var askPin = function () { openPin('verify', run); };
+    if (bioEnabled()) bioVerify('تأكيد النقل').then(run).catch(askPin); else askPin();
+  };
+  async function doBridge(q) {
+    state.txBusy = true; state.stack = ['home', 'bridge']; show('bridge', false);
+    $('br-go').hidden = true; brErr(''); var tr = $('br-track'); tr.hidden = false;
+    $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
+    try {
+      var r = await core.bridgeExecute(q); BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+      $('br-track-t').textContent = 'أُرسلت ✓ — بانتظار الوصول على ' + netOf(q.toNet).name + '…';
+      for (var i = 0; i < 120; i++) {
+        var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
+        if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; }
+        if (st.status === 'DONE') { $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
+        if (st.status === 'REFUNDED') { $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
+        if (st.status === 'FAILED') { $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
+        await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
+      }
+    } catch (e) { tr.hidden = true; brErr(WalletCore.errorText(e)); }
+    finally { state.txBusy = false; }
+  }
   // ===== سوق P2P =====
   // كل طلب يُوقَّع بمفتاح المحفظة على الجهاز؛ الخادم يتحقق من التوقيع ولا يرى المفتاح أبداً
   var P2P_URL = CFG.p2pUrl || '';

@@ -21,7 +21,7 @@ async def rpc(route):
     if m=='eth_chainId': res=H({'bsc':56,'eth':1,'polygon':137}[c])
     elif m=='eth_getBalance': res=H(BAL[c]['native'])
     elif m=='eth_call':
-      to=p[0]['to'].lower(); res='0x'+format(BAL[c].get(to,0),'064x')
+      to=p[0]['to'].lower(); res='0x'+format(0 if str(p[0].get('data',p[0].get('input',''))).startswith('0xdd62ed3e') else BAL[c].get(to,0),'064x')
     elif m=='eth_getTransactionCount': res='0x0'
     elif m=='eth_gasPrice': res=H(3*10**9)
     elif m=='eth_maxPriorityFeePerGas': res=H(10**9)
@@ -100,4 +100,4 @@ async def main():
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
     assert not errs, errs
     await b.close()
-asyncio.run(main())
+if __name__=="__main__": asyncio.run(main())

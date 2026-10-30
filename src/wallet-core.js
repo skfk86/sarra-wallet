@@ -48,7 +48,7 @@
     }
   };
   var EVM_PATH = "m/44'/60'/0'/0/0";
-  var ERC20_IFACE_ABI = ['function balanceOf(address) view returns (uint256)', 'function transfer(address,uint256) returns (bool)'];
+  var ERC20_IFACE_ABI = ['function balanceOf(address) view returns (uint256)', 'function transfer(address,uint256) returns (bool)', 'function allowance(address,address) view returns (uint256)', 'function approve(address,uint256) returns (bool)'];
   function E() { return root.ethers || null; }
   function evmFromMnemonic(mnemonic) {
     var ethers = E(); if (!ethers) return null;
@@ -315,6 +315,52 @@
         }
       }
       throw last && /^[A-Z_]+$/.test(last.message || '') ? last : new Error('EVM_NETWORK');
+    }
+
+    var TRX_LIFI = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', EVM_NATIVE = '0x0000000000000000000000000000000000000000';
+    function bridgeChain(k) { return k === 'tron' ? 'TRN' : String(EVM_CHAINS[k] && EVM_CHAINS[k].id); }
+    function bridgeAsset(k, sym) {
+      if (k === 'tron') return sym === 'USDT' ? { chain: 'TRN', addr: net.usdt, dec: 6 } : sym === 'TRX' ? { chain: 'TRN', addr: TRX_LIFI, dec: 6 } : null;
+      var c = EVM_CHAINS[k]; if (!c) return null;
+      if (sym === c.native) return { chain: String(c.id), addr: EVM_NATIVE, dec: 18 };
+      var t = c.tokens.filter(function (x) { return x.sym === sym; })[0];
+      return t ? { chain: String(c.id), addr: t.addr, dec: t.dec } : null;
+    }
+    async function lifi(path) {
+      var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var to = ctl && setTimeout(function () { ctl.abort(); }, 25000);
+      try {
+        var res = await fetch('https://li.quest/v1' + path, { signal: ctl && ctl.signal });
+        var j = await res.json().catch(function () { return {}; });
+        if (res.status === 429) throw new Error('BRIDGE_BUSY');
+        if (!res.ok) throw new Error(res.status === 404 || /no.*(route|quote)/i.test(j.message || '') ? 'NO_ROUTE' : 'BRIDGE_NETWORK');
+        return j;
+      } catch (e) { throw /^[A-Z_]+$/.test(e.message || '') ? e : new Error('BRIDGE_NETWORK'); }
+      finally { if (to) clearTimeout(to); }
+    }
+    // توقيع وبث معاملة EVM عامة (موافقة أو جسر) وانتظار تأكيدها
+    async function evmExec(c, tx, waitHard) {
+      var ethers = E(), from = session.evm.address;
+      var signed = await evmCall(c, async function (p) {
+        var nonce = await p.getTransactionCount(from, 'pending'), fee = await p.getFeeData();
+        var gas = tx.gasLimit || BigInt(await p.estimateGas({ from: from, to: tx.to, value: tx.value, data: tx.data })) * 12n / 10n;
+        var t = { chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas }, price;
+        if (fee.maxFeePerGas) { t.type = 2; t.maxFeePerGas = fee.maxFeePerGas; t.maxPriorityFeePerGas = fee.maxPriorityFeePerGas || 0n; price = fee.maxFeePerGas; }
+        else { t.type = 0; t.gasPrice = fee.gasPrice; price = fee.gasPrice; }
+        if (BigInt(await p.getBalance(from)) < gas * BigInt(price) + tx.value) throw new Error('LOW_GAS');
+        return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
+      });
+      var hash = ethers.Transaction.from(signed).hash;
+      await evmCall(c, function (p) { return p.broadcastTransaction(signed).catch(function (e) {
+        if (/already known|nonce too low|ALREADY_EXISTS/i.test(String(e && (e.message || e.shortMessage)))) return null; throw e; }); });
+      for (var i = 0; i < (waitHard ? 30 : 13); i++) {
+        await new Promise(function (r) { setTimeout(r, 3000); });
+        try { var rc = await evmCall(c, function (p) { return p.getTransactionReceipt(hash); });
+          if (rc) { if (rc.status === 0) throw new Error('TX_FAILED'); return hash; } }
+        catch (e) { if (e.message === 'TX_FAILED') throw e; }
+      }
+      if (waitHard) throw new Error('APPROVE_PENDING');
+      return hash;
     }
 
     // القراءة (الرصيد والسجل) بدون مفتاح أولاً: حد TronGrid بدون مفتاح يُحسب لكل جهاز على حدة،
@@ -647,6 +693,76 @@
         }
         return { txid: hash, url: c.explorer + '/tx/' + hash, status: status };
       },
+      // ===== نقل بين الشبكات عبر LI.FI (بدون مفتاح؛ الحد لكل جهاز) =====
+      bridgeEnabled: function () { return this.evmEnabled() && opts.bridge !== false; },
+      bridgeQuote: async function (fromNet, toNet, sym, amountStr) {
+        if (!session) throw new Error('LOCKED');
+        if (fromNet === toNet) throw new Error('SAME_NETWORK');
+        var a = bridgeAsset(fromNet, sym), b = bridgeAsset(toNet, sym);
+        if (!a || !b) throw new Error('BAD_TOKEN');
+        var units = toUnits(amountStr, a.dec);
+        if (units <= 0n) throw new Error('INVALID_AMOUNT');
+        var maxU = Number(opts.bridgeMax || 2000);
+        if (/^(USDT|USDC)$/.test(sym) && Number(amountStr) > maxU) throw new Error('BRIDGE_MAX');
+        var fromAddr = fromNet === 'tron' ? session.address : session.evm && session.evm.address;
+        var toAddr = toNet === 'tron' ? session.address : session.evm && session.evm.address;
+        if (!fromAddr || !toAddr) throw new Error('LOCKED');
+        var p = { fromChain: a.chain, toChain: b.chain, fromToken: a.addr, toToken: b.addr, fromAmount: units.toString(),
+          fromAddress: fromAddr, toAddress: toAddr, slippage: '0.005', order: 'CHEAPEST', integrator: opts.lifiIntegrator || 'sarra-wallet' };
+        if (opts.lifiFee && Number(opts.lifiFee) > 0) p.fee = String(Math.min(Number(opts.lifiFee), 0.01));
+        var r = await lifi('/quote?' + new URLSearchParams(p).toString());
+        var est = r.estimate || {}, sum = function (xs) { return (xs || []).reduce(function (s, x) { return s + Number(x.amountUSD || 0); }, 0); };
+        return { fromNet: fromNet, toNet: toNet, sym: sym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
+          toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
+          feesUsd: sum(est.feeCosts), gasUsd: sum(est.gasCosts), seconds: Number(est.executionDuration || 0),
+          approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now() };
+      },
+      bridgeExecute: async function (q) {
+        if (!session) throw new Error('LOCKED');
+        if (!q || !q.tx) throw new Error('NO_ROUTE');
+        if (Date.now() - q.at > 9 * 60000) throw new Error('QUOTE_EXPIRED');
+        var txHash;
+        if (q.fromNet === 'tron') {
+          var tw = client(session.privateKey);
+          var bal = await this.getBalances(session.address);
+          if (bal.trxUnits < 20000000n) throw new Error('LOW_TRX_FOR_FEES');
+          if (q.token.addr !== TRX_LIFI) {
+            if (bal.usdtUnits < q.units) throw new Error('INSUFFICIENT_USDT');
+            if (q.approval) {
+              var tok = tw.contract(TRC20_ABI, q.token.addr);
+              var al = BigInt((await tok.allowance(session.address, q.approval).call()).toString());
+              if (al < q.units) {
+                var ap = await tok.approve(q.approval, q.units.toString()).send({ feeLimit: FEE_LIMIT_SUN });
+                if ((await waitForTx(ap, true, 60000)) !== 'SUCCESS') throw new Error('APPROVE_PENDING');
+              }
+            }
+          }
+          var raw = q.tx.customData && q.tx.customData.tronTransaction;
+          if (!raw || !raw.raw_data) throw new Error('NO_ROUTE');
+          var signedT = await tw.trx.sign(raw, session.privateKey);
+          var res = await tw.trx.sendRawTransaction(signedT);
+          if (!res || res.result !== true) throw new Error('TX_FAILED');
+          txHash = res.txid || (res.transaction && res.transaction.txID) || raw.txID;
+          if ((await waitForTx(txHash, true)) === 'FAILED') throw new Error('TX_FAILED');
+        } else {
+          var c = EVM_CHAINS[q.fromNet], ethers = E();
+          if (q.approval && q.token.addr !== EVM_NATIVE) {
+            var iface = new ethers.Interface(ERC20_IFACE_ABI), me = session.evm.address;
+            var cur = await evmCall(c, async function (p) { return BigInt(iface.decodeFunctionResult('allowance', await p.call({ to: q.token.addr, data: iface.encodeFunctionData('allowance', [me, q.approval]) }))[0]); });
+            if (cur < q.units) await evmExec(c, { to: q.token.addr, value: 0n, data: iface.encodeFunctionData('approve', [q.approval, q.units]) }, true);
+          }
+          txHash = await evmExec(c, { to: q.tx.to, value: BigInt(q.tx.value || 0), data: q.tx.data || '0x', gasLimit: q.tx.gasLimit ? BigInt(q.tx.gasLimit) : null }, false);
+        }
+        return { txid: txHash, fromNet: q.fromNet, toNet: q.toNet };
+      },
+      // DONE | FAILED | PENDING (+ رابط التتبع)
+      bridgeStatus: async function (txid, fromNet, toNet) {
+        try {
+          var r = await lifi('/status?' + new URLSearchParams({ txHash: txid, fromChain: bridgeChain(fromNet), toChain: bridgeChain(toNet) }).toString());
+          var s = r.status === 'DONE' ? (r.substatus === 'REFUNDED' ? 'REFUNDED' : 'DONE') : r.status === 'FAILED' ? 'FAILED' : 'PENDING';
+          return { status: s, link: r.lifiExplorerLink || '', received: r.receiving && r.receiving.amount ? r.receiving.amount : '' };
+        } catch (e) { return { status: 'PENDING', link: '' }; }
+      },
       evmExplorer: async function (chainKey) { var a = await this.evmAddress(); var c = EVM_CHAINS[chainKey]; return c && a ? c.explorer + '/address/' + a : ''; },
 
       getHistory: async function (address, limit) {
@@ -697,6 +813,12 @@
   var ERRORS_AR = {
     INVALID_EVM_ADDRESS: 'العنوان غير صحيح لهذه الشبكة. عناوين BNB Chain وEthereum وPolygon تبدأ بـ 0x',
     INSUFFICIENT_TOKEN: 'الرصيد غير كافٍ على هذه الشبكة',
+    SAME_NETWORK: 'اختر شبكتين مختلفتين',
+    BRIDGE_MAX: 'الحد الأقصى للنقل الواحد 2000 دولار. قسّم المبلغ على أكثر من عملية',
+    NO_ROUTE: 'لا يوجد مسار نقل لهذا المبلغ حالياً. جرّب مبلغاً أكبر أو شبكة أخرى',
+    BRIDGE_BUSY: 'خدمة النقل مشغولة الآن. انتظر دقيقة وحاول مجدداً',
+    BRIDGE_NETWORK: 'تعذّر الوصول لخدمة النقل. تحقق من الإنترنت وحاول مجدداً',
+    QUOTE_EXPIRED: 'انتهت صلاحية السعر. اطلب سعراً جديداً',
     INSUFFICIENT_NATIVE: 'الرصيد غير كافٍ للمبلغ مع رسوم الشبكة',
     LOW_GAS: 'تحتاج عملة الشبكة (BNB أو ETH أو POL) في محفظتك لدفع رسوم الإرسال على هذه الشبكة',
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
