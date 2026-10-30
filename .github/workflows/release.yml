@@ -46,6 +46,11 @@ jobs:
           SARRA_FEE_BPS: ${{ vars.SARRA_FEE_BPS || '50' }}
         run: npm run config
       - run: npx cap add android
+      - name: Check Google Play API level (target >= 36, min >= 24)
+        run: |
+          T=$(grep -oP 'targetSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle); M=$(grep -oP 'minSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle); C=$(grep -oP 'compileSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle)
+          echo "compileSdk=$C targetSdk=$T minSdk=$M"
+          [ "$T" -ge 36 ] && [ "$C" -ge 36 ] || { echo "::error::Google Play يتطلب targetSdk 36 أو أعلى"; exit 1; }
       - run: npm run patch:android
       - name: Splash
         run: |
