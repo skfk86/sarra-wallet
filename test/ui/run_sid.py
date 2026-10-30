@@ -24,6 +24,7 @@ async def main():
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
     await pg.route('https://mock.supabase.co/functions/**', p2p)
     await pg.route('https://mock.supabase.co/rest/**', lambda r: r.fulfill(json=None))
+    await pg.route('https://mock.supabase.co/functions/v1/market**', lambda r: r.fulfill(status=404, json={}))
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
       await pg.route(f'https://{host}/**', E.rpc); await pg.route(f'https://{host}', E.rpc)
     await pg.goto('file://'+S+'/index.html')

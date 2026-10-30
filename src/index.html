@@ -1495,34 +1495,36 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   state.prices = null;
   try { var pc = JSON.parse(localStorage.getItem('sarra.prices') || 'null'); if (pc && Date.now() - pc.at < 6 * 3600000) state.prices = pc.p; } catch (e) {}
   var pricesAt = 0;
+  // الأسعار عبر خادمنا (ذاكرة مؤقتة مشتركة، ولا حجب جغرافي)، ثم CoinGecko مباشرة إن تعذّر
+  function marketUrl(q) { var b = CFG.p2pUrl ? String(CFG.p2pUrl).replace(/\/p2p\/?$/, '/market') : ''; return b ? b + '?' + q : ''; }
+  async function marketGet(q, direct) {
+    var mu = marketUrl(q);
+    if (mu) { try { var r = await fetch(mu); if (r.ok) return await r.json(); } catch (e) {} }
+    var r2 = await fetch(direct); if (!r2.ok) throw new Error('MARKET'); return await r2.json();
+  }
   function loadPrices() {
     if (NETWORK !== 'mainnet' || Date.now() - pricesAt < 300000) return;
     pricesAt = Date.now();
     var ids = COINS.map(function (c) { return c.cg; }).join(',');
-    fetch('https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_24hr_change=true&ids=' + ids)
-      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    marketGet('kind=markets', 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&sparkline=true&price_change_percentage=24h&ids=' + ids)
       .then(function (j) {
-        var p = {}; COINS.forEach(function (c) { if (j[c.cg]) p[c.sym] = { usd: j[c.cg].usd, chg: j[c.cg].usd_24h_change }; });
+        var by = {}; j.forEach(function (x) { by[x.id] = x; });
+        var p = {}, sp = {};
+        COINS.forEach(function (c) {
+          var x = by[c.cg]; if (!x) return;
+          var usd = x.usd != null ? x.usd : x.current_price, chg = x.chg != null ? x.chg : x.price_change_percentage_24h;
+          if (usd != null) p[c.sym] = { usd: usd, chg: chg };
+          var a = x.spark || (x.sparkline_in_7d && x.sparkline_in_7d.price);
+          if (a && a.length > 8) { if (a.length > 41) { var st = a.length / 40, d = []; for (var i = 0; i < 40; i++) d.push(a[Math.floor(i * st)]); d.push(a[a.length - 1]); a = d; } sp[c.cg] = a; }
+        });
         state.prices = p; try { localStorage.setItem('sarra.prices', JSON.stringify({ at: Date.now(), p: p })); } catch (e) {}
+        if (Object.keys(sp).length) { state.spark = sp; try { localStorage.setItem('sarra.spark', JSON.stringify({ at: Date.now(), s: sp })); } catch (e) {} }
         renderBalances();
       }).catch(function () { pricesAt = 0; });
-    loadSpark();
   }
   // خط سعر الأسبوع الصغير بجانب كل عملة (طلب واحد لكل العملات، يُحفظ ساعة)
   state.spark = null;
   try { var spc = JSON.parse(localStorage.getItem('sarra.spark') || 'null'); if (spc && Date.now() - spc.at < 3600000) state.spark = spc.s; } catch (e) {}
-  var sparkAt = 0;
-  function loadSpark() {
-    if (NETWORK !== 'mainnet' || state.spark || Date.now() - sparkAt < 600000) return; sparkAt = Date.now();
-    var ids = COINS.map(function (c) { return c.cg; }).join(',');
-    fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&sparkline=true&ids=' + ids)
-      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-      .then(function (j) {
-        var o = {}; j.forEach(function (x) { var a = x.sparkline_in_7d && x.sparkline_in_7d.price; if (a && a.length > 8) { var st = a.length / 40, d = []; for (var i = 0; i < 40; i++) d.push(a[Math.floor(i * st)]); d.push(a[a.length - 1]); o[x.id] = d; } });
-        state.spark = o; try { localStorage.setItem('sarra.spark', JSON.stringify({ at: Date.now(), s: o })); } catch (e) {}
-        renderAssets();
-      }).catch(function () {});
-  }
   function sparkSvg(a) {
     var mn = Math.min.apply(null, a), mx = Math.max.apply(null, a), rg = Math.max(mx - mn, mx * 0.01) || 1, up = a[a.length - 1] >= a[0];
     var d = a.map(function (v, i) { return (i ? 'L' : 'M') + (i / (a.length - 1) * 60).toFixed(1) + ' ' + (2 + (1 - (v - mn) / rg) * 20).toFixed(1); }).join(' ');
@@ -1593,11 +1595,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try { var cc = JSON.parse(localStorage.getItem(key) || 'null'); if (cc && Date.now() - cc.at < (days === 1 ? 300000 : 3600000)) data = cc.p; } catch (e) {}
     if (!data) {
       try {
-        var r = await fetch('https://api.coingecko.com/api/v3/coins/' + c.cg + '/market_chart?vs_currency=usd&days=' + days);
-        if (!r.ok) throw new Error(); data = (await r.json()).prices || [];
+        data = (await marketGet('kind=chart&id=' + c.cg + '&days=' + days, 'https://api.coingecko.com/api/v3/coins/' + c.cg + '/market_chart?vs_currency=usd&days=' + days)).prices || [];
         if (data.length > 160) { var st = data.length / 160, d2 = []; for (var i = 0; i < 160; i++) d2.push(data[Math.floor(i * st)]); d2.push(data[data.length - 1]); data = d2; }
         try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), p: data })); } catch (e) {}
-      } catch (e) { if (CH.coin === c && CH.days === days) { $('ch-load').textContent = 'تعذّر تحميل الرسم. تحقق من الاتصال.'; } return; }
+      } catch (e) { if (CH.coin === c && CH.days === days) { $('ch-load').textContent = 'تعذّر تحميل الرسم الآن. اضغط هنا لإعادة المحاولة'; $('ch-load').onclick = function () { $('ch-load').onclick = null; loadChart(); }; } return; }
     }
     if (CH.coin !== c || CH.days !== days) return;
     $('ch-load').hidden = true; CH.pts = data; drawChart();

@@ -37,15 +37,22 @@ async def main():
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':360,'height':780}); PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
-    CG=[]
+    CG=[]; MK=[]
+    PR={'tether':(1,0.01),'usd-coin':(1,-0.02),'tron':(0.25,2.5),'binancecoin':(600,-1.2),'ethereum':(3000,0.8),'polygon-ecosystem-token':(0.5,-3.1)}
+    import math
+    def spark(i): return [100+10*math.sin(k/6)+(k if i!='tron' else -k) for k in range(168)]
     async def cg(r):
       u=r.request.url
       if 'coins/markets' in u:
-        import math; return await r.fulfill(json=[{'id':i,'sparkline_in_7d':{'price':[100+10*math.sin(k/6)+(k if i!='tron' else -k) for k in range(168)]}} for i in ['tron','binancecoin','ethereum','polygon-ecosystem-token']])
+        return await r.fulfill(json=[{'id':i,'current_price':v[0],'price_change_percentage_24h':v[1],'sparkline_in_7d':{'price':spark(i)}} for i,v in PR.items()])
       if 'market_chart' in u:
-        CG.append(u); import math
-        n=50; return await r.fulfill(json={'prices':[[1792000000000+k*3600000, 600+30*math.sin(k/5)+k] for k in range(n)]})
-      return await r.fulfill(json={'tether':{'usd':1,'usd_24h_change':0.01},'usd-coin':{'usd':1,'usd_24h_change':-0.02},'tron':{'usd':0.25,'usd_24h_change':2.5},'binancecoin':{'usd':600,'usd_24h_change':-1.2},'ethereum':{'usd':3000,'usd_24h_change':0.8},'polygon-ecosystem-token':{'usd':0.5,'usd_24h_change':-3.1}})
+        CG.append(u); return await r.fulfill(json={'prices':[[1792000000000+k*3600000, 600+30*math.sin(k/5)+k] for k in range(50)]})
+      return await r.fulfill(status=404, json={})
+    async def market(r):
+      u=r.request.url; MK.append(u)
+      if 'kind=markets' in u: return await r.fulfill(json=[{'id':i,'usd':v[0],'chg':v[1],'spark':spark(i)[:41]} for i,v in PR.items()])
+      if 'kind=chart' in u: CG.append(u.replace('kind=chart&','')); return await r.fulfill(json={'prices':[[1792000000000+k*3600000, 600+30*math.sin(k/5)+k] for k in range(50)]})
+      return await r.fulfill(status=400, json={})
     await pg.route('https://api.coingecko.com/**', cg)
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
       await pg.route(f'https://{host}/**', rpc); await pg.route(f'https://{host}', rpc)
@@ -54,6 +61,7 @@ async def main():
       if m['action']=='phone.lookup': return await route.fulfill(json={'address':'TFr'+'i'*31,'evm_address':'0x2222222222222222222222222222222222222222','name':'أحمد م•••','phone':'092•••333','verified':True})
       return await route.fulfill(json={'offers':[]})
     await pg.route('https://mock.supabase.co/**', p2pmock)
+    await pg.route('https://mock.supabase.co/functions/v1/market**', market)
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
@@ -69,7 +77,7 @@ async def main():
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-full.png', full_page=True)
     await pg.click('#assets [data-asset=BNB]'); await pg.wait_for_timeout(800)
-    assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and await pg.locator('#ch-svg path').count()==2
+    assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and any('functions/v1/market' in x for x in MK) and await pg.locator('#ch-svg path').count()==2
     assert '$' in await pg.inner_text('#ch-price') and 'أعلى' in await pg.inner_text('#ch-hi')
     await pg.click('.ch-range [data-days="30"]'); await pg.wait_for_timeout(600); assert 'days=30' in CG[-1]
     bx=await pg.locator('#ch-svg').bounding_box(); await pg.mouse.move(bx['x']+bx['width']*0.3, bx['y']+50); await pg.wait_for_timeout(200)

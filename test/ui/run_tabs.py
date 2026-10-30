@@ -15,6 +15,7 @@ async def main():
     toasts=[]
     await pg.expose_function('rec', lambda t: toasts.append(t))
     await pg.route('**/v1/accounts/**', hist); await pg.route('https://mock.supabase.co/**', p2p)
+    await pg.route('https://mock.supabase.co/functions/v1/market**', lambda r: r.fulfill(status=404, json={}))
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')

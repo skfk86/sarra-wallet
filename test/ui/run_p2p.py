@@ -77,6 +77,7 @@ async def main():
     dialogs=[]; pg.on('dialog',lambda d: (dialogs.append(d.message), asyncio.ensure_future(d.dismiss())))
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
     await pg.route('https://mock.supabase.co/**', handler)
+    await pg.route('https://mock.supabase.co/functions/v1/market**', lambda r: r.fulfill(status=404, json={}))
     await pg.goto('file://'+S+'/index.html')
     vis=lambda i: pg.locator('#'+i).is_visible()
     async def pin(d):

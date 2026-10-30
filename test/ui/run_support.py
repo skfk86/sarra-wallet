@@ -18,6 +18,7 @@ async def main():
     await pg.route('https://mock.supabase.co/functions/v1/support', sup)
     await pg.route('https://mock.supabase.co/functions/v1/p2p', lambda r: r.fulfill(json={'offers':[]}))
     await pg.route('https://mock.supabase.co/rest/**', lambda r: r.fulfill(json=None))
+    await pg.route('https://mock.supabase.co/functions/v1/market**', lambda r: r.fulfill(status=404, json={}))
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
