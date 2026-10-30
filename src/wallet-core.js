@@ -338,6 +338,39 @@
       } catch (e) { throw /^[A-Z_]+$/.test(e.message || '') ? e : new Error('BRIDGE_NETWORK'); }
       finally { if (to) clearTimeout(to); }
     }
+    // ===== حماية النقل: لا نوقّع ما لم يطابق ما رآه المستخدم =====
+    // عقد LI.FI الرسمي (LiFiDiamond) على BNB Chain وEthereum وPolygon
+    var LIFI_DIAMOND = '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae';
+    function same(a, b) { return String(a || '').toLowerCase() === String(b || '').toLowerCase(); }
+    function verifyBridgeQuote(q) {
+      var act = q.action || {};
+      if (act.fromAmount && BigInt(act.fromAmount) !== q.units) throw new Error('ROUTE_MISMATCH');
+      if (act.fromToken && act.fromToken.address && !same(act.fromToken.address, q.token.addr)) throw new Error('ROUTE_MISMATCH');
+      if (act.toAddress && !same(act.toAddress, q.toAddr)) throw new Error('ROUTE_MISMATCH');
+      if (act.toToken && act.toToken.address && q.toTok && !same(act.toToken.address, q.toTok.addr)) throw new Error('ROUTE_MISMATCH');
+      if (q.fromNet !== 'tron') {
+        var c = EVM_CHAINS[q.fromNet];
+        if (!same(q.tx.to, LIFI_DIAMOND)) throw new Error('ROUTE_MISMATCH');
+        if (q.tx.chainId != null && Number(q.tx.chainId) !== c.id) throw new Error('ROUTE_MISMATCH');
+        if (q.approval && !same(q.approval, LIFI_DIAMOND)) throw new Error('ROUTE_MISMATCH');
+        var val = BigInt(q.tx.value || 0), native = q.token.addr === EVM_NATIVE;
+        // التوكن: قيمة أصلية صغيرة فقط (رسوم بعض الجسور). الأصلية: لا تزيد عن المبلغ + 2%
+        if (!native && val > 10n ** 16n) throw new Error('ROUTE_MISMATCH');
+        if (native && val > q.units + q.units / 50n) throw new Error('ROUTE_MISMATCH');
+      }
+    }
+    function verifyTronBridgeTx(tw, raw, q) {
+      var ct = raw.raw_data.contract && raw.raw_data.contract[0], v = ct && ct.parameter && ct.parameter.value;
+      if (!v || ct.type !== 'TriggerSmartContract') throw new Error('ROUTE_MISMATCH');
+      var b58 = function (x) { x = String(x || ''); return x.charAt(0) === 'T' ? x : tw.address.fromHex(x); };
+      if (b58(v.owner_address) !== session.address) throw new Error('ROUTE_MISMATCH');
+      var target = b58(v.contract_address);
+      // الموافقة تُعطى فقط للعقد نفسه الذي ستستدعيه المعاملة
+      if (q.approval && b58(q.approval) !== target) throw new Error('ROUTE_MISMATCH');
+      var cv = BigInt(v.call_value || 0);
+      if (q.token.addr !== TRX_LIFI && cv > 50000000n) throw new Error('ROUTE_MISMATCH');
+      if (q.token.addr === TRX_LIFI && cv > q.units + q.units / 50n + 50000000n) throw new Error('ROUTE_MISMATCH');
+    }
     // توقيع وبث معاملة EVM عامة (موافقة أو جسر) وانتظار تأكيدها
     async function evmExec(c, tx, waitHard) {
       var ethers = E(), from = session.evm.address;
@@ -721,12 +754,14 @@
         return { fromNet: fromNet, toNet: toNet, sym: sym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
           feesUsd: sum(est.feeCosts), gasUsd: sum(est.gasCosts), seconds: Number(est.executionDuration || 0),
-          appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now() };
+          appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now(),
+          action: r.action || {}, toAddr: toAddr, toTok: b };
       },
       bridgeExecute: async function (q) {
         if (!session) throw new Error('LOCKED');
         if (!q || !q.tx) throw new Error('NO_ROUTE');
         if (Date.now() - q.at > 9 * 60000) throw new Error('QUOTE_EXPIRED');
+        verifyBridgeQuote(q);
         var txHash;
         if (q.fromNet === 'tron') {
           var tw = client(session.privateKey);
@@ -745,6 +780,7 @@
           }
           var raw = q.tx.customData && q.tx.customData.tronTransaction;
           if (!raw || !raw.raw_data) throw new Error('NO_ROUTE');
+          verifyTronBridgeTx(tw, raw, q);
           var signedT = await tw.trx.sign(raw, session.privateKey);
           var res = await tw.trx.sendRawTransaction(signedT);
           if (!res || res.result !== true) throw new Error('TX_FAILED');
@@ -825,6 +861,7 @@
     BRIDGE_BUSY: 'خدمة النقل مشغولة الآن. انتظر دقيقة وحاول مجدداً',
     BRIDGE_NETWORK: 'تعذّر الوصول لخدمة النقل. تحقق من الإنترنت وحاول مجدداً',
     QUOTE_EXPIRED: 'انتهت صلاحية السعر. اطلب سعراً جديداً',
+    ROUTE_MISMATCH: 'رفضنا هذا المسار لأن بيانات المعاملة لا تطابق ما طلبته. لم يُرسل أي مبلغ. اطلب سعراً جديداً',
     INSUFFICIENT_NATIVE: 'الرصيد غير كافٍ للمبلغ مع رسوم الشبكة',
     LOW_GAS: 'تحتاج عملة الشبكة (BNB أو ETH أو POL) في محفظتك لدفع رسوم الإرسال على هذه الشبكة',
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',

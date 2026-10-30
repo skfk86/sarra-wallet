@@ -229,3 +229,14 @@ export function maskPhone(p: string | null | undefined): string {
   const s = String(p || '');
   return s.length >= 7 ? s.slice(0, 3) + '•••' + s.slice(-3) : '';
 }
+
+// الإيداع يُقبل فقط إن طابق الطلب: الحالة مدفوعة، والعملة USDT، والمبلغ لا يقل عن مبلغ الصفقة، ورقم الطلب نفسه
+export function paymentMatches(info: Record<string, any> | null | undefined, order: { id: string; amount_usdt: string | number }): boolean {
+  if (!info || !isPaidStatus(info.status)) return false;
+  if (info.order_id && String(info.order_id) !== String(order.id)) return false;
+  const cur = String(info.currency || 'USDT').toUpperCase();
+  if (cur !== 'USDT') return false;
+  const amt = Number(info.amount);
+  if (!isFinite(amt) || amt + 0.000001 < Number(order.amount_usdt)) return false;
+  return true;
+}

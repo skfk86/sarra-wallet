@@ -160,4 +160,15 @@ t('الإرسال برقم الهاتف', () => {
   assert.ok(L.LIMITS.phone_lookup[0] <= 50);
 });
 
+t('الإيداع يُقبل فقط إن طابق الطلب (المبلغ والعملة ورقم الطلب)', () => {
+  const o = { id: 'ord-1', amount_usdt: '50' };
+  assert.ok(L.paymentMatches({ status: 'Paid', amount: 50, currency: 'USDT', order_id: 'ord-1' }, o));
+  assert.ok(L.paymentMatches({ status: 'paid', amount: '50.5' }, o));
+  assert.ok(!L.paymentMatches({ status: 'Paid', amount: 49.9, currency: 'USDT' }, o), 'مبلغ ناقص');
+  assert.ok(!L.paymentMatches({ status: 'Paid', amount: 50, currency: 'TRX' }, o), 'عملة أخرى');
+  assert.ok(!L.paymentMatches({ status: 'Paid', amount: 50, order_id: 'ord-2' }, o), 'دفعة طلب آخر');
+  assert.ok(!L.paymentMatches({ status: 'Paying', amount: 50 }, o), 'غير مكتملة');
+  assert.ok(!L.paymentMatches(null, o));
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);

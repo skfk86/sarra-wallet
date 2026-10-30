@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
   });
   const info = (await res.json().catch(() => ({})))?.data;
   if (!info || !L.isPaidStatus(info.status)) { await audit(o.id, 'webhook_status', { status: info?.status ?? body.status }); return new Response('ok'); }
+  if (!L.paymentMatches(info, o)) { await audit(o.id, 'webhook_amount_mismatch', { amount: info.amount, currency: info.currency }); return new Response('ok'); }
 
   if (o.status === 'awaiting_deposit') {
     const { data: off } = await db.from('offers').select('pay_window_min').eq('id', o.offer_id).single();
@@ -63,12 +64,13 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ address: o.seller, amount: Number(L.refundAmount(o.amount_usdt, env('P2P_NETWORK_FEE_USDT', '1'))), currency: 'USDT', network: 'TRC20', description: 'Sarra P2P late deposit refund ' + o.id })
         });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok || (j.status && j.status !== 200)) throw new Error(j.message || String(r.status));
+        if (!r.ok || (j.status && j.status !== 200)) throw new Error('OXAPAY: ' + (j.message || String(r.status)));
         await db.from('orders').update({ status: 'refunded', payout_track_id: j.data?.track_id ?? null }).eq('id', o.id);
         await audit(o.id, 'late_deposit_refunded', { track_id: j.data?.track_id });
       } catch (e) {
-        await db.from('orders').update({ status: 'refund_failed', payout_error: String(e).slice(0, 300) }).eq('id', o.id);
-        await audit(o.id, 'late_deposit_refund_failed', { error: String(e) });
+        const m = String((e as Error).message);
+        await db.from('orders').update({ status: 'refund_failed', payout_error: ((m.startsWith('OXAPAY:') ? '' : 'UNKNOWN_RESULT: ') + m).slice(0, 300) }).eq('id', o.id);
+        await audit(o.id, 'late_deposit_refund_failed', { error: m });
       }
     }
   }

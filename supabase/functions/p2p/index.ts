@@ -78,7 +78,10 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
     return done;
   } catch (e) {
     const failed = kind === 'release' ? 'release_failed' : 'refund_failed';
-    await db.from('orders').update({ status: failed, payout_error: String((e as Error).message).slice(0, 300) }).eq('id', order.id);
+    // رفض صريح من OxaPay = لم يُرسل شيء. انقطاع/مهلة = النتيجة مجهولة، فننبّه المشرف قبل أي إعادة محاولة
+    const m = String((e as Error).message);
+    const err = (m.startsWith('OXAPAY:') ? '' : 'UNKNOWN_RESULT: ') + m;
+    await db.from('orders').update({ status: failed, payout_error: err.slice(0, 300) }).eq('id', order.id);
     await audit(order.id, actor, kind + '_failed', { error: String(e) });
     return failed;
   }
@@ -100,7 +103,7 @@ async function expireStale(o: Record<string, any>) {
 
 function publicOrder(o: Record<string, any>, offer: Record<string, any> | null, viewer: string) {
   const out: Record<string, any> = { ...o };
-  delete out.payout_error;
+  if (!ADMINS.includes(viewer)) delete out.payout_error;
   out.buyer_receives = L.buyerReceives(o.amount_usdt, o.fee_usdt);
   if (L.canSeeBankDetails(o as L.Order, viewer, ADMINS)) {
     out.bankak_name = o.pay_name || offer?.bankak_name; out.bankak_account = o.pay_account || offer?.bankak_account;
@@ -342,7 +345,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (action === 'order.refresh' && o.status === 'awaiting_deposit' && o.deposit_track_id) {
       // احتياط إن تأخر إشعار OxaPay: نسأل عن حالة الإيداع مباشرة
       const info = await paymentInfo(o.deposit_track_id).catch(() => null);
-      if (info && L.isPaidStatus(info.status)) o = (await markFunded(o)) || o;
+      if (L.paymentMatches(info, o)) o = (await markFunded(o)) || o;
     }
 
     if (action === 'order.action') {

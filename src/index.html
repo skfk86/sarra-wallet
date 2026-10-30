@@ -1958,6 +1958,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         if (st.status === 'REFUNDED') { $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
         if (st.status === 'FAILED') { $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
+        if (i === 119) $('br-track-t').textContent = 'ما زال النقل قيد التنفيذ — بعض الجسور تتأخر. تابع رابط التتبّع، والمبلغ يصل أو يُعاد تلقائياً';
       }
     } catch (e) { tr.hidden = true; brErr(WalletCore.errorText(e)); }
     finally { state.txBusy = false; }
@@ -2609,8 +2610,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ. يُعاد USDT للبائع بعد خصم ' + (state.p2p.netFee || 1) + ' USDT رسوم الشبكة.'); });
     if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟ يُخصم ' + (state.p2p.netFee || 1) + ' USDT رسوم شبكة الإرسال من المبلغ المُعاد.', true); });
     if (role === 'admin') {
-      if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { doAction('admin_release', 'تحرير USDT للمشتري؟', true); });
-      if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { doAction('admin_refund', 'إرجاع USDT للبائع؟', true); });
+      // فشل سابق مجهول النتيجة: قد يكون OxaPay أرسل المال فعلاً، فإعادة المحاولة قد تدفع مرتين
+      var unk = /^UNKNOWN_RESULT/.test(o.payout_error || ''), warnTxt = unk ? '⚠️ المحاولة السابقة انقطعت ولا نعرف نتيجتها. افتح لوحة OxaPay ← Payouts وتأكد أنه لا توجد دفعة لهذا الطلب قبل المتابعة، وإلا سيُدفع المبلغ مرتين. ' : '';
+      if (o.payout_error) kv(dl, 'خطأ الإرسال', o.payout_error);
+      if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { doAction('admin_release', warnTxt + 'تحرير USDT للمشتري؟', true); });
+      if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { doAction('admin_refund', warnTxt + 'إرجاع USDT للبائع؟', true); });
       if (o.dispute_reason) kv(dl, 'سبب النزاع', o.dispute_reason);
     }
 
