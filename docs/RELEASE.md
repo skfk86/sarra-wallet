@@ -1,36 +1,25 @@
-# الإصدار الموقّع — صُرّة
+# الإصدار الموقّع — صُرّة (مؤتمت بالكامل)
 
-## 1) أنشئ مفتاح التوقيع مرة واحدة (على جهازك Linux، وليس في أي محادثة)
-```bash
-keytool -genkeypair -v -keystore sarra-release.jks -alias sarra -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 sarra-release.jks > sarra-release.b64
-```
-احفظ `sarra-release.jks` وكلمتي السر في مكانين آمنين (مثلاً فلاشة + مدير كلمات مرور).
-**إن ضاع هذا الملف لا يمكنك تحديث التطبيق على Google Play أبداً** (إلا عبر Play App Signing).
+## المطلوب منك مرة واحدة فقط
+GitHub ← المستودع ← Settings ← Secrets and variables ← Actions ← New repository secret:
 
-## 2) أسرار GitHub (Settings ← Secrets and variables ← Actions)
-| الاسم | القيمة |
+| Name | Secret |
 |---|---|
-| ANDROID_KEYSTORE_B64 | محتوى sarra-release.b64 |
-| ANDROID_KEYSTORE_PASSWORD | كلمة سر الملف |
-| ANDROID_KEY_ALIAS | sarra |
-| ANDROID_KEY_PASSWORD | كلمة سر المفتاح |
-| SUPABASE_DB_URL | للنسخ الاحتياطي (Supabase ← Connect ← Session pooler) |
-| BACKUP_PASSPHRASE | كلمة سر طويلة لتشفير النسخ الاحتياطية |
+| SIGNING_PASSWORD | كلمة سر طويلة تخترعها (16 حرفاً على الأقل)، احفظها عندك ولا تغيّرها أبداً |
 
-## 3) البناء
-GitHub ← Actions ← "Release (signed AAB + APK)" ← Run workflow.
-الناتج: `sarra-release.aab` (لـ Google Play) و`sarra-release.apk` (للتجربة). لا يُنشر شيء تلقائياً.
+## ماذا يحدث تلقائياً
+1. كل دفع إلى main ← "Build Android APK" يختبر ويبني نسخة التجربة.
+2. إن نجح ← "Release (signed AAB + APK)" يعمل وحده:
+   - أول مرة فقط: يُنشئ مفتاح التوقيع، ويحفظه في `signing/release.jks.gpg` مشفّراً بكلمة سرك، ويرفع نسخة منه باسم **SAVE-THIS-signing-key** (نزّلها واحفظها خارج GitHub).
+   - كل مرة: يبني ويوقّع، والناتج في Actions باسم **sarra-release-x.y.z**:
+     - `sarra-…-release.aab` ← لرفعه على Google Play
+     - `sarra-…-release.apk` ← للتثبيت المباشر على الهاتف
+3. لا يُنشر شيء على Google Play تلقائياً.
 
-## 4) Google Play
-- فعّل **Play App Signing** عند أول رفع (يحميك إن ضاع مفتاحك).
-- رابط سياسة الخصوصية: فعّل GitHub Pages للمستودع (Settings ← Pages ← main ← /docs) فيصبح الرابط
-  `https://skfk86.github.io/sarra-wallet/privacy.html`
-- رابط حذف البيانات: نفس الصفحة (قسم "حذف بياناتك").
+## مهم
+- إن غيّرت SIGNING_PASSWORD أو حذفت `signing/release.jks.gpg` لن تستطيع تحديث التطبيق على Google Play. فعّل **Play App Signing** عند أول رفع ليحميك.
+- المفتاح مشفّر مرتين (كلمة سر المفتاح + AES-256)، فوجوده في المستودع آمن ما دامت كلمة السر طويلة وسرية.
+
+## Google Play
+- سياسة الخصوصية: `https://skfk86.github.io/sarra-wallet/privacy.html` (بعد تفعيل GitHub Pages ← main ← /docs).
 - App content ← Financial features ← Cryptocurrency wallet (غير احتجازية)، والتوزيع: السودان.
-
-## 5) استعادة نسخة احتياطية
-```bash
-gpg --decrypt sarra-YYYYMMDD.sql.gz.gpg | gunzip > backup.sql   # ثم شغّله على مشروع Supabase جديد
-```
-ملاحظة: النسخة تشمل جداول قاعدة البيانات فقط. صور الإيصالات والهويات المعلّقة في Storage غير مشمولة.
