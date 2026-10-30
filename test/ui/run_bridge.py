@@ -41,7 +41,7 @@ async def main():
     assert await pg.locator('#act-bridge').is_visible(); print('✓ زر "نقل" في الصفحة الرئيسية')
     await pg.click('#act-bridge'); await pg.wait_for_timeout(800)
     assert await pg.get_attribute('#br-from [data-net=tron]','aria-selected')=='true' and await pg.get_attribute('#br-to [data-net=bsc]','aria-selected')=='true'
-    coins=await pg.locator('#br-coin button').all_inner_texts(); assert coins==['USDT'], coins; print('✓ من TRON إلى BNB Chain: العملات المشتركة فقط (USDT)')
+    coins=await pg.locator('#br-coin button').all_inner_texts(); assert coins==['USDT','TRX'], coins; print('✓ من TRON إلى BNB Chain: العملات المشتركة فقط (USDT وTRX)')
     assert '125.5' in await pg.inner_text('#br-bal'); print('✓ رصيد الشبكة المرسِلة ظاهر')
     await pg.fill('#br-amt','500'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(400)
     assert 'غير كافٍ' in await pg.inner_text('#br-err'); print('✓ رفض مبلغ أكبر من الرصيد')

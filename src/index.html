@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com https://li.quest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com https://li.quest">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -235,6 +235,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .linkbtn{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
 #swap-evm[hidden]{display:none!important}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
+.seg.scroll{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.seg.scroll::-webkit-scrollbar{display:none}.seg.scroll>button{flex:0 0 auto;min-width:84px;padding:0 12px}
+.recv-coins{flex-wrap:wrap;justify-content:center}
 </style>
 </head>
 <body>
@@ -1105,11 +1107,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var EVM = core.evmEnabled() ? core.evmChains() : {};
   if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); } }; // للاختبارات الآلية فقط
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
-    Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: c.tokens.map(function (t) { return t.sym; }).concat([c.native]), evm: true }; }));
+    Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: (function (ts) { return ts.slice(0, 2).concat([c.native], ts.slice(2)); })(c.tokens.map(function (t) { return t.sym; })), evm: true }; }));
   function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
   var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
   function netLogo(k) { return 'assets/coins/' + (NET_LOGO[k] || 'trx') + '.png'; }
-  function symLogo(sym) { return 'assets/coins/' + String(sym).toLowerCase() + '.png'; }
+  var LOCAL_LOGOS = ['usdt', 'usdc', 'trx', 'bnb', 'eth', 'pol'];
+  function symLogo(sym) {
+    var k = String(sym).toLowerCase(); if (LOCAL_LOGOS.indexOf(k) >= 0) return 'assets/coins/' + k + '.png';
+    var c = typeof COINS !== 'undefined' && COINS.filter(function (x) { return x.sym === sym; })[0]; return c && c.url ? c.url : fallbackLogo(sym);
+  }
   function renderNetbar(box, cur, onPick) {
     box.hidden = NETS.length < 2; box.textContent = '';
     NETS.forEach(function (n) {
@@ -1438,13 +1444,31 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var COINS = [
     { sym: 'USDT', name: 'Tether', logo: 'usdt', cg: 'tether', stable: true, nets: ['tron', 'bsc', 'eth', 'polygon'] },
     { sym: 'USDC', name: 'USD Coin', logo: 'usdc', cg: 'usd-coin', stable: true, nets: ['bsc', 'eth', 'polygon'] },
-    { sym: 'TRX', name: 'TRON', logo: 'trx', cg: 'tron', nets: ['tron'] },
+    { sym: 'TRX', name: 'TRON', logo: 'trx', cg: 'tron', nets: ['tron', 'bsc'] },
     { sym: 'BNB', name: 'BNB', logo: 'bnb', cg: 'binancecoin', nets: ['bsc'] },
-    { sym: 'ETH', name: 'Ethereum', logo: 'eth', cg: 'ethereum', nets: ['eth'] },
-    { sym: 'POL', name: 'Polygon', logo: 'pol', cg: 'polygon-ecosystem-token', nets: ['polygon'] }
+    { sym: 'ETH', name: 'Ethereum', logo: 'eth', cg: 'ethereum', nets: ['eth', 'bsc', 'polygon'] },
+    { sym: 'POL', name: 'Polygon', logo: 'pol', cg: 'polygon-ecosystem-token', nets: ['polygon'] },
+    // عملات إضافية على نفس الشبكات (تظهر في الرئيسية فقط إن كان لديك رصيد منها)
+    { sym: 'BTC', name: 'Bitcoin (مغلّف)', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png', cg: 'bitcoin', nets: ['bsc', 'eth', 'polygon'], extra: true },
+    { sym: 'FDUSD', name: 'First Digital USD', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409/logo.png', cg: 'first-digital-usd', stable: true, nets: ['bsc'], extra: true },
+    { sym: 'DAI', name: 'Dai', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png', cg: 'dai', stable: true, nets: ['bsc', 'eth', 'polygon'], extra: true },
+    { sym: 'XRP', name: 'XRP', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ripple/info/logo.png', cg: 'ripple', nets: ['bsc'], extra: true },
+    { sym: 'SOL', name: 'Solana', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png', cg: 'solana', nets: ['bsc'], extra: true },
+    { sym: 'DOGE', name: 'Dogecoin', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/doge/info/logo.png', cg: 'dogecoin', nets: ['bsc'], extra: true },
+    { sym: 'ADA', name: 'Cardano', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cardano/info/logo.png', cg: 'cardano', nets: ['bsc'], extra: true },
+    { sym: 'LINK', name: 'Chainlink', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png', cg: 'chainlink', nets: ['bsc', 'eth', 'polygon'], extra: true },
+    { sym: 'UNI', name: 'Uniswap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png', cg: 'uniswap', nets: ['eth'], extra: true },
+    { sym: 'AAVE', name: 'Aave', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png', cg: 'aave', nets: ['eth', 'polygon'], extra: true },
+    { sym: 'CAKE', name: 'PancakeSwap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82/logo.png', cg: 'pancakeswap-token', nets: ['bsc'], extra: true },
+    { sym: 'SHIB', name: 'Shiba Inu', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE/logo.png', cg: 'shiba-inu', nets: ['bsc', 'eth'], extra: true },
+    { sym: 'PEPE', name: 'Pepe', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png', cg: 'pepe', nets: ['eth'], extra: true }
   ].map(function (c) { c.nets = c.nets.filter(function (n) { return n === 'tron' || EVM[n]; }); return c; })
    .filter(function (c) { return c.nets.length; });
   function coinLogo(k) { return 'assets/coins/' + k + '.png'; }
+  function coinImg(c) { return c.url || coinLogo(c.logo); }
+  // شعار احتياطي (حرف العملة) إن تعذّر تحميل الشعار من الإنترنت
+  function fallbackLogo(sym) { var t = String(sym || '?').slice(0, 1); return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#8a94a6"/><text x="20" y="26" font-size="18" font-family="sans-serif" font-weight="700" fill="#fff" text-anchor="middle">' + t + '</text></svg>'); }
+  document.addEventListener('error', function (e) { var im = e.target; if (im && im.tagName === 'IMG' && !im.dataset.fb) { im.dataset.fb = '1'; im.src = fallbackLogo(im.alt || im.dataset.sym); } }, true);
   // رصيد عملة على شبكة (رقم) أو null إن لم يُحمّل بعد
   function balOn(sym, net) {
     if (net === 'tron') { var b = state.balances; if (!b) return null; return sym === 'USDT' ? Number(b.usdt) : sym === 'TRX' ? Number(b.trx) : null; }
@@ -1476,11 +1500,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function chgEl(chg) { if (chg == null || !isFinite(chg)) return null; var e = el('em', null, (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'); e.className = 'chg ' + (chg >= 0 ? 'up' : 'dn'); return e; }
   function renderAssets() {
     var box = $('assets'); box.textContent = '';
-    var rows = COINS.map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
+    var hidden = 0;
+    var rows = COINS.filter(function (c) { var t = coinTotal(c); if (c.extra && !(t > 0)) { hidden++; return false; } return true; }).map(function (c) { var t = coinTotal(c), p = priceOf(c); return { c: c, t: t, v: t != null && p && NETWORK === 'mainnet' ? t * p.usd : (c.stable ? t : null), p: p }; });
     rows.sort(function (a, b) { return (b.v || 0) - (a.v || 0); });
     rows.forEach(function (r) {
       var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.asset = c.sym;
-      var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.src = coinLogo(c.logo); im.alt = ''; cl.appendChild(im);
+      var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
       var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); var ce = NETWORK === 'mainnet' && r.p ? chgEl(r.p.chg) : null; if (ce) { sub.appendChild(document.createTextNode(' ')); sub.appendChild(ce); }
@@ -1492,11 +1517,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       row.onclick = function () { openCoin(c); };
       box.appendChild(row);
     });
+    if (hidden) { var more = el('button', null, '+ ' + hidden + ' عملة أخرى مدعومة · تظهر هنا عند استلامها'); more.type = 'button'; more.className = 'linkbtn'; more.style.cssText = 'display:block;margin:10px auto 0'; more.onclick = openCoinsHelp; box.appendChild(more); }
     $('price-src').textContent = NETWORK === 'mainnet' && state.prices ? 'الأسعار: CoinGecko' : '';
   }
   function openCoin(c) {
     var t = coinTotal(c), p = priceOf(c);
-    $('cs-logo').src = coinLogo(c.logo); $('cs-name').textContent = c.name + ' · ' + c.sym;
+    $('cs-logo').removeAttribute('data-fb'); $('cs-logo').dataset.sym = c.sym; $('cs-logo').src = coinImg(c); $('cs-name').textContent = c.name + ' · ' + c.sym;
     var cp = $('cs-price'); cp.textContent = '';
     if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd) + (p.chg != null ? '  ' + (p.chg >= 0 ? '+' : '') + p.chg.toFixed(2) + '%' : '')); pb.style.direction = 'ltr'; cp.appendChild(pb); cp.appendChild(document.createTextNode(' خلال 24 ساعة')); }
     if (c.nets.length > 1) cp.appendChild(document.createTextNode(' · على ' + c.nets.length + ' شبكات'));
@@ -1869,10 +1895,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function renderCoinSeg() {
     var n = netOf(state.sendNet), seg = $('coin-seg');
     if (n.coins.indexOf(state.coin) < 0) state.coin = n.coins[0];
-    seg.style.gridTemplateColumns = 'repeat(' + n.coins.length + ',minmax(0,1fr))';
+    seg.style.gridTemplateColumns = 'repeat(' + n.coins.length + ',minmax(0,1fr))'; seg.classList.toggle('scroll', n.coins.length > 4);
     seg.textContent = '';
     n.coins.forEach(function (c) {
-      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.coin = c; var ci = document.createElement('img'); ci.src = symLogo(c); ci.alt = ''; b.appendChild(ci); b.appendChild(document.createTextNode(c));
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab'); b.dataset.coin = c; var ci = document.createElement('img'); ci.alt = c; ci.src = symLogo(c); b.appendChild(ci); b.appendChild(document.createTextNode(c));
       var on = c === state.coin; b.className = on ? 'on' : ''; b.setAttribute('aria-selected', on ? 'true' : 'false');
       b.onclick = function () { state.coin = c; $('amt').value = ''; renderCoinSeg(); prepareSend(); };
       seg.appendChild(b);
@@ -2126,9 +2152,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (cs.indexOf(ES.from) < 0) ES.from = cs[0];
     if (!ES.to || ES.to === ES.from || cs.indexOf(ES.to) < 0) ES.to = ES.from === n.native ? 'USDT' : n.native;
     [['es-from', 'from'], ['es-to', 'to']].forEach(function (x) {
-      var seg = $(x[0]); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + cs.length + ',minmax(0,1fr))';
+      var seg = $(x[0]); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + cs.length + ',minmax(0,1fr))'; seg.classList.toggle('scroll', cs.length > 4);
       cs.forEach(function (c) {
-        var b = document.createElement('button'); b.type = 'button'; b.dataset.coin = c; var im = document.createElement('img'); im.src = symLogo(c); im.alt = ''; b.appendChild(im); b.appendChild(document.createTextNode(c));
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.coin = c; var im = document.createElement('img'); im.alt = c; im.src = symLogo(c); b.appendChild(im); b.appendChild(document.createTextNode(c));
         var on = ES[x[1]] === c, dis = x[1] === 'to' && c === ES.from; b.className = on ? 'on' : ''; b.disabled = dis; b.setAttribute('aria-checked', on ? 'true' : 'false');
         b.onclick = function () { ES[x[1]] = c; if (x[1] === 'from' && ES.to === c) ES.to = null; esReset(); renderSwapEvm(); };
         seg.appendChild(b);
@@ -2301,7 +2327,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     renderNetbar($('br-from'), BR.from, function (k) { BR.from = k; if (BR.to === k) BR.to = NETS.filter(function (n) { return n.key !== k; })[0].key; brReset(); prepareBridge(); });
     renderNetbar($('br-to'), BR.to, function (k) { if (k === BR.from) return; BR.to = k; brReset(); prepareBridge(); });
     var cs = brCoins(); if (cs.indexOf(BR.coin) < 0) BR.coin = cs[0] || 'USDT';
-    var seg = $('br-coin'); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + Math.max(cs.length, 1) + ',minmax(0,1fr))';
+    var seg = $('br-coin'); seg.textContent = ''; seg.style.gridTemplateColumns = 'repeat(' + Math.max(cs.length, 1) + ',minmax(0,1fr))'; seg.classList.toggle('scroll', cs.length > 4);
     cs.forEach(function (c) { var b = document.createElement('button'); b.type = 'button'; b.textContent = c; b.dataset.brcoin = c; b.className = c === BR.coin ? 'on' : ''; b.setAttribute('aria-checked', c === BR.coin);
       b.onclick = function () { BR.coin = c; brReset(); prepareBridge(); }; seg.appendChild(b); });
     var bal = balOn(BR.coin, BR.from);

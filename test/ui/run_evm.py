@@ -91,7 +91,10 @@ async def main():
     # إرسال
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(400)
     await pg.click('#send-nets [data-net=bsc]'); await pg.wait_for_timeout(300)
-    coins=await pg.locator('#coin-seg button').all_inner_texts(); assert coins==['USDT','USDC','BNB'], coins; print('✓ الإرسال: اختيار الشبكة ثم العملة (USDT / USDC / BNB)')
+    coins=await pg.locator('#coin-seg button').all_inner_texts(); assert coins[:3]==['USDT','USDC','BNB'] and {'BTC','ETH','XRP','SOL','DOGE'}<=set(coins), coins
+    assert 'scroll' in (await pg.get_attribute('#coin-seg','class'))
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/send-coins.png')
+    print('✓ الإرسال: USDT / USDC / BNB أولاً ثم بقية عملات BNB Chain في شريط قابل للتمرير')
     await pg.fill('#to', tron_addr); await pg.fill('#amt','10'); await pg.click('#review'); await pg.wait_for_timeout(300)
     assert 'عنوان TRON' in await pg.inner_text('#send-err'); print('✓ رفض عنوان TRON على شبكة BNB Chain')
     await pg.fill('#to', TO); await pg.fill('#amt','30'); await pg.click('#review'); await pg.wait_for_timeout(300)
