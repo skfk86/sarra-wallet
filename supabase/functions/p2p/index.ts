@@ -14,6 +14,10 @@ const ADMINS = env('ADMIN_ADDRESSES').split(',').map((s) => s.trim()).filter(Boo
 const FEE_BPS = Number(env('P2P_FEE_BPS', '50'));
 const MIN_TRADE = Number(env('P2P_MIN_USDT', '10'));
 const NET_FEE = env('P2P_NETWORK_FEE_USDT', '1');
+const NET_FEE_BEP = env('P2P_NETWORK_FEE_BEP20', '0.3');
+const netFeeOf = (n: string) => n === 'BEP20' ? NET_FEE_BEP : NET_FEE;
+const BSC_RPC = ['https://bsc-dataseed.bnbchain.org', 'https://bsc-rpc.publicnode.com'];
+const USDT_BSC = '0x55d398326f99059fF775485246999027B3197955';
 const DEPOSIT_LIFETIME = Number(env('DEPOSIT_LIFETIME_MIN', '30'));
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
@@ -47,22 +51,24 @@ async function oxapay(path: string, body: unknown, key: string, header: string, 
   }
   return j.data;
 }
-const createDeposit = (orderId: string, amount: string) => oxapay('/payment/white-label', {
-  amount: Number(amount), currency: 'USDT', pay_currency: 'USDT', network: 'TRC20',
+const createDeposit = (orderId: string, amount: string, network: string) => oxapay('/payment/white-label', {
+  amount: Number(amount), currency: 'USDT', pay_currency: 'USDT', network,
   lifetime: DEPOSIT_LIFETIME, fee_paid_by_payer: 1, callback_url: WEBHOOK_URL,
   order_id: orderId, description: 'Sarra P2P escrow ' + orderId
 }, MERCHANT_KEY, 'merchant_api_key');
-const payout = (address: string, amount: string, desc: string) => oxapay('/payout', {
-  address, amount: Number(amount), currency: 'USDT', network: 'TRC20', description: desc
+const payout = (address: string, amount: string, desc: string, network: string) => oxapay('/payout', {
+  address, amount: Number(amount), currency: 'USDT', network, description: desc
 }, PAYOUT_KEY, 'payout_api_key');
 const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent(trackId), null, MERCHANT_KEY, 'merchant_api_key', 'GET');
 
 // ===== تنفيذ التحرير/الإرجاع بعد قفل الحالة =====
 async function settle(order: Record<string, any>, kind: 'release' | 'refund', actor: string) {
-  const to = kind === 'release' ? order.buyer : order.seller;
-  const amount = kind === 'release' ? L.buyerReceives(order.amount_usdt, order.fee_usdt) : L.refundAmount(order.amount_usdt, NET_FEE);
+  const net = order.network || 'TRC20';
+  const amount = kind === 'release' ? L.buyerReceives(order.amount_usdt, order.fee_usdt) : L.refundAmount(order.amount_usdt, netFeeOf(net));
+  let to = '';
   try {
-    const r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`);
+    to = L.payoutTarget(order, kind);
+    const r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`, net);
     const done = kind === 'release' ? 'released' : 'refunded';
     await db.from('orders').update({ status: done, payout_track_id: r?.track_id ?? null, payout_error: null })
       .eq('id', order.id).eq('status', kind === 'release' ? 'releasing' : 'refunding');
@@ -124,6 +130,29 @@ async function onchainBalances(addr: string): Promise<{ usdt: bigint; trx: bigin
   const t = (acc.trc20 || []).find((x: Record<string, string>) => x[USDT] !== undefined);
   return { usdt: BigInt(t ? t[USDT] : 0), trx: BigInt(acc.balance || 0) };
 }
+async function bscCall(method: string, params: unknown[]) {
+  for (const u of BSC_RPC) {
+    try {
+      const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
+      const j = await r.json(); if (j.result !== undefined) return String(j.result);
+    } catch (_) { /* التالي */ }
+  }
+  throw new Error('BALANCE_CHECK_FAILED');
+}
+async function bscBalances(addr: string): Promise<{ usdt: bigint; bnb: bigint }> {
+  const data = '0x70a08231' + addr.slice(2).toLowerCase().padStart(64, '0');
+  const [u, b] = await Promise.all([bscCall('eth_call', [{ to: USDT_BSC, data }, 'latest']), bscCall('eth_getBalance', [addr, 'latest'])]);
+  return { usdt: BigInt(u === '0x' ? 0 : u) / 1000000000000n, bnb: BigInt(b) };
+}
+async function sellerFunds(network: string, tronAddr: string, evm: string | null) {
+  if (network === 'BEP20') {
+    if (!L.isEvmAddr(evm)) throw new Error('EVM_REQUIRED');
+    const b = await bscBalances(String(evm));
+    return { usdt: b.usdt, check: (need: string) => L.checkSellerFundsBep(b.usdt, b.bnb, need) };
+  }
+  const b = await onchainBalances(tronAddr);
+  return { usdt: b.usdt, check: (need: string) => L.checkSellerFunds(b.usdt, b.trx, need) };
+}
 async function sha256Hex(s: string) {
   const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -158,7 +187,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     // sell = إعلانات بيع (تبويب "شراء")، buy = إعلانات شراء (تبويب "بيع")
     const side = p.side === 'buy' ? 'buy' : 'sell';
     const { data } = await db.from('offers')
-      .select('id,seller,side,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
+      .select('id,seller,side,network,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
       .eq('active', true).eq('side', side).gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: side === 'sell' }).limit(50);
     const rate = await getRate();
     const range = L.priceRange(rate);
@@ -166,7 +195,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const shown = (data || []).filter((o) => Number(o.available_usdt) >= Number(o.min_usdt) &&
       (!range || (Number(o.price_sdg) >= range.min && Number(o.price_sdg) <= range.max)));
     const profs = await profilesMap(shown.map((o) => o.seller));
-    return { offers: shown.map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, net_fee: NET_FEE, min_trade: MIN_TRADE, rate, range };
+    return { offers: shown.map((o) => ({ ...o, seller_profile: profs[o.seller] || null })), fee_bps: FEE_BPS, net_fee: NET_FEE, net_fee_bep: NET_FEE_BEP, min_trade: MIN_TRADE, rate, range };
   }
   if (!me) throw new Error('UNAUTHORIZED');
   const { data: prof } = await db.from('profiles').select('*').eq('address', me).maybeSingle();
@@ -189,7 +218,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
     pub.phone_masked = L.maskPhone(profile.phone);
     delete pub.id_doc_path; delete pub.phone; delete pub.prev_kyc;
-    return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, net_fee: NET_FEE, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
+    return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, net_fee: NET_FEE, net_fee_bep: NET_FEE_BEP, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
 
   if (action === 'profile.set') {
@@ -258,8 +287,13 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'balance.check') {
+    if (p.network === 'BEP20') {
+      if (!L.isEvmAddr(profile.evm_address)) throw new Error('EVM_REQUIRED');
+      const b = await bscBalances(profile.evm_address);
+      return { network: 'BEP20', usdt: L.fromMicro(b.usdt), bnb: (Number(b.bnb / 1000000000000n) / 1e6).toFixed(5), min_bnb: L.fromWei(L.SELLER_MIN_BNB_WEI) };
+    }
     const b = await onchainBalances(me);
-    return { usdt: L.fromMicro(b.usdt), trx: (Number(b.trx) / 1e6).toFixed(2) };
+    return { network: 'TRC20', usdt: L.fromMicro(b.usdt), trx: (Number(b.trx) / 1e6).toFixed(2) };
   }
 
   if (action === 'offer.create') {
@@ -268,16 +302,19 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const v = L.validateOffer({ ...p, bankak_name: profile.full_name, bankak_account: profile.bankak_account }, MIN_TRADE);
     L.checkPrice(v.price_sdg, await getRate());
     // إعلان البيع: لا يمكن عرض مبلغ غير موجود في المحفظة فعلاً
+    const network = p.network === 'BEP20' ? 'BEP20' : 'TRC20';
+    if (network === 'BEP20' && !L.isEvmAddr(profile.evm_address)) throw new Error('EVM_REQUIRED');
     if (v.side === 'sell') {
-      const bal = await onchainBalances(me);
-      const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('side', 'sell').eq('active', true);
+      const f = await sellerFunds(network, me, profile.evm_address);
+      const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('side', 'sell').eq('network', network).eq('active', true);
       const committed = (mine || []).reduce((s, o) => s + L.toMicro(String(o.available_usdt)), 0n);
-      L.checkSellerFunds(bal.usdt - committed, bal.trx, v.available_usdt);
+      if (f.usdt - committed < L.toMicro(v.available_usdt)) throw new Error('INSUFFICIENT_SELLER_USDT');
+      f.check('0');
     }
     const { count } = await db.from('offers').select('id', { count: 'exact', head: true }).eq('seller', me).eq('active', true);
     if ((count || 0) >= L.MAX_ACTIVE_OFFERS) throw new Error('MAX_OFFERS');
     await limit(me, 'offer_create');
-    const { data, error } = await db.from('offers').insert({ ...v, seller: me }).select().single();
+    const { data, error } = await db.from('offers').insert({ ...v, network, seller: me }).select().single();
     if (error) throw new Error('DB_ERROR');
     await audit(null, me, 'offer_create', { id: data.id });
     return { offer: data };
@@ -303,18 +340,20 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     // حد الطلبات المفتوحة يخص الطلبات التي فتحتها أنت (لا الطلبات التي وصلت لإعلاناتك)
     const { data: open } = await db.from('orders').select('id').or(`and(side.eq.sell,buyer.eq.${me}),and(side.eq.buy,seller.eq.${me})`).in('status', ['awaiting_deposit', 'funded', 'paid']);
     if ((open || []).length >= 3) throw new Error('TOO_MANY_OPEN');
+    const network = offer.network === 'BEP20' ? 'BEP20' : 'TRC20';
+    const { data: sp } = await db.from('profiles').select('evm_address').eq('address', seller).maybeSingle();
+    const { data: bp } = await db.from('profiles').select('evm_address').eq('address', buyer).maybeSingle();
+    const sellerEvm = seller === me ? profile.evm_address : sp?.evm_address, buyerEvm = buyer === me ? profile.evm_address : bp?.evm_address;
+    if (network === 'BEP20' && (!L.isEvmAddr(sellerEvm) || !L.isEvmAddr(buyerEvm))) throw new Error(L.isEvmAddr(me === seller ? sellerEvm : buyerEvm) ? 'OFFER_UNAVAILABLE' : 'EVM_REQUIRED');
     let payName = offer.bankak_name, payAccount = offer.bankak_account;
     if (side === 'buy') {
-      // البيع لإعلان شراء: البائع (أنت) موثّق، ويملك المبلغ و TRX للرسوم، ويستلم على حسابه الموثّق
       if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
-      const b = await onchainBalances(me);
-      L.checkSellerFunds(b.usdt, b.trx, amount);
+      (await sellerFunds(network, me, profile.evm_address)).check(amount);
       payName = profile.full_name; payAccount = profile.bankak_account;
     }
     await limit(me, 'order_create');
     if (side === 'sell') {
-      // البائع يجب أن يملك المبلغ الآن، وإلا يُغلق إعلانه
-      const sb = await onchainBalances(offer.seller).catch(() => null);
+      const sb = await sellerFunds(network, offer.seller, sellerEvm ?? null).catch(() => null);
       if (sb && sb.usdt < L.toMicro(amount)) {
         if (sb.usdt < L.toMicro(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
         throw new Error('SELLER_INSUFFICIENT');
@@ -322,15 +361,16 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     }
     const { data: ok } = await db.rpc('p2p_reserve', { p_offer: offer.id, p_amount: amount });
     if (!ok) throw new Error('AMOUNT_UNAVAILABLE');
-    const fee = L.tradeFee(amount, FEE_BPS, NET_FEE);
+    const fee = L.tradeFee(amount, FEE_BPS, netFeeOf(network));
     const total = Math.round(Number(amount) * Number(offer.price_sdg) * 100) / 100;
     const { data: order, error } = await db.from('orders').insert({
-      offer_id: offer.id, seller, buyer, amount_usdt: amount, side,
+      offer_id: offer.id, seller, buyer, amount_usdt: amount, side, network,
+      seller_payout: network === 'BEP20' ? sellerEvm : seller, buyer_payout: network === 'BEP20' ? buyerEvm : buyer,
       price_sdg: offer.price_sdg, total_sdg: total, fee_usdt: fee, pay_name: payName, pay_account: payAccount
     }).select().single();
     if (error) { await db.rpc('p2p_unreserve', { p_offer: offer.id, p_amount: amount }); throw new Error('DB_ERROR'); }
     try {
-      const d = await createDeposit(order.id, amount);
+      const d = await createDeposit(order.id, amount, network);
       const expires = new Date(d.expired_at ? Number(d.expired_at) * 1000 : Date.now() + DEPOSIT_LIFETIME * 60000).toISOString();
       const { data: upd } = await db.from('orders').update({
         deposit_track_id: String(d.track_id), deposit_address: d.address,

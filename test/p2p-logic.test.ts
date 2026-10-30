@@ -198,3 +198,15 @@ t('معرّف صُرّة: 8 أرقام، لا يتداخل مع الهاتف', (
 });
 
 console.log(`\n${pass} اختبارات P2P نجحت`);
+
+t('BEP20 escrow: seller funds and payout targets', () => {
+  L.checkSellerFundsBep(10000000n, 300000000000000n, '10');
+  assert.throws(() => L.checkSellerFundsBep(9999999n, 300000000000000n, '10'), /INSUFFICIENT_SELLER_USDT/);
+  assert.throws(() => L.checkSellerFundsBep(10000000n, 299999999999999n, '10'), /SELLER_NEEDS_BNB/);
+  const evmB = '0x' + '2'.repeat(40), evmS = '0x' + '1'.repeat(40);
+  const o = { network: 'BEP20', buyer: 'TBvJUBXorwBPzqvV38vjDgegj5Eh6g2Tsq', seller: 'TJRabPrwbZy45sbavfcjinPJC18kjpRTv8', buyer_payout: evmB, seller_payout: evmS };
+  assert.equal(L.payoutTarget(o, 'release'), evmB);
+  assert.equal(L.payoutTarget(o, 'refund'), evmS);
+  assert.throws(() => L.payoutTarget({ ...o, buyer_payout: null }, 'release'), /BAD_PAYOUT_ADDRESS/);
+  assert.equal(L.payoutTarget({ buyer: o.buyer, seller: o.seller }, 'release'), o.buyer);
+});

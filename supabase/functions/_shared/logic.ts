@@ -277,3 +277,17 @@ export function normalizeSarraId(v: unknown): number {
   if (!/^[1-9]\d{7}$/.test(s)) throw new Error('BAD_ID');
   return Number(s);
 }
+
+// ===== ضمان BEP20 =====
+export const SELLER_MIN_BNB_WEI = 300000000000000n; // 0.0003 BNB تكفي عدة إيداعات
+export function fromWei(w: bigint): string { return (Number(w / 1000000000000n) / 1e6).toString(); }
+export function checkSellerFundsBep(usdtMicro: bigint, bnbWei: bigint, needUsdt: string | number) {
+  if (usdtMicro < toMicro(needUsdt)) throw new Error('INSUFFICIENT_SELLER_USDT');
+  if (bnbWei < SELLER_MIN_BNB_WEI) throw new Error('SELLER_NEEDS_BNB');
+}
+// عنوان الدفع: TRC20 = عنوان TRON نفسه، BEP20 = العنوان المحفوظ لحظة إنشاء الصفقة
+export function payoutTarget(o: { network?: string; buyer: string; seller: string; buyer_payout?: string | null; seller_payout?: string | null }, kind: 'release' | 'refund'): string {
+  const t = kind === 'release' ? (o.buyer_payout || o.buyer) : (o.seller_payout || o.seller);
+  if ((o.network || 'TRC20') === 'BEP20' ? !isEvmAddr(t) : !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(t)) throw new Error('BAD_PAYOUT_ADDRESS');
+  return t;
+}

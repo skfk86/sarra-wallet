@@ -625,6 +625,12 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <label class="lbl" for="new-price">سعرك لكل USDT (جنيه سوداني)</label>
   <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
   <p class="muted" id="new-range" style="font-size:12px;margin-top:-10px"></p>
+  <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">شبكة الضمان</legend>
+    <div class="seg" id="new-net" role="radiogroup" aria-label="شبكة الضمان">
+      <button type="button" role="radio" data-pnet="BEP20" class="on" aria-checked="true">BNB Chain · رسوم سنتات</button>
+      <button type="button" role="radio" data-pnet="TRC20" aria-checked="false">TRON · ~13 TRX</button>
+    </div>
+  </fieldset>
   <div class="note ok" id="new-bal"><span>جارٍ فحص رصيدك…</span></div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
     <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"><button type="button" class="chip" id="new-all" style="height:30px;padding:0 10px;flex-shrink:0">الكل</button></div></div>
@@ -640,8 +646,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">مهلة الدفع للمشتري</legend>
     <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
   </fieldset>
-  <div class="note ok" id="new-buynote" hidden><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك وتستلم USDT في محفظتك. لا يلزمك رصيد الآن.</span></div>
-  <div class="note ok" id="new-sellnote"><span>نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.</span></div>
+  <div class="note ok" id="new-buynote" hidden><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك وتستلم USDT في محفظتك على الشبكة التي اخترتها. لا يلزمك رصيد الآن.</span></div>
+  <div class="note ok" id="new-sellnote"><span id="new-sellnote-t">نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الإيداع في الضمان.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
 </section>
@@ -2218,7 +2224,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     VERIFY_REQUIRED: 'وثّق حسابك أولاً لتنشر إعلان بيع', VERIFY_PENDING: 'طلب توثيقك قيد المراجعة', ALREADY_VERIFIED: 'حسابك موثّق',
     BAD_FULL_NAME: 'اكتب اسمك كاملاً كما في الهوية', BAD_PHONE: 'رقم الهاتف غير صحيح (مثل 0912345678)', BAD_ID_IMAGE: 'صورة الهوية غير واضحة أو كبيرة جداً. التقط صورة أخرى',
     UPLOAD_FAILED: 'تعذّر رفع الصورة. حاول مرة أخرى', RATE_LIMITED_VERIFY: 'محاولات توثيق كثيرة اليوم',
-    INSUFFICIENT_SELLER_USDT: 'رصيدك من USDT أقل من الكمية المعروضة (مع إعلاناتك النشطة)', SELLER_NEEDS_TRX: 'تحتاج 15 TRX على الأقل في محفظتك لرسوم الإيداع',
+    INSUFFICIENT_SELLER_USDT: 'رصيدك من USDT أقل من الكمية المعروضة (مع إعلاناتك النشطة)', SELLER_NEEDS_TRX: 'تحتاج 15 TRX على الأقل في محفظتك لرسوم الإيداع', SELLER_NEEDS_BNB: 'تحتاج 0.0003 BNB على الأقل (أقل من 0.2$) في محفظتك على BNB Chain لرسوم الإيداع', EVM_REQUIRED: 'حدّث التطبيق وافتح السوق مرة أخرى لتفعيل BNB Chain لحسابك', BAD_PAYOUT_ADDRESS: 'عنوان الاستلام غير صالح',
     SELLER_INSUFFICIENT: 'البائع لم يعد يملك هذه الكمية. اختر إعلاناً آخر', BALANCE_CHECK_FAILED: 'تعذّر فحص الرصيد على الشبكة. حاول بعد قليل',
     RATE_LIMITED_REQ: 'طلبات كثيرة جداً. انتظر دقيقة', RATE_LIMITED_OFFER_CREATE: 'وصلت الحد اليومي للإعلانات (5)',
     RATE_LIMITED_ORDER_CREATE: 'وصلت الحد اليومي للطلبات (10)', RATE_LIMITED_ORDER_CANCEL: 'إلغاءات كثيرة اليوم. حاول غداً',
@@ -2298,6 +2304,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (me.fee_bps != null) state.p2p.feeBps = me.fee_bps;
     if (me.min_trade != null) state.p2p.minTrade = me.min_trade;
     if (me.net_fee != null) state.p2p.netFee = Number(me.net_fee);
+    if (me.net_fee_bep != null) state.p2p.netFeeBep = Number(me.net_fee_bep);
   }
   $('p2p-nick-btn').onclick = async function () {
     if (!(await ensureProfile())) return;
@@ -2335,7 +2342,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         mine.forEach(function (o) {
           var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px');
           c.appendChild(el('span', 'font-size:12px;font-weight:700;color:' + (o.side === 'buy' ? 'var(--ac)' : 'var(--danger)'), o.side === 'buy' ? 'إعلان شراء' : 'إعلان بيع'));
-          c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT'));
+          c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT · ' + netLabel(o.network)));
           c.appendChild(el('span', 'font-size:13px;color:var(--mu)', (o.side === 'buy' ? 'المطلوب ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
           c.appendChild(el('span', 'font-size:13px;color:' + (o.active ? 'var(--ac)' : 'var(--mu)'), o.active ? 'نشط' : 'متوقف'));
           if (o.active) {
@@ -2361,6 +2368,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (r.fee_bps != null) state.p2p.feeBps = r.fee_bps;
       if (r.min_trade != null) state.p2p.minTrade = r.min_trade;
       if (r.net_fee != null) state.p2p.netFee = Number(r.net_fee);
+      if (r.net_fee_bep != null) state.p2p.netFeeBep = Number(r.net_fee_bep);
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
@@ -2395,7 +2403,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         pr.appendChild(price);
         pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', (o.side === 'buy' ? 'يريد أن يشتري منك حتى ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT'));
         pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
-        var tg = el('span', 'align-self:flex-start', o.side === 'buy' ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; pr.appendChild(tg);
+        var tgs = el('div', 'display:flex;gap:6px;flex-wrap:wrap');
+        var tg = el('span', null, o.side === 'buy' ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; tgs.appendChild(tg);
+        tgs.appendChild(el('span', 'font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:' + (o.network === 'BEP20' ? 'rgba(240,185,11,.16);color:#C99A06' : 'rgba(235,0,41,.12);color:#EB0029'), netLabel(o.network)));
+        pr.appendChild(tgs);
         bot.appendChild(pr);
         var isBuyAd = o.side === 'buy';
         var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', isBuyAd ? 'بيع له' : 'شراء');
@@ -2459,7 +2470,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var maxNow = Math.min(Number(o.max_usdt), Number(o.available_usdt));
     var grid = el('div'); grid.className = 'stat-grid';
     [['السعر', fmt(o.price_sdg) + ' ج.س'], [sell ? 'يريد شراء' : 'المتاح', fmt(o.available_usdt) + ' USDT'],
-     ['الحدود', fmt(o.min_usdt) + ' – ' + fmt(maxNow) + ' USDT'], ['مهلة الدفع', o.pay_window_min + ' دقيقة']].forEach(function (x) {
+     ['الحدود', fmt(o.min_usdt) + ' – ' + fmt(maxNow) + ' USDT'], ['مهلة الدفع', o.pay_window_min + ' دقيقة'], ['الشبكة', netLabel(o.network)], ['رسوم الشبكة', netFeeOf(o) + ' USDT']].forEach(function (x) {
       var s = el('div'); s.className = 'stat'; s.appendChild(el('span', null, x[0])); s.appendChild(el('b', null, x[1])); grid.appendChild(s);
     });
     box.appendChild(grid);
@@ -2474,11 +2485,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('buy-amt').value = prefill ? String(prefill) : ''; $('buy-sdg').value = ''; $('buy-err').hidden = true; calcBuy();
     show('p2p-buy');
   }
+  function netFeeOf(o) { return o && o.network === 'BEP20' ? (state.p2p.netFeeBep != null ? state.p2p.netFeeBep : 0.3) : (state.p2p.netFee || 1); }
+  function netLabel(n) { return n === 'BEP20' ? 'BNB Chain' : 'TRON'; }
   function calcBuy() {
     var o = state.p2p.offer; if (!o) return;
     var v = 0; try { v = Number(WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6)); } catch (e) {}
     var ok = v >= Number(o.min_usdt) && v <= Math.min(Number(o.max_usdt), Number(o.available_usdt));
-    var net = state.p2p.netFee || 0;
+    var net = netFeeOf(o);
     var fee = Math.round((Math.floor(v * (state.p2p.feeBps || 50) / 10000 * 1e6) / 1e6 + net) * 1e6) / 1e6;
     $('buy-total').textContent = v ? fmt(v * o.price_sdg) + ' ج.س' : '—';
     $('buy-conv').textContent = v ? (state.p2p.buyUnit === 'sdg' ? '≈ ' + fmt(v, 6) + ' USDT' : '≈ ' + fmt(v * o.price_sdg) + ' ج.س') : '—';
@@ -2535,6 +2548,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var msg = p2pErr(e), sellToBuyer = state.p2p.offer && state.p2p.offer.side === 'buy';
       if (sellToBuyer && e.message === 'INSUFFICIENT_SELLER_USDT') msg = 'لتبيع لهذا المشتري تحتاج الكمية كاملة من USDT في محفظتك، ورصيدك أقل منها.';
       if (sellToBuyer && e.message === 'SELLER_NEEDS_TRX') msg = 'لتبيع تحتاج 15 TRX على الأقل في محفظتك لدفع رسوم الإيداع في الضمان.';
+      if (sellToBuyer && e.message === 'SELLER_NEEDS_BNB') msg = 'لتبيع على BNB Chain تحتاج 0.0003 BNB على الأقل (أقل من 0.2$) لرسوم الإيداع.';
       $('buy-err').textContent = msg; $('buy-err').hidden = false; btn.disabled = false;
     }
   };
@@ -2565,14 +2579,27 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function loadSellerBalance() {
     var n = $('new-bal'); n.className = 'note ok'; n.firstChild.textContent = 'جارٍ فحص رصيدك…'; state.p2p.bal = null;
     try {
-      var b = await p2p('balance.check');
+      var bep = state.p2p.newNet === 'BEP20';
+      var b = await p2p('balance.check', { network: state.p2p.newNet });
       state.p2p.bal = b;
-      var lowTrx = Number(b.trx) < 15;
-      n.className = 'note ' + (lowTrx || Number(b.usdt) < (state.p2p.minTrade || 10) ? 'err' : 'ok');
-      n.firstChild.textContent = 'رصيدك: ' + fmt(b.usdt) + ' USDT · ' + fmt(b.trx) + ' TRX' + (lowTrx ? ' — تحتاج 15 TRX على الأقل للرسوم' : '');
+      var low = bep ? Number(b.bnb) < Number(b.min_bnb || 0.0003) : Number(b.trx) < 15;
+      n.className = 'note ' + (low || Number(b.usdt) < (state.p2p.minTrade || 10) ? 'err' : 'ok');
+      n.firstChild.textContent = bep
+        ? 'رصيدك على BNB Chain: ' + fmt(b.usdt) + ' USDT · ' + b.bnb + ' BNB' + (low ? ' — تحتاج ' + (b.min_bnb || '0.0003') + ' BNB على الأقل للرسوم (أقل من 0.2$)' : '')
+        : 'رصيدك على TRON: ' + fmt(b.usdt) + ' USDT · ' + fmt(b.trx) + ' TRX' + (low ? ' — تحتاج 15 TRX على الأقل للرسوم' : '');
     } catch (e) { n.className = 'note err'; n.firstChild.textContent = p2pErr(e); }
   }
-  state.p2p.newSide = 'sell';
+  state.p2p.newSide = 'sell'; state.p2p.newNet = 'BEP20';
+  document.querySelectorAll('[data-pnet]').forEach(function (b) {
+    b.onclick = function () {
+      state.p2p.newNet = b.dataset.pnet;
+      document.querySelectorAll('[data-pnet]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      $('new-sellnote-t').textContent = state.p2p.newNet === 'BEP20'
+        ? 'نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الإيداع في الضمان.'
+        : 'نتحقق من رصيدك على الشبكة: لا يمكن عرض أكثر مما في محفظتك، وتحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان.';
+      state.p2p.bal = null; if (state.p2p.newSide === 'sell') loadSellerBalance();
+    };
+  });
   function setNewSide(s) {
     state.p2p.newSide = s;
     document.querySelectorAll('[data-side]').forEach(function (b) { var on = b.dataset.side === s; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
@@ -2593,7 +2620,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       await p2p('offer.create', {
         price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
-        pay_window_min: state.p2p.win, side: state.p2p.newSide
+        pay_window_min: state.p2p.win, side: state.p2p.newSide, network: state.p2p.newNet
       });
       state.p2p.cache = {}; toast('تم نشر الإعلان');
       state.p2p.tab = 'mine';
@@ -2837,6 +2864,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var dl = $('ord-kv'); dl.textContent = '';
     kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
     kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
+    kv(dl, 'الشبكة', netLabel(o.network));
     kv(dl, 'يستلم المشتري', fmt(o.buyer_receives, 6) + ' USDT', true);
     kv(dl, 'العمولة ورسوم الشبكة', fmt(o.fee_usdt, 6) + ' USDT', true);
     if (o.pay_deadline && o.status === 'funded') kv(dl, 'آخر موعد للدفع', new Date(o.pay_deadline).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }));
@@ -2857,7 +2885,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         var b = this;
         authorize('إيداع في الضمان', async function () {
           b.disabled = true; toast('جارٍ الإيداع…');
-          try { await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
+          try { if (o.network === 'BEP20') await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)); else await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
           catch (e) { toast(WalletCore.errorText(e), true); }
           b.disabled = false; refreshOrder('order.refresh');
         });
@@ -2874,8 +2902,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!reason) return; state.p2p.reason = reason; doAction('dispute');
     });
     if (s === 'awaiting_deposit' && role !== 'admin') actionBtn('إلغاء الطلب', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟'); });
-    if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ. يُعاد USDT للبائع بعد خصم ' + (state.p2p.netFee || 1) + ' USDT رسوم الشبكة.'); });
-    if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟ يُخصم ' + (state.p2p.netFee || 1) + ' USDT رسوم شبكة الإرسال من المبلغ المُعاد.', true); });
+    if (role === 'buyer' && s === 'funded') actionBtn('إلغاء الطلب (يعود USDT للبائع)', 'danger', function () { doAction('cancel', 'إلغاء الطلب؟ لا تلغِ إن كنت قد حوّلت المبلغ. يُعاد USDT للبائع بعد خصم ' + netFeeOf(o) + ' USDT رسوم الشبكة.'); });
+    if (role === 'seller' && s === 'funded' && o.pay_deadline && Date.now() > Date.parse(o.pay_deadline)) actionBtn('انتهت المهلة · استرد USDT', 'danger', function () { doAction('cancel', 'استرداد USDT وإلغاء الطلب؟ يُخصم ' + netFeeOf(o) + ' USDT رسوم شبكة الإرسال من المبلغ المُعاد.', true); });
     if (role === 'admin') {
       // فشل سابق مجهول النتيجة: قد يكون OxaPay أرسل المال فعلاً، فإعادة المحاولة قد تدفع مرتين
       var unk = /^UNKNOWN_RESULT/.test(o.payout_error || ''), warnTxt = unk ? '⚠️ المحاولة السابقة انقطعت ولا نعرف نتيجتها. افتح لوحة OxaPay ← Payouts وتأكد أنه لا توجد دفعة لهذا الطلب قبل المتابعة، وإلا سيُدفع المبلغ مرتين. ' : '';

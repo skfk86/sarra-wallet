@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       try {
         const r = await fetch('https://api.oxapay.com/v1/payout', {
           method: 'POST', headers: { payout_api_key: PAYOUT_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: o.seller, amount: Number(L.refundAmount(o.amount_usdt, env('P2P_NETWORK_FEE_USDT', '1'))), currency: 'USDT', network: 'TRC20', description: 'Sarra P2P late deposit refund ' + o.id })
+          body: JSON.stringify({ address: L.payoutTarget(o, 'refund'), amount: Number(L.refundAmount(o.amount_usdt, o.network === 'BEP20' ? env('P2P_NETWORK_FEE_BEP20', '0.3') : env('P2P_NETWORK_FEE_USDT', '1'))), currency: 'USDT', network: o.network || 'TRC20', description: 'Sarra P2P late deposit refund ' + o.id })
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || (j.status && j.status !== 200)) throw new Error('OXAPAY: ' + (j.message || String(r.status)));

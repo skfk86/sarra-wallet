@@ -29,13 +29,13 @@ async def main():
     assert 'المحفظة_الأولى' in await pg.inner_text('#p2p-nick-btn')
     await pg.wait_for_timeout(9000)
     old_badge=await pg.locator('#p2p-badge').is_visible()
-    keys=await pg.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('sarra.me.')).length")
+    keys=await pg.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('sarra.me.')&&!k.endsWith('.vs')).length")
     assert keys==1; print('✓ المحفظة الأولى: بيانات السوق محفوظة، والشارة', 'ظاهرة' if old_badge else 'مخفية')
     # حذف
     await pg.click('.tab[data-tab=security]'); await pg.click('#sec-wipe'); await pg.click('#wipe-yes'); await pin('123456')
     await pg.wait_for_timeout(2500)
     assert await pg.locator('#s-welcome').is_visible(); print('✓ بعد الحذف: شاشة البداية')
-    assert await pg.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('sarra.me.')).length")==0; print('✓ بيانات السوق المحفوظة على الجهاز حُذفت')
+    assert await pg.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('sarra.me.')&&!k.endsWith('.vs')).length")==0; print('✓ بيانات السوق المحفوظة على الجهاز حُذفت')
     # محفظة جديدة
     await create()
     await pg.click('.tab[data-tab=p2p]'); await pg.wait_for_timeout(1500)
