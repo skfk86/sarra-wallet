@@ -210,3 +210,8 @@ t('BEP20 escrow: seller funds and payout targets', () => {
   assert.throws(() => L.payoutTarget({ ...o, buyer_payout: null }, 'release'), /BAD_PAYOUT_ADDRESS/);
   assert.equal(L.payoutTarget({ buyer: o.buyer, seller: o.seller }, 'release'), o.buyer);
 });
+
+t('هامش رسوم بوابة الضمان 1.5% على رصيد البائع', () => {
+  assert.equal(L.withEscrowFee('10'), 10150000n);
+  assert.equal(L.withEscrowFee('100'), 101500000n);
+});

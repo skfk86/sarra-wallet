@@ -2283,10 +2283,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var ME_TTL = 6 * 3600 * 1000;
   async function fetchMe(force) {
     var key = 'sarra.me.' + (await core.getAddress());
+    var evm = null; if (EVM.bsc) try { evm = await core.evmAddress(); } catch (e) {}
     if (!force) {
-      try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < ME_TTL && c.me && c.me.profile) return c.me; } catch (e) {}
+      // نتجاوز النسخة المحفوظة إن لم يُسجَّل عنوان BNB Chain بعد (يلزم لاستلام ضمان BEP20)
+      try { var c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && Date.now() - c.at < ME_TTL && c.me && c.me.profile && (!evm || c.me.profile.evm_address === evm)) return c.me; } catch (e) {}
     }
-    var evm = null; try { evm = await core.evmAddress(); } catch (e) {}
     var me = await p2p('me', evm ? { evm: evm } : {});
     try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), me: me })); } catch (e) {}
     checkApproval(key, me);
@@ -2587,7 +2588,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var low = bep ? Number(b.bnb) < Number(b.min_bnb || 0.0003) : Number(b.trx) < 15;
       n.className = 'note ' + (low || Number(b.usdt) < (state.p2p.minTrade || 10) ? 'err' : 'ok');
       n.firstChild.textContent = bep
-        ? 'رصيدك على BNB Chain: ' + fmt(b.usdt) + ' USDT · ' + b.bnb + ' BNB' + (low ? ' — تحتاج ' + (b.min_bnb || '0.0003') + ' BNB على الأقل للرسوم (أقل من 0.2$)' : '')
+        ? 'رصيدك على BNB Chain: ' + fmt(b.usdt) + ' USDT · ' + b.bnb + ' BNB · يمكنك عرض حتى ' + sellable(b.usdt) + ' USDT' + (low ? ' — تحتاج ' + (b.min_bnb || '0.0003') + ' BNB على الأقل للرسوم (أقل من 0.2$)' : '')
         : 'رصيدك على TRON: ' + fmt(b.usdt) + ' USDT · ' + fmt(b.trx) + ' TRX' + (low ? ' — تحتاج 15 TRX على الأقل للرسوم' : '');
     } catch (e) { n.className = 'note err'; n.firstChild.textContent = p2pErr(e); }
   }
@@ -2615,7 +2616,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!(await askConfirm('تغيير حساب بنكك يتطلب مراجعة جديدة لبياناتك، وتتوقف إعلاناتك الحالية حتى يُقبل الطلب. متابعة؟'))) return;
     openVerify(false, true);
   };
-  $('new-all').onclick = function () { if (state.p2p.bal) { $('new-amount').value = state.p2p.bal.usdt; if (!$('new-max').value) $('new-max').value = state.p2p.bal.usdt; } };
+  // نترك 1.5% لرسوم بوابة الضمان التي يدفعها البائع عند الإيداع
+  function sellable(u) { return String(Math.floor(Number(u) / 1.015 * 100) / 100); }
+  $('new-all').onclick = function () { if (state.p2p.bal) { var v = sellable(state.p2p.bal.usdt); $('new-amount').value = v; if (!$('new-max').value) $('new-max').value = v; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
     var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnits($(id).value, 6), 6); } catch (e) { return '0'; } };
@@ -2882,12 +2885,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 
     $('ord-actions').textContent = '';
     var s = o.status;
-    if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address) {
+    var depKey = 'sarra.dep.' + o.id, depSent = null; try { depSent = localStorage.getItem(depKey); } catch (e) {}
+    if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address && depSent) {
+      kv(dl, 'حالة الإيداع', 'أُرسل من محفظتك، بانتظار تأكيد الضمان (دقيقة إلى 5 دقائق)', true);
+      actionBtn('تحقق من الإيداع', 'primary', function () { refreshOrder('order.refresh'); });
+    } else if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address) {
       actionBtn('إيداع ' + fmt(o.deposit_amount, 6) + ' USDT في الضمان', 'primary', function () {
         var b = this;
         authorize('إيداع في الضمان', async function () {
           b.disabled = true; toast('جارٍ الإيداع…');
-          try { if (o.network === 'BEP20') await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)); else await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
+          try { var sent = localStorage.getItem(depKey); if (sent) { toast('أرسلت الإيداع مسبقاً. اضغط "تحقق من الإيداع"'); return; } } catch (e) {}
+          try { if (o.network === 'BEP20') await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)); else await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); try { localStorage.setItem(depKey, String(Date.now())); } catch (e) {} state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
           catch (e) { toast(WalletCore.errorText(e), true); }
           b.disabled = false; refreshOrder('order.refresh');
         });

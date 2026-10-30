@@ -308,7 +308,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       const f = await sellerFunds(network, me, profile.evm_address);
       const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('side', 'sell').eq('network', network).eq('active', true);
       const committed = (mine || []).reduce((s, o) => s + L.toMicro(String(o.available_usdt)), 0n);
-      if (f.usdt - committed < L.toMicro(v.available_usdt)) throw new Error('INSUFFICIENT_SELLER_USDT');
+      if (f.usdt - committed < L.withEscrowFee(v.available_usdt)) throw new Error('INSUFFICIENT_SELLER_USDT');
       f.check('0');
     }
     const { count } = await db.from('offers').select('id', { count: 'exact', head: true }).eq('seller', me).eq('active', true);
@@ -348,14 +348,16 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     let payName = offer.bankak_name, payAccount = offer.bankak_account;
     if (side === 'buy') {
       if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
-      (await sellerFunds(network, me, profile.evm_address)).check(amount);
+      const f = await sellerFunds(network, me, profile.evm_address);
+      if (f.usdt < L.withEscrowFee(amount)) throw new Error('INSUFFICIENT_SELLER_USDT');
+      f.check('0');
       payName = profile.full_name; payAccount = profile.bankak_account;
     }
     await limit(me, 'order_create');
     if (side === 'sell') {
       const sb = await sellerFunds(network, offer.seller, sellerEvm ?? null).catch(() => null);
-      if (sb && sb.usdt < L.toMicro(amount)) {
-        if (sb.usdt < L.toMicro(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
+      if (sb && sb.usdt < L.withEscrowFee(amount)) {
+        if (sb.usdt < L.withEscrowFee(String(offer.min_usdt))) await db.from('offers').update({ active: false }).eq('id', offer.id);
         throw new Error('SELLER_INSUFFICIENT');
       }
     }

@@ -291,3 +291,9 @@ export function payoutTarget(o: { network?: string; buyer: string; seller: strin
   if ((o.network || 'TRC20') === 'BEP20' ? !isEvmAddr(t) : !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(t)) throw new Error('BAD_PAYOUT_ADDRESS');
   return t;
 }
+
+// البائع يدفع رسوم بوابة الضمان فوق المبلغ، فنشترط هامشاً 1.5% في رصيده
+export const ESCROW_FEE_BUFFER_BPS = 150n;
+export function withEscrowFee(amount: string | number): bigint {
+  const m = toMicro(amount); return m + m * ESCROW_FEE_BUFFER_BPS / 10000n;
+}

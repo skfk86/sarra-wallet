@@ -176,7 +176,7 @@ async def main():
     assert 'خارج النطاق' in await pg.inner_text('#new-err'); step('رفض سعر خارج النطاق')
     await pg.fill('#new-price','2650'); await pg.click('#new-go'); await pg.wait_for_timeout(800)
     assert 'أقل من الكمية' in await pg.inner_text('#new-err'); step('رفض بيع كمية غير موجودة في المحفظة')
-    await pg.click('#new-all'); assert await pg.input_value('#new-amount')=='80'; await pg.fill('#new-max','80'); step('زر "الكل" يملأ الرصيد المتاح')
+    await pg.click('#new-all'); assert await pg.input_value('#new-amount')=='78.81'; await pg.fill('#new-max','78.81'); step('زر "الكل" يملأ الرصيد مع ترك 1.5% لرسوم الضمان')
     await pg.fill('#new-min','5')
     await pg.click('#new-go'); await pg.wait_for_timeout(800)
     assert 'أقل صفقة 10' in await pg.inner_text('#new-err'); step('رسالة خطأ عربية للحد الأدنى')
