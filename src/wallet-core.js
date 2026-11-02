@@ -166,6 +166,21 @@
     if (units <= 0n) throw new Error('INVALID_AMOUNT');
     return units;
   }
+  // نفس toUnits لكن تقصّ الخانات الزائدة (تقريب للأسفل دائماً) فلا يتجاوز المبلغ المرسَل ما كتبه المستخدم أو رصيده.
+  // إن صار المبلغ صفراً بعد القص يُرفض برسالة "المبلغ صغير جداً".
+  function toUnitsFloor(amountStr, decimals) {
+    var s = String(amountStr).trim().replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x660); }).replace(/٫/g, '.').replace(/[,،\s]/g, '');
+    if (!/^\d+(\.\d+)?$/.test(s)) throw new Error('INVALID_AMOUNT');
+    var parts = s.split('.');
+    var frac = (parts[1] || '').slice(0, decimals);
+    frac = (frac + '000000000000000000000000').slice(0, decimals);
+    var units = BigInt(parts[0]) * (10n ** BigInt(decimals)) + BigInt(frac || '0');
+    if (units <= 0n) {
+      var nonZero = /[1-9]/.test(s.replace('.', ''));
+      throw new Error(nonZero ? 'AMOUNT_TOO_SMALL' : 'INVALID_AMOUNT');
+    }
+    return units;
+  }
   function fromUnits(units, decimals) {
     var u = BigInt(units);
     var base = 10n ** BigInt(decimals);
@@ -563,7 +578,7 @@
         if (!session) throw new Error('LOCKED');
         if (!this.isValidAddress(to)) throw new Error('INVALID_ADDRESS');
         if (to === session.address) throw new Error('SELF_SEND');
-        var units = toUnits(amountStr, USDT_DECIMALS);
+        var units = toUnitsFloor(amountStr, USDT_DECIMALS);
         var bal = await this.getBalances(session.address);
         if (units > bal.usdtUnits) throw new Error('INSUFFICIENT_USDT');
         if (bal.trxUnits < 5000000n) throw new Error('LOW_TRX_FOR_FEES');
@@ -578,7 +593,7 @@
         if (!session) throw new Error('LOCKED');
         if (!this.isValidAddress(to)) throw new Error('INVALID_ADDRESS');
         if (to === session.address) throw new Error('SELF_SEND');
-        var units = toUnits(amountStr, TRX_DECIMALS);
+        var units = toUnitsFloor(amountStr, TRX_DECIMALS);
         var bal = await this.getBalances(session.address);
         if (units > bal.trxUnits) throw new Error('INSUFFICIENT_TRX');
         var tw = client(session.privateKey);
@@ -631,7 +646,7 @@
 
       quoteSwap: async function (direction, amountStr) {
         if (!(await this.swapSupported())) throw new Error('SWAP_UNAVAILABLE');
-        var units = toUnits(amountStr, 6);
+        var units = toUnitsFloor(amountStr, 6);
         var path = direction === 'TRX_USDT' ? [net.swap.wtrx, net.usdt] : [net.usdt, net.swap.wtrx];
         var tw = client();
         tw.setAddress(net.swap.router);
@@ -649,7 +664,7 @@
         var q = await this.quoteSwap(direction, amountStr);
         var bps = BigInt(slippageBps == null ? 50 : slippageBps);
         var ref = q.outUnits;
-        if (quotedOut) { var shown = toUnits(quotedOut, 6); if (shown < ref) ref = shown; }
+        if (quotedOut) { var shown = toUnitsFloor(quotedOut, 6); if (shown < ref) ref = shown; }
         var minOut = ref * (10000n - bps) / 10000n;
         if (q.outUnits < minOut) throw new Error('PRICE_MOVED');
         var deadline = Math.floor(Date.now() / 1000) + 600;
@@ -732,7 +747,7 @@
         if (to.toLowerCase() === session.evm.address.toLowerCase()) throw new Error('SELF_SEND');
         var isNative = sym === c.native, tok = isNative ? null : c.tokens.filter(function (t) { return t.sym === sym; })[0];
         if (!isNative && !tok) throw new Error('BAD_TOKEN');
-        var units = toUnits(amountStr, isNative ? 18 : tok.dec);
+        var units = toUnitsFloor(amountStr, isNative ? 18 : tok.dec);
         if (units <= 0n) throw new Error('INVALID_AMOUNT');
         var from = session.evm.address, iface = new ethers.Interface(ERC20_IFACE_ABI);
         var tx = isNative ? { to: to, value: units, data: '0x' } : { to: tok.addr, value: 0n, data: iface.encodeFunctionData('transfer', [to, units]) };
@@ -780,7 +795,7 @@
         if (fromNet === toNet && (fromNet === 'tron' || toSym === sym)) throw new Error('SAME_NETWORK');
         var a = bridgeAsset(fromNet, sym), b = bridgeAsset(toNet, toSym);
         if (!a || !b) throw new Error('BAD_TOKEN');
-        var units = toUnits(amountStr, a.dec);
+        var units = toUnitsFloor(amountStr, a.dec);
         if (units <= 0n) throw new Error('INVALID_AMOUNT');
         var maxU = Number(opts.bridgeMax || 2000);
         if (/^(USDT|USDC)$/.test(sym) && Number(amountStr) > maxU) throw new Error('BRIDGE_MAX');
@@ -915,7 +930,8 @@
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
     BAD_NETWORK: 'شبكة غير مدعومة', BAD_TOKEN: 'عملة غير مدعومة على هذه الشبكة',
     INVALID_AMOUNT: 'المبلغ غير صحيح',
-    TOO_MANY_DECIMALS: 'أقصى عدد للخانات العشرية 6',
+    AMOUNT_TOO_SMALL: 'المبلغ صغير جداً لهذه العملة. اكتب مبلغاً أكبر',
+    TOO_MANY_DECIMALS: 'عدد الخانات العشرية أكبر من المسموح لهذه العملة. اكتب رقماً أقل خانات',
     DEVICE_KEY_LOST: 'تعذّر الوصول لمفتاح الحماية المحفوظ في هاتفك (يحدث بعد إعادة ضبط الهاتف أو نقل البيانات). احذف المحفظة من الأمان واستعدها بكلماتك الـ 12، فأموالك آمنة على الشبكة',
     WRONG_PIN: 'رمز القفل غير صحيح',
     LOCKED_OUT: 'محاولات كثيرة خاطئة. انتظر قليلاً ثم حاول مجدداً',
@@ -950,6 +966,7 @@
     createCore: createCore,
     errorText: errorText,
     toUnits: toUnits,
+    toUnitsFloor: toUnitsFloor,
     fromUnits: fromUnits,
     formatAmount: formatAmount,
     encryptSecret: encryptSecret,

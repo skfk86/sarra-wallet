@@ -41,6 +41,30 @@ await t('قراءة عنوان WETH من SunSwap بكل الصيغ', () => {
   assert.equal(W.normalizeAddress(tw, 'garbage'), '');
 });
 
+await t('toUnitsFloor تقصّ الخانات الزائدة ولا تقرّب للأعلى أبداً', () => {
+  assert.equal(W.toUnitsFloor('1.0000009', 6), 1000000n);
+  assert.equal(W.toUnitsFloor('0.1234569999', 6), 123456n);
+  assert.equal(W.toUnitsFloor('0.123456789012345678', 18), 123456789012345678n);
+  assert.equal(W.toUnitsFloor('0.1234567890123456789999', 18), 123456789012345678n);
+  assert.equal(W.toUnitsFloor('١٫٥', 6), 1500000n);
+  assert.equal(W.toUnitsFloor('1,000.5', 6), 1000500000n);
+  assert.equal(W.toUnitsFloor('0.1', 6), 100000n);
+  // لا أخطاء الفاصلة العائمة
+  assert.equal(W.toUnitsFloor('0.1', 18) + W.toUnitsFloor('0.2', 18), W.toUnitsFloor('0.3', 18));
+});
+await t('toUnitsFloor ترفض الصفر والمبلغ الأصغر من أصغر وحدة وغير الرقمي', () => {
+  assert.throws(() => W.toUnitsFloor('0', 6), /INVALID_AMOUNT/);
+  assert.throws(() => W.toUnitsFloor('0.0000001', 6), /AMOUNT_TOO_SMALL/);
+  assert.throws(() => W.toUnitsFloor('abc', 6), /INVALID_AMOUNT/);
+  assert.throws(() => W.toUnitsFloor('-5', 6), /INVALID_AMOUNT/);
+  assert.equal(W.errorText(new Error('AMOUNT_TOO_SMALL')).includes('صغير جداً'), true);
+});
+await t('المبلغ المقصوص لا يتجاوز الرصيد (زر 100% على عملة 18 خانة)', () => {
+  const bal = 123456789012345678901n; // 123.45... بـ 18 خانة
+  const shown = W.fromUnits(bal * 100n / 100n, 18);
+  assert.equal(W.toUnitsFloor(shown, 18) <= bal, true);
+  assert.equal(W.toUnitsFloor(shown, 6) <= bal / (10n ** 12n), true);
+});
 await t('toUnits يحوّل بدقة', () => {
   assert.equal(W.toUnits('12.5', 6), 12500000n);
   assert.equal(W.toUnits('0.000001', 6), 1n);

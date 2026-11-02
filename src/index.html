@@ -57,7 +57,11 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 .ltr{direction:ltr;unicode-bidi:isolate}
 .mono{font-family:'IBM Plex Mono',monospace}
 /* الرئيسية */
-.balance{font-size:40px;font-weight:700;letter-spacing:-.5px;line-height:1.1}
+.balance{font-size:clamp(34px,11.5vw,48px);font-weight:700;letter-spacing:-.5px;line-height:1.1;overflow-wrap:anywhere}
+#s-home .hero-card{display:flex;flex-direction:column;gap:14px;padding:22px 20px;border-radius:24px;min-height:150px;justify-content:space-between}
+#s-home .hero-card .net-stack{align-self:flex-start;padding:5px 12px 5px 8px}
+#s-home .hero-card .net-stack .logos img{width:26px;height:26px}
+@media (max-width:340px){#s-home .hero-card{padding:18px 16px}#s-home .hero-card .net-stack .logos img{width:22px;height:22px}}
 .actions{display:grid;grid-template-columns:repeat(var(--acols,3),minmax(0,1fr));gap:8px}
 .action{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;cursor:pointer;color:var(--tx);font-size:13px;font-weight:500;padding:0}
 .action span.ic{width:56px;height:56px;border-radius:18px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
@@ -311,17 +315,17 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </div>
     <button class="icon-btn" id="refresh" aria-label="تحديث الرصيد"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
   </header>
-  <div class="card" style="display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:24px">
+  <div class="card hero-card">
     <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
       <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" aria-pressed="false" style="width:36px;height:32px;background:none"><svg class="i eye-on" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
     <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
-    <div class="row between" style="gap:8px">
-      <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT · TRC20</span>
-      <span class="muted" style="font-size:12px" id="fee-hint"></span>
+    <div class="row" style="gap:8px">
+      <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT</span>
+      <span id="fee-hint" hidden></span>
     </div>
   </div>
   <div class="note warn" id="low-trx" role="alert" hidden style="flex-direction:column;gap:10px">
-    <span><b>رصيد الرسوم غير كافٍ.</b> لكي ترسل USDT تحتاج TRX في محفظتك لدفع رسوم الشبكة (15 TRX على الأقل). أرسل TRX إلى عنوانك عبر شبكة TRON (TRC20).</span>
+    <span><b>رصيد رسوم TRON غير كافٍ.</b> لإرسال USDT على شبكة TRON تحتاج 15 TRX على الأقل في محفظتك. على بقية الشبكات تُدفع الرسوم بعملتها (BNB أو ETH أو POL).</span>
     <button type="button" class="chip" data-go="receive" style="align-self:flex-start;background:transparent;border-color:var(--warn-bd);color:var(--warn)">عرض عنواني</button>
   </div>
   <nav class="actions" aria-label="إجراءات">
@@ -1061,7 +1065,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <div><dt>المبلغ</dt><dd class="ltr" id="c-amt"></dd></div>
       <div><dt>إلى</dt><dd class="ltr mono" id="c-to" style="font-size:12px;word-break:break-all"></dd></div>
       <div><dt>الشبكة</dt><dd id="c-net">TRON (TRC20)</dd></div>
-      <div><dt>رسوم الشبكة</dt><dd>تُخصم من رصيد TRX</dd></div>
+      <div><dt>رسوم الشبكة</dt><dd id="c-fee">تُدفع بعملة الشبكة</dd></div>
       <div><dt>رسوم التطبيق</dt><dd style="color:var(--ac)">مجاناً</dd></div>
     </dl>
     <button class="btn btn-primary" id="confirm-send">تأكيد وإرسال</button>
@@ -1443,7 +1447,6 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.balances = b;
       renderBalances();
       var trx = Number(WalletCore.fromUnits(b.trxUnits, 6));
-      $('fee-hint').textContent = trx < 15 ? 'أضف TRX لدفع رسوم الإرسال' : 'رصيد الرسوم كافٍ';
       $('low-trx').hidden = !(trx < 15 && b.usdtUnits > 0n);
     } catch (e) {
       state.fetchedAt.home = 0;
@@ -1673,7 +1676,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var ch = $('bal-chip'); ch.dataset.done = '1'; ch.textContent = ''; ch.className = 'net-stack';
       var st = document.createElement('span'); st.className = 'logos';
       NETS.forEach(function (n) { var im = document.createElement('img'); im.src = netLogo(n.key); im.alt = n.name; im.title = n.name; st.appendChild(im); });
-      ch.appendChild(st); ch.appendChild(document.createTextNode(NETS.length + ' شبكات'));
+      ch.appendChild(st);
       ch.removeAttribute('style'); ch.setAttribute('aria-label', 'الشبكات: ' + NETS.map(function (n) { return n.name; }).join('، '));
     }
     if (!b) return;
@@ -2151,8 +2154,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       }
       if (!core.isEvmAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_EVM_ADDRESS')));
       var dec = evmDec(state.sendNet, state.coin), eu;
-      try { eu = WalletCore.toUnits(amt, dec > 6 ? 6 : dec); } catch (e) { return sendError(WalletCore.errorText(e)); }
-      if (dec > 6) eu = eu * (10n ** BigInt(dec - 6));
+      try { eu = WalletCore.toUnitsFloor(amt, dec); } catch (e) { return sendError(WalletCore.errorText(e)); }
       var have = coinUnits();
       if (have != null && eu > have) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_TOKEN')));
       var nat = evmUnits(state.sendNet, n.native);
@@ -2162,10 +2164,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (evia) { $('c-to').textContent = recipLabel(evia); $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
       else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
       $('c-net').textContent = n.name + ' (' + n.short + ')';
+      $('c-fee').textContent = 'تُدفع بعملة ' + n.native + ' من رصيدك';
       $('sheet').classList.add('show');
       return;
     }
     $('c-net').textContent = 'TRON (TRC20)';
+    $('c-fee').textContent = 'تُدفع بعملة TRX من رصيدك';
     if (!core.isValidAddress(to) && asPhone(to)) return sendError(PHONE_GONE);
     var phone = !core.isValidAddress(to) && (asSarraId(to) ? String(asSarraId(to)) : null);
     if (phone) {
@@ -2177,7 +2181,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     if (!core.isValidAddress(to)) return sendError(WalletCore.errorText(new Error('INVALID_ADDRESS')));
     var units;
-    try { units = WalletCore.toUnits(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
+    try { units = WalletCore.toUnitsFloor(amt, 6); } catch (e) { return sendError(WalletCore.errorText(e)); }
     var have = coinUnits();
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
     if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
@@ -2344,7 +2348,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var v = $('sw-in').value, seq = ++swapSeq;
     $('sw-err').hidden = true; $('sw-go').disabled = true; state.swapQuote = null;
     var valid = false;
-    try { valid = !!v && WalletCore.toUnits(v, 6) > 0n; } catch (e) {}
+    try { valid = !!v && WalletCore.toUnitsFloor(v, 6) > 0n; } catch (e) {}
     if (!valid) { $('sw-out').textContent = '0'; $('sw-min').textContent = '—'; flushSwapErr(); return; }
     $('sw-out').textContent = '…';
     try {
@@ -2850,7 +2854,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function netLabel(n) { return n === 'BEP20' ? 'BNB Chain' : 'TRON'; }
   function calcBuy() {
     var o = state.p2p.offer; if (!o) return;
-    var v = 0; try { v = Number(WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6)); } catch (e) {}
+    var v = 0; try { v = Number(WalletCore.fromUnits(WalletCore.toUnitsFloor($('buy-amt').value, 6), 6)); } catch (e) {}
     var ok = v >= Number(o.min_usdt) && v <= Math.min(Number(o.max_usdt), Number(o.available_usdt));
     var net = netFeeOf(o);
     var fee = Math.round((Math.floor(v * (state.p2p.feeBps || 50) / 10000 * 1e6) / 1e6 + net) * 1e6) / 1e6;
@@ -2903,7 +2907,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!(await ensureProfile())) return;
     btn.disabled = true;
     try {
-      var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnits($('buy-amt').value, 6), 6) });
+      var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnitsFloor($('buy-amt').value, 6), 6) });
       state.p2p.cache = {}; openOrder(r.order.id, true);
     } catch (e) {
       var msg = p2pErr(e), sellToBuyer = state.p2p.offer && state.p2p.offer.side === 'buy';
@@ -2979,7 +2983,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('new-all').onclick = function () { if (state.p2p.bal) { var v = sellable(state.p2p.bal.usdt); $('new-amount').value = v; if (!$('new-max').value) $('new-max').value = v; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
-    var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnits($(id).value, 6), 6); } catch (e) { return '0'; } };
+    var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnitsFloor($(id).value, 6), 6); } catch (e) { return '0'; } };
     try {
       await p2p('offer.create', {
         price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
