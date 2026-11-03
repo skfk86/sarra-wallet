@@ -197,6 +197,15 @@ t('معرّف صُرّة: 8 أرقام، لا يتداخل مع الهاتف', (
   assert.ok(L.isEvmAddr('0x' + 'a'.repeat(40)) && !L.isEvmAddr('0x12') && !L.isEvmAddr('T' + 'a'.repeat(33)));
 });
 
+t('P2P: BNB Smart Chain فقط للإعلانات والصفقات الجديدة', () => {
+  assert.equal(L.requireP2pNetwork('BEP20'), 'BEP20');
+  assert.equal(L.requireP2pNetwork(undefined), 'BEP20');
+  for (const bad of ['TRC20', 'ERC20', 'POLYGON', 'bep20 ', 'x']) assert.throws(() => L.requireP2pNetwork(bad), /NETWORK_NOT_SUPPORTED/);
+  assert.equal(L.isTradableOffer({ network: 'BEP20' }), true);
+  assert.equal(L.isTradableOffer({ network: 'TRC20' }), false);
+  assert.equal(L.isTradableOffer({}), false);
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);
 
 t('BEP20 escrow: seller funds and payout targets', () => {

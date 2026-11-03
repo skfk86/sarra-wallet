@@ -188,7 +188,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const side = p.side === 'buy' ? 'buy' : 'sell';
     const { data } = await db.from('offers')
       .select('id,seller,side,network,price_sdg,min_usdt,max_usdt,available_usdt,pay_window_min,created_at')
-      .eq('active', true).eq('side', side).gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: side === 'sell' }).limit(50);
+      .eq('active', true).eq('side', side).eq('network', 'BEP20').gte('available_usdt', MIN_TRADE).order('price_sdg', { ascending: side === 'sell' }).limit(50);
     const rate = await getRate();
     const range = L.priceRange(rate);
     // الإعلانات خارج نطاق سعر الصرف الحالي لا تظهر (مثلاً بعد أن يغيّر المشرف السعر)
@@ -302,8 +302,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const v = L.validateOffer({ ...p, bankak_name: profile.full_name, bankak_account: profile.bankak_account }, MIN_TRADE);
     L.checkPrice(v.price_sdg, await getRate());
     // إعلان البيع: لا يمكن عرض مبلغ غير موجود في المحفظة فعلاً
-    const network = p.network === 'BEP20' ? 'BEP20' : 'TRC20';
-    if (network === 'BEP20' && !L.isEvmAddr(profile.evm_address)) throw new Error('EVM_REQUIRED');
+    const network = L.requireP2pNetwork(p.network);
+    if (!L.isEvmAddr(profile.evm_address)) throw new Error('EVM_REQUIRED');
     if (v.side === 'sell') {
       const f = await sellerFunds(network, me, profile.evm_address);
       const { data: mine } = await db.from('offers').select('available_usdt').eq('seller', me).eq('side', 'sell').eq('network', network).eq('active', true);
@@ -331,7 +331,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   if (action === 'order.create') {
     const amount = L.fromMicro(L.toMicro(String(p.amount)));
     const { data: offer } = await db.from('offers').select('*').eq('id', p.offer_id).single();
-    if (!offer || !offer.active) throw new Error('OFFER_UNAVAILABLE');
+    if (!offer || !offer.active || !L.isTradableOffer(offer)) throw new Error('OFFER_UNAVAILABLE');
     if (offer.seller === me) throw new Error('OWN_OFFER');
     const range = L.priceRange(await getRate());
     if (range && (Number(offer.price_sdg) < range.min || Number(offer.price_sdg) > range.max)) throw new Error('OFFER_UNAVAILABLE');

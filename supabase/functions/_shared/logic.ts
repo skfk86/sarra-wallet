@@ -297,3 +297,14 @@ export const ESCROW_FEE_BUFFER_BPS = 150n;
 export function withEscrowFee(amount: string | number): bigint {
   const m = toMicro(amount); return m + m * ESCROW_FEE_BUFFER_BPS / 10000n;
 }
+
+// ===== شبكة تداول P2P: BNB Smart Chain (BEP20) فقط للصفقات الجديدة =====
+// الطلبات القديمة على TRC20 تُكمل مسارها (تحرير/استرداد) ولا نغيّر آلية تسويتها.
+export const P2P_NETWORKS = ['BEP20'] as const;
+export function requireP2pNetwork(requested: unknown): 'BEP20' {
+  if (requested == null || requested === '' || requested === 'BEP20') return 'BEP20';
+  throw new Error('NETWORK_NOT_SUPPORTED');
+}
+export function isTradableOffer(o: { network?: string | null }): boolean {
+  return o.network === 'BEP20';
+}

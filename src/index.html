@@ -154,8 +154,9 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .buy-bar{position:sticky;bottom:0;margin:0 -20px;padding:12px 20px calc(max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)) + 16px);background:linear-gradient(to top,var(--bg) 75%,transparent)}
 .side-tog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:4px;box-shadow:var(--shadow)}
 .side-tog button{height:46px;border-radius:12px;border:0;background:none;color:var(--mu);font:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:background-color .2s,color .2s}
-.side-tog button.on[data-p2ptab=market]{background:var(--ac);color:var(--on-ac)}
-.side-tog button.on[data-p2ptab=sell]{background:var(--danger-bg);color:var(--danger-tx)}
+.side-tog button:active{transform:scale(.98)}
+.side-tog button.on[data-p2ptab=market]{background:var(--ac);color:var(--on-ac);box-shadow:0 2px 10px rgba(43,217,160,.25)}
+.side-tog button.on[data-p2ptab=sell]{background:var(--danger-bg);color:var(--danger-tx);box-shadow:0 2px 10px rgba(217,54,69,.25)}
 .rate-strip{display:flex;align-items:center;gap:12px;background:var(--hero);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
 .live{width:8px;height:8px;border-radius:50%;background:var(--ac);flex-shrink:0;box-shadow:0 0 0 0 var(--ac);animation:pulse 2s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(43,217,160,.55)}70%{box-shadow:0 0 0 8px rgba(43,217,160,0)}100%{box-shadow:0 0 0 0 rgba(43,217,160,0)}}
@@ -648,6 +649,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <!-- الملخص -->
   <dl class="kv card" style="padding:4px 16px">
     <div><dt id="buy-total-l">ستحوّل عبر بنكك</dt><dd id="buy-total" style="font-size:16px">—</dd></div>
+    <div><dt>الشبكة</dt><dd class="ltr">BNB Smart Chain (BEP20)</dd></div>
     <div><dt>العمولة ورسوم الشبكة</dt><dd class="ltr" id="buy-fee">—</dd></div>
     <div><dt id="buy-recv-l">ستستلم في محفظتك</dt><dd class="ltr" id="buy-recv" style="color:var(--ac);font-size:16px">—</dd></div>
   </dl>
@@ -676,12 +678,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <label class="lbl" for="new-price">سعرك لكل USDT (جنيه سوداني)</label>
   <div class="field"><input id="new-price" inputmode="decimal" placeholder="0" dir="ltr"></div>
   <p class="muted" id="new-range" style="font-size:12px;margin-top:-10px"></p>
-  <fieldset style="margin:0;padding:0;border:0"><legend class="lbl" style="padding:0;margin-bottom:8px">شبكة الضمان</legend>
-    <div class="seg" id="new-net" role="radiogroup" aria-label="شبكة الضمان">
-      <button type="button" role="radio" data-pnet="BEP20" class="on" aria-checked="true">BNB Chain · رسوم سنتات</button>
-      <button type="button" role="radio" data-pnet="TRC20" aria-checked="false">TRON · ~13 TRX</button>
-    </div>
-  </fieldset>
+  <div class="note ok" role="note" id="new-net-note" style="align-items:center;gap:10px"><img src="assets/coins/bnb.png" alt="" style="width:26px;height:26px;border-radius:50%"><span><b>شبكة التداول: BNB Smart Chain (BEP20)</b><br>تداول USDT في سوق P2P يتم على هذه الشبكة فقط، ورسومها بالسنتات.</span></div>
   <div class="note ok" id="new-bal"><span>جارٍ فحص رصيدك…</span></div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
     <div style="display:flex;flex-direction:column;gap:6px"><label class="lbl" for="new-amount">الكمية المعروضة</label><div class="field"><input id="new-amount" inputmode="decimal" placeholder="USDT" dir="ltr"><button type="button" class="chip" id="new-all" style="height:30px;padding:0 10px;flex-shrink:0">الكل</button></div></div>
@@ -2542,7 +2539,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     UNKNOWN_ACTION: 'هذه الميزة تحتاج تحديث التطبيق', OPEN_ORDERS: 'لديك صفقات مفتوحة. أكملها أولاً', CANCELLED: 'أُلغيت العملية', REPLAY: 'أُرسل الطلب مرتين. حاول مرة أخرى',
     BAD_RECEIPT_TYPE: 'الملف ليس صورة صالحة. ارفع لقطة شاشة من تطبيق بنكك', RECEIPT_TOO_SMALL: 'الصورة صغيرة أو غير واضحة. ارفع لقطة شاشة كاملة', RECEIPT_TOO_LARGE: 'الصورة كبيرة جداً', MAX_RECEIPTS: 'وصلت للحد الأقصى: 3 إيصالات للصفقة',
     NO_PROFILE: 'اختر اسمك في السوق أولاً', BANNED: 'هذا الحساب موقوف في السوق',
-    OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
+    OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', NETWORK_NOT_SUPPORTED: 'تداول P2P متاح على شبكة BNB Smart Chain فقط', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
     AMOUNT_UNAVAILABLE: 'الكمية خارج حدود الإعلان أو غير متوفرة', TOO_MANY_OPEN: 'لديك 3 طلبات مفتوحة. أكملها أولاً',
     ESCROW_UNAVAILABLE: 'خدمة الضمان غير متاحة الآن. حاول لاحقاً', INVALID_STATE: 'حالة الطلب تغيّرت. حدّث الصفحة',
     PAY_WINDOW_OPEN: 'لا يمكن الإلغاء قبل انتهاء مهلة الدفع', NOT_ALLOWED: 'غير مسموح', NOT_FOUND: 'الطلب غير موجود',
