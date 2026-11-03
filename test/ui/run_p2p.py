@@ -164,8 +164,8 @@ async def main():
     assert await vis('s-p2p-new') and 'محمد أحمد علي' in await pg.inner_text('#new-payee') and '5566' not in await pg.inner_text('#new-payee'); step('بعد التوثيق: حساب بنكك الموثّق يُستخدم تلقائياً ومخفي جزئياً')
     if await vis('celebrate'): await pg.click('#cel-ok'); await pg.wait_for_timeout(400)
     assert '80 USDT' in await pg.inner_text('#new-bal') and 'BNB Chain' in await pg.inner_text('#new-bal') and st['bal_net']=='BEP20'; step('ضمان BNB Chain افتراضياً مع رصيد BNB')
-    await pg.click('[data-pnet="TRC20"]'); await pg.wait_for_timeout(500)
-    assert st['bal_net']=='TRC20' and 'TRON' in await pg.inner_text('#new-bal'); await pg.click('[data-pnet="BEP20"]'); await pg.wait_for_timeout(500); step('التبديل بين شبكتي الضمان يعيد فحص الرصيد')
+    assert await pg.locator('[data-pnet]').count()==0 and 'BNB Smart Chain' in await pg.inner_text('#new-net-note'); step('لا خيار TRON/Ethereum/Polygon في نشر إعلان P2P؛ الشبكة المعروضة BNB Smart Chain فقط')
+    assert 'TRON' not in await pg.inner_text('#new-net-note') and 'TRC20' not in await pg.inner_text('#new-net-note'); step('نص الشبكة لا يذكر TRON')
     await pg.click('#new-change-acct'); await pg.click('#ask-yes'); await pg.wait_for_timeout(400)
     assert await vis('s-p2p-verify') and await vis('ver-form') and 'تغيير حساب' in await pg.inner_text('#ver-state'); step('زر "تغيير الحساب" يفتح طلب توثيق جديد')
     await pg.click('#s-p2p-verify [data-back]'); await pg.wait_for_timeout(300)
@@ -193,7 +193,9 @@ async def main():
     assert await pg.inner_text('#buy-title')=='بيع USDT' and 'ستستلم على حسابك الموثّق' in await pg.inner_text('#buy-sellnote'); step('شاشة البيع تعرض حسابك الموثّق')
     await pg.wait_for_timeout(600)
     await pg.fill('#buy-amt','200'); await pg.wait_for_timeout(200)
-    assert await pg.is_disabled('#buy-go') and 'تحتاجها في محفظتك' in await pg.inner_text('#buy-mybal'); step('رصيدك لا يكفي: رسالة موجهة لك والزر معطّل قبل الإرسال')
+    # البيع على BNB Chain فقط: فحص الرصيد المسبق يقرأ رصيد BNB Chain ويتطلب تفعيل evm (يُختبر في run_evm بعد تثبيت ethers).
+    # بدون evm لا نعرض رصيد TRON المضلِّل، ويبقى التحقق النهائي على الخادم.
+    assert await pg.is_hidden('#buy-mybal') and 'TRX' not in await pg.inner_text('#buy-sellnote'); step('لا يُعرض رصيد TRON/TRX عند البيع (الشبكة BNB فقط)')
     await pg.fill('#buy-amt','40'); assert '107,600' in await pg.inner_text('#buy-total'); step('حساب ما ستستلمه بالجنيه')
     await pg.click('#buy-go'); await pg.wait_for_timeout(1200)
     assert await vis('s-order') and st['orders']['sell2']['seller']==ME; step('فتح طلب بيع لإعلان شراء')

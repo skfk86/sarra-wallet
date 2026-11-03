@@ -2804,11 +2804,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (pf.verify_status !== 'approved') { try { state.p2p.me = await fetchMe(true); renderMe(); pf = state.p2p.me.profile; } catch (e) {} }
       if (pf.verify_status !== 'approved') { toast('وثّق حسابك أولاً لتبيع', true); openVerify(); return; }
       $('buy-sellnote').hidden = false;
-      $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك (تحتاج TRX للرسوم).';
+      $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك على BNB Smart Chain (تحتاج قليلاً من BNB للرسوم).';
       // رصيدك أنت كبائع (من الشبكة مباشرة، بدون الخادم)
       state.p2p.myBal = null; $('buy-mybal').hidden = false; $('buy-mybal').className = 'note ok'; $('buy-mybal').firstChild.textContent = 'جارٍ فحص رصيدك…';
-      core.getBalances().then(function (b) {
-        state.p2p.myBal = { usdt: Number(WalletCore.fromUnits(b.usdtUnits, 6)), trx: Number(WalletCore.fromUnits(b.trxUnits, 6)) };
+      // التداول على BNB Smart Chain فقط: نقرأ رصيدك من هذه الشبكة (وليس من TRON)
+      core.evmBalances().then(function (eb) {
+        if (!eb) throw new Error('EVM_NETWORK');
+        state.evmBal = eb;
+        var u = evmUnits('bsc', 'USDT'), nb = evmUnits('bsc', EVM.bsc.native);
+        state.p2p.myBal = { usdt: Number(WalletCore.fromUnits(u == null ? 0n : u, evmDec('bsc', 'USDT'))), bnb: Number(WalletCore.fromUnits(nb == null ? 0n : nb, 18)) };
         calcBuy();
       }).catch(function () { $('buy-mybal').hidden = true; });
     } else { $('buy-sellnote').hidden = true; $('buy-mybal').hidden = true; state.p2p.myBal = null; }
@@ -2864,10 +2868,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     // البيع لإعلان شراء: أنت البائع، فنتحقق من رصيدك قبل فتح الطلب برسالة موجهة لك
     var mb = state.p2p.myBal;
     if (o.side === 'buy' && mb) {
-      var lowU = v > 0 && mb.usdt < v, lowT = mb.trx < 15;
+      var lowU = v > 0 && mb.usdt < v, lowT = mb.bnb < 0.0003;
       $('buy-mybal').className = 'note ' + (lowU || lowT ? 'err' : 'ok');
-      $('buy-mybal').firstChild.textContent = 'رصيدك: ' + fmt(mb.usdt) + ' USDT · ' + fmt(mb.trx) + ' TRX' +
-        (lowU ? ' — لتبيع ' + fmt(v) + ' USDT تحتاجها في محفظتك أولاً' : lowT ? ' — تحتاج 15 TRX على الأقل لرسوم الإيداع في الضمان' : '');
+      $('buy-mybal').firstChild.textContent = 'رصيدك على BNB Chain: ' + fmt(mb.usdt) + ' USDT · ' + fmt(mb.bnb, 5) + ' BNB' +
+        (lowU ? ' — لتبيع ' + fmt(v) + ' USDT تحتاجها في محفظتك على BNB Chain أولاً' : lowT ? ' — تحتاج 0.0003 BNB على الأقل لرسوم الإيداع في الضمان' : '');
       if (lowU || lowT) ok = false;
     }
     $('buy-go').disabled = !ok;
@@ -2909,7 +2913,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     } catch (e) {
       var msg = p2pErr(e), sellToBuyer = state.p2p.offer && state.p2p.offer.side === 'buy';
       if (sellToBuyer && e.message === 'INSUFFICIENT_SELLER_USDT') msg = 'لتبيع لهذا المشتري تحتاج الكمية كاملة من USDT في محفظتك، ورصيدك أقل منها.';
-      if (sellToBuyer && e.message === 'SELLER_NEEDS_TRX') msg = 'لتبيع تحتاج 15 TRX على الأقل في محفظتك لدفع رسوم الإيداع في الضمان.';
+      if (sellToBuyer && (e.message === 'SELLER_NEEDS_TRX' || e.message === 'SELLER_NEEDS_BNB')) msg = 'لتبيع تحتاج 0.0003 BNB على الأقل في محفظتك على BNB Chain لدفع رسوم الإيداع في الضمان.';
       if (sellToBuyer && e.message === 'SELLER_NEEDS_BNB') msg = 'لتبيع على BNB Chain تحتاج 0.0003 BNB على الأقل (أقل من 0.2$) لرسوم الإيداع.';
       $('buy-err').textContent = msg; $('buy-err').hidden = false; btn.disabled = false;
     }
