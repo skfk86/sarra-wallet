@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 S=sys.argv[1]
 calls={'edge':[], 'offers':0, 'inbox':0, 'ver':0, 'key_ok':True}
 VER={'v':1,'m':0,'s':'funded'}
-OFF=[{'id':'of1','seller':'TSe'+'A'*31,'side':'sell','price_sdg':9000,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'seller_profile':{'nickname':'بائع_سريع','trades_completed':3,'verified':True,'completion':100}}]
+OFF=[{'id':'of1','network':'BEP20','seller':'TSe'+'A'*31,'side':'sell','price_sdg':9000,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'seller_profile':{'nickname':'بائع_سريع','trades_completed':3,'verified':True,'completion':100}}]
 async def rest(route):
   r=route.request
   if r.headers.get('apikey')!='sb_publishable_test': calls['key_ok']=False
