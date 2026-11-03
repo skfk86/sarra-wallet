@@ -4,8 +4,8 @@ from playwright.async_api import async_playwright
 S=sys.argv[1]
 ME='TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'; SELLER='TSe'+'A'*31; BUYER2='TBu'+'A'*31
 DEP='TDepZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'
-st={'profile':None,'rate':{'sdg_per_usdt':2700,'band_pct':3},'banned':[],'offers':[{'id':'of1','seller':SELLER,'price_sdg':2700,'min_usdt':10,'max_usdt':200,'available_usdt':150,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'ود_الخرطوم','trades_completed':12,'disputes_lost':0,'verified':True,'completion':92.3}},{'id':'of2','seller':SELLER,'price_sdg':2710,'min_usdt':300,'max_usdt':900,'available_usdt':900,'pay_window_min':30,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'تاجر_كبير','trades_completed':3,'disputes_lost':0,'verified':True,'completion':None}}],
-    'buyads':[{'id':'bd1','side':'buy','seller':BUYER2,'price_sdg':2690,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'مشتري_جاد','trades_completed':5,'verified':True,'completion':100}}],'mine':[],'orders':{},'msgs':{},'signed':0,'kyc':None,'bal':{'usdt':'80','trx':'20.00'},'deposit_seen':False}
+st={'profile':None,'rate':{'sdg_per_usdt':2700,'band_pct':3},'banned':[],'offers':[{'id':'of1','network':'BEP20','seller':SELLER,'price_sdg':2700,'min_usdt':10,'max_usdt':200,'available_usdt':150,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'ود_الخرطوم','trades_completed':12,'disputes_lost':0,'verified':True,'completion':92.3}},{'id':'of2','network':'BEP20','seller':SELLER,'price_sdg':2710,'min_usdt':300,'max_usdt':900,'available_usdt':900,'pay_window_min':30,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'تاجر_كبير','trades_completed':3,'disputes_lost':0,'verified':True,'completion':None}},{'id':'oldtron','network':'TRC20','seller':SELLER,'price_sdg':2705,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'created_at':'2026-10-20T08:00:00Z','seller_profile':{'nickname':'بائع_ترون_قديم','trades_completed':1,'disputes_lost':0,'verified':True,'completion':None}}],
+    'buyads':[{'id':'bd1','network':'BEP20','side':'buy','seller':BUYER2,'price_sdg':2690,'min_usdt':10,'max_usdt':100,'available_usdt':100,'pay_window_min':15,'created_at':'2026-10-24T08:00:00Z','seller_profile':{'nickname':'مشتري_جاد','trades_completed':5,'verified':True,'completion':100}}],'mine':[],'orders':{},'msgs':{},'signed':0,'kyc':None,'bal':{'usdt':'80','trx':'20.00'},'deposit_seen':False}
 st['orders']['sell1']={'id':'sell1','offer_id':'myof','seller':ME,'buyer':BUYER2,'amount_usdt':30,'price_sdg':2700,'total_sdg':81000,'fee_usdt':0.15,'status':'awaiting_deposit','deposit_address':DEP,'deposit_amount':30.5,'created_at':'2026-10-24T08:05:00Z','buyer_profile':{'nickname':'مشترٍ'},'seller_profile':{'nickname':'أنا'}}
 TR={('buyer','mark_paid'):(['funded'],'paid'),('buyer','dispute'):(['paid'],'disputed'),('seller','release'):(['funded','paid'],'released'),('buyer','cancel'):(['awaiting_deposit'],'cancelled'),('seller','cancel'):(['awaiting_deposit'],'cancelled')}
 def view(o):
@@ -93,6 +93,7 @@ async def main():
     # السوق
     await pg.click('.tab[data-tab=p2p]'); await pg.wait_for_timeout(800)
     t=await pg.inner_text('#p2p-list'); assert 'ود_الخرطوم' in t and '2,700' in t and 'موثّق' in t and 'إتمام 92.3%' in t and 'بنكك' in t, t; step('بطاقات بأسلوب Binance: موثّق، نسبة الإتمام، بنكك')
+    assert 'بائع_ترون_قديم' not in t; step('إعلانات TRON القديمة لا تظهر في السوق')
     await pg.fill('#p2p-amt','500'); t=await pg.inner_text('#p2p-list'); assert 'تاجر_كبير' in t and 'ود_الخرطوم' not in t; step('فلترة الإعلانات حسب الكمية')
     await pg.fill('#p2p-amt','')
     await pg.wait_for_timeout(600)
@@ -102,7 +103,7 @@ async def main():
     await pg.click('#p2p-list button:text-is("شراء")'); assert await vis('s-p2p-buy'); step('فتح شاشة الشراء')
     await pg.fill('#buy-amt','5'); assert await pg.is_disabled('#buy-go'); step('رفض كمية أقل من حد الإعلان')
     await pg.fill('#buy-amt','50')
-    assert '135,000' in await pg.inner_text('#buy-total'); assert '1.25' in await pg.inner_text('#buy-fee') and 'رسوم الشبكة' in await pg.inner_text('#buy-fee'); assert '48.75' in await pg.inner_text('#buy-recv'); step('العمولة 0.5% + 1 USDT رسوم الشبكة وما يستلمه المشتري')
+    assert '135,000' in await pg.inner_text('#buy-total'); assert '0.55' in await pg.inner_text('#buy-fee') and 'رسوم الشبكة' in await pg.inner_text('#buy-fee'); assert '49.45' in await pg.inner_text('#buy-recv'); step('العمولة 0.5% + 0.3 USDT رسوم شبكة BNB وما يستلمه المشتري')
     await no_overflow('الشراء')
     await pg.click('#buy-go'); await pg.wait_for_timeout(1200)
     assert not await vis('nick-sheet'); step('الشراء مباشرة بدون طلب الاسم')

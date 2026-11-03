@@ -602,6 +602,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <p class="muted" style="font-size:13px;line-height:1.8;margin:0">انقل عملتك من شبكة إلى أخرى داخل محفظتك نفسها (مثلاً USDT من TRON إلى BNB Chain).</p>
   <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:14px 16px">
     <span class="muted" style="font-size:13px">من شبكة</span><div class="netbar" id="br-from" role="tablist"></div>
+    <button type="button" class="chip" id="br-flip" aria-label="عكس اتجاه النقل" style="align-self:center;height:36px;padding:0 16px;gap:6px"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>عكس الاتجاه</button>
     <span class="muted" style="font-size:13px">إلى شبكة</span><div class="netbar" id="br-to" role="tablist"></div>
     <span class="muted" style="font-size:13px">العملة</span><div class="seg" id="br-coin" role="radiogroup"></div>
   </div>
@@ -2423,6 +2424,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!state.balances) core.getBalances().then(function (b) { state.balances = b; if (state.stack[state.stack.length - 1] === 'bridge') prepareBridge(); }).catch(function () {});
     if (Object.keys(EVM).length && !state.evmBal) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'bridge') prepareBridge(); } }).catch(function () {});
   }
+  $('br-flip').onclick = function () { var t = BR.from; BR.from = BR.to; BR.to = t; $('br-amt').value = ''; brReset(); prepareBridge(); };
   function brErr(m) { var e = $('br-err'); e.textContent = m; e.hidden = !m; }
   $('br-amt').addEventListener('input', brReset);
   $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
@@ -2734,6 +2736,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       renderRate(r.rate, r.range);
       if (!state.p2p.me) ensureProfile();
       box.textContent = '';
+      // تداول P2P على BNB Smart Chain فقط (الخادم يرفض غيرها أيضاً؛ هذا يخفي إعلانات TRON القديمة)
+      r.offers = (r.offers || []).filter(function (o) { return o.network === 'BEP20'; });
       state.p2p.offers = r.offers; state.p2p.listSide = side; state.p2p.cache[side] = { at: Date.now(), offers: r.offers };
       renderOffers();
     } catch (e) { emptyMsg(box, p2pErr(e)); }
