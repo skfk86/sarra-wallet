@@ -24,7 +24,7 @@ async def edge(route):
   b=json.loads(route.request.post_data); a=b.get('action') or json.loads(b['message'])['action']
   calls['edge'].append(a)
   if a in ('order.get','order.create'): return await route.fulfill(json={'order':ORDER,'role':'buyer','messages':[]})
-  await route.fulfill(json={'profile':{'address':'x','nickname':'n','inbox_token':'tok-123','verify_status':'none'},'fee_bps':50,'net_fee':'1','min_trade':10,'rate':{'sdg_per_usdt':9000,'band_pct':3},'range':{'min':8730,'max':9270}})
+  await route.fulfill(json={'profile':{'address':'x','nickname':'n','inbox_token':'tok-123','verify_status':'none'},'fee_bps':50,'net_fee':'1','net_fee_bep':'1','min_trade':10,'rate':{'sdg_per_usdt':9000,'band_pct':3},'range':{'min':8730,'max':9270}})
 async def main():
   async with async_playwright() as pw:
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':390,'height':844})
