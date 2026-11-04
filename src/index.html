@@ -355,6 +355,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
     <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
   </div>
+  <div class="muted" id="to-hint" style="font-size:12px;line-height:1.7;margin-top:-6px">💡 الأسهل والأسلم: اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان الطويل.</div>
   <div class="recent" id="recent" hidden></div>
   <label class="lbl" for="amt">المبلغ</label>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -385,9 +386,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <div class="recv-lim" id="recv-lim"><div><span>أقل مبلغ للاستلام</span><b id="recv-min"></b></div><div><span>أقصى مبلغ للتحويلة</span><b id="recv-max"></b></div></div>
   <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
-  <div class="netinfo" id="recv-sid" hidden style="justify-content:space-between">
-    <div style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:12px">معرّف صُرّة · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:22px;letter-spacing:1px;color:var(--tx)"></b></div>
-    <button type="button" class="chip" id="recv-sid-copy" style="height:34px">نسخ</button>
+  <div class="card" id="recv-sid" hidden style="display:flex;flex-direction:column;gap:12px;padding:16px 18px;border:1px solid var(--ok-bd);background:var(--ok-bg)">
+    <div style="display:flex;flex-direction:column;gap:4px"><span class="muted" style="font-size:12px">معرّف صُرّة الخاص بك · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:30px;letter-spacing:2px;color:var(--tx);text-align:right"></b>
+      <span class="muted" style="font-size:12px;line-height:1.7">أعطِه لأي مستخدم صُرّة ليرسل لك مباشرة بدون عنوان محفظة.</span></div>
+    <div class="row" style="gap:8px"><button type="button" class="chip" id="recv-sid-copy" style="height:38px;flex:1;justify-content:center">نسخ المعرّف</button><button type="button" class="chip" id="recv-sid-share" style="height:38px;flex:1;justify-content:center">مشاركة</button></div>
   </div>
   <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   <div class="netinfo" role="note" id="recv-fee"><span></span> <button type="button" class="linkbtn" id="recv-gas-help">كيف أحصل عليه؟</button></div>
@@ -1904,6 +1906,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (sid) { $('recv-sid-v').textContent = fmtSid(sid); $('recv-sid').hidden = false; } } catch (e) {}
   }
   $('recv-sid-copy').onclick = function () { copyText(String((state.p2p.me && state.p2p.me.profile.sarra_id) || '')); };
+  $('recv-sid-share').onclick = async function () {
+    var sid = String((state.p2p.me && state.p2p.me.profile.sarra_id) || ''); if (!sid) return;
+    var text = 'معرّف صُرّة الخاص بي: ' + fmtSid(sid) + '\nأرسل لي USDT مباشرة من تطبيق صُرّة بكتابة هذا المعرّف بدل عنوان المحفظة.';
+    try { if (P.Share) await P.Share.share({ title: 'معرّف صُرّة', text: text }); else copyText(sid); } catch (e) {}
+  };
   async function syncRecvPhone() {
     syncRecvSid();
     $('recv-phone').hidden = true; return;
@@ -2050,6 +2057,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('amt-usd').textContent = pr && pr.usd && v > 0 ? '≈ $' + fmt(v * pr.usd, 2) : '';
   }
   $('amt').addEventListener('input', updUsd);
+  // تلميح فوري لخانة المستلم (الشكل فقط؛ التحقق من وجود المستلم وعرض اسمه يتمان عند المراجعة)
+  $('to').addEventListener('input', function () {
+    var v = this.value.trim(), h = $('to-hint'), digits = v.replace(/[\s\-#@]/g, '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); });
+    h.style.color = '';
+    if (!v) h.innerHTML = '💡 الأسهل والأسلم: اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان الطويل.';
+    else if (asSarraId(v)) { h.textContent = '✓ معرّف صُرّة صحيح الشكل. سنعرض لك اسم المستلم للتأكيد قبل الإرسال.'; h.style.color = 'var(--ac)'; }
+    else if (/^\d{1,7}$/.test(digits)) h.textContent = 'معرّف صُرّة يتكوّن من 8 أرقام (' + digits.length + '/8).';
+    else if (/^\d{9,}$/.test(digits)) { h.textContent = 'عدد الأرقام أكبر من 8. تحقق من المعرّف.'; h.style.color = 'var(--err)'; }
+    else h.textContent = '';
+  });
   document.querySelectorAll('.pct [data-pct]').forEach(function (b) { b.onclick = function () {
     var u = coinUnits(); if (u == null) return;
     var dec = state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin);
