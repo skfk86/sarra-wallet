@@ -545,11 +545,13 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       </div>
     </div>
     <dl class="kv card" style="padding:4px 16px">
+      <div><dt>سعر الصرف (تقريبي)</dt><dd class="ltr" id="sw-rate">—</dd></div>
       <div><dt>أقل مبلغ ستستلمه</dt><dd class="ltr" id="sw-min">—</dd></div>
-      <div><dt>أقصى انزلاق للسعر</dt><dd class="ltr">0.5%</dd></div>
-      <div><dt>المنصة</dt><dd>SunSwap · على الشبكة</dd></div>
+      <div><dt>أقصى انزلاق للسعر</dt><dd class="ltr" id="sw-slip">0.5%</dd></div>
+      <div><dt>المسار</dt><dd class="ltr" id="sw-route">—</dd></div>
+      <div><dt>رسوم مزود التبديل</dt><dd>0.3% (SunSwap) تُحسب ضمن السعر</dd></div>
+      <div><dt>رسوم الشبكة</dt><dd>تُدفع بعملة TRX من رصيدك</dd></div>
       <div id="sw-fee-row" hidden><dt>عمولة صُرّة</dt><dd class="ltr" id="sw-fee">—</dd></div>
-      <div><dt>الرسوم</dt><dd>رسوم الشبكة بـ TRX + 0.3% لـ SunSwap</dd></div>
     </dl>
     <div class="note ok" id="sw-approve-note" hidden><span>التبديل من USDT يسبقه معاملة "موافقة" تسمح لـ SunSwap بأخذ المبلغ المحدد فقط، فتدفع رسوم الشبكة مرتين.</span></div>
     <div class="note err" id="sw-err" hidden></div>
@@ -1068,6 +1070,23 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     </dl>
     <button class="btn btn-primary" id="confirm-send">تأكيد وإرسال</button>
     <button class="btn btn-ghost" id="cancel-send">إلغاء</button>
+  </div>
+</div>
+
+<!-- ===== ورقة تأكيد التبديل ===== -->
+<div class="sheet-bg" id="sw-sheet" role="dialog" aria-modal="true" aria-labelledby="sw-sheet-title">
+  <div class="sheet">
+    <h2 id="sw-sheet-title" style="font-size:18px">تأكيد التبديل</h2>
+    <dl class="kv">
+      <div><dt>تدفع</dt><dd class="ltr" id="swc-in"></dd></div>
+      <div><dt>تستلم تقريباً</dt><dd class="ltr" id="swc-out" style="color:var(--ac)"></dd></div>
+      <div><dt>أقل مبلغ مضمون</dt><dd class="ltr" id="swc-min"></dd></div>
+      <div><dt>سعر الصرف</dt><dd class="ltr" id="swc-rate"></dd></div>
+      <div><dt>الشبكة</dt><dd>TRON (TRC20) · SunSwap</dd></div>
+      <div><dt>رسوم الشبكة</dt><dd>بعملة TRX من رصيدك</dd></div>
+    </dl>
+    <button class="btn btn-primary" id="swc-ok">تأكيد التبديل</button>
+    <button class="btn btn-ghost" id="swc-cancel">إلغاء</button>
   </div>
 </div>
 
@@ -2229,6 +2248,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('explorer').onclick = function () { if (state.lastTx) window.open(state.lastTx.url, '_blank'); };
 
   // ===== التبديل =====
+  var SWAP_SLIPPAGE_BPS = 50; // 0.5%: نفس القيمة المستخدمة في التنفيذ
   state.swapDir = 'TRX_USDT';
   var swapTimer = null, swapSeq = 0;
   function swapSyms() { return state.swapDir === 'TRX_USDT' ? ['TRX', 'USDT'] : ['USDT', 'TRX']; }
@@ -2352,13 +2372,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try {
       var q = await core.quoteSwap(state.swapDir, v);
       if (seq !== swapSeq) return;
-      var min = q.outUnits * 9950n / 10000n;
+      var min = q.outUnits * BigInt(10000 - SWAP_SLIPPAGE_BPS) / 10000n;
       $('sw-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 });
       $('sw-min').textContent = Number(WalletCore.fromUnits(min, 6)).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + swapSyms()[1];
       var fee = core.swapFeeUnits(state.swapDir, q.inUnits, min);
       $('sw-fee-row').hidden = !core.feeEnabled();
       $('sw-fee').textContent = fee > 0n ? core.feeRateText() + ' (' + WalletCore.fromUnits(fee, 6) + ' TRX)' : 'لا عمولة على هذا المبلغ';
-      state.swapQuote = { dir: state.swapDir, amt: v, out: q.out };
+      var sy = swapSyms(), inN = Number(WalletCore.fromUnits(q.inUnits, 6)), outN = Number(q.out);
+      $('sw-rate').textContent = inN > 0 ? '1 ' + sy[0] + ' ≈ ' + (outN / inN).toLocaleString('en-US', { maximumSignificantDigits: 5 }) + ' ' + sy[1] : '—';
+      $('sw-route').textContent = sy[0] + ' → ' + sy[1] + ' · عبر SunSwap';
+      $('sw-slip').textContent = (SWAP_SLIPPAGE_BPS / 100) + '%';
+      state.swapQuote = { dir: state.swapDir, amt: v, out: q.out, min: Number(WalletCore.fromUnits(min, 6)), rate: $('sw-rate').textContent };
       $('sw-go').disabled = false;
     } catch (e) {
       if (seq !== swapSeq) return;
@@ -2376,6 +2400,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('sw-go').onclick = function () {
     var q = state.swapQuote; if (!q) return;
     var s = swapSyms();
+    $('swc-in').textContent = q.amt + ' ' + s[0];
+    $('swc-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
+    $('swc-min').textContent = Number(q.min).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
+    $('swc-rate').textContent = q.rate || '—';
+    $('sw-sheet').classList.add('show');
+  };
+  $('swc-cancel').onclick = function () { $('sw-sheet').classList.remove('show'); };
+  $('sw-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
+  $('swc-ok').onclick = function () {
+    var q = state.swapQuote; $('sw-sheet').classList.remove('show'); if (!q) return;
+    var s = swapSyms();
     var run = function () { doSwap(q, s); };
     var askPin = function () { openPin('verify', run); };
     if (bioEnabled()) bioVerify('تأكيد التبديل').then(run).catch(askPin);
@@ -2387,7 +2422,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('pin-sub').textContent = 'جارٍ التبديل…';
     toast('جارٍ التبديل… قد يستغرق دقيقة');
     try {
-      var r = await core.swap(q.dir, q.amt, 50, q.out);
+      var r = await core.swap(q.dir, q.amt, SWAP_SLIPPAGE_BPS, q.out);
       state.lastTx = r; state.historyCache = null; state.balances = null;
       setSuccessTitle(r.status);
       $('ok-amt').textContent = q.amt + ' ' + s[0] + ' ← ' + Number(r.out).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
