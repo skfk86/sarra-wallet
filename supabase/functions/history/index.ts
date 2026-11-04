@@ -2,7 +2,19 @@
 // طلب موقّع من المحفظة (مثل p2p) + حد أقصى للطلبات لكل مستخدم
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { TronWeb } from 'npm:tronweb@6.0.4';
-import { parseSignedMessage } from '../_shared/logic.ts';
+
+// نسخة مطابقة لـ parseSignedMessage في _shared/logic.ts (الدالة مستقلة كي تُنشر كملف واحد)
+type SignedMsg = { action: string; params: Record<string, unknown>; address: string; ts: number; nonce: string };
+function parseSignedMessage(message: string, now: number, maxSkewMs = 300000): SignedMsg {
+  let m: SignedMsg;
+  try { m = JSON.parse(message); } catch { throw new Error('BAD_MESSAGE'); }
+  if (!m || typeof m.action !== 'string' || typeof m.address !== 'string') throw new Error('BAD_MESSAGE');
+  if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(m.address)) throw new Error('BAD_ADDRESS');
+  if (typeof m.ts !== 'number' || Math.abs(now - m.ts) > maxSkewMs) throw new Error('EXPIRED_REQUEST');
+  if (typeof m.nonce !== 'string' || !/^[0-9a-f]{16,64}$/.test(m.nonce)) throw new Error('BAD_NONCE');
+  if (typeof m.params !== 'object' || m.params === null) m.params = {};
+  return m;
+}
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
