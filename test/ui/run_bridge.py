@@ -50,7 +50,7 @@ async def main():
     print('✓ طلب السعر صحيح: 100 USDT من محفظتك على TRON إلى عنوانك 0x على BNB Chain، بدون عمولة إضافية')
     out=await pg.inner_text('#br-out'); fee=await pg.inner_text('#br-fee')
     assert '99' in out and 'BNB Chain' in out and fee=='≈ $1.10' and await pg.inner_text('#br-plat')=='≈ $0.40' and 'TRX' in await pg.inner_text('#br-quote'), (out,fee); assert await pg.inner_text('#br-app')=='مجاناً'; print('✓ بطاقة السعر: ستستلم ~99 USDT، الرسوم $1.50، المسار Symbiosis')
-    await pg.click('#br-go'); await pin('123456'); await pg.wait_for_timeout(3000)
+    await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(3000)
     log=await pg.evaluate('window.__log')
     kinds=[l[0] for l in log]; assert 'APPROVE' in kinds and kinds.index('APPROVE')<kinds.index('SIGN')<kinds.index('BROADCAST'), log
     ap=[l for l in log if l[0]=='APPROVE'][0]; assert ap[1]=='TApprZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' and str(ap[2])=='100000000', ap
@@ -66,7 +66,7 @@ async def main():
     assert await pg.get_attribute('#br-to [data-net=tron]','aria-selected')=='true'
     await pg.fill('#br-amt','10'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='TRN' and q['fromAmount']==str(10*10**18) and q['toAddress'].startswith('T'), q
-    n=len(E.sent); await pg.click('#br-go'); await pin('123456')
+    n=len(E.sent); await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456')
     for _ in range(40):
       if len(E.sent)-n>=2: break
       await pg.wait_for_timeout(500)
@@ -81,14 +81,14 @@ async def main():
     for kind,label in [('to','عقد غير عقد LI.FI الرسمي'),('dest','وجهة غير محفظتك')]:
       EVIL['on']=kind; n=len(E.sent)
       await pg.fill('#br-amt','5'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
-      await pg.click('#br-go'); await pin('123456'); await pg.wait_for_timeout(1500)
+      await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(1500)
       assert len(E.sent)==n and 'لا تطابق' in await pg.inner_text('#br-err'), (kind, await pg.inner_text('#br-err'))
       print('✓ هجوم مرفوض قبل التوقيع: '+label+' (لم تُبث أي معاملة)')
     EVIL['on']='owner'
     await pg.click('#br-from [data-net=tron]'); await pg.wait_for_timeout(1200)
     lg=len(await pg.evaluate('window.__log'))
     await pg.fill('#br-amt','5'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
-    await pg.click('#br-go'); await pin('123456'); await pg.wait_for_timeout(2500)
+    await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(2500)
     new=[l[0] for l in (await pg.evaluate('window.__log'))[lg:]]
     assert 'SIGN' not in new and 'لا تطابق' in await pg.inner_text('#br-err'), new; print('✓ هجوم مرفوض على TRON: معاملة باسم محفظة أخرى لا تُوقَّع')
     EVIL['on']=None
