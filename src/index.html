@@ -421,10 +421,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" class="chip" data-filter="in">استلام</button>
     <button type="button" class="chip" data-filter="out">إرسال</button>
   </div>
+  <div class="chips" id="hnet-chips" role="tablist" aria-label="الشبكة" style="overflow-x:auto"></div>
   <div id="history-full"><p class="muted">جارٍ التحميل…</p></div>
+  <p class="muted" id="hist-note" hidden style="font-size:12px;line-height:1.7"></p>
   <div id="evm-hist" hidden style="display:flex;flex-direction:column;gap:8px">
-    <h2 class="muted" style="font-size:13px">معاملات الشبكات الأخرى</h2>
-    <p class="muted" style="font-size:12px;line-height:1.7">سجل BNB Chain وEthereum وPolygon يُعرض في مستكشف كل شبكة:</p>
+    <h2 class="muted" style="font-size:13px">المستكشفات</h2>
     <div id="evm-hist-links" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
 </section>
@@ -1750,24 +1751,37 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     box.textContent = '';
     var p = document.createElement('p'); p.className = 'muted'; p.textContent = text; box.appendChild(p);
   }
-  function renderTxList(box, list) {
+  function dayLabel(ms) {
+    var d = new Date(ms), n = new Date(), y = new Date(Date.now() - 864e5);
+    if (d.toDateString() === n.toDateString()) return 'اليوم';
+    if (d.toDateString() === y.toDateString()) return 'أمس';
+    return d.toLocaleDateString('ar', { day: 'numeric', month: 'long', year: d.getFullYear() === n.getFullYear() ? undefined : 'numeric' });
+  }
+  function netTag(k) { return k === 'tron' || !k ? 'TRON' : (EVM[k] ? EVM[k].name : k); }
+  function renderTxList(box, list, grouped) {
     box.textContent = '';
     if (!list.length) return emptyMsg(box, 'لا توجد معاملات');
+    var lastDay = '';
     list.forEach(function (t) {
+      if (grouped) {
+        var dl = dayLabel(t.time);
+        if (dl !== lastDay) { lastDay = dl; var gh = el('div', 'font-size:12px;font-weight:700;color:var(--mu);padding:12px 2px 4px', dl); box.appendChild(gh); }
+      }
       var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
       row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid var(--row);cursor:pointer;color:inherit;text-align:start';
       var coin = t.coin || 'USDT';
       row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' ' + coin + '، عرض على المستكشف');
-      row.onclick = function () { window.open(core.network.explorer + t.txid, '_blank'); };
+      row.onclick = function () { window.open(t.net && t.net !== 'tron' ? core.evmTxUrl(t.net, t.txid) : core.network.explorer + t.txid, '_blank'); };
       var b = document.createElement('span'); b.className = 'b';
       b.style.cssText = t.incoming ? 'background:var(--in-bg);color:var(--in)' : 'background:var(--out-bg);color:var(--out)';
       b.innerHTML = t.incoming
         ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
         : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
       var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column';
-      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = t.incoming ? 'استلام' : 'إرسال';
+      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = (t.self ? 'تحويل لنفس العنوان' : t.incoming ? 'استلام' : 'إرسال') + (t.ok === false ? ' · فشلت' : '');
+      if (t.ok === false) t1.style.color = 'var(--out)';
       var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.fontSize = '12px';
-      t2.textContent = new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + shortAddr(t.counterparty);
+      t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + ' · ' + netTag(t.net) + ' · ' + shortAddr(t.counterparty);
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
       amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? 'var(--in)' : 'var(--tx)');
@@ -1778,7 +1792,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   async function loadHistory() {
     var box = $('history');
-    try { renderTxList(box, (await core.getHistory(null, 5))); }
+    try { renderTxList(box, (await core.getHistory(null, 5)).map(function (t) { t.net = 'tron'; return t; })); }
     catch (e) { if (!box.querySelector('button')) emptyMsg(box, WalletCore.errorText(e)); }
   }
   function renderEvmHist() {
@@ -1794,20 +1808,79 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       box.appendChild(b);
     });
   }
+  // ----- سجل موحّد: TRON + شبكات EVM (الكاش في القاعدة، والتحديث عبر دالة history الموقّعة) -----
+  state.hnet = 'all'; state.evmHist = {}; state.evmHistAt = {};
+  var HIST_TTL = 90000;
+  function historyUrl() { return CFG.historyUrl || (P2P_URL ? P2P_URL.replace(/\/p2p$/, '/history') : ''); }
+  function buildHnetChips() {
+    var box = $('hnet-chips'); if (box.childNodes.length) return;
+    var keys = ['all', 'tron'].concat(Object.keys(EVM));
+    if (keys.length <= 2) { box.hidden = true; return; }
+    keys.forEach(function (k) {
+      var b = el('button', null, k === 'all' ? 'كل الشبكات' : netTag(k)); b.type = 'button'; b.className = 'chip' + (k === state.hnet ? ' on' : ''); b.dataset.hnet = k;
+      b.style.flexShrink = '0';
+      b.onclick = function () {
+        state.hnet = k;
+        box.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === b); });
+        applyFilter(); loadEvmHistFor(k);
+      };
+      box.appendChild(b);
+    });
+  }
+  // يقرأ الكاش أولاً (بدون Edge Function)، ثم يحدّث إن كان قديماً والمحفظة مفتوحة
+  async function loadEvmChain(k) {
+    var c = EVM[k], addr = await core.evmAddress();
+    if (!c || !addr || !P2P_REST) return false;
+    if (state.evmHistAt[k] && Date.now() - state.evmHistAt[k] < HIST_TTL) return true;
+    var raw = null, fresh = false;
+    try {
+      var rows = await rpc('evm_history_get', { p_chain: c.id, p_addr: addr });
+      if (rows && rows[0]) { raw = rows[0].body; fresh = Date.now() - Date.parse(rows[0].fetched_at) < HIST_TTL; }
+    } catch (e) { /* الكاش اختياري */ }
+    if (!fresh && historyUrl() && core.isUnlocked()) {
+      try {
+        var body = await core.signRequest('history.evm', { chain: c.id, address: addr });
+        var res = await fetch(historyUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        var j = await res.json().catch(function () { return {}; });
+        if (res.ok && !j.error) raw = j.items;
+        else if (!raw) throw new Error(j.error || 'SERVER');
+      } catch (e) { if (!raw) { state.evmHist[k] = state.evmHist[k] || null; throw e; } }
+    }
+    if (raw) { state.evmHist[k] = core.evmHistoryItems(k, addr, raw); state.evmHistAt[k] = Date.now(); return true; }
+    return false;
+  }
+  async function loadEvmHistFor(which) {
+    var keys = which === 'all' ? Object.keys(EVM) : EVM[which] ? [which] : [];
+    if (!keys.length) { $('hist-note').hidden = true; return; }
+    var failed = [];
+    await Promise.all(keys.map(function (k) { return loadEvmChain(k).catch(function () { failed.push(k); }); }));
+    var note = $('hist-note');
+    if (failed.length) { note.hidden = false; note.textContent = 'تعذّر تحميل سجل ' + failed.map(netTag).join(' و') + ' الآن. يمكنك فتحه من المستكشف أدناه.'; }
+    else if (!core.isUnlocked() && keys.some(function (k) { return !state.evmHist[k]; })) { note.hidden = false; note.textContent = 'افتح المحفظة بالرمز لتحديث سجل الشبكات الأخرى.'; }
+    else note.hidden = true;
+    applyFilter();
+  }
   async function loadHistoryFull() {
-    renderEvmHist();
+    renderEvmHist(); buildHnetChips();
     var box = $('history-full');
-    if (state.historyCache && Date.now() - state.fetchedAt.history < FRESH_MS) { applyFilter(); return; }
+    var haveTron = state.historyCache && Date.now() - state.fetchedAt.history < FRESH_MS;
+    if (haveTron) { applyFilter(); loadEvmHistFor(state.hnet); return; }
     if (!state.historyCache) emptyMsg(box, 'جارٍ التحميل…');
     state.fetchedAt.history = Date.now();
-    try { state.historyCache = await core.getHistory(null, 50); applyFilter(); }
-    catch (e) { state.fetchedAt.history = 0; if (!state.historyCache) emptyMsg(box, WalletCore.errorText(e)); else applyFilter(); }
+    var tronP = core.getHistory(null, 50).then(function (l) { state.historyCache = l.map(function (t) { t.net = 'tron'; return t; }); }).catch(function (e) {
+      state.fetchedAt.history = 0; if (!state.historyCache) state.tronErr = WalletCore.errorText(e);
+    });
+    var evmP = loadEvmHistFor(state.hnet);
+    await tronP; applyFilter(); await evmP;
   }
   function applyFilter() {
-    var list = (state.historyCache || []).filter(function (t) {
-      return state.filter === 'all' || (state.filter === 'in') === t.incoming;
-    });
-    renderTxList($('history-full'), list);
+    var all = [];
+    if (state.hnet === 'all' || state.hnet === 'tron') all = all.concat(state.historyCache || []);
+    Object.keys(state.evmHist).forEach(function (k) { if ((state.hnet === 'all' || state.hnet === k) && state.evmHist[k]) all = all.concat(state.evmHist[k]); });
+    all.sort(function (a, b) { return b.time - a.time; });
+    var list = all.filter(function (t) { return state.filter === 'all' || (state.filter === 'in') === !!t.incoming; });
+    if (!list.length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
+    renderTxList($('history-full'), list, true);
   }
   document.querySelectorAll('[data-filter]').forEach(function (c) {
     c.onclick = function () {

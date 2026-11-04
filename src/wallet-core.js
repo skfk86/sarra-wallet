@@ -868,6 +868,30 @@
           return { status: s, link: r.lifiExplorerLink || '', received: r.receiving && r.receiving.amount ? r.receiving.amount : '' };
         } catch (e) { return { status: 'PENDING', link: '' }; }
       },
+      // يحوّل سجل الخادم الخام (history.evm) إلى عناصر موحّدة للواجهة. التوكنات غير المعروفة (سبام) تُهمل
+      evmHistoryItems: function (chainKey, address, raw) {
+        var c = EVM_CHAINS[chainKey]; if (!c || !address) return [];
+        var me = String(address).toLowerCase(), known = {};
+        c.tokens.forEach(function (t) { known[t.addr.toLowerCase()] = t; });
+        var out = [];
+        (raw || []).forEach(function (t) {
+          if (!t || !t.h || !/^0x[0-9a-f]{64}$/i.test(t.h)) return;
+          var incoming = t.to === me, outgoing = t.from === me;
+          if (!incoming && !outgoing) return;
+          var coin, dec;
+          if (t.k === 'native') { coin = c.native; dec = 18; }
+          else { var tk = known[t.c]; if (!tk) return; coin = tk.sym; dec = tk.dec; }
+          var units; try { units = BigInt(t.v); } catch (e) { return; }
+          if (units === 0n) return;
+          out.push({
+            net: chainKey, coin: coin, txid: t.h, incoming: incoming && !outgoing,
+            self: incoming && outgoing, counterparty: incoming ? t.from : t.to,
+            amount: formatAmount(units, dec, 6), time: t.t * 1000, ok: t.ok !== false
+          });
+        });
+        return out;
+      },
+      evmTxUrl: function (chainKey, txid) { var c = EVM_CHAINS[chainKey]; return c ? c.explorer + '/tx/' + txid : ''; },
       evmExplorer: async function (chainKey) { var a = await this.evmAddress(); var c = EVM_CHAINS[chainKey]; return c && a ? c.explorer + '/address/' + a : ''; },
 
       getHistory: async function (address, limit) {

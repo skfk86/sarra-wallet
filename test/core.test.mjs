@@ -224,4 +224,26 @@ await t('Keystore: ترقية المحفظة القديمة، تغيير PIN، �
   await core.wipe();
 });
 
+await t('evmHistoryItems: اتجاه، فلترة سبام، تنسيق المبلغ', () => {
+  const core = W.createCore({ network: 'nile' });
+  const me = '0x' + 'a1'.repeat(20), other = '0x' + 'b2'.repeat(20);
+  const usdt = '0x55d398326f99059ff775485246999027b3197955';
+  const h = (n) => '0x' + String(n).repeat(64).slice(0, 64);
+  const raw = [
+    { h: h(1), k: 'native', from: other, to: me, v: '1500000000000000000', t: 1700000000, ok: true },
+    { h: h(2), k: 'token', c: usdt, from: me, to: other, v: '2500000000000000000', t: 1700000100, ok: true },
+    { h: h(3), k: 'token', c: '0x' + 'cc'.repeat(20), from: other, to: me, v: '1', t: 1700000200, ok: true },
+    { h: h(4), k: 'native', from: me, to: other, v: '0', t: 1700000300, ok: true },
+    { h: 'bad', k: 'native', from: me, to: other, v: '5', t: 1700000400, ok: true },
+    { h: h(5), k: 'native', from: me, to: other, v: '1000000000000000', t: 1700000500, ok: false }
+  ];
+  const out = core.evmHistoryItems('bsc', me, raw);
+  assert.equal(out.length, 3); // السبام والصفر والهاش الفاسد خارج القائمة
+  assert.equal(out[0].coin, 'BNB'); assert.equal(out[0].incoming, true); assert.equal(out[0].amount, '1.50');
+  assert.equal(out[1].coin, 'USDT'); assert.equal(out[1].incoming, false); assert.equal(out[1].amount, '2.50');
+  assert.equal(out[2].ok, false);
+  assert.equal(core.evmHistoryItems('nope', me, raw).length, 0);
+  assert.equal(core.evmTxUrl('bsc', h(1)), 'https://bscscan.com/tx/' + h(1));
+});
+
 console.log(`\n${pass} اختبارات نجحت`);
