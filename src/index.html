@@ -421,7 +421,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button type="button" class="chip" data-filter="in">استلام</button>
     <button type="button" class="chip" data-filter="out">إرسال</button>
   </div>
-  <div class="chips" id="hnet-chips" role="tablist" aria-label="الشبكة" style="overflow-x:auto"></div>
+  <div class="chips" id="hnet-chips" role="tablist" aria-label="الشبكة" style="flex-wrap:wrap"></div>
   <div id="history-full"><p class="muted">جارٍ التحميل…</p></div>
   <p class="muted" id="hist-note" hidden style="font-size:12px;line-height:1.7"></p>
   <div id="evm-hist" hidden style="display:flex;flex-direction:column;gap:8px">
@@ -1818,7 +1818,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (keys.length <= 2) { box.hidden = true; return; }
     keys.forEach(function (k) {
       var b = el('button', null, k === 'all' ? 'كل الشبكات' : netTag(k)); b.type = 'button'; b.className = 'chip' + (k === state.hnet ? ' on' : ''); b.dataset.hnet = k;
-      b.style.flexShrink = '0';
+      b.style.cssText = 'height:32px;padding:0 12px;font-size:12px';
       b.onclick = function () {
         state.hnet = k;
         box.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === b); });
