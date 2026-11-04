@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;--tx3:#A3B0BE;--faint:#5E6E80;--dot:#33445A;--hi:#2A3644;--tab:rgba(14,19,25,.92);--danger-bg:#5A262B;--danger-tx:#FFD6D9;--danger:#FF8A8F;--danger-mu:#C98A8E;--tag-bg:#3A2A10;--tag:#F5C26B;--trx:#FF5A5F;--usdt:#26A17B;--ok-tx:#A9C9BC;--in-bg:#10241D;--in:#2BD9A0;--out-bg:#1E2935;--out:#C5D0DB;--row:#161E28;--shadow:none;--hero:linear-gradient(145deg,#132A24 0%,#131A22 60%);--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
-:root[data-theme="light"]{color-scheme:light;--bg:#F3F5F8;--s1:#FFFFFF;--s2:#EDF0F4;--line:#E1E6EC;--div:#EBEEF2;--tx:#0F1720;--tx2:#334155;--tx3:#475569;--mu:#64748B;--faint:#94A3B8;--dot:#CBD5E1;--hi:#FFFFFF;--tab:rgba(255,255,255,.94);--ac:#0FA678;--on-ac:#FFFFFF;--warn-bg:#FFF6E9;--warn-bd:#F5D9AE;--warn:#8A4B08;--err-bg:#FDEEEF;--err-bd:#F4C7CB;--err:#B42330;--ok-bg:#E8F7F1;--ok-bd:#BFE8D7;--ok-tx:#1E5B47;--danger-bg:#D93645;--danger-tx:#FFFFFF;--danger:#C62B3A;--danger-mu:#B8606A;--tag-bg:#FFF1D6;--tag:#9A5B00;--trx:#E5333B;--in-bg:#E3F6EF;--in:#0B8A63;--out-bg:#EDF0F4;--out:#475569;--row:#EEF1F4;--shadow:0 1px 2px rgba(15,23,32,.04),0 4px 14px rgba(15,23,32,.05);--hero:linear-gradient(145deg,#E3F7EF 0%,#FFFFFF 65%)}
+:root[data-theme="light"]{color-scheme:light;--sel-bg:#DDF4EA;--sel-bd:#0FA678;--sel-tx:#0B5F46;--ac-bg:#DDF4EA;--bg:#F3F5F8;--s1:#FFFFFF;--s2:#EDF0F4;--line:#E1E6EC;--div:#EBEEF2;--tx:#0F1720;--tx2:#334155;--tx3:#475569;--mu:#64748B;--faint:#94A3B8;--dot:#CBD5E1;--hi:#FFFFFF;--tab:rgba(255,255,255,.94);--ac:#0FA678;--on-ac:#FFFFFF;--warn-bg:#FFF6E9;--warn-bd:#F5D9AE;--warn:#8A4B08;--err-bg:#FDEEEF;--err-bd:#F4C7CB;--err:#B42330;--ok-bg:#E8F7F1;--ok-bd:#BFE8D7;--ok-tx:#1E5B47;--danger-bg:#D93645;--danger-tx:#FFFFFF;--danger:#C62B3A;--danger-mu:#B8606A;--tag-bg:#FFF1D6;--tag:#9A5B00;--trx:#E5333B;--in-bg:#E3F6EF;--in:#0B8A63;--out-bg:#EDF0F4;--out:#475569;--row:#EEF1F4;--shadow:0 1px 2px rgba(15,23,32,.04),0 4px 14px rgba(15,23,32,.05);--hero:linear-gradient(145deg,#E3F7EF 0%,#FFFFFF 65%)}
 html,body,.card,.field,.list,.btn,.chip,.icon-btn,.tabbar,.sheet,.key,.ad{transition:background-color .25s,border-color .25s,color .25s}
 .card,.list,.ad,.field{box-shadow:var(--shadow)}
 .btn:active,.chip:active,.action:active span.ic,.li:active{transform:scale(.98)}
@@ -117,7 +117,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .chip.on{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:4px}
 .seg button{height:40px;border-radius:10px;border:0;background:transparent;color:var(--mu);font-size:14px;font-weight:600;cursor:pointer}
-.seg button.on{background:var(--hi);box-shadow:var(--shadow);color:var(--tx);font-weight:700}
+.seg button.on{background:var(--sel-bg,var(--hi));box-shadow:var(--shadow);color:var(--sel-tx,var(--tx));font-weight:700}
+:root[data-theme="light"] .seg button.on{box-shadow:0 0 0 1.5px var(--sel-bd) inset}
 .list{background:var(--s1);border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column}
 .li{display:flex;align-items:center;gap:12px;padding:14px 16px;background:none;border:0;width:100%;text-align:start;cursor:pointer;color:var(--tx)}
 .li+.li{border-top:1px solid var(--div)}
@@ -172,7 +173,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .netgrid{display:grid;gap:8px;overflow:visible}
 .netgrid .chip{height:auto;min-height:62px;flex-direction:column;justify-content:center;gap:5px;padding:8px 4px;border-radius:16px;font-size:12px;line-height:1.2;text-align:center;min-width:0}
 .netgrid .chip img{width:24px;height:24px;border-radius:50%;display:block}
-.netgrid .chip.on{background:var(--ac-bg,var(--s1));color:var(--tx);border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset;position:relative}
+.netgrid .chip.on{background:var(--ac-bg,var(--s1));color:var(--sel-tx,var(--tx));border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset;position:relative}
 .netgrid .chip.on::after{content:'✓';position:absolute;top:3px;inset-inline-end:6px;font-size:11px;font-weight:700;color:var(--ac)}
 .netgrid .chip .netbal{font-size:11px;font-weight:600;color:var(--mu);direction:ltr}
 .seg button img{width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-inline-end:6px}
