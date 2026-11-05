@@ -96,8 +96,14 @@ async def main():
     await pg.click('#s-bridge [data-back]'); await pg.wait_for_timeout(400); await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1200)
     assert await pg.locator('#sw-nets').is_visible() and await pg.locator('#swap-evm').is_visible() and not await pg.locator('#swap-on').is_visible(); print('✓ شاشة التبديل تفتح على BNB Chain افتراضياً')
     assert await pg.get_attribute('#es-from [data-coin=USDT]','aria-checked')=='true' and await pg.get_attribute('#es-to [data-coin=BNB]','aria-checked')=='true'
+    await pg.click('#es-flip'); await pg.wait_for_timeout(200)
+    assert await pg.get_attribute('#es-from [data-coin=BNB]','aria-checked')=='true' and await pg.get_attribute('#es-to [data-coin=USDT]','aria-checked')=='true'
+    await pg.click('#es-pct [data-pct="100"]'); v=float(await pg.input_value('#es-amt')); assert 0 < v < 0.01, v
+    await pg.click('#es-flip'); await pg.wait_for_timeout(200); await pg.click('#es-pct [data-pct="50"]'); assert await pg.input_value('#es-amt')!=''
+    print('✓ زر القلب يعكس العملتين، وأزرار النسبة تملأ المبلغ (100% من BNB تترك وقوداً)')
     await pg.fill('#es-amt','5'); await pg.click('#es-quote-btn'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='56' and q['toToken']=='0x0000000000000000000000000000000000000000' and q['fromAmount']==str(5*10**18) and q['toAddress']==q['fromAddress'], q
+    assert '1 USDT ≈' in await pg.inner_text('#es-rate')
     assert await pg.locator('#es-quote').is_visible() and '5 USDT' in await pg.inner_text('#es-pay') and 'BNB' in await pg.inner_text('#es-fee')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/swap.png')
     print('✓ تفاصيل الخصم: تدفع، عمولة صُرّة، رسوم المنصة، رسوم الشبكة بـ BNB'); print('✓ سعر التبديل USDT ← BNB داخل نفس الشبكة وإلى محفظتك نفسها')
