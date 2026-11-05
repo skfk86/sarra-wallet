@@ -279,6 +279,27 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .day-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--mu);padding:12px 2px 4px}.day-h .i{width:15px;height:15px}
 .tx-net{width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin-inline-end:4px}
 .tx-end{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}.tx-end span{font-size:11px;color:var(--mu);direction:ltr}
+.hsum{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hsum-c{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--s1);border:1px solid var(--line)}
+.hsum-c>span:last-child{display:flex;flex-direction:column;min-width:0}.hsum-c small{font-size:11px;color:var(--mu)}.hsum-c b{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hsum-i{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}.hsum-i .i{width:17px;height:17px}
+.hsum-c.in .hsum-i{background:var(--in-bg);color:var(--in)}.hsum-c.out .hsum-i{background:var(--out-bg);color:var(--out)}
+.segc{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:14px;background:var(--s2)}
+.segc button{height:36px;border:0;border-radius:10px;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--mu);cursor:pointer}
+.segc button.on{background:var(--s1);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.hnet-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.hnet-row::-webkit-scrollbar{display:none}
+.hchip{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;height:34px;padding:0 12px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--s1);font:inherit;font-size:12px;font-weight:700;color:var(--tx2);cursor:pointer}
+.hchip.on{background:var(--ac);border-color:var(--ac);color:#fff}.hchip img{width:18px;height:18px;border-radius:50%;background:#fff}.hchip .i{width:16px;height:16px}
+.hday{font-size:12px;font-weight:800;color:var(--mu);padding:6px 4px 0}
+.hgroup{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:2px 14px}
+.hgroup .tx:last-child{border-bottom:0!important}
+.tx .b{position:relative}.tx-badge{position:absolute;bottom:-3px;inset-inline-end:-3px;width:17px;height:17px;border-radius:50%;border:2px solid var(--s1);background:var(--s1)}
+.txg{padding:12px 0}.txg .b{border-radius:50%}
+.hempty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:34px 16px;text-align:center;border-radius:18px;border:1px dashed var(--line)}
+.hempty>span{width:52px;height:52px;border-radius:50%;background:var(--s2);color:var(--mu);display:flex;align-items:center;justify-content:center;margin-bottom:4px}.hempty .i{width:24px;height:24px}
+.hempty b{font-size:15px}.hempty small{font-size:12px;color:var(--mu)}
+.hexp{display:flex;flex-direction:column;gap:8px;font-size:12px}.hexp-links{display:flex;flex-wrap:wrap;gap:8px}
+.hexp-l{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--s1);font:inherit;font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer}.hexp-l img{width:18px;height:18px;border-radius:50%}
 </style>
 </head>
 <body>
@@ -444,18 +465,22 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 
 <!-- ===== السجل ===== -->
 <section class="screen with-tabs" id="s-history" aria-label="السجل">
-  <h1 style="font-size:20px">سجل المعاملات</h1>
-  <div class="chips" role="tablist" aria-label="تصفية">
-    <button type="button" class="chip on" data-filter="all">الكل</button>
-    <button type="button" class="chip" data-filter="in">استلام</button>
-    <button type="button" class="chip" data-filter="out">إرسال</button>
+  <h1 style="font-size:22px">السجل</h1>
+  <div class="hsum" id="hist-sum" aria-live="polite">
+    <div class="hsum-c in"><span class="hsum-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span><span><small>استلمت · 30 يوماً</small><b class="ltr" id="hsum-in">—</b></span></div>
+    <div class="hsum-c out"><span class="hsum-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span><span><small>أرسلت · 30 يوماً</small><b class="ltr" id="hsum-out">—</b></span></div>
   </div>
-  <div class="chips" id="hnet-chips" role="tablist" aria-label="الشبكة" style="flex-wrap:wrap"></div>
+  <div class="segc" role="tablist" aria-label="نوع العملية">
+    <button type="button" class="on" data-filter="all" role="tab">الكل</button>
+    <button type="button" data-filter="in" role="tab">استلام</button>
+    <button type="button" data-filter="out" role="tab">إرسال</button>
+  </div>
+  <div class="hnet-row" id="hnet-chips" role="tablist" aria-label="الشبكة"></div>
   <div id="history-full"><p class="muted">جارٍ التحميل…</p></div>
   <p class="muted" id="hist-note" hidden style="font-size:12px;line-height:1.7"></p>
-  <div id="evm-hist" hidden style="display:flex;flex-direction:column;gap:8px">
-    <h2 class="muted day-h" style="font-size:13px;padding:0"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/></svg>المستكشفات</h2>
-    <div id="evm-hist-links" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div id="evm-hist" hidden class="hexp">
+    <span class="muted">المعاملات الأقدم في المستكشف</span>
+    <div id="evm-hist-links" class="hexp-links"></div>
   </div>
 </section>
 
@@ -1836,14 +1861,21 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function netTag(k) { return k === 'tron' || !k ? 'TRON' : (EVM[k] ? EVM[k].name : k); }
   function renderTxList(box, list, grouped) {
     box.textContent = '';
-    if (!list.length) return emptyMsg(box, 'لا توجد معاملات');
-    var lastDay = '';
+    if (!list.length) {
+      if (!grouped) return emptyMsg(box, 'لا توجد معاملات');
+      var em = el('div', null); em.className = 'hempty';
+      em.innerHTML = '<span aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>';
+      em.appendChild(el('b', null, state.filter === 'in' ? 'لا يوجد استلام بعد' : state.filter === 'out' ? 'لا يوجد إرسال بعد' : 'لا توجد معاملات بعد'));
+      em.appendChild(el('small', null, 'ستظهر هنا عملياتك بعد أول إرسال أو استلام أو تبديل'));
+      box.appendChild(em); return;
+    }
+    var lastDay = '', group = box;
     list.forEach(function (t) {
       if (grouped) {
         var dl = dayLabel(t.time);
-        if (dl !== lastDay) { lastDay = dl; var gh = el('div', null); gh.className = 'day-h'; gh.innerHTML = '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>'; gh.appendChild(document.createTextNode(dl)); box.appendChild(gh); }
+        if (dl !== lastDay) { lastDay = dl; box.appendChild(el('div', null, dl)).className = 'hday'; group = box.appendChild(el('div', null)); group.className = 'hgroup'; }
       }
-      var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
+      var row = document.createElement('button'); row.type = 'button'; row.className = 'tx' + (grouped ? ' txg' : '');
       row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid var(--row);cursor:pointer;color:inherit;text-align:start';
       var coin = t.coin || 'USDT';
       var kind = t.rec ? t.rec.kind : t.self ? 'self' : t.incoming ? 'recv' : 'send';
@@ -1856,16 +1888,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (t.ok === false) t1.style.color = 'var(--out)';
       var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.cssText = 'font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (t.net ? '' : ' · ' + netTag(t.net)) + (kind === 'swap' || kind === 'bridge' ? ' · ' + netTag(t.net) : ' · ' + shortAddr(t.counterparty));
-      if (t.net) { var nl = document.createElement('img'); nl.src = netLogo(t.net); nl.alt = netTag(t.net); nl.title = netTag(t.net); nl.className = 'tx-net'; t2.insertBefore(nl, t2.firstChild); }
+      if (t.net) { var nl = document.createElement('img'); nl.src = netLogo(t.net); nl.alt = netTag(t.net); nl.title = netTag(t.net); nl.className = 'tx-badge'; b.appendChild(nl); }
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
       amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? 'var(--in)' : 'var(--tx)');
       amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' ' + coin;
       var end = document.createElement('div'); end.className = 'tx-end'; end.appendChild(amt);
       var uv = !state.hidden && usdOf(t.amount, coin);
-      if (uv) end.appendChild(el('span', null, '≈ ' + (t.incoming ? '+' : '−') + usd(uv)));
+      if (uv) end.appendChild(el('span', null, '≈\u00a0' + (t.incoming ? '+' : '−') + usd(uv)));
       row.appendChild(b); row.appendChild(mid); row.appendChild(end);
-      box.appendChild(row);
+      group.appendChild(row);
     });
   }
   var TX_ICONS = {
@@ -1927,11 +1959,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var on = Object.keys(EVM).length > 0; $('evm-hist').hidden = !on; if (!on) return;
     var box = $('evm-hist-links'); if (box.childNodes.length) return;
     Object.keys(EVM).forEach(function (k) {
-      var c = EVM[k], b = el('button', null); b.type = 'button'; b.className = 'li';
-      b.style.cssText = 'background:var(--s1);border:1px solid var(--line);border-radius:14px';
-      var d = document.createElement('img'); d.src = netLogo(k); d.alt = ''; d.style.cssText = 'width:28px;height:28px;border-radius:50%'; b.appendChild(d);
-      b.appendChild(el('span', 'flex-grow:1;font-weight:600', c.name));
-      b.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'فتح ↗'));
+      var c = EVM[k], b = el('button', null); b.type = 'button'; b.className = 'hexp-l';
+      var d = document.createElement('img'); d.src = netLogo(k); d.alt = ''; b.appendChild(d);
+      b.appendChild(document.createTextNode(c.name + ' ↗'));
       b.onclick = async function () { var u = await core.evmExplorer(k); if (u) window.open(u, '_blank'); };
       box.appendChild(b);
     });
@@ -1945,13 +1975,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var keys = ['all', 'tron'].concat(Object.keys(EVM));
     if (keys.length <= 2) { box.hidden = true; return; }
     keys.forEach(function (k) {
-      var b = el('button', null); b.type = 'button'; b.className = 'chip hchip' + (k === state.hnet ? ' on' : ''); b.dataset.hnet = k;
+      var b = el('button', null); b.type = 'button'; b.className = 'hchip' + (k === state.hnet ? ' on' : ''); b.dataset.hnet = k; b.setAttribute('role', 'tab');
       if (k === 'all') b.innerHTML = '<svg class="i" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>';
       else { var lg = document.createElement('img'); lg.src = netLogo(k); lg.alt = ''; b.appendChild(lg); }
       b.appendChild(document.createTextNode(k === 'all' ? 'كل الشبكات' : netTag(k)));
       b.onclick = function () {
         state.hnet = k;
-        box.querySelectorAll('.chip').forEach(function (x) { x.classList.toggle('on', x === b); });
+        box.querySelectorAll('.hchip').forEach(function (x) { x.classList.toggle('on', x === b); });
         applyFilter(); loadEvmHistFor(k);
       };
       box.appendChild(b);
@@ -2003,6 +2033,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var evmP = loadEvmHistFor(state.hnet);
     await tronP; applyFilter(); await evmP;
   }
+  // ملخص آخر 30 يوماً بالدولار (للشبكة المختارة)؛ التبديل والنقل لا يُحسبان استلاماً أو إرسالاً
+  function renderHistSum(all) {
+    var since = Date.now() - 30 * 864e5, inn = 0, out = 0, ni = 0, no = 0;
+    all.forEach(function (t) {
+      if (t.time < since || t.self || t.ok === false) return;
+      var k = t.rec && t.rec.kind; if (k === 'swap' || k === 'bridge') return;
+      var v = usdOf(t.amount, t.coin || 'USDT');
+      if (t.incoming) { ni++; inn += v || 0; } else { no++; out += v || 0; }
+    });
+    var f = function (v, n) { return state.hidden ? '••••' : n ? usd(v) : '$0.00'; };
+    $('hsum-in').textContent = f(inn, ni); $('hsum-out').textContent = f(out, no);
+  }
   function applyFilter() {
     var all = [];
     if (state.hnet === 'all' || state.hnet === 'tron') all = all.concat(state.historyCache || []);
@@ -2010,13 +2052,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     all = withLocal(all, state.hnet);
     all.sort(function (a, b) { return b.time - a.time; });
     var list = all.filter(function (t) { return state.filter === 'all' || (state.filter === 'in') === !!t.incoming; });
+    renderHistSum(all);
     if (!list.length && !lhAll().length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
     renderTxList($('history-full'), list, true);
   }
   document.querySelectorAll('[data-filter]').forEach(function (c) {
     c.onclick = function () {
       state.filter = c.dataset.filter;
-      document.querySelectorAll('[data-filter]').forEach(function (x) { x.classList.toggle('on', x === c); });
+      document.querySelectorAll('[data-filter]').forEach(function (x) { x.classList.toggle('on', x === c); x.setAttribute('aria-selected', x === c ? 'true' : 'false'); });
       applyFilter();
     };
   });

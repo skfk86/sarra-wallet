@@ -162,7 +162,7 @@ async def main():
     await pg.click('#s-success [data-go=home]'); await pg.wait_for_timeout(800)
     await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
     rows=pg.locator('#history-full button.tx'); assert await rows.count()>=1
-    first=await rows.first.inner_text(); assert 'إرسال' in first and '0.5' in first and '≈' in first and await rows.first.locator('img.tx-net[alt="BNB Chain"]').count()==1, first
+    first=await rows.first.inner_text(); assert 'إرسال' in first and '0.5' in first and '≈' in first and await rows.first.locator('img.tx-badge[alt="BNB Chain"]').count()==1, first
     await rows.first.click(); await pg.wait_for_timeout(500)
     d=await pg.inner_text('#txd-sheet')
     assert await pg.locator('#txd-sheet').is_visible() and 'BNB Chain (BEP20)' in d and '−0.5 USDT' in d and 'تمت' in d and 'نسخ' in d, d

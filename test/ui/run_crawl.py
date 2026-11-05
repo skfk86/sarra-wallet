@@ -37,7 +37,7 @@ async def main():
       r=await pg.evaluate('''()=>{const out=[];const W=window.innerWidth;
         const roots=[document.querySelector('.screen.active'),...document.querySelectorAll('.sheet-bg.show')].filter(Boolean);
         for(const root of roots){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const el=n.parentElement;if(!el||!el.offsetParent&&getComputedStyle(el).position!=='fixed')continue;const t=n.textContent.trim();if(t)out.push(t)}
-          for(const el of root.querySelectorAll('*')){if(el.closest('.netbar,.seg.scroll,.recv-coins'))continue;const b=el.getBoundingClientRect();if(b.width>0&&b.height>0&&(b.right>W+1||b.left<-1))out.push('@@OVERFLOW '+el.tagName+'#'+el.id+'.'+el.className)}}
+          for(const el of root.querySelectorAll('*')){if(el.closest('.netbar,.seg.scroll,.recv-coins,.hnet-row'))continue;const b=el.getBoundingClientRect();if(b.width>0&&b.height>0&&(b.right>W+1||b.left<-1))out.push('@@OVERFLOW '+el.tagName+'#'+el.id+'.'+el.className)}}
         return {screen:(document.querySelector('.screen.active')||{}).id,texts:out}}''')
       VIS.append((label, r['screen'], len(r['texts'])))
       for t in r['texts']:
