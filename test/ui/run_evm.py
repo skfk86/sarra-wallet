@@ -75,6 +75,7 @@ async def main():
     assert all(logos) and 'usdt.png' in logos, logos; print('✓ الشعارات الحقيقية للعملات محمّلة')
     await pg.wait_for_timeout(500); assert await pg.locator('#assets .spark').count()>=3; print('✓ خط سعر الأسبوع بجانب كل عملة متغيرة السعر')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
+    if len(sys.argv)>2: await pg.locator('.hero-card').screenshot(path=sys.argv[2]+'/hero.png', scale='device')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-full.png', full_page=True)
     await pg.click('#assets [data-asset=BNB]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and any('functions/v1/market' in x for x in MK) and await pg.locator('#ch-svg path').count()==2

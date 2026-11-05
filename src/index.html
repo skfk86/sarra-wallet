@@ -58,7 +58,21 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 .mono{font-family:'IBM Plex Mono',monospace}
 /* الرئيسية */
 .balance{font-size:clamp(34px,11.5vw,48px);font-weight:700;letter-spacing:-.5px;line-height:1.1;overflow-wrap:anywhere}
-#s-home .hero-card{display:flex;flex-direction:column;gap:14px;padding:22px 20px;border-radius:24px;min-height:150px;justify-content:space-between}
+#s-home .card.hero-card{display:flex;flex-direction:column;gap:10px;padding:20px 20px 18px;border-radius:26px;min-height:168px;justify-content:space-between;position:relative;overflow:hidden;color:#fff;border:0;
+  background:radial-gradient(120% 90% at 0% 0%,rgba(255,255,255,.18) 0,rgba(255,255,255,0) 55%),linear-gradient(140deg,#13a874 0%,#0c8a5f 52%,#08684a 100%);box-shadow:0 10px 30px rgba(10,110,75,.28)}
+#s-home .hero-card::after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;left:-70px;bottom:-120px;background:rgba(255,255,255,.07);pointer-events:none}
+#s-home .hero-card #bal-label{color:rgba(255,255,255,.82)!important;font-weight:600}
+#s-home .hero-card #toggle-bal{color:#fff}
+#s-home .hero-card .balance{color:#fff;font-size:clamp(38px,12.5vw,52px);font-weight:800;letter-spacing:-1px}
+#s-home .hero-card .balance.masked{color:rgba(255,255,255,.85)}
+.bal-cur{font-size:.55em;font-weight:700;opacity:.85;margin-right:2px;vertical-align:.55em}.bal-dec{font-size:.5em;font-weight:700;opacity:.8}
+.bal-chg{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff}.bal-chg span{font-weight:500;opacity:.85}
+.bal-chg.dn{background:rgba(0,0,0,.18)}
+#s-home .hero-card .net-stack{background:rgba(255,255,255,.14);border:0;color:#fff}
+#s-home .hero-card .net-stack .logos img{border-color:rgba(255,255,255,.0);box-shadow:0 0 0 2px #0f8f63}
+.hero-sid{display:flex;flex-direction:column;align-items:flex-start;gap:0;background:rgba(255,255,255,.14);border:0;border-radius:12px;padding:5px 10px;color:#fff;font:inherit;cursor:pointer}
+.hero-sid small{font-size:10px;opacity:.8}.hero-sid b{font-size:13px;letter-spacing:1px;direction:ltr}
+.coin-row.zero .cr-end b{color:var(--mu);font-weight:600}.coin-row.zero .cr-end span{display:none}
 #s-home .hero-card .net-stack{align-self:flex-start;padding:5px 12px 5px 8px}
 #s-home .hero-card .net-stack .logos img{width:26px;height:26px}
 @media (max-width:340px){#s-home .hero-card{padding:18px 16px}#s-home .hero-card .net-stack .logos img{width:22px;height:22px}}
@@ -371,9 +385,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
       <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" aria-pressed="false" style="width:36px;height:32px;background:none"><svg class="i eye-on" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
     <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
-    <div class="row" style="gap:8px">
+    <div class="bal-chg" id="bal-chg" hidden></div>
+    <div class="row between" style="gap:8px">
       <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT</span>
       <span id="fee-hint" hidden></span>
+      <button type="button" class="hero-sid" id="hero-sid" hidden></button>
     </div>
   </div>
   <div class="note warn" id="low-trx" role="alert" hidden style="flex-direction:column;gap:10px">
@@ -1696,7 +1712,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     rows.forEach(function (r, i) { r.i = i; });
     rows.sort(function (a, b) { return ((b.v || 0) - (a.v || 0)) || ((a.c.extra ? 1 : 0) - (b.c.extra ? 1 : 0)) || (a.i - b.i); });
     rows.forEach(function (r) {
-      var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row'; row.dataset.asset = c.sym;
+      var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row' + (r.t ? '' : ' zero'); row.dataset.asset = c.sym;
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
@@ -1821,7 +1837,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   function renderBalances() {
     var b = state.balances;
-    renderAssets();
+    renderAssets(); try { syncHeroSid(); } catch (e) {}
     if (NETS.length > 1 && !$('bal-chip').dataset.done) {
       var ch = $('bal-chip'); ch.dataset.done = '1'; ch.textContent = ''; ch.className = 'net-stack';
       var st = document.createElement('span'); st.className = 'logos';
@@ -1833,8 +1849,35 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var multi = Object.keys(EVM).length || (state.prices && NETWORK === 'mainnet');
     var tot = portfolioUsd();
     var bu = $('bal-usdt'); bu.classList.toggle('masked', state.hidden);
-    bu.textContent = state.hidden ? '$ ••••••' : (multi && tot != null ? usd(tot) : '$' + b.usdt);
+    if (state.hidden) bu.textContent = '$ ••••••';
+    else {
+      // الدولارات كبيرة والسنتات أصغر، كما في تطبيقات البنوك
+      var val = multi && tot != null ? tot : Number(b.usdt) || 0, sp = usd(val).replace('$', '').split('.');
+      bu.textContent = ''; bu.appendChild(el('span', null, '$')).className = 'bal-cur'; bu.appendChild(document.createTextNode(sp[0]));
+      bu.appendChild(el('span', null, '.' + (sp[1] || '00'))).className = 'bal-dec';
+    }
+    var dch = portfolioChange(), bc = $('bal-chg');
+    bc.hidden = state.hidden || dch == null || !isFinite(dch.pct);
+    if (!bc.hidden) {
+      var up = dch.usd >= 0; bc.className = 'bal-chg ' + (up ? 'up' : 'dn');
+      bc.textContent = '';
+      bc.appendChild(el('i', 'font-style:normal;font-size:10px', up ? '▲' : '▼'));
+      bc.appendChild(el('b', 'direction:ltr;unicode-bidi:isolate', (up ? '+' : '−') + usd(Math.abs(dch.usd))));
+      bc.appendChild(el('b', 'direction:ltr;unicode-bidi:isolate;opacity:.9', (up ? '+' : '') + dch.pct.toFixed(2) + '%'));
+      bc.appendChild(el('span', null, 'آخر 24 ساعة'));
+    }
     $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
+  }
+  // تغيّر قيمة المحفظة خلال 24 ساعة بالدولار من تغيّر سعر كل عملة تملكها
+  function portfolioChange() {
+    if (NETWORK !== 'mainnet' || !state.prices) return null;
+    var now = 0, prev = 0;
+    COINS.forEach(function (c) {
+      var t = coinTotal(c), p = priceOf(c); if (!t || !p || p.usd == null) return;
+      var v = t * p.usd, ch = Number(p.chg) || 0; now += v; prev += v / (1 + ch / 100);
+    });
+    if (!(prev > 0)) return null;
+    return { usd: now - prev, pct: (now - prev) / prev * 100 };
   }
   function setHidden(v) {
     state.hidden = v;
@@ -1844,6 +1887,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
+  function syncHeroSid() {
+    var sid = state.p2p && state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.sarra_id, hb = $('hero-sid');
+    if (!sid) { hb.hidden = true; return; }
+    hb.hidden = false; hb.textContent = ''; hb.appendChild(el('small', null, 'معرّفي')); hb.appendChild(el('b', null, fmtSid(sid)));
+    hb.onclick = function () { copyText(String(sid)); toast('نُسخ معرّف صُرّة'); };
+  }
   if (state.hidden) { $('toggle-bal').classList.add('off'); $('toggle-bal').setAttribute('aria-pressed', 'true'); }
   $('refresh').onclick = function () { state.fetchedAt.history = 0; loadHome(true); };
 
