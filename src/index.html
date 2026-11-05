@@ -104,7 +104,7 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 .rx-pos{color:var(--in)}
 .okkv{width:100%;max-width:420px;margin:0;text-align:start}
 .okkv dd{min-width:0;overflow-wrap:anywhere}
-.okkv .cp{background:none;border:0;color:var(--ac);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 6px}
+.okkv .cp,.kv .cp{background:none;border:0;color:var(--ac);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 6px}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:50}
 .sheet-bg.show{display:flex}
 .sheet{width:100%;background:var(--s1);border-radius:24px 24px 0 0;padding:20px 20px calc(max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)) + 20px);display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line)}
@@ -267,6 +267,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .ch-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mu)}
 .ch-range{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--s2);border-radius:12px;padding:3px}.ch-range button{height:30px;border:0;border-radius:9px;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer}.ch-range button.on{background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .spark{flex:0 0 56px;height:24px;margin:0 6px;opacity:.95}.spark svg{width:100%;height:100%;display:block}
+.txd-head{display:flex;align-items:center;gap:10px}.txd-head b{font-size:17px;flex-grow:1}
+.txd-ic{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.txd-ic .i{width:20px;height:20px}
+.txd-st{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--in-bg);color:var(--in)}.txd-st.pend{background:rgba(245,166,35,.14);color:#c98a12}.txd-st.fail{background:var(--out-bg);color:var(--out)}
+.txd-amt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0 2px;text-align:center}.txd-amt b{font-size:30px;font-weight:800;overflow-wrap:anywhere;line-height:1.2}.txd-amt span{font-size:13px}
 </style>
 </head>
 <body>
@@ -1117,6 +1121,20 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 </div>
 
 <!-- ===== إشعار استلام تحويلة ===== -->
+<div class="sheet-bg" id="txd-sheet" role="dialog" aria-modal="true" aria-labelledby="txd-title">
+  <div class="sheet txd" style="gap:14px;max-height:92vh;overflow:auto">
+    <div class="txd-head">
+      <span class="txd-ic" id="txd-ic" aria-hidden="true"></span>
+      <b id="txd-title">تفاصيل العملية</b>
+      <span class="txd-st" id="txd-st"></span>
+    </div>
+    <div class="txd-amt"><b class="ltr" id="txd-amt">—</b><span id="txd-sub" class="muted"></span></div>
+    <dl class="kv card" id="txd-kv" style="padding:4px 16px;margin:0"></dl>
+    <p class="muted" id="txd-note" style="font-size:12px;margin:0;line-height:1.7" hidden></p>
+    <button class="btn btn-primary" id="txd-exp">عرض على المستكشف</button>
+    <button class="btn btn-ghost" id="txd-close">إغلاق</button>
+  </div>
+</div>
 <div class="sheet-bg" id="rx-sheet" role="dialog" aria-modal="true" aria-labelledby="rx-title">
   <div class="sheet" style="align-items:center;text-align:center">
     <div class="okring rxring" aria-hidden="true">
@@ -1298,6 +1316,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if ($('txd-sheet').classList.contains('show')) { $('txd-sheet').classList.remove('show'); return; }
       if ($('rx-sheet').classList.contains('show')) { rxClose(); return; }
       if ($('sw-sheet').classList.contains('show')) { $('sw-sheet').classList.remove('show'); return; }
       if ($('br-sheet').classList.contains('show')) { $('br-sheet').classList.remove('show'); return; }
@@ -1521,6 +1540,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
   async function loadHome(force) {
+    if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
     renderBalances();
     loadPrices();
@@ -1807,18 +1827,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var row = document.createElement('button'); row.type = 'button'; row.className = 'tx';
       row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid var(--row);cursor:pointer;color:inherit;text-align:start';
       var coin = t.coin || 'USDT';
-      row.setAttribute('aria-label', (t.incoming ? 'استلام ' : 'إرسال ') + t.amount + ' ' + coin + '، عرض على المستكشف');
-      row.onclick = function () { window.open(t.net && t.net !== 'tron' ? core.evmTxUrl(t.net, t.txid) : core.network.explorer + t.txid, '_blank'); };
+      var kind = t.rec ? t.rec.kind : t.self ? 'self' : t.incoming ? 'recv' : 'send';
+      row.setAttribute('aria-label', txTitle(t) + ' ' + t.amount + ' ' + coin + '، عرض التفاصيل');
+      row.onclick = function () { openTxDetail(t); };
       var b = document.createElement('span'); b.className = 'b';
-      b.style.cssText = t.incoming ? 'background:var(--in-bg);color:var(--in)' : 'background:var(--out-bg);color:var(--out)';
-      b.innerHTML = t.incoming
-        ? '<svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>'
-        : '<svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+      txIcon(b, kind);
       var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column';
-      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = (t.self ? 'تحويل لنفس العنوان' : t.incoming ? 'استلام' : 'إرسال') + (t.ok === false ? ' · فشلت' : '');
+      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = txTitle(t) + (t.ok === false ? ' · فشلت' : '');
       if (t.ok === false) t1.style.color = 'var(--out)';
       var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.fontSize = '12px';
-      t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + ' · ' + netTag(t.net) + ' · ' + shortAddr(t.counterparty);
+      t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + ' · ' + netTag(t.net) + (kind === 'swap' || kind === 'bridge' ? '' : ' · ' + shortAddr(t.counterparty));
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
       amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? 'var(--in)' : 'var(--tx)');
@@ -1827,10 +1845,60 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       box.appendChild(row);
     });
   }
+  var TX_ICONS = {
+    recv: ['var(--in-bg)', 'var(--in)', '<path d="M17 7 7 17"/><path d="M17 17H7V7"/>'],
+    send: ['var(--out-bg)', 'var(--out)', '<path d="M7 17 17 7"/><path d="M7 7h10v10"/>'],
+    self: ['var(--s2)', 'var(--mu)', '<path d="M4 12h16"/><path d="m14 6 6 6-6 6"/>'],
+    swap: ['rgba(64,128,255,.13)', '#3d7bf0', '<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>'],
+    bridge: ['rgba(150,90,240,.13)', '#8b5cf0', '<path d="M4 18V9a8 8 0 0 1 16 0v9"/><path d="M4 13h16"/>']
+  };
+  function txIcon(b, kind) { var c = TX_ICONS[kind] || TX_ICONS.send; b.style.cssText = 'background:' + c[0] + ';color:' + c[1]; b.innerHTML = '<svg class="i" viewBox="0 0 24 24">' + c[2] + '</svg>'; }
+  function txTitle(t) {
+    var r = t.rec;
+    if (r && r.kind === 'swap') return 'تبديل ' + (r.paidCoin || '') + ' ← ' + r.coin;
+    if (r && r.kind === 'bridge') return 'نقل إلى ' + netTag(r.toNet);
+    return t.self ? 'تحويل لنفس العنوان' : t.incoming ? 'استلام' : 'إرسال';
+  }
+  // ===== نافذة تفاصيل العملية =====
+  function openTxDetail(t) {
+    var r = t.rec || {}, kind = r.kind || (t.self ? 'self' : t.incoming ? 'recv' : 'send');
+    var url = r.url || (t.txid ? (t.net && t.net !== 'tron' ? core.evmTxUrl(t.net, t.txid) : core.network.explorer + t.txid) : '');
+    txIcon($('txd-ic'), kind);
+    $('txd-title').textContent = { recv: 'استلام', send: 'إرسال', self: 'تحويل لنفس العنوان', swap: 'تبديل', bridge: 'نقل بين الشبكات' }[kind];
+    var st = $('txd-st'), pend = r.status === 'PENDING', fail = t.ok === false || r.status === 'FAILED';
+    st.textContent = fail ? 'فشلت' : pend ? 'بانتظار التأكيد' : 'تمت'; st.className = 'txd-st' + (fail ? ' fail' : pend ? ' pend' : '');
+    var sign = kind === 'send' ? '−' : kind === 'self' ? '' : '+', a = state.hidden ? '••••' : sign + fmtExact(t.amount) + ' ' + (t.coin || 'USDT');
+    $('txd-amt').textContent = a; fitAmt($('txd-amt'), a);
+    $('txd-sub').textContent = kind === 'bridge' ? chainLabel(r.net) + ' ← ' + chainLabel(r.toNet) : chainLabel(t.net);
+    var dl = $('txd-kv'); dl.textContent = '';
+    if (kind === 'swap' || kind === 'bridge') {
+      kvRow(dl, 'دفعت', state.hidden ? '••••' : fmtExact(r.paidAmount) + ' ' + (r.paidCoin || ''));
+      kvRow(dl, 'استلمت', state.hidden ? '••••' : fmtExact(t.amount) + ' ' + t.coin);
+      if (kind === 'bridge') { kvRow(dl, 'من شبكة', chainLabel(r.net)); kvRow(dl, 'إلى شبكة', chainLabel(r.toNet)); }
+      else kvRow(dl, 'الشبكة', chainLabel(r.net || t.net));
+      if (r.via) kvRow(dl, 'عبر', r.via);
+    } else {
+      kvRow(dl, 'الشبكة', chainLabel(t.net));
+      kvRow(dl, 'العملة', t.coin || 'USDT');
+      var who = kind === 'recv' ? (r.from || t.counterparty) : (r.to || t.counterparty);
+      if (who) kvRow(dl, kind === 'recv' ? 'من' : 'إلى', shortAddr(who), who);
+      else if (kind === 'recv') kvRow(dl, 'من', el('span', 'color:var(--mu)', 'غير معروف'));
+    }
+    kvRow(dl, 'الوقت', el('span', null, fmtWhen(t.time)));
+    if (t.txid) kvRow(dl, 'رقم المعاملة', shortAddr(t.txid), t.txid);
+    $('txd-note').hidden = !(r.kind && !t.txid); $('txd-note').textContent = 'هذه العملية محفوظة على جهازك. رقم المعاملة غير متوفر لها، ويمكنك رؤيتها في المستكشف من صفحة عنوانك.';
+    $('txd-exp').hidden = !url; $('txd-exp').textContent = 'عرض على ' + explorerName(url);
+    $('txd-exp').onclick = function () { if (url) window.open(url, '_blank'); };
+    $('txd-sheet').classList.add('show');
+  }
+  $('txd-close').onclick = function () { $('txd-sheet').classList.remove('show'); };
+  $('txd-sheet').addEventListener('click', function (e) { if (e.target === $('txd-sheet')) $('txd-sheet').classList.remove('show'); });
   async function loadHistory() {
     var box = $('history');
-    try { renderTxList(box, (await core.getHistory(null, 5)).map(function (t) { t.net = 'tron'; return t; })); }
-    catch (e) { if (!box.querySelector('button')) emptyMsg(box, WalletCore.errorText(e)); }
+    var tron = [];
+    try { tron = (await core.getHistory(null, 5)).map(function (t) { t.net = 'tron'; return t; }); }
+    catch (e) { if (!lhAll().length) { if (!box.querySelector('button')) emptyMsg(box, WalletCore.errorText(e)); return; } }
+    renderTxList(box, withLocal(tron).sort(function (a, b) { return b.time - a.time; }).slice(0, 5));
   }
   function renderEvmHist() {
     var on = Object.keys(EVM).length > 0; $('evm-hist').hidden = !on; if (!on) return;
@@ -1914,9 +1982,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var all = [];
     if (state.hnet === 'all' || state.hnet === 'tron') all = all.concat(state.historyCache || []);
     Object.keys(state.evmHist).forEach(function (k) { if ((state.hnet === 'all' || state.hnet === k) && state.evmHist[k]) all = all.concat(state.evmHist[k]); });
+    all = withLocal(all, state.hnet);
     all.sort(function (a, b) { return b.time - a.time; });
     var list = all.filter(function (t) { return state.filter === 'all' || (state.filter === 'in') === !!t.incoming; });
-    if (!list.length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
+    if (!list.length && !lhAll().length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
     renderTxList($('history-full'), list, true);
   }
   document.querySelectorAll('[data-filter]').forEach(function (c) {
@@ -2417,7 +2486,44 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('explorer').textContent = 'عرض على ' + explorerName(o.url);
     $('explorer').hidden = !o.url;
     state.lastTx = { txid: o.txid, url: o.url };
+    if (o.kind === 'send') lhAdd({ kind: 'send', net: o.net, coin: o.coin, amount: String(o.amt), to: o.toFull || o.to, txid: o.txid, url: o.url, status: o.status });
+    else if (o.kind === 'swap') { var pp = String(o.paid || '').split(' '); lhAdd({ kind: 'swap', net: o.net, coin: o.coin, amount: String(o.amt), paidAmount: pp[0], paidCoin: pp[1], via: o.route, txid: o.txid, url: o.url, status: o.status }); }
     if (o.txid) { RX.own[o.txid] = 1; }
+  }
+
+  // ===== السجل المحلي: كل عملية ناجحة من هذا الجهاز تُحفظ هنا (لا يحتاج أي خدمة خارجية) =====
+  // {id, kind: send|recv|swap|bridge, net, toNet?, coin, amount, paidCoin?, paidAmount?, to?, from?, txid?, url?, status, time, via?}
+  // مفتاح السجل مربوط بعنوان المحفظة (لكل محفظة سجلها)؛ العنوان يُحفظ عند فتح الرئيسية
+  function lhKey() { return 'sarra.lh.' + (state.lhAddr || ''); }
+  function lhAll() { try { return JSON.parse(localStorage.getItem(lhKey()) || '[]') || []; } catch (e) { return []; } }
+  function lhAdd(r) {
+    if (!state.lhAddr) return;
+    try {
+      r.time = r.time || Date.now(); r.id = r.txid || ('L' + r.time + Math.random().toString(36).slice(2, 6));
+      var l = lhAll().filter(function (x) { return x.id !== r.id; }); l.unshift(r);
+      localStorage.setItem(lhKey(), JSON.stringify(l.slice(0, 300)));
+      state.historyCache = null; state.fetchedAt.history = 0;
+    } catch (e) {}
+  }
+  // تحويل سجل محلي إلى صف في قائمة السجل
+  function lhRow(r) {
+    var incoming = r.kind === 'recv' || r.kind === 'swap' || r.kind === 'bridge';
+    return { txid: r.txid, net: r.kind === 'bridge' ? r.toNet || r.net : r.net, coin: r.coin, amount: r.amount, incoming: incoming,
+      counterparty: r.kind === 'recv' ? r.from : r.to, time: r.time, ok: r.status !== 'FAILED', rec: r };
+  }
+  // دمج سجل الشبكة (TRON) مع المحلي: نفس رقم المعاملة يُعرض مرة واحدة ومعه تفاصيله المحلية (تبديل، نقل…)
+  function withLocal(list, netFilter) {
+    var loc = lhAll(), byTx = {}; loc.forEach(function (r) { if (r.txid) byTx[r.txid] = r; });
+    var seen = {};
+    var out = (list || []).map(function (t) { var r = t.txid && byTx[t.txid]; if (r) { seen[r.id] = 1; t.rec = r; if (r.kind === 'swap' || r.kind === 'bridge') { var x = lhRow(r); x.net = t.net; return x; } } return t; });
+    loc.forEach(function (r) {
+      if (seen[r.id]) return;
+      var row = lhRow(r);
+      if (netFilter && netFilter !== 'all' && row.net !== netFilter && r.net !== netFilter) return;
+      if (r.txid && out.some(function (t) { return t.txid === r.txid; })) return;
+      out.push(row);
+    });
+    return out;
   }
 
   // ===== إشعار استلام تحويلة =====
@@ -2479,6 +2585,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
+    if (!n.logged) { n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
@@ -2596,10 +2703,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
       $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
       try {
-        var r = await core.bridgeExecute(q); rxExpect(q); // بعد النجاح فقط (الفحص الدوري متوقف أثناء العملية) ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+        var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
         for (var i = 0; i < 20; i++) {
           var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
-          if (st.status === 'DONE') { toast('تم التبديل ✓'); break; }
+          if (st.status === 'DONE') { toast('تم التبديل ✓'); lhAdd({ kind: 'swap', net: q.fromNet, coin: q.toSym || q.sym, amount: String(st.toAmount || q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: netOf(q.fromNet).name + ' · LI.FI', txid: r.txid, url: st.link || (core.evmTxUrl ? core.evmTxUrl(q.fromNet, r.txid) : ''), status: 'SUCCESS' }); break; }
           if (st.status === 'FAILED' || st.status === 'REFUNDED') { esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
           await new Promise(function (res) { setTimeout(res, 4000); });
         }
@@ -2795,12 +2902,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('br-go').hidden = true; brErr(''); var tr = $('br-track'); tr.hidden = false;
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
     try {
-      var r = await core.bridgeExecute(q); rxExpect(q); // بعد النجاح فقط (الفحص الدوري متوقف أثناء العملية) BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+      var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
       $('br-track-t').textContent = 'أُرسلت ✓ — بانتظار الوصول على ' + netOf(q.toNet).name + '…';
       for (var i = 0; i < 120; i++) {
         var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
         if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; }
-        if (st.status === 'DONE') { $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
+        if (st.status === 'DONE') { lhAdd({ kind: 'bridge', net: q.fromNet, toNet: q.toNet, coin: q.toSym || q.sym, amount: String(st.toAmount || q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: 'LI.FI', txid: r.txid, url: st.link || '', status: 'SUCCESS' }); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
         if (st.status === 'REFUNDED') { $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
         if (st.status === 'FAILED') { $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
@@ -3715,7 +3822,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     await core.wipe();
     await bioDisable();
     try {
-      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sarra.me.') === 0) localStorage.removeItem(k); });
+      // السجل المحلي وإشعارات الاستلام تخص المحفظة المحذوفة: تُحذف معها
+      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb)\./.test(k)) localStorage.removeItem(k); });
       sessionStorage.setItem('sarra.after-wipe', next);
     } catch (e) {}
     location.reload();

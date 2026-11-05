@@ -107,6 +107,22 @@ async def main():
       await pg.wait_for_timeout(500)
     t=[await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return {to:t.to,data:t.data,cid:Number(t.chainId)}}", x[1]) for x in E.sent[n:]]
     assert len(t)==2 and t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['cid']==56, t; print('✓ التبديل: موافقة ثم معاملة LI.FI موقّعة على BNB Chain')
+    # السجل المحلي: التبديل والنقل يظهران بعنوانهما وتفاصيلهما
+    for _ in range(300):
+      if not await pg.evaluate("() => window.__core.busy()"): break
+      await pg.wait_for_timeout(300)
+    await pg.click('#s-swap [data-back]'); await pg.wait_for_timeout(400); await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
+    txt=await pg.inner_text('#history-full')
+    assert 'تبديل USDT ← BNB' in txt and 'نقل إلى' in txt, txt
+    await pg.locator('#history-full button.tx', has_text='تبديل').first.click(); await pg.wait_for_timeout(400)
+    d=await pg.inner_text('#txd-sheet'); assert 'دفعت' in d and '5 USDT' in d and 'استلمت' in d and 'LI.FI' in d, d
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/txd-swap.png')
+    await pg.click('#txd-close'); await pg.wait_for_timeout(300)
+    await pg.locator('#history-full button.tx', has_text='نقل').first.click(); await pg.wait_for_timeout(400)
+    d=await pg.inner_text('#txd-sheet'); assert 'من شبكة' in d and 'إلى شبكة' in d and 'نقل بين الشبكات' in d, d
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/txd-bridge.png')
+    await pg.click('#txd-close'); await pg.wait_for_timeout(300); await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(500)
+    print('✓ السجل المحلي: التبديل والنقل يظهران بعنوانهما، والتفاصيل تعرض المدفوع والمستلم والشبكات')
     # إشعار الاستلام: رصيد BNB ارتفع بمقدار ناتج تبديلك أنت (ضمن السعر المعروض) ← لا إشعار "استلام تحويلة"
     async def idle(also_tx=True):
       for _ in range(300):
@@ -123,6 +139,7 @@ async def main():
     await kick()
     assert await pg.locator('#rx-sheet').is_visible() and '+7' in await pg.inner_text('#rx-amt') and 'USDT' in await pg.inner_text('#rx-coin'); print('✓ تحويلة واردة حقيقية بعد التبديل تظهر كإشعار (7 USDT)')
     await pg.click('#rx-close'); await pg.wait_for_timeout(400)
+    await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1000)
     await pg.click('#sw-nets [data-net=tron]'); await pg.wait_for_timeout(600)
     assert not await pg.locator('#swap-evm').is_visible(); print('✓ اختيار TRON يعيد التبديل عبر SunSwap')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>!e.closest('.netbar')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')

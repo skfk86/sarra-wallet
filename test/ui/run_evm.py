@@ -158,6 +158,19 @@ async def main():
     await pg.evaluate('window.__core.lock()')
     n0=len(sent); await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(5000)
     assert len(sent)>n0, await pg.inner_text('#send-err'); print('✓ بعد القفل: رمز التأكيد يعيد فتح المحفظة ويكمل الإرسال')
+    # السجل المحلي: العملية الناجحة تُحفظ وتظهر في السجل، والضغط عليها يفتح التفاصيل
+    await pg.click('#s-success [data-go=home]'); await pg.wait_for_timeout(800)
+    await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
+    rows=pg.locator('#history-full button.tx'); assert await rows.count()>=1
+    first=await rows.first.inner_text(); assert 'إرسال' in first and '0.5' in first and 'BNB' in first, first
+    await rows.first.click(); await pg.wait_for_timeout(500)
+    d=await pg.inner_text('#txd-sheet')
+    assert await pg.locator('#txd-sheet').is_visible() and 'BNB Chain (BEP20)' in d and '−0.5 USDT' in d and 'تمت' in d and 'نسخ' in d, d
+    assert 'BscScan' in await pg.inner_text('#txd-exp')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/txd.png')
+    await pg.click('#txd-close'); await pg.wait_for_timeout(300)
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/hist.png')
+    print('✓ السجل المحلي: الإرسال الناجح يظهر في السجل، ونافذة التفاصيل تعرض الشبكة والمبلغ والمستلم ورقم المعاملة')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
     assert not errs, errs
     await b.close()
