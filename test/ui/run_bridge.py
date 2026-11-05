@@ -107,6 +107,22 @@ async def main():
       await pg.wait_for_timeout(500)
     t=[await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return {to:t.to,data:t.data,cid:Number(t.chainId)}}", x[1]) for x in E.sent[n:]]
     assert len(t)==2 and t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['cid']==56, t; print('✓ التبديل: موافقة ثم معاملة LI.FI موقّعة على BNB Chain')
+    # إشعار الاستلام: رصيد BNB ارتفع بمقدار ناتج تبديلك أنت (ضمن السعر المعروض) ← لا إشعار "استلام تحويلة"
+    async def idle(also_tx=True):
+      for _ in range(300):
+        if await pg.evaluate("() => !window.__core.rx().busy && " + ("!window.__core.busy()" if also_tx else "true")): return
+        await pg.wait_for_timeout(300)
+      raise AssertionError('busy')
+    async def kick():
+      await idle(); await pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(300); await idle(False)
+    await kick()   # خط أساس
+    E.BAL['bsc']['native']+=4900000; E.BAL['bsc']['0x55d398326f99059ff775485246999027b3197955']-=5*10**18
+    await kick()
+    assert not await pg.locator('#rx-sheet').is_visible(); print('✓ ناتج التبديل (BNB زاد) لا يظهر كإشعار استلام كاذب')
+    E.BAL['bsc']['0x55d398326f99059ff775485246999027b3197955']+=7*10**18
+    await kick()
+    assert await pg.locator('#rx-sheet').is_visible() and '+7' in await pg.inner_text('#rx-amt') and 'USDT' in await pg.inner_text('#rx-coin'); print('✓ تحويلة واردة حقيقية بعد التبديل تظهر كإشعار (7 USDT)')
+    await pg.click('#rx-close'); await pg.wait_for_timeout(400)
     await pg.click('#sw-nets [data-net=tron]'); await pg.wait_for_timeout(600)
     assert not await pg.locator('#swap-evm').is_visible(); print('✓ اختيار TRON يعيد التبديل عبر SunSwap')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>!e.closest('.netbar')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
