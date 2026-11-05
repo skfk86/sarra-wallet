@@ -538,11 +538,19 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       open_orders: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['awaiting_deposit', 'funded', 'paid'])),
       pending_verify: await count(db.from('profiles').select('address', { count: 'exact', head: true }).eq('verify_status', 'pending')),
       disputes: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['disputed', 'release_failed', 'refund_failed'])),
-      completed: await count(db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'released'))
+      completed: await count(db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'released')),
+      earnings: await earnings()
     };
   }
 
   throw new Error('UNKNOWN_ACTION');
+}
+
+// أرباح العمولة من الصفقات المكتملة: العمولة = fee_usdt − رسوم الشبكة (التي تغطي تكلفة الدفع من OxaPay)
+// تبقى العمولة في رصيد حساب التاجر في OxaPay (المحرَّر للمشتري = المبلغ − fee_usdt)
+async function earnings() {
+  const { data } = await db.from('orders').select('amount_usdt,fee_usdt,network,updated_at').eq('status', 'released').order('updated_at', { ascending: false }).limit(10000);
+  return L.earningsSummary(data || [], (n: string) => netFeeOf(n), Date.now());
 }
 
 // يُستدعى من هنا ومن oxapay-webhook عبر order.refresh

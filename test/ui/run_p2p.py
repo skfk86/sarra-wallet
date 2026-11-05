@@ -27,7 +27,7 @@ async def handler(route):
   if not st['profile']: st['profile']={'address':ME,'nickname':'مستخدم-'+ME[-4:],'verify_status':'none'}
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
-  if a=='admin.stats': return await ok({'users':7,'active_offers':2,'open_orders':1,'disputes':1,'completed':4})
+  if a=='admin.stats': return await ok({'users':7,'active_offers':2,'open_orders':1,'disputes':1,'completed':4,'earnings':{'today':{'trades':1,'volume':'100','commission':'0.5','net_fees':'0.3'},'d7':{'trades':3,'volume':'400','commission':'2','net_fees':'1.3'},'d30':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'},'all':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'}}})
   if a=='admin.rate.set':
     st['rate']={'sdg_per_usdt':float(p['sdg_per_usdt']),'band_pct':p['band_pct']}; r=st['rate']
     return await ok({'rate':r,'range':{'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}})
@@ -212,6 +212,10 @@ async def main():
     await pg.click('#p2p-admin-btn'); await pg.wait_for_timeout(1000)
     assert '7' in await pg.inner_text('#adm-stats'); step('لوحة الأدمن: الإحصائيات')
     await no_overflow('لوحة الأدمن')
+    assert await pg.inner_text('#adm-earn-com')=='12.75'; step('أرباح العمولات: 30 يوماً افتراضياً')
+    await pg.click('[data-ep=today]'); assert await pg.inner_text('#adm-earn-com')=='0.5' and '1 صفقة' in await pg.inner_text('#adm-earn-sub'); step('أرباح اليوم')
+    ot=await pg.inner_text('#adm-earn-other'); assert 'LI.FI' in ot and 'TRON' in ot, ot; step('مصادر العمولة الأخرى ظاهرة')
+    if len(sys.argv)>2: await pg.locator('#adm-earn').screenshot(path=sys.argv[2]+'/earn.png')
     await pg.fill('#adm-rate','2800'); await pg.click('[data-band="5"]')
     assert '2,660' in await pg.inner_text('#adm-range') and '2,940' in await pg.inner_text('#adm-range'); step('معاينة النطاق قبل الحفظ')
     await pg.click('#adm-rate-go'); await pg.wait_for_timeout(800)

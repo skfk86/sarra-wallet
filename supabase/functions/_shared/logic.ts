@@ -308,3 +308,23 @@ export function requireP2pNetwork(requested: unknown): 'BEP20' {
 export function isTradableOffer(o: { network?: string | null }): boolean {
   return o.network === 'BEP20';
 }
+
+// ===== ملخص أرباح العمولة (لوحة الأدمن) =====
+// rows: صفقات مكتملة {amount_usdt, fee_usdt, network, updated_at}. الحساب بالميكرو (6 خانات) بلا أخطاء كسور
+export function earningsSummary(rows: any[], netFee: (n: string) => string | number, now: number) {
+  const win: Record<string, number> = { today: 0, d7: 7, d30: 30, all: -1 };
+  const startToday = new Date(now); startToday.setUTCHours(0, 0, 0, 0);
+  const out: Record<string, { trades: number; volume: string; commission: string; net_fees: string }> = {};
+  for (const k of Object.keys(win)) {
+    const since = k === 'today' ? startToday.getTime() : win[k] < 0 ? -Infinity : now - win[k] * 86400000;
+    let n = 0, vol = 0n, com = 0n, nf = 0n;
+    for (const r of rows) {
+      const t = Date.parse(r.updated_at); if (!(t >= since)) continue;
+      const fee = toMicro(r.fee_usdt || 0), net = toMicro(netFee(r.network || 'TRC20'));
+      n++; vol += toMicro(r.amount_usdt || 0);
+      const c = fee - net; com += c > 0n ? c : 0n; nf += fee - (c > 0n ? c : 0n);
+    }
+    out[k] = { trades: n, volume: fromMicro(vol), commission: fromMicro(com), net_fees: fromMicro(nf) };
+  }
+  return out;
+}

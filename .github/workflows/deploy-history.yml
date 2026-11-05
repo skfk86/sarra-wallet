@@ -1,4 +1,4 @@
-name: Deploy history function (manual)
+name: Deploy edge function (manual)
 
 # نشر يدوي فقط لدالة سجل المعاملات (history) على Supabase. لا يعمل تلقائياً أبداً.
 # يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
@@ -6,6 +6,12 @@ name: Deploy history function (manual)
 # ويحتاج في Supabase نفسه (Edge Functions → Secrets): ETHERSCAN_API_KEY (Ethereum وPolygon) وNODEREAL_API_KEY (BNB Chain)، وMORALIS_API_KEY اختياري
 on:
   workflow_dispatch:
+    inputs:
+      fn:
+        description: 'الدالة'
+        type: choice
+        options: [p2p, history]
+        default: p2p
 
 permissions:
   contents: read
@@ -29,4 +35,4 @@ jobs:
       - name: Deploy
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy history --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api
+        run: supabase functions deploy ${{ inputs.fn }} --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api

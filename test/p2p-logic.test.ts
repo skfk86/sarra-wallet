@@ -267,4 +267,18 @@ t('سجل NodeReal (BNB Chain): hex والثواني/الملّي، والدمج
   assert.equal(H.mergeItems(m, [], 2).length, 2); // الحد الأقصى
 });
 
+t('ملخص أرباح العمولة: اليوم و7 و30 يوماً والكل', () => {
+  const nf = (n: string) => n === 'BEP20' ? '0.3' : '1';
+  const rows = [
+    { amount_usdt: '100', fee_usdt: '0.8', network: 'BEP20', updated_at: '2026-10-24T08:00:00Z' },   // عمولة 0.5
+    { amount_usdt: '200', fee_usdt: '2', network: 'TRC20', updated_at: '2026-10-20T08:00:00Z' },     // عمولة 1
+    { amount_usdt: '50', fee_usdt: '0.25', network: 'BEP20', updated_at: '2026-09-01T08:00:00Z' },   // أقل من رسوم الشبكة: عمولة 0
+  ];
+  const e = L.earningsSummary(rows, nf, now);
+  assert.deepEqual(e.today, { trades: 1, volume: '100', commission: '0.5', net_fees: '0.3' });
+  assert.equal(e.d7.commission, '1.5'); assert.equal(e.d7.trades, 2);
+  assert.equal(e.d30.commission, '1.5');
+  assert.equal(e.all.commission, '1.5'); assert.equal(e.all.trades, 3); assert.equal(e.all.volume, '350'); assert.equal(e.all.net_fees, '1.55');
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);

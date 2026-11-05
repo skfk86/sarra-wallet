@@ -72,6 +72,8 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 #s-home .hero-card .net-stack .logos img{border-color:rgba(255,255,255,.0);box-shadow:0 0 0 2px #0f8f63}
 .hero-sid{display:flex;flex-direction:column;align-items:flex-start;gap:0;background:rgba(255,255,255,.14);border:0;border-radius:12px;padding:5px 10px;color:#fff;font:inherit;cursor:pointer}
 .hero-sid small{font-size:11px;opacity:.85}.hero-sid b{font-size:13px;letter-spacing:1px;direction:ltr}
+.earn-hero{display:flex;flex-direction:column;gap:2px;background:linear-gradient(135deg,#16a37a,#0b7a5a);color:#fff;border-radius:14px;padding:14px 16px}.earn-hero span,.earn-hero small{font-size:12px;opacity:.85}.earn-hero b{font-size:30px;direction:ltr;text-align:right;letter-spacing:-.5px}
+.earn-src{display:flex;align-items:center;gap:10px;background:var(--s2);border-radius:12px;padding:10px 12px;font-size:13px}.earn-src div{flex-grow:1;display:flex;flex-direction:column;gap:2px;min-width:0}.earn-src small{color:var(--mu);font-size:12px;line-height:1.6}
 .zero-tg{display:block;width:100%;height:48px;background:none;border:0;border-top:1px solid var(--line);font:inherit;font-size:13px;font-weight:700;color:var(--ac);cursor:pointer}
 .coin-row.zero .cr-end b{color:var(--mu);font-weight:600}.coin-row.zero .cr-end span{display:none}
 #s-home .hero-card .net-stack{align-self:flex-start;padding:5px 12px 5px 8px}
@@ -848,6 +850,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 <section class="screen" id="s-p2p-admin" aria-label="لوحة الأدمن">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">لوحة الأدمن</h1></div>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px" id="adm-stats"></div>
+  <div class="card" id="adm-earn" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <div class="row between"><b style="font-size:16px">أرباح العمولات</b><span class="muted" style="font-size:12px">USDT</span></div>
+    <div class="seg" id="adm-earn-p" style="grid-template-columns:repeat(4,minmax(0,1fr));padding:3px;border-radius:10px">
+      <button type="button" data-ep="today" style="height:32px;font-size:12px">اليوم</button><button type="button" data-ep="d7" style="height:32px;font-size:12px">7 أيام</button><button type="button" data-ep="d30" class="on" style="height:32px;font-size:12px">30 يوماً</button><button type="button" data-ep="all" style="height:32px;font-size:12px">الكل</button>
+    </div>
+    <div class="earn-hero"><span>صافي عمولة P2P</span><b id="adm-earn-com">—</b><small id="adm-earn-sub"></small></div>
+    <dl class="kv" style="margin:0" id="adm-earn-kv"></dl>
+    <b style="font-size:13px;margin-top:4px">مصادر أخرى (على الشبكة مباشرة)</b>
+    <div id="adm-earn-other" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
   <button class="btn btn-ghost" id="adm-tickets">تذاكر الدعم</button>
   <div id="adm-tickets-list" style="display:flex;flex-direction:column;gap:10px"></div>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -3839,8 +3851,29 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         c.appendChild(el('span', 'font-size:12px;color:var(--mu)', x[0])); c.appendChild(el('b', 'font-size:20px', String(x[1])));
         box.appendChild(c);
       });
+      state.admEarn = s.earnings || null; renderEarn();
     } catch (e) { toast(p2pErr(e), true); }
   };
+  state.earnP = 'd30';
+  function renderEarn() {
+    var e = state.admEarn, k = state.earnP, x = e && e[k];
+    document.querySelectorAll('[data-ep]').forEach(function (b) { b.classList.toggle('on', b.dataset.ep === k); });
+    $('adm-earn-com').textContent = x ? fmtExact(x.commission) : '—';
+    $('adm-earn-sub').textContent = x ? 'من ' + x.trades + ' صفقة مكتملة' : 'يتطلب نشر آخر تحديث لدالة p2p';
+    var dl = $('adm-earn-kv'); dl.textContent = '';
+    if (x) { kvRow(dl, 'حجم التداول', fmtExact(x.volume) + ' USDT'); kvRow(dl, 'رسوم الشبكة المحصّلة', fmtExact(x.net_fees) + ' USDT'); kvRow(dl, 'أين هي؟', el('span', 'direction:rtl;unicode-bidi:isolate', 'رصيد حسابك في OxaPay')); }
+    var ob = $('adm-earn-other'); ob.textContent = '';
+    function src(title, text, url, label) {
+      var r = el('div'); r.className = 'earn-src'; var d = el('div'); d.appendChild(el('b', null, title)); d.appendChild(el('small', null, text)); r.appendChild(d);
+      if (url) { var a = el('button', null, label || 'فتح'); a.type = 'button'; a.className = 'chip'; a.style.flexShrink = '0'; a.onclick = function () { window.open(url, '_blank'); }; r.appendChild(a); }
+      ob.appendChild(r);
+    }
+    if (core.feeEnabled && core.feeEnabled()) src('عمولة التبديل على TRON (' + core.feeRateText() + ')', 'تصل TRX مباشرة إلى عنوان العمولة.', core.network.explorer.replace('#/transaction/', '#/address/') + CFG.feeAddress, 'العنوان');
+    else src('عمولة التبديل على TRON', 'غير مفعّلة: لم يُضبط SARRA_FEE_ADDRESS في متغيرات GitHub، فلا تُخصم عمولة.', null);
+    if (CFG.lifiFee > 0) src('عمولة التبديل والنقل عبر LI.FI (' + (CFG.lifiFee * 100) + '%)', 'تتجمع في عقود LI.FI باسم المُدمِج "' + (CFG.lifiIntegrator || 'sarra-wallet') + '" وتُسحب من بوابة LI.FI بعد تسجيله وربط محفظتك.', 'https://portal.li.fi', 'البوابة');
+    else src('عمولة التبديل والنقل عبر LI.FI', 'غير مفعّلة في هذه النسخة (SARRA_LIFI_FEE = 0).', null);
+  }
+  document.querySelectorAll('[data-ep]').forEach(function (b) { b.onclick = function () { state.earnP = b.dataset.ep; renderEarn(); }; });
   $('adm-rate-go').onclick = async function () {
     try {
       var r = await p2p('admin.rate.set', { sdg_per_usdt: $('adm-rate').value, band_pct: state.p2p.band });
