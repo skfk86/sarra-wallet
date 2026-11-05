@@ -1100,8 +1100,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <h2 class="muted" style="font-size:13px">الرسوم</h2>
   <dl class="kv card" style="padding:4px 16px">
     <div><dt>الإرسال والاستلام</dt><dd>رسوم الشبكة فقط، بدون عمولة</dd></div>
-    <div><dt>التبديل</dt><dd><bdi id="about-swapfee">0.5%</bdi> + رسوم SunSwap</dd></div>
-    <div><dt>سوق P2P</dt><dd>0.5% + 1 USDT رسوم الشبكة</dd></div>
+    <div><dt>التبديل على TRON</dt><dd><bdi id="about-swapfee">0.8%</bdi> + رسوم SunSwap</dd></div>
+    <div><dt>التبديل على BNB/Ethereum/Polygon</dt><dd><bdi id="about-evmfee">0.8%</bdi></dd></div>
+    <div><dt>النقل بين الشبكات</dt><dd><bdi id="about-brfee">0.5%</bdi></dd></div>
+    <div><dt>سوق P2P</dt><dd>0.5% + رسوم الشبكة</dd></div>
     <div><dt>الإعلانات</dt><dd>لا يوجد</dd></div>
   </dl>
   <div class="note warn"><span>احفظ كلمات الاسترجاع الـ12 على ورقة. من يملكها يملك أموالك، ومن يفقدها يفقدها. لن نطلبها منك أبداً.</span></div>
@@ -1305,7 +1307,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var TRONGRID_API_KEY = CFG.trongridApiKey || '';
   var AUTO_LOCK_MS = 60000;
 
-  var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
+  var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiSwapFee: CFG.lifiSwapFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
   if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; } }; // للاختبارات الآلية فقط
@@ -3870,7 +3872,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     if (core.feeEnabled && core.feeEnabled()) src('عمولة التبديل على TRON (' + core.feeRateText() + ')', 'تصل TRX مباشرة إلى عنوان العمولة.', core.network.explorer.replace('#/transaction/', '#/address/') + CFG.feeAddress, 'العنوان');
     else src('عمولة التبديل على TRON', 'غير مفعّلة: لم يُضبط SARRA_FEE_ADDRESS في متغيرات GitHub، فلا تُخصم عمولة.', null);
-    if (CFG.lifiFee > 0) src('عمولة التبديل والنقل عبر LI.FI (' + (CFG.lifiFee * 100) + '%)', 'تتجمع في عقود LI.FI باسم المُدمِج "' + (CFG.lifiIntegrator || 'sarra-wallet') + '" وتُسحب من بوابة LI.FI بعد تسجيله وربط محفظتك.', 'https://portal.li.fi', 'البوابة');
+    if (CFG.lifiFee > 0 || CFG.lifiSwapFee > 0) src('عمولة LI.FI: التبديل ' + ((CFG.lifiSwapFee != null ? CFG.lifiSwapFee : CFG.lifiFee) * 100) + '% · النقل ' + (CFG.lifiFee * 100) + '%', 'تتجمع في عقود LI.FI باسم المُدمِج "' + (CFG.lifiIntegrator || 'surra-sd') + '" وتُسحب من بوابة LI.FI بعد تسجيله وربط محفظتك.', 'https://portal.li.fi', 'البوابة');
     else src('عمولة التبديل والنقل عبر LI.FI', 'غير مفعّلة في هذه النسخة (SARRA_LIFI_FEE = 0).', null);
   }
   document.querySelectorAll('[data-ep]').forEach(function (b) { b.onclick = function () { state.earnP = b.dataset.ep; renderEarn(); }; });
@@ -4163,7 +4165,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var m = b.dataset.menu;
       if (m === 'security') return resetTo('security');
       if (m === 'coins') { openCoinsHelp(); return; }
-      if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
+      if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; var pc = function (x) { return (Math.round((Number(x) || 0) * 10000) / 100) + '%'; }; $('about-evmfee').textContent = pc(CFG.lifiSwapFee != null ? CFG.lifiSwapFee : CFG.lifiFee); $('about-brfee').textContent = pc(CFG.lifiFee); $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
       if (m === 'account') openAccount();
       if (m === 'support') openSupport();

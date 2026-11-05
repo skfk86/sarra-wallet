@@ -13,9 +13,10 @@ const config = {
   trongridApiKey: process.env.TRONGRID_API_KEY || '',
   // عنوان TRON الذي تصله عمولة التبديل (فارغ = العمولة معطّلة)
   feeAddress: (process.env.SARRA_FEE_ADDRESS || '').trim(),
-  feeBps: Number(process.env.SARRA_FEE_BPS || 50),
-  // نقل بين الشبكات عبر LI.FI: عمولة صغيرة 0.2% (ضع 0 لإلغائها). تصلك بعد تسجيل محفظة العمولة في portal.li.fi
-  lifiFee: Number(process.env.SARRA_LIFI_FEE ?? '0.002') || 0,
+  feeBps: Number(process.env.SARRA_FEE_BPS || 80),
+  // عمولات LI.FI (تصلك بعد تسجيل المُدمِج في portal.li.fi): النقل بين الشبكات 0.5%، والتبديل داخل الشبكة 0.8%
+  lifiFee: Number(process.env.SARRA_LIFI_FEE ?? '0.005') || 0,
+  lifiSwapFee: Number(process.env.SARRA_LIFI_SWAP_FEE ?? '0.008') || 0,
   lifiIntegrator: process.env.SARRA_LIFI_INTEGRATOR || 'surra-sd',
   bridgeMax: Number(process.env.SARRA_BRIDGE_MAX || 2000),
   // خادم سوق P2P (Supabase Edge Function)
@@ -27,4 +28,4 @@ const config = {
 };
 
 writeFileSync('src/config.js', 'window.SARRA_CONFIG = ' + JSON.stringify(config) + ';\n');
-console.log('config.js written: network=' + config.network + ', apiKey=' + (config.trongridApiKey ? 'set' : 'empty') + ', fee=' + (config.feeAddress ? config.feeBps / 100 + '% to ' + config.feeAddress : 'disabled'));
+console.log('config.js written: network=' + config.network + ', apiKey=' + (config.trongridApiKey ? 'set' : 'empty') + ', fee=' + (config.feeAddress ? config.feeBps / 100 + '% to ' + config.feeAddress : 'disabled') + ', lifi=' + config.lifiIntegrator + ' bridge ' + config.lifiFee * 100 + '% swap ' + config.lifiSwapFee * 100 + '%');

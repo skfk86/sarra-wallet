@@ -289,7 +289,7 @@
     var apiKey = opts.apiKey || '';
     // عمولة التبديل: تُدفع بـ TRX (تحويل شبه مجاني) إلى عنوان المطوّر، وبعد نجاح التبديل فقط
     var feeAddress = opts.feeAddress || '';
-    var feeBps = BigInt(opts.feeBps == null ? 50 : opts.feeBps); // 50 = 0.5%
+    var feeBps = BigInt(opts.feeBps == null ? 80 : opts.feeBps); // 80 = 0.8%
     var MIN_FEE_SUN = 100000n; // لا عمولة أقل من 0.1 TRX
     var swapChecked = null;
     var session = null; // { address, privateKey } — في الذاكرة فقط بعد فتح القفل
@@ -804,7 +804,9 @@
         if (!fromAddr || !toAddr) throw new Error('LOCKED');
         var p = { fromChain: a.chain, toChain: b.chain, fromToken: a.addr, toToken: b.addr, fromAmount: units.toString(),
           fromAddress: fromAddr, toAddress: toAddr, slippage: '0.005', order: 'CHEAPEST', integrator: opts.lifiIntegrator || 'sarra-wallet' };
-        if (opts.lifiFee && Number(opts.lifiFee) > 0) p.fee = String(Math.min(Number(opts.lifiFee), 0.01));
+        // التبديل داخل الشبكة نفسها له نسبته، والنقل بين الشبكات نسبته (الحد الأقصى 1%)
+        var feeRate = Number(fromNet === toNet ? (opts.lifiSwapFee != null ? opts.lifiSwapFee : opts.lifiFee) : opts.lifiFee) || 0;
+        if (feeRate > 0) p.fee = String(Math.min(feeRate, 0.01));
         var r;
         try { r = await lifi('/quote?' + new URLSearchParams(p).toString()); }
         catch (e) {
