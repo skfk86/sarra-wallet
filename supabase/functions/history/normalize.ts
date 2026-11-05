@@ -43,3 +43,34 @@ export function fromEtherscan(_me: string, native: any[], tokens: any[]): Item[]
   out.sort((a, b) => b.t - a.t);
   return out.slice(0, 80);
 }
+
+// NodeReal (BNB Chain): nr_getAssetTransfers. القيمة hex والوقت بالثواني (أو بالملّي في بعض الردود)
+export function fromNodeReal(me: string, transfers: any[]): Item[] {
+  const out: Item[] = [];
+  const addr = lc(me);
+  for (const x of transfers || []) {
+    if (!x || !isHash(x.hash)) continue;
+    let v: string;
+    try { v = BigInt(String(x.value ?? '0')).toString(); } catch { continue; }
+    if (v === '0') continue;
+    const from = lc(x.from), to = lc(x.to);
+    if (from !== addr && to !== addr) continue;
+    let t = Number(x.blockTimeStamp ?? x.blockTimestamp);
+    if (!isFinite(t) || t <= 0) continue;
+    if (t > 1e12) t = Math.floor(t / 1000);
+    const cat = String(x.category);
+    const ok = x.receiptsStatus === undefined || Number(x.receiptsStatus) !== 0;
+    if (cat === '20') { if (!x.contractAddress) continue; out.push({ h: x.hash, k: 'token', c: lc(x.contractAddress), from, to, v, t, ok }); }
+    else if (cat === 'external' || cat === 'internal') out.push({ h: x.hash, k: 'native', from, to, v, t, ok });
+  }
+  return out;
+}
+
+// دمج الجديد مع المحفوظ (يتراكم السجل مع الوقت حتى لو كان المزوّد يعيد نافذة قصيرة فقط)
+export function mergeItems(oldItems: Item[], fresh: Item[], max = 200): Item[] {
+  const key = (i: Item) => [i.h, i.k, i.c || '', i.from, i.to, i.v].join('|');
+  const m = new Map<string, Item>();
+  for (const i of oldItems || []) m.set(key(i), i);
+  for (const i of fresh || []) m.set(key(i), i);
+  return [...m.values()].sort((a, b) => b.t - a.t).slice(0, max);
+}

@@ -245,4 +245,26 @@ t('سجل Moralis: الوارد والصادر والتوكن، وإهمال ا�
   assert.equal(out[2].k, 'native'); assert.equal(out[2].to, me.toLowerCase()); assert.equal(out[2].t, Date.parse('2026-11-01T10:00:00Z') / 1000);
 });
 
+t('سجل NodeReal (BNB Chain): hex والثواني/الملّي، والدمج يراكم دون تكرار', () => {
+  const me = '0x9858effd232b4033e47d90003d41ec34ecaeda94', o = '0x' + 'a'.repeat(40), h = (n: number) => '0x' + String(n).repeat(64).slice(0, 64);
+  const tr = [
+    { hash: h(1), category: 'external', from: o, to: me, value: '0x38d7ea4c68000', blockTimeStamp: 1793800000, receiptsStatus: 1 },
+    { hash: h(2), category: '20', from: me, to: o, value: '0x4563918244f40000', contractAddress: '0x55D398326f99059fF775485246999027B3197955', blockTimeStamp: '0x6aea8f00' },
+    { hash: h(3), category: '20', from: o, to: me, value: '0x0', contractAddress: '0x' + 'b'.repeat(40), blockTimeStamp: 1793800100 },
+    { hash: h(4), category: 'internal', from: o, to: me, value: '0x1', blockTimeStamp: 1793800200000 },
+    { hash: h(5), category: '721', from: o, to: me, value: '0x1', blockTimeStamp: 1793800300 }
+  ];
+  const a = H.fromNodeReal(me, tr);
+  assert.equal(a.length, 3);
+  assert.equal(a.find((x) => x.h === h(1))!.v, '1000000000000000');
+  assert.equal(a.find((x) => x.h === h(2))!.v, '5000000000000000000');
+  assert.equal(a.find((x) => x.h === h(2))!.t, 0x6aea8f00);
+  assert.equal(a.find((x) => x.h === h(4))!.t, 1793800200);
+  const old = [{ h: h(9), k: 'native' as const, from: o, to: me, v: '7', t: 1700000000, ok: true }, a[0]];
+  const m = H.mergeItems(old, a);
+  assert.equal(m.length, 4);                      // القديم محفوظ والمكرر لا يتكرر
+  assert.equal(m[m.length - 1].h, h(9));          // الأقدم في الآخر
+  assert.equal(H.mergeItems(m, [], 2).length, 2); // الحد الأقصى
+});
+
 console.log(`\n${pass} اختبارات P2P نجحت`);

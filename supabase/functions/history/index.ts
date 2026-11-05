@@ -3,7 +3,7 @@
 // طلب موقّع من المحفظة (مثل p2p) + حد أقصى للطلبات لكل مستخدم
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { TronWeb } from 'npm:tronweb@6.0.4';
-import { fromMoralis, fromEtherscan } from './normalize.ts';
+import { fromMoralis, fromEtherscan, fromNodeReal, mergeItems } from './normalize.ts';
 
 // نسخة مطابقة لـ parseSignedMessage في _shared/logic.ts (الدالة مستقلة كي تُنشر كملف واحد)
 type SignedMsg = { action: string; params: Record<string, unknown>; address: string; ts: number; nonce: string };
@@ -23,6 +23,7 @@ const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
 const clean = (k: string) => (Deno.env.get(k) ?? '').replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
 const KEY = clean('ETHERSCAN_API_KEY');
 const MORALIS = clean('MORALIS_API_KEY');
+const NODEREAL = clean('NODEREAL_API_KEY'); // مجاني، لشبكة BNB Chain (Etherscan المجاني لا يغطيها)
 const MORALIS_CHAIN: Record<number, string> = { 1: 'eth', 56: 'bsc', 137: 'polygon' };
 const CHAINS = new Set([1, 56, 137]);
 const TTL_MS = 90_000;
@@ -47,7 +48,22 @@ async function moralis(chain: number, addr: string) {
   const j = await r.json();
   return fromMoralis(addr, j.result || []);
 }
+async function nodereal(addr: string) {
+  const call = async (dir: 'fromAddress' | 'toAddress') => {
+    const r = await fetch(`https://bsc-mainnet.nodereal.io/v1/${NODEREAL}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'nr_getAssetTransfers', params: [{ category: ['external', 'internal', '20'], [dir]: addr, toBlock: 'latest', order: 'desc', maxCount: '0x64' }] })
+    });
+    if (!r.ok) throw new Error('CHAIN_UNAVAILABLE');
+    const j = await r.json();
+    if (j.error) throw new Error('CHAIN_UNAVAILABLE');
+    return j.result?.transfers || [];
+  };
+  const [a, b] = await Promise.all([call('fromAddress'), call('toAddress')]);
+  return fromNodeReal(addr, [...a, ...b]);
+}
 async function fetchHistory(chain: number, addr: string) {
+  if (chain === 56 && NODEREAL && !MORALIS) return nodereal(addr);
   if (MORALIS) {
     try { return await moralis(chain, addr); } catch (e) { if (!KEY) throw e; }
   }
@@ -59,7 +75,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return fail('METHOD', 405);
   try {
-    if (!KEY && !MORALIS) return fail('NOT_CONFIGURED', 503);
+    if (!KEY && !MORALIS && !NODEREAL) return fail('NOT_CONFIGURED', 503);
     const { message, signature } = await req.json();
     if (typeof message !== 'string' || typeof signature !== 'string') return fail('UNAUTHORIZED', 401);
     const m = parseSignedMessage(message, Date.now());
@@ -79,7 +95,8 @@ Deno.serve(async (req) => {
     const { data: row } = await db.from('evm_history_cache').select('body,fetched_at').eq('chain', chain).eq('addr', addr).maybeSingle();
     if (row && Date.now() - Date.parse(row.fetched_at) < TTL_MS) return json({ items: row.body, fetched_at: row.fetched_at, stale: false });
     try {
-      const items = await fetchHistory(chain, addr);
+      // يُدمج مع المحفوظ: NodeReal يعيد آخر ~12 ساعة فقط، فيتراكم السجل مع كل فتح
+      const items = mergeItems(row?.body || [], await fetchHistory(chain, addr));
       const at = new Date().toISOString();
       await db.from('evm_history_cache').upsert({ chain, addr, body: items, fetched_at: at });
       if (Math.random() < 0.02) db.rpc('history_cleanup').then(() => {}, () => {});

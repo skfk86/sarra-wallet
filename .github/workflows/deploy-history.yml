@@ -3,7 +3,7 @@ name: Deploy history function (manual)
 # نشر يدوي فقط لدالة سجل المعاملات (history) على Supabase. لا يعمل تلقائياً أبداً.
 # يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN : من supabase.com → Account → Access Tokens
-# ويحتاج في Supabase نفسه (Edge Functions → Secrets): MORALIS_API_KEY
+# ويحتاج في Supabase نفسه (Edge Functions → Secrets): ETHERSCAN_API_KEY (Ethereum وPolygon) وNODEREAL_API_KEY (BNB Chain)، وMORALIS_API_KEY اختياري
 on:
   workflow_dispatch:
 
