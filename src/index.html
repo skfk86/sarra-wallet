@@ -78,7 +78,16 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 @media (max-width:340px){#s-home .hero-card{padding:18px 16px}#s-home .hero-card .net-stack .logos img{width:22px;height:22px}}
 .actions{display:grid;grid-template-columns:repeat(var(--acols,3),minmax(0,1fr));gap:8px}
 .action{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;cursor:pointer;color:var(--tx);font-size:13px;font-weight:500;padding:0}
-.action span.ic{width:56px;height:56px;border-radius:18px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.action span.ic{width:58px;height:58px;border-radius:20px;background:var(--s1);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+/* أزرار الإجراءات: لون مميّز لكل عملية، والإرسال بارز */
+#s-home .actions{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:14px 8px 12px;gap:4px}
+#s-home .action{font-size:12.5px;font-weight:700;color:var(--tx2)}
+#s-home .action span.ic{width:52px;height:52px;border-radius:16px;border:0;box-shadow:none}
+#s-home .action[data-go=send] span.ic{background:linear-gradient(140deg,#13a874,#0b7d57);color:#fff;box-shadow:0 6px 14px rgba(12,138,95,.3)}
+#s-home .action[data-go=receive] span.ic{background:var(--in-bg);color:var(--in)}
+#s-home .action[data-go=swap] span.ic{background:rgba(61,123,240,.12);color:#3d7bf0}
+#s-home .action[data-go=bridge] span.ic{background:rgba(139,92,240,.12);color:#8b5cf0}
+#s-home .action:active span.ic{transform:scale(.93)}
 .action.main span.ic{background:var(--ac);color:var(--on-ac);border:0}
 .asset{display:flex;align-items:center;gap:12px;padding:14px 16px}
 .asset+.asset{border-top:1px solid var(--div)}
@@ -166,7 +175,23 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .steps3 span{font-size:12px;text-align:center;padding:8px 2px 6px;border-top:3px solid var(--s2);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
-.ad{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.ad{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.ad-top{display:flex;align-items:center;gap:10px;min-width:0}
+.ad-av{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--ok-bg);color:var(--ac);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+.ad-b .ad-av{background:rgba(239,68,68,.1);color:var(--err)}
+.ad-win{font-size:11px;font-weight:600;color:var(--mu);background:var(--s2);padding:4px 8px;border-radius:999px;white-space:nowrap;flex-shrink:0}
+.ad-mid{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.ad-net{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(235,0,41,.12);color:#EB0029;white-space:nowrap}
+.ad-net.bsc{background:rgba(240,185,11,.16);color:#C99A06}
+.ad-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:var(--s2);border-radius:12px;padding:10px 12px}
+.ad-info div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ad-info span{font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-info b{font-size:13px;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-bot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ad-go{height:42px;min-width:110px;padding:0 22px;border-radius:12px;background:linear-gradient(135deg,#16a37a,var(--ac));color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0;box-shadow:0 4px 12px rgba(22,163,122,.25)}
+.ad-go.btn-sell{background:linear-gradient(135deg,#f05252,#dc2626);box-shadow:0 4px 12px rgba(220,38,38,.25);color:#fff}
+.ad-go:active{transform:scale(.97)}
+.buy-hero{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg,var(--ok-bg),transparent);border-radius:14px;padding:12px 14px}
 .btn-sell{background:var(--danger-bg)!important;color:var(--danger-tx)!important}
 .drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:60}
 .drawer-bg.show{opacity:1;pointer-events:auto}
@@ -1699,7 +1724,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     return w;
   }
   function priceOf(c) { if (c.stable) return { usd: 1, chg: state.prices && state.prices[c.sym] ? state.prices[c.sym].chg : null }; return state.prices && state.prices[c.sym] || null; }
-  function usd(n) { return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function usd(n) { n = Number(n); if (n > 0 && n < 0.01) return '<$0.01'; return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   // ≈ القيمة بالدولار لمبلغ من عملة (لا شيء إن لم يتوفر السعر)
   function usdOf(amount, sym) { var c = COINS.filter(function (x) { return x.sym === sym; })[0], p = c && priceOf(c), n = Number(String(amount || '').replace(/,/g, '')); return p && p.usd != null && isFinite(n) && n > 0 ? n * p.usd : null; }
   function usdEq(elm, amount, sym) { if (!elm) return; var v = usdOf(amount, sym); elm.textContent = v == null ? '' : '≈ ' + usd(v); }
@@ -1758,7 +1783,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   document.querySelectorAll('.ch-range button').forEach(function (b) {
     b.onclick = function () { CH.days = Number(b.dataset.days); document.querySelectorAll('.ch-range button').forEach(function (x) { x.classList.toggle('on', x === b); }); loadChart(); };
   });
-  function fmtPrice(v) { return v >= 1000 ? '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v >= 1 ? '$' + v.toFixed(2) : '$' + Number(v.toPrecision(4)); }
+  function fmtPrice(v) { if (v > 0 && v < 1e-4) return '$' + niceNum(v); return v >= 1000 ? '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : v >= 1 ? '$' + v.toFixed(2) : '$' + Number(v.toPrecision(4)); }
   async function loadChart() {
     var c = CH.coin, days = CH.days, key = 'sarra.ch.' + c.cg + '.' + days, data = null;
     $('ch-load').hidden = false; $('ch-load').textContent = 'جارٍ تحميل الرسم…';
@@ -2560,11 +2585,29 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     else askPin();
   };
   // ===== عرض المبالغ: فواصل آلاف دون أي تقريب (الخانات العشرية كما هي) =====
+  // عرض الأرقام بذكاء: لا أصفار طويلة. 0.00000000000495 ← 0.0₁₁495، و1234.5678 ← 1,234.57
+  // d: أقصى خانات عشرية للأرقام العادية. الأرقام الأصغر من ذلك تُعرض بأهم 4 أرقام بدل أن تظهر 0
+  var SUB = '₀₁₂₃₄₅₆₇₈₉';
+  function niceNum(v, d) {
+    var n = Number(String(v == null ? '' : v).replace(/,/g, ''));
+    if (!isFinite(n)) return String(v == null ? '' : v);
+    if (n === 0) return '0';
+    var a = Math.abs(n), sign = n < 0 ? '−' : '';
+    d = d == null ? 6 : d;
+    if (a >= 1) return sign + a.toLocaleString('en-US', { maximumFractionDigits: a >= 1000 ? Math.min(d, 2) : Math.min(d, 4) });
+    if (a >= 1e-4) return sign + a.toLocaleString('en-US', { maximumSignificantDigits: 4, maximumFractionDigits: Math.max(d, 8) });
+    // صغير جداً: نعدّ الأصفار بعد الفاصلة ونكتبها رقماً صغيراً، ثم أهم 3 أرقام
+    var e = Math.floor(Math.log10(a)), zeros = -e - 1, digits = (a / Math.pow(10, e)).toFixed(2).replace('.', '').replace(/0+$/, '');
+    var sub = String(zeros).split('').map(function (c) { return SUB[+c]; }).join('');
+    return sign + '0.0' + sub + digits;
+  }
   function fmtExact(v) {
     var t = String(v == null ? '' : v).trim().replace(/,/g, '');
     var m = /^(\d+)(?:\.(\d+))?$/.exec(t); if (!m) return String(v == null ? '' : v);
     var whole = m[1].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return m[2] ? whole + '.' + m[2] : whole;
+    if (whole === '0' && m[2] && /^0{4,}/.test(m[2])) return niceNum(t); // 0.00000123 ← 0.0₅123
+    var fr = m[2] ? m[2].replace(/0+$/, '') : '';
+    return fr ? whole + '.' + fr : whole;
   }
   // حجم الخط يصغّر تدريجياً مع طول الرقم كي لا يخرج عن الشاشة
   function fitAmt(node, text) {
@@ -2811,9 +2854,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
     try {
       var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); ES.q = q;
-      var f = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
+      var f = function (v) { return niceNum(v, 6); };
       $('es-out').textContent = f(q.toAmount) + ' ' + ES.to; $('es-min').textContent = f(q.toAmountMin) + ' ' + ES.to;
-      $('es-rate').textContent = Number(q.amount) > 0 ? '1 ' + ES.from + ' ≈ ' + (Number(q.toAmount) / Number(q.amount)).toLocaleString('en-US', { maximumSignificantDigits: 6 }) + ' ' + ES.to : '—';
+      $('es-rate').textContent = Number(q.amount) > 0 ? '1 ' + ES.from + ' ≈ ' + niceNum(Number(q.toAmount) / Number(q.amount), 6) + ' ' + ES.to : '—';
       var usd2 = function (v) { return v < 0.01 ? 'أقل من $0.01' : '≈ $' + v.toFixed(2); };
       $('es-pay').textContent = f(q.amount) + ' ' + ES.from;
       $('es-app').textContent = q.appFee ? f(Number(q.amount) * q.appFee) + ' ' + ES.from + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
@@ -2907,13 +2950,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var q = await core.quoteSwap(state.swapDir, v);
       if (seq !== swapSeq) return;
       var min = q.outUnits * BigInt(10000 - SWAP_SLIPPAGE_BPS) / 10000n;
-      $('sw-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 }); usdEq($('sw-usd-out'), q.out, swapSyms()[1]);
-      $('sw-min').textContent = Number(WalletCore.fromUnits(min, 6)).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + swapSyms()[1];
+      $('sw-out').textContent = niceNum(q.out, 4); usdEq($('sw-usd-out'), q.out, swapSyms()[1]);
+      $('sw-min').textContent = niceNum(WalletCore.fromUnits(min, 6), 4) + ' ' + swapSyms()[1];
       var fee = core.swapFeeUnits(state.swapDir, q.inUnits, min);
       $('sw-fee-row').hidden = !core.feeEnabled();
       $('sw-fee').textContent = fee > 0n ? core.feeRateText() + ' (' + WalletCore.fromUnits(fee, 6) + ' TRX)' : 'لا عمولة على هذا المبلغ';
       var sy = swapSyms(), inN = Number(WalletCore.fromUnits(q.inUnits, 6)), outN = Number(q.out);
-      $('sw-rate').textContent = inN > 0 ? '1 ' + sy[0] + ' ≈ ' + (outN / inN).toLocaleString('en-US', { maximumSignificantDigits: 5 }) + ' ' + sy[1] : '—';
+      $('sw-rate').textContent = inN > 0 ? '1 ' + sy[0] + ' ≈ ' + niceNum(outN / inN, 6) + ' ' + sy[1] : '—';
       $('sw-route').textContent = sy[0] + ' → ' + sy[1] + ' · عبر SunSwap';
       $('sw-slip').textContent = (SWAP_SLIPPAGE_BPS / 100) + '%';
       state.swapQuote = { dir: state.swapDir, amt: v, out: q.out, min: Number(WalletCore.fromUnits(min, 6)), rate: $('sw-rate').textContent };
@@ -2935,8 +2978,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var q = state.swapQuote; if (!q) return;
     var s = swapSyms();
     $('swc-in').textContent = q.amt + ' ' + s[0];
-    $('swc-out').textContent = Number(q.out).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
-    $('swc-min').textContent = Number(q.min).toLocaleString('en-US', { maximumFractionDigits: 4 }) + ' ' + s[1];
+    $('swc-out').textContent = niceNum(q.out, 4) + ' ' + s[1];
+    $('swc-min').textContent = niceNum(q.min, 4) + ' ' + s[1];
     $('swc-rate').textContent = q.rate || '—';
     $('sw-sheet').classList.add('show');
   };
@@ -3003,7 +3046,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
     try {
       var q = await core.bridgeQuote(BR.from, BR.to, BR.coin, amt); BR.q = q;
-      var fmt = function (v) { return Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 }); };
+      var fmt = function (v) { return niceNum(v, 6); };
       $('br-out').textContent = fmt(q.toAmount) + ' ' + BR.coin + ' · ' + netOf(BR.to).name;
       $('br-min').textContent = fmt(q.toAmountMin) + ' ' + BR.coin;
       var usd2b = function (v) { return v < 0.01 ? 'أقل من $0.01' : '≈ $' + v.toFixed(2); }, fn = netOf(BR.from), gc = fn.evm ? fn.native : 'TRX';
@@ -3190,7 +3233,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!res.ok || j.error) throw new Error(j.error || 'SERVER');
     return j;
   }
-  function fmt(n, d) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: d == null ? 2 : d }); }
+  function fmt(n, d) { return niceNum(n, d == null ? 2 : d); }
   function el(tag, css, text) { var e = document.createElement(tag); if (css) e.style.cssText = css; if (text != null) e.textContent = text; return e; }
 
   state.p2p = { tab: 'market', me: null, offer: null, orderId: null, poll: 0 };
@@ -3326,35 +3369,41 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     box.textContent = '';
     if (!list.length) return emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا يوجد من يريد الشراء الآن' : 'لا توجد إعلانات بيع الآن');
     list.forEach(function (o) {
-        var sp = o.seller_profile || {};
-        var c = el('div'); c.className = 'ad';
-        var top = el('div', 'display:flex;align-items:center;gap:8px;min-width:0');
-        top.appendChild(el('span', 'width:28px;height:28px;flex-shrink:0;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px', (sp.nickname || '؟').charAt(0)));
-        top.appendChild(el('b', 'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', sp.nickname || 'بائع'));
-        if (sp.verified) { var vb = el('span', null, 'موثّق ✓'); vb.className = 'vbadge'; top.appendChild(vb); }
-        c.appendChild(top);
+        var sp = o.seller_profile || {}, isBuyAd = o.side === 'buy';
+        var c = el('div'); c.className = 'ad' + (isBuyAd ? ' ad-b' : '');
+        var top = el('div'); top.className = 'ad-top';
+        top.appendChild(el('span', null, (sp.nickname || '؟').charAt(0))).className = 'ad-av';
+        var wi = el('div', 'display:flex;flex-direction:column;gap:2px;min-width:0;flex-grow:1');
+        var nm = el('div', 'display:flex;align-items:center;gap:6px;min-width:0');
+        nm.appendChild(el('b', 'font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', sp.nickname || 'بائع'));
+        if (sp.verified) { var vb = el('span', null, 'موثّق ✓'); vb.className = 'vbadge'; nm.appendChild(vb); }
+        wi.appendChild(nm);
         var meta = el('div'); meta.className = 'ad-meta';
         meta.appendChild(el('span', null, (sp.trades_completed || 0) + ' صفقة'));
         if (sp.completion != null) meta.appendChild(el('span', null, 'إتمام ' + sp.completion + '%'));
-        meta.appendChild(el('span', null, 'مهلة ' + o.pay_window_min + ' د'));
         if (sp.disputes_lost) meta.appendChild(el('span', 'color:var(--err)', 'خسر ' + sp.disputes_lost + ' نزاع'));
-        c.appendChild(meta);
-        var bot = el('div', 'display:flex;align-items:flex-end;justify-content:space-between;gap:10px');
-        var pr = el('div', 'display:flex;flex-direction:column;gap:4px;min-width:0');
-        var price = el('div', 'display:flex;align-items:baseline;gap:4px');
-        price.appendChild(el('b', 'font-size:22px;direction:ltr', fmt(o.price_sdg)));
-        price.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'ج.س'));
-        pr.appendChild(price);
-        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', (o.side === 'buy' ? 'يريد أن يشتري منك حتى ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT'));
-        pr.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'الحدود ' + fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT'));
-        var tgs = el('div', 'display:flex;gap:6px;flex-wrap:wrap');
-        var tg = el('span', null, o.side === 'buy' ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; tgs.appendChild(tg);
-        tgs.appendChild(el('span', 'font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:' + (o.network === 'BEP20' ? 'rgba(240,185,11,.16);color:#C99A06' : 'rgba(235,0,41,.12);color:#EB0029'), netLabel(o.network)));
-        pr.appendChild(tgs);
-        bot.appendChild(pr);
-        var isBuyAd = o.side === 'buy';
-        var go = el('button', 'height:40px;padding:0 22px;border-radius:10px;background:var(--ac);color:var(--on-ac);border:0;font:inherit;font-weight:700;cursor:pointer;flex-shrink:0', isBuyAd ? 'بيع له' : 'شراء');
-        if (isBuyAd) go.className = 'btn-sell';
+        wi.appendChild(meta);
+        top.appendChild(wi);
+        top.appendChild(el('span', null, '⏱ ' + o.pay_window_min + ' د')).className = 'ad-win';
+        c.appendChild(top);
+        var mid = el('div'); mid.className = 'ad-mid';
+        var price = el('div', 'display:flex;flex-direction:column;gap:2px;min-width:0');
+        price.appendChild(el('span', 'font-size:11px;color:var(--mu)', 'السعر لكل USDT'));
+        var pv = el('div', 'display:flex;align-items:baseline;gap:4px');
+        pv.appendChild(el('b', 'font-size:24px;direction:ltr;letter-spacing:-.5px', fmt(o.price_sdg)));
+        pv.appendChild(el('span', 'font-size:12px;color:var(--mu);font-weight:600', 'ج.س'));
+        price.appendChild(pv); mid.appendChild(price);
+        var nt = el('span', null, netLabel(o.network)); nt.className = 'ad-net' + (o.network === 'BEP20' ? ' bsc' : ''); mid.appendChild(nt);
+        c.appendChild(mid);
+        var inf = el('div'); inf.className = 'ad-info';
+        [[isBuyAd ? 'يريد أن يشتري منك حتى' : 'المتاح', fmt(o.available_usdt) + ' USDT'], ['الحدود', fmt(o.min_usdt) + ' – ' + fmt(Math.min(o.max_usdt, o.available_usdt)) + ' USDT']].forEach(function (x) {
+          var d = el('div'); d.appendChild(el('span', null, x[0])); d.appendChild(el('b', null, x[1])); inf.appendChild(d);
+        });
+        c.appendChild(inf);
+        var bot = el('div'); bot.className = 'ad-bot';
+        var tg = el('span', null, isBuyAd ? 'يدفع عبر بنكك' : 'بنكك'); tg.className = 'tag-bk'; bot.appendChild(tg);
+        var go = el('button', null, isBuyAd ? 'بيع له' : 'شراء');
+        go.className = 'ad-go' + (isBuyAd ? ' btn-sell' : '');
         go.type = 'button';
         go.onclick = function () { state.p2p.offer = o; openBuy(want); };
         bot.appendChild(go);
@@ -3415,10 +3464,19 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     who.appendChild(wi);
     var tg = el('span', null, 'بنكك'); tg.className = 'tag-bk'; who.appendChild(tg);
     box.appendChild(who);
+    var hero = el('div'); hero.className = 'buy-hero';
+    var hl = el('div', 'display:flex;flex-direction:column;gap:2px');
+    hl.appendChild(el('span', 'font-size:12px;color:var(--mu)', 'السعر لكل USDT'));
+    var hp = el('div', 'display:flex;align-items:baseline;gap:5px');
+    hp.appendChild(el('b', 'font-size:28px;direction:ltr;letter-spacing:-.5px', fmt(o.price_sdg)));
+    hp.appendChild(el('span', 'font-size:13px;color:var(--mu);font-weight:600', 'ج.س'));
+    hl.appendChild(hp); hero.appendChild(hl);
+    var hn = el('span', null, netLabel(o.network)); hn.className = 'ad-net' + (o.network === 'BEP20' ? ' bsc' : ''); hero.appendChild(hn);
+    box.appendChild(hero);
     var maxNow = Math.min(Number(o.max_usdt), Number(o.available_usdt));
     var grid = el('div'); grid.className = 'stat-grid';
-    [['السعر', fmt(o.price_sdg) + ' ج.س'], [sell ? 'يريد شراء' : 'المتاح', fmt(o.available_usdt) + ' USDT'],
-     ['الحدود', fmt(o.min_usdt) + ' – ' + fmt(maxNow) + ' USDT'], ['مهلة الدفع', o.pay_window_min + ' دقيقة'], ['الشبكة', netLabel(o.network)], ['رسوم الشبكة', netFeeOf(o) + ' USDT']].forEach(function (x) {
+    [[sell ? 'يريد شراء' : 'المتاح', fmt(o.available_usdt) + ' USDT'],
+     ['الحدود', fmt(o.min_usdt) + ' – ' + fmt(maxNow) + ' USDT'], ['مهلة الدفع', o.pay_window_min + ' دقيقة'], ['رسوم الشبكة', netFeeOf(o) + ' USDT']].forEach(function (x) {
       var s = el('div'); s.className = 'stat'; s.appendChild(el('span', null, x[0])); s.appendChild(el('b', null, x[1])); grid.appendChild(s);
     });
     box.appendChild(grid);
