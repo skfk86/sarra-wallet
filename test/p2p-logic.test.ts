@@ -1,6 +1,7 @@
 // اختبار منطق P2P: node --experimental-strip-types test/p2p-logic.test.ts
 import assert from 'node:assert/strict';
 import * as L from '../supabase/functions/_shared/logic.ts';
+import * as H from '../supabase/functions/history/normalize.ts';
 
 let pass = 0;
 const t = (name: string, fn: () => void) => { fn(); pass++; console.log('✓', name); };
@@ -206,7 +207,6 @@ t('P2P: BNB Smart Chain فقط للإعلانات والصفقات الجديد�
   assert.equal(L.isTradableOffer({}), false);
 });
 
-console.log(`\n${pass} اختبارات P2P نجحت`);
 
 t('BEP20 escrow: seller funds and payout targets', () => {
   L.checkSellerFundsBep(10000000n, 300000000000000n, '10');
@@ -224,3 +224,25 @@ t('هامش رسوم بوابة الضمان 1.5% على رصيد البائع',
   assert.equal(L.withEscrowFee('10'), 10150000n);
   assert.equal(L.withEscrowFee('100'), 101500000n);
 });
+
+// ===== سجل EVM: تحويل رد Moralis =====
+t('سجل Moralis: الوارد والصادر والتوكن، وإهمال السبام والصفر والفاشل يُعلَّم', () => {
+  const me = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', other = '0x' + '1'.repeat(40);
+  const h = (n: number) => '0x' + String(n).repeat(64).slice(0, 64);
+  const res = [
+    { hash: h(1), block_timestamp: '2026-11-01T10:00:00.000Z', receipt_status: '1', native_transfers: [{ from_address: other, to_address: me.toLowerCase(), value: '1000000000000000' }], erc20_transfers: [] },
+    { hash: h(2), block_timestamp: '2026-11-02T10:00:00.000Z', receipt_status: '1', native_transfers: [], erc20_transfers: [{ address: '0x55D398326f99059fF775485246999027B3197955', from_address: me, to_address: other, value: '5000000000000000000' }] },
+    { hash: h(3), block_timestamp: '2026-11-03T10:00:00.000Z', receipt_status: '1', possible_spam: true, native_transfers: [], erc20_transfers: [{ address: '0x' + '2'.repeat(40), from_address: other, to_address: me, value: '9' }] },
+    { hash: h(4), block_timestamp: '2026-11-03T11:00:00.000Z', receipt_status: '1', native_transfers: [], erc20_transfers: [{ address: '0x' + '3'.repeat(40), from_address: other, to_address: me, value: '7', possible_spam: true }, { address: '0x' + '4'.repeat(40), from_address: other, to_address: me, value: '0' }] },
+    { hash: h(5), block_timestamp: '2026-11-04T10:00:00.000Z', receipt_status: '0', native_transfers: [{ from_address: me, to_address: other, value: '2' }], erc20_transfers: [] },
+    { hash: 'bad', block_timestamp: '2026-11-04T10:00:00.000Z', native_transfers: [{ from_address: other, to_address: me, value: '1' }] }
+  ];
+  const out = H.fromMoralis(me, res);
+  assert.equal(out.length, 3);
+  assert.deepEqual(out.map((x) => x.h), [h(5), h(2), h(1)]);         // الأحدث أولاً
+  assert.equal(out[0].ok, false);                                     // معاملة فاشلة تبقى معلَّمة
+  assert.equal(out[1].k, 'token'); assert.equal(out[1].c, '0x55d398326f99059ff775485246999027b3197955'); assert.equal(out[1].from, me.toLowerCase());
+  assert.equal(out[2].k, 'native'); assert.equal(out[2].to, me.toLowerCase()); assert.equal(out[2].t, Date.parse('2026-11-01T10:00:00Z') / 1000);
+});
+
+console.log(`\n${pass} اختبارات P2P نجحت`);

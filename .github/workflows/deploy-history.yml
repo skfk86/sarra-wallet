@@ -1,0 +1,32 @@
+name: Deploy history function (manual)
+
+# نشر يدوي فقط لدالة سجل المعاملات (history) على Supabase. لا يعمل تلقائياً أبداً.
+# يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN : من supabase.com → Account → Access Tokens
+# ويحتاج في Supabase نفسه (Edge Functions → Secrets): MORALIS_API_KEY
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Unit tests (must pass before deploy)
+        run: npm test
+      - name: Check token
+        env:
+          T: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$T" ]; then echo "::error::أضف SUPABASE_ACCESS_TOKEN في أسرار المستودع أولاً"; exit 1; fi
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy history --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api

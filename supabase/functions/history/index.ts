@@ -1,7 +1,9 @@
-// سجل معاملات EVM عبر Etherscan API V2 (مفتاح واحد لعدة شبكات) مع ذاكرة مؤقتة في القاعدة
+// سجل معاملات EVM مع ذاكرة مؤقتة في القاعدة. المزوّد: Moralis (مجاني ويغطي BNB وEthereum وPolygon)،
+// ثم Etherscan V2 احتياطياً (خطته المجانية لم تعد تغطي BNB Chain منذ أواخر 2025)
 // طلب موقّع من المحفظة (مثل p2p) + حد أقصى للطلبات لكل مستخدم
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { TronWeb } from 'npm:tronweb@6.0.4';
+import { fromMoralis, fromEtherscan } from './normalize.ts';
 
 // نسخة مطابقة لـ parseSignedMessage في _shared/logic.ts (الدالة مستقلة كي تُنشر كملف واحد)
 type SignedMsg = { action: string; params: Record<string, unknown>; address: string; ts: number; nonce: string };
@@ -18,7 +20,10 @@ function parseSignedMessage(message: string, now: number, maxSkewMs = 300000): S
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
-const KEY = Deno.env.get('ETHERSCAN_API_KEY') || '';
+const clean = (k: string) => (Deno.env.get(k) ?? '').replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
+const KEY = clean('ETHERSCAN_API_KEY');
+const MORALIS = clean('MORALIS_API_KEY');
+const MORALIS_CHAIN: Record<number, string> = { 1: 'eth', 56: 'bsc', 137: 'polygon' };
 const CHAINS = new Set([1, 56, 137]);
 const TTL_MS = 90_000;
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization, apikey', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
@@ -35,25 +40,26 @@ async function scan(chain: number, action: string, addr: string) {
   throw new Error('CHAIN_UNAVAILABLE'); // مفتاح غير صالح/شبكة غير مغطاة/حد الطلبات
 }
 
-// صيغة موحّدة صغيرة: لا نحفظ إلا ما تعرضه الواجهة
-function normalize(me: string, native: any[], tokens: any[]) {
-  const out: any[] = [];
-  for (const t of native) {
-    if (t.value === '0' && t.input && t.input !== '0x') continue; // استدعاء عقد بلا تحويل (يظهر عبر tokentx إن وُجد)
-    out.push({ h: t.hash, k: 'native', from: String(t.from).toLowerCase(), to: String(t.to || '').toLowerCase(), v: t.value, t: Number(t.timeStamp), ok: t.isError === '0' });
+async function moralis(chain: number, addr: string) {
+  const u = `https://deep-index.moralis.io/api/v2.2/wallets/${addr}/history?chain=${MORALIS_CHAIN[chain]}&order=DESC&limit=50`;
+  const r = await fetch(u, { headers: { accept: 'application/json', 'X-API-Key': MORALIS } });
+  if (!r.ok) throw new Error('CHAIN_UNAVAILABLE'); // مفتاح غير صالح أو تجاوز الحصة المجانية
+  const j = await r.json();
+  return fromMoralis(addr, j.result || []);
+}
+async function fetchHistory(chain: number, addr: string) {
+  if (MORALIS) {
+    try { return await moralis(chain, addr); } catch (e) { if (!KEY) throw e; }
   }
-  for (const t of tokens) {
-    out.push({ h: t.hash, k: 'token', c: String(t.contractAddress).toLowerCase(), s: t.tokenSymbol, d: Number(t.tokenDecimal), from: String(t.from).toLowerCase(), to: String(t.to).toLowerCase(), v: t.value, t: Number(t.timeStamp), ok: true });
-  }
-  out.sort((a, b) => b.t - a.t);
-  return out.slice(0, 80);
+  const [native, tokens] = await Promise.all([scan(chain, 'txlist', addr), scan(chain, 'tokentx', addr)]);
+  return fromEtherscan(addr, native, tokens);
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return fail('METHOD', 405);
   try {
-    if (!KEY) return fail('NOT_CONFIGURED', 503);
+    if (!KEY && !MORALIS) return fail('NOT_CONFIGURED', 503);
     const { message, signature } = await req.json();
     if (typeof message !== 'string' || typeof signature !== 'string') return fail('UNAUTHORIZED', 401);
     const m = parseSignedMessage(message, Date.now());
@@ -73,8 +79,7 @@ Deno.serve(async (req) => {
     const { data: row } = await db.from('evm_history_cache').select('body,fetched_at').eq('chain', chain).eq('addr', addr).maybeSingle();
     if (row && Date.now() - Date.parse(row.fetched_at) < TTL_MS) return json({ items: row.body, fetched_at: row.fetched_at, stale: false });
     try {
-      const [native, tokens] = await Promise.all([scan(chain, 'txlist', addr), scan(chain, 'tokentx', addr)]);
-      const items = normalize(addr, native, tokens);
+      const items = await fetchHistory(chain, addr);
       const at = new Date().toISOString();
       await db.from('evm_history_cache').upsert({ chain, addr, body: items, fetched_at: at });
       if (Math.random() < 0.02) db.rpc('history_cleanup').then(() => {}, () => {});
