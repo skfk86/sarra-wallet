@@ -30,7 +30,7 @@ async def main():
     await pg.wait_for_timeout(1500)
     net=[t for t in toasts if 'الاتصال' in t]
     print('history requests during 16 switches:', hits['hist']-h0['hist'], '| p2p:', hits['p2p']-h0['p2p'], '| network error toasts:', net)
-    assert not net and hits['hist']-h0['hist']<=2
+    assert not net and hits['hist']-h0['hist']<=4  # يشمل فحص الاستلام الدوري (كل ~12 ث)
     print('OK')
     await b.close()
 asyncio.run(main())

@@ -1639,7 +1639,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
   async function loadHome(force) {
-    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { rxTick(true); }, 1500); } // فتح التطبيق: افحص فوراً ما وصل أثناء إغلاقه
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 800); } // فتح التطبيق: افحص فوراً ما وصل أثناء إغلاقه
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
     renderBalances();
@@ -2846,12 +2846,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RX.busy = true;
     try {
       RX.tick++;
-      if (force === true || RX.tick % 2 === 1) await rxPollTron().catch(function () {}); // كل ~50 ثانية: مفتاح TronGrid مشترك بين كل المستخدمين
-      if (force === true || RX.tick % 3 === 1) await rxPollEvm().catch(function () {});
+      // التطبيق أمامك: TRON كل ~12 ثانية وشبكات EVM كل ~24 ثانية. في الخلفية: أبطأ لتوفير البطارية والطلبات
+      var bg = document.hidden;
+      if (force === true || RX.tick % (bg ? 4 : 1) === 0) await rxPollTron().catch(function () {});
+      if (force === true || RX.tick % (bg ? 6 : 2) === 0) await rxPollEvm().catch(function () {});
     } finally { RX.busy = false; }
     rxShow();
   }
-  setInterval(rxTick, 25000);
+  setInterval(rxTick, 12000);
   setTimeout(rxTick, 4000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) rxTick(true); }); // العودة للتطبيق: فحص فوري
   async function doSend() {
