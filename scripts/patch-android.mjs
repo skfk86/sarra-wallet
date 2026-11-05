@@ -61,3 +61,7 @@ cpSync('resources/android', 'android/app/src/main/res', { recursive: true });
 writeFileSync('android/app/src/main/res/values/ic_launcher_background.xml',
   '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#071222</color>\n</resources>\n');
 console.log('App icon copied (mipmap-*), adaptive background #071222');
+
+// إشعارات المعاملات: صوت عملة + أيقونة عملة للشريط
+cpSync('android-src/res', 'android/app/src/main/res', { recursive: true });
+console.log('notification sound (raw/coin.wav) and icon (drawable/ic_stat_coin) added');

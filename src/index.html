@@ -1639,6 +1639,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
   async function loadHome(force) {
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { rxTick(true); }, 1500); } // فتح التطبيق: افحص فوراً ما وصل أثناء إغلاقه
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
     renderBalances();
@@ -2747,7 +2748,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var p = await LN.checkPermissions();
       if (p.display !== 'granted') p = await LN.requestPermissions();
       lnOk = p.display === 'granted';
-      if (lnOk && LN.createChannel) await LN.createChannel({ id: 'tx', name: 'المعاملات', description: 'استلام وخصم', importance: 4, visibility: 1 }).catch(function () {});
+      if (lnOk && LN.createChannel) await LN.createChannel({ id: 'tx2', name: 'المعاملات', description: 'استلام وخصم', importance: 5, visibility: 1, sound: 'coin.wav', vibration: true, lights: true, lightColor: '#16A37A' }).catch(function () {});
     } catch (e) { lnOk = false; }
     return lnOk;
   }
@@ -2755,7 +2756,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!(await lnReady())) return;
     var a = state.hidden ? '' : ' ' + fmtExact(n.amount) + ' ' + n.coin;
     try {
-      await LN.schedule({ notifications: [{ id: ++lnId, channelId: 'tx',
+      await LN.schedule({ notifications: [{ id: ++lnId, channelId: 'tx2', smallIcon: 'ic_stat_coin', iconColor: '#16A37A', sound: 'coin.wav',
         title: kind === 'recv' ? 'وصلتك تحويلة' : 'تم خصم مبلغ من محفظتك',
         body: (kind === 'recv' ? 'استلمت' + (a ? ' +' + a.trim() : '') : 'خرج' + a) + ' على ' + chainLabel(n.net) + (kind === 'out' ? '. إن لم تكن أنت، احمِ محفظتك فوراً.' : '') }] });
     } catch (e) {}
