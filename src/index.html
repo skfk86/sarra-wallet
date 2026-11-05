@@ -1196,7 +1196,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
-  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); } }; // للاختبارات الآلية فقط
+  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; } }; // للاختبارات الآلية فقط
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
     Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: (function (ts) { return ts.slice(0, 2).concat([c.native], ts.slice(2)); })(c.tokens.map(function (t) { return t.sym; })), evm: true }; }));
   function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
@@ -1298,6 +1298,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (!$('scanner').hidden) { stopScan(); return; }
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
+      if ($('rx-sheet').classList.contains('show')) { rxClose(); return; }
+      if ($('sw-sheet').classList.contains('show')) { $('sw-sheet').classList.remove('show'); return; }
+      if ($('br-sheet').classList.contains('show')) { $('br-sheet').classList.remove('show'); return; }
+      if ($('coin-sheet').classList.contains('show')) { $('coin-sheet').classList.remove('show'); return; }
+      if ($('celebrate').classList.contains('show')) { $('cel-ok').click(); return; }
       if ($('coins-sheet').classList.contains('show')) { $('coins-sheet').classList.remove('show'); return; }
       if ($('gas-sheet').classList.contains('show')) { $('gas-sheet').classList.remove('show'); return; }
       if ($('ask-sheet').classList.contains('show')) { $('ask-no').click(); return; }
@@ -2418,7 +2423,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // ===== إشعار استلام تحويلة =====
   // مصدر حقيقي فقط: TRON من سجل الشبكة (معاملة واردة جديدة)، وشبكات EVM من زيادة فعلية في الرصيد.
   // لا تُعرض معاملاتك أنت (RX.own) ولا الغبار (أقل من 0.01)، ولا يتكرر إشعار العملية نفسها (معرّفات محفوظة).
-  var RX = { own: {}, evmBase: null, busy: false, q: [], cur: null, tick: 0 };
+  var RX = { own: {}, evmBase: null, busy: false, q: [], cur: null, tick: 0, expect: [] };
+  // وارد متوقع من عملياتك أنت (تبديل أو نقل بين الشبكات): لا يُعرض كـ"استلام تحويلة" عند وصوله
+  // تُطابق بالشبكة والعملة والمبلغ معاً (بين "أقل مبلغ مضمون" و"المتوقع" بهامش)، فلا يبتلع وارداً حقيقياً من شخص آخر
+  function rxExpect(q) {
+    var lo = Number(q.toAmountMin || 0) * 0.97, hi = Number(q.toAmount || q.toAmountMin || 0) * 1.05;
+    RX.expect.push({ net: q.toNet, coin: q.toSym || q.sym, lo: lo, hi: hi > 0 ? hi : Infinity, until: Date.now() + 3 * 3600000 });
+  }
+  function rxConsume(net, coin, amount) {
+    var now = Date.now(), a = Number(amount); RX.expect = RX.expect.filter(function (e) { return e.until > now; });
+    for (var i = 0; i < RX.expect.length; i++) { var e = RX.expect[i]; if (e.net === net && e.coin === coin && a >= e.lo && a <= e.hi) { RX.expect.splice(i, 1); return true; } }
+    return false;
+  }
   function rxGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function rxPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   async function rxPollTron() {
@@ -2430,6 +2446,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       list.filter(function (t) {
         return t.incoming && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01;
       }).reverse().forEach(function (t) {
+        if (rxConsume('tron', t.coin, t.exact)) return;
         RX.q.push({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid });
       });
     }
@@ -2453,6 +2470,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         var tk = EVM[k].tokens.filter(function (t) { return t.sym === sym; })[0], dec = sym === 'native' ? 18 : tk ? tk.dec : 18;
         var amt = WalletCore.fromUnits(diff, dec);
         if (Number(amt) < 0.01 && sym !== 'native') return;
+        if (rxConsume(k, sym === 'native' ? EVM[k].native : sym, amt)) return;
         RX.q.push({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
       });
     });
@@ -2479,19 +2497,19 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('rx-close').onclick = rxClose;
   $('rx-sheet').addEventListener('click', function (e) { if (e.target === $('rx-sheet')) rxClose(); });
   $('rx-detail').onclick = function () { if (RX.cur && RX.cur.url) window.open(RX.cur.url, '_blank'); };
-  async function rxTick() {
+  async function rxTick(force) {
     if (RX.busy || document.hidden || !core.isUnlocked() || state.txBusy) return;
     RX.busy = true;
     try {
       RX.tick++;
-      await rxPollTron().catch(function () {});
-      if (RX.tick % 3 === 1) await rxPollEvm().catch(function () {});
+      if (force === true || RX.tick % 2 === 1) await rxPollTron().catch(function () {}); // كل ~50 ثانية: مفتاح TronGrid مشترك بين كل المستخدمين
+      if (force === true || RX.tick % 3 === 1) await rxPollEvm().catch(function () {});
     } finally { RX.busy = false; }
     rxShow();
   }
   setInterval(rxTick, 25000);
   setTimeout(rxTick, 4000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) rxTick(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) rxTick(true); }); // العودة للتطبيق: فحص فوري
   async function doSend() {
     var p = state.pending;
     if (!p || state.txBusy) return;
@@ -2578,7 +2596,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
       $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
       try {
-        var r = await core.bridgeExecute(q); ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+        var r = await core.bridgeExecute(q); rxExpect(q); // بعد النجاح فقط (الفحص الدوري متوقف أثناء العملية) ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
         for (var i = 0; i < 20; i++) {
           var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
           if (st.status === 'DONE') { toast('تم التبديل ✓'); break; }
@@ -2777,7 +2795,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('br-go').hidden = true; brErr(''); var tr = $('br-track'); tr.hidden = false;
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
     try {
-      var r = await core.bridgeExecute(q); BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+      var r = await core.bridgeExecute(q); rxExpect(q); // بعد النجاح فقط (الفحص الدوري متوقف أثناء العملية) BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
       $('br-track-t').textContent = 'أُرسلت ✓ — بانتظار الوصول على ' + netOf(q.toNet).name + '…';
       for (var i = 0; i < 120; i++) {
         var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
