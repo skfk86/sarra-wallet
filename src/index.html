@@ -145,6 +145,9 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;border-top-color:transparent;animation:sp 0.8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .skeleton{color:transparent;background:var(--s2);border-radius:8px}
+#s-home .hero-card .skeleton{background:rgba(255,255,255,.16);border-radius:12px;display:inline-block;animation:skp 1.3s ease-in-out infinite}
+@keyframes skp{50%{opacity:.45}}
+.skeleton{animation:skp 1.3s ease-in-out infinite}
 /* شريط التنقل */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--tab);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--div);display:none;grid-template-columns:repeat(4,minmax(0,1fr));padding-bottom:max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px))}
 .tabbar.show{display:grid}
