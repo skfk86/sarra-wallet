@@ -26,4 +26,5 @@ run "إيصالات بنكك" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":
 run "الدعم والخصوصية وحذف البيانات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_support.py
 run "معرّف صُرّة والتوثيق" tronweb-mainnet.js '{"network":"mainnet","evm":true,"p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_sid.py
 run "المحفظة المقفلة أثناء الاستخدام" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_lock.py
+run "إشعار الاستلام وشاشة النجاح" tronweb-mainnet.js '{"network":"mainnet"}' run_rx.py
 run "الزاحف الشامل لكل الشاشات" tronweb-mainnet.js '{"network":"mainnet","evm":true,"p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_crawl.py

@@ -886,7 +886,7 @@
           out.push({
             net: chainKey, coin: coin, txid: t.h, incoming: incoming && !outgoing,
             self: incoming && outgoing, counterparty: incoming ? t.from : t.to,
-            amount: formatAmount(units, dec, 6), time: t.t * 1000, ok: t.ok !== false
+            amount: formatAmount(units, dec, 6), exact: fromUnits(units, dec), time: t.t * 1000, ok: t.ok !== false
           });
         });
         return out;
@@ -915,6 +915,7 @@
             coin: 'USDT', txid: t.transaction_id, incoming: incoming,
             counterparty: incoming ? t.from : t.to,
             amount: formatAmount(t.value, Number(t.token_info && t.token_info.decimals) || USDT_DECIMALS),
+            exact: fromUnits(t.value, Number(t.token_info && t.token_info.decimals) || USDT_DECIMALS),
             time: t.block_timestamp
           };
         });
@@ -930,6 +931,7 @@
             coin: 'TRX', txid: t.txID, incoming: incoming,
             counterparty: incoming ? from : to,
             amount: formatAmount(v.amount, TRX_DECIMALS),
+            exact: fromUnits(v.amount, TRX_DECIMALS),
             time: t.block_timestamp
           });
         });
