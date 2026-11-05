@@ -31,7 +31,7 @@ async def main():
       await pg.wait_for_timeout(1500)
     await pg.click('[data-go=create]'); await pg.click('#reveal'); await pg.check('#agree'); await pg.click('#backup-next')
     await pin('123456'); await pin('123456'); await pg.wait_for_timeout(1500); await pg.click('#intro-ok'); await pg.wait_for_timeout(1500)
-    problems=[]; VIS=[]
+    problems=[]; VIS=[]; DES=[]
     async def scan(label):
       await pg.wait_for_timeout(700)
       r=await pg.evaluate('''()=>{const out=[];const W=window.innerWidth;
@@ -40,6 +40,16 @@ async def main():
           for(const el of root.querySelectorAll('*')){if(el.closest('.netbar,.seg.scroll,.recv-coins,.hnet-row'))continue;const b=el.getBoundingClientRect();if(b.width>0&&b.height>0&&(b.right>W+1||b.left<-1))out.push('@@OVERFLOW '+el.tagName+'#'+el.id+'.'+el.className)}}
         return {screen:(document.querySelector('.screen.active')||{}).id,texts:out}}''')
       VIS.append((label, r['screen'], len(r['texts'])))
+      AD=__import__('os').environ.get('AUDIT')
+      if AD and label.startswith('مفتوحة'):
+        i=len(VIS); await pg.screenshot(path=f'{AD}/{i:02d}.png', full_page=True)
+        m=await pg.evaluate('''()=>{const o={small:[],tiny:[],lowc:[]};const roots=[document.querySelector('.screen.active'),...document.querySelectorAll('.sheet-bg.show')].filter(Boolean);
+          const lum=c=>{const m=c.match(/[\\d.]+/g);if(!m)return null;const [r,g,b]=m.slice(0,3).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return {l:.2126*r+.7152*g+.0722*b,a:m[3]==null?1:+m[3]}};
+          const bgOf=e=>{while(e){const c=getComputedStyle(e).backgroundColor;const L=lum(c);if(L&&L.a>.5)return L.l;e=e.parentElement}return 1};
+          for(const root of roots)for(const e of root.querySelectorAll('button,a,[role=button],input,.tab,.chip')){const b=e.getBoundingClientRect();if(b.width&&b.height&&e.offsetParent&&(b.height<32||b.width<32))o.small.push((e.id||e.className||e.tagName)+' '+Math.round(b.width)+'x'+Math.round(b.height)+' '+(e.innerText||'').trim().slice(0,15))}
+          for(const root of roots){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const e=n.parentElement,t=n.textContent.trim();if(!t||!e.offsetParent)continue;const cs=getComputedStyle(e),fs=parseFloat(cs.fontSize);if(fs<11)o.tiny.push(fs+'px '+t.slice(0,20));const f=lum(cs.color);if(f){const bg=bgOf(e),hi=Math.max(f.l,bg),lo=Math.min(f.l,bg),cr=(hi+.05)/(lo+.05);if(cr<3.5&&f.a>.5)o.lowc.push(cr.toFixed(1)+' '+t.slice(0,20))}}}
+          return o}''')
+        DES.append((i,label,m))
       for t in r['texts']:
         if t.startswith('@@OVERFLOW') or BAD.search(t): problems.append((label, r['screen'], t[:120]))
     async def go(sel, label, back=True):
@@ -60,7 +70,7 @@ async def main():
       for g in ['send','receive','swap','bridge']:
         await pg.click('.tab[data-tab=home]'); await go('.actions [data-go='+g+']', tag+g)
       await pg.click('.tab[data-tab=home]'); await go('#assets [data-asset=BNB]', tag+'عملة BNB')
-      await pg.click('.tab[data-tab=home]'); await go('#assets [data-asset=BTC]', tag+'عملة BTC')
+      await pg.click('.tab[data-tab=home]'); await pg.evaluate("(()=>{const b=document.getElementById('zero-tg');if(b&&document.querySelector('#assets [data-asset=BTC]').hidden)b.click()})()"); await go('#assets [data-asset=BTC]', tag+'عملة BTC')
       await pg.click('.tab[data-tab=history]'); await scan(tag+'السجل')
       await pg.click('.tab[data-tab=p2p]'); await scan(tag+'السوق')
       for t in ['sell','mine','market']:
@@ -77,6 +87,12 @@ async def main():
     await tour('مقفلة: ')
     # أي لوحة رمز ظهرت يجب أن تكون بلوحة أرقام
     print('  زار', len(VIS), 'حالة شاشة')
+    if __import__('os').environ.get('AUDIT'):
+      json.dump(DES, open(__import__('os').environ['AUDIT']+'/design.json','w'), ensure_ascii=False, indent=1)
+      await pg.emulate_media(color_scheme='dark'); await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(500); await pg.screenshot(path=__import__('os').environ['AUDIT']+'/dark-home.png', full_page=True)
+      for t in ['history','p2p','security']:
+        await pg.click('.tab[data-tab='+t+']'); await pg.wait_for_timeout(500); await pg.screenshot(path=__import__('os').environ['AUDIT']+'/dark-'+t+'.png', full_page=True)
+      await pg.emulate_media(color_scheme='light')
     await pg.evaluate("document.querySelector('.screen.active').insertAdjacentHTML('beforeend','<p>TEST undefined BAD_CODE_X</p>')"); n0=len(problems); await scan('فحص الكاشف'); assert len(problems)>n0; problems=problems[:n0]; print('✓ الكاشف نفسه يلتقط الأخطاء (فحص ذاتي)')
     for p in problems: print('PROBLEM', p)
     assert not problems, len(problems)

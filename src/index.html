@@ -71,7 +71,8 @@ label.lbl{font-size:14px;font-weight:500;color:var(--tx2)}
 #s-home .hero-card .net-stack{background:rgba(255,255,255,.14);border:0;color:#fff}
 #s-home .hero-card .net-stack .logos img{border-color:rgba(255,255,255,.0);box-shadow:0 0 0 2px #0f8f63}
 .hero-sid{display:flex;flex-direction:column;align-items:flex-start;gap:0;background:rgba(255,255,255,.14);border:0;border-radius:12px;padding:5px 10px;color:#fff;font:inherit;cursor:pointer}
-.hero-sid small{font-size:10px;opacity:.8}.hero-sid b{font-size:13px;letter-spacing:1px;direction:ltr}
+.hero-sid small{font-size:11px;opacity:.85}.hero-sid b{font-size:13px;letter-spacing:1px;direction:ltr}
+.zero-tg{display:block;width:100%;height:48px;background:none;border:0;border-top:1px solid var(--line);font:inherit;font-size:13px;font-weight:700;color:var(--ac);cursor:pointer}
 .coin-row.zero .cr-end b{color:var(--mu);font-weight:600}.coin-row.zero .cr-end span{display:none}
 #s-home .hero-card .net-stack{align-self:flex-start;padding:5px 12px 5px 8px}
 #s-home .hero-card .net-stack .logos img{width:26px;height:26px}
@@ -294,7 +295,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .net-stack .logos img:last-child{margin-inline-start:0}
 .recv-lim{display:grid;grid-template-columns:1fr 1fr;gap:8px}.recv-lim>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}.recv-lim span{font-size:12px;color:var(--mu)}.recv-lim b{font-size:15px;direction:ltr;text-align:right}
-.linkbtn{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
+.linkbtn{background:none;border:0;padding:8px 2px;margin:-8px 0;white-space:nowrap;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
 #swap-evm[hidden]{display:none!important}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
 .seg.scroll{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.seg.scroll::-webkit-scrollbar{display:none}.seg.scroll>button{flex:0 0 auto;min-width:84px;padding:0 12px}
@@ -712,7 +713,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <p class="muted" style="font-size:13px;line-height:1.8;margin:0">انقل عملتك من شبكة إلى أخرى داخل محفظتك نفسها (مثلاً USDT من TRON إلى BNB Chain).</p>
   <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:14px 16px">
     <span class="muted" style="font-size:13px">من شبكة</span><div class="netbar" id="br-from" role="tablist"></div>
-    <button type="button" class="chip" id="br-flip" aria-label="عكس اتجاه النقل" style="align-self:center;height:36px;padding:0 16px;gap:6px"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>عكس الاتجاه</button>
+    <button type="button" class="chip" id="br-flip" aria-label="عكس اتجاه النقل" style="align-self:center;height:38px;padding:0 16px;gap:8px;display:inline-flex;align-items:center"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>عكس الاتجاه</span></button>
     <span class="muted" style="font-size:13px">إلى شبكة</span><div class="netbar" id="br-to" role="tablist"></div>
     <span class="muted" style="font-size:13px">العملة</span><div class="seg" id="br-coin" role="radiogroup"></div>
   </div>
@@ -1736,8 +1737,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     // الأعلى قيمة أولاً، ثم العملات الأساسية، ثم بقية العملات المدعومة بترتيبها
     rows.forEach(function (r, i) { r.i = i; });
     rows.sort(function (a, b) { return ((b.v || 0) - (a.v || 0)) || ((a.c.extra ? 1 : 0) - (b.c.extra ? 1 : 0)) || (a.i - b.i); });
+    var zeros = rows.filter(function (r) { return !r.t && r.t != null; }).length, fold = zeros > 3 && !state.showZero && rows.length - zeros > 0;
     rows.forEach(function (r) {
       var c = r.c, row = el('button'); row.type = 'button'; row.className = 'coin-row' + (r.t ? '' : ' zero'); row.dataset.asset = c.sym;
+      if (fold && !r.t && r.t != null) row.hidden = true;
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
@@ -1751,11 +1754,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       row.onclick = function () { openCoin(c); };
       box.appendChild(row);
     });
+    if (zeros > 3 && rows.length - zeros > 0) {
+      var tg = el('button', null, state.showZero ? 'إخفاء العملات بلا رصيد' : 'عرض ' + zeros + ' عملات أخرى بلا رصيد'); tg.type = 'button'; tg.className = 'zero-tg'; tg.id = 'zero-tg';
+      tg.onclick = function () { state.showZero = !state.showZero; renderAssets(); };
+      box.appendChild(tg);
+    }
     $('price-src').textContent = NETWORK === 'mainnet' && state.prices ? 'الأسعار: CoinGecko' : '';
   }
   function openCoin(c) {
     var t = coinTotal(c), p = priceOf(c);
-    $('cs-logo').removeAttribute('data-fb'); $('cs-logo').dataset.sym = c.sym; $('cs-logo').src = coinImg(c); $('cs-name').textContent = c.name + ' · ' + c.sym;
+    $('cs-logo').removeAttribute('data-fb'); $('cs-logo').dataset.sym = c.sym; $('cs-logo').src = coinImg(c); $('cs-name').textContent = c.name === c.sym ? c.sym : c.name + ' · ' + c.sym;
     var cp = $('cs-price'); cp.textContent = '';
     if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd) + (p.chg != null ? '  ' + (p.chg >= 0 ? '+' : '') + p.chg.toFixed(2) + '%' : '')); pb.style.direction = 'ltr'; cp.appendChild(pb); cp.appendChild(document.createTextNode(' خلال 24 ساعة')); }
     if (c.nets.length > 1) cp.appendChild(document.createTextNode(' · على ' + c.nets.length + ' شبكات'));
@@ -1924,7 +1932,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // ===== السجل =====
   function emptyMsg(box, text) {
     box.textContent = '';
-    var p = document.createElement('p'); p.className = 'muted'; p.textContent = text; box.appendChild(p);
+    var d = document.createElement('div'); d.className = 'hempty';
+    d.innerHTML = '<span><svg class="i" viewBox="0 0 24 24"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>';
+    var b = document.createElement('small'); b.textContent = text; d.appendChild(b); box.appendChild(d);
   }
   function dayLabel(ms) {
     var d = new Date(ms), n = new Date(), y = new Date(Date.now() - 864e5);
