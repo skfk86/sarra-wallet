@@ -2767,7 +2767,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!document.hidden) toast('خرج ' + (state.hidden ? '' : fmtExact(n.amount) + ' ') + n.coin + ' من محفظتك على ' + chainLabel(n.net), true);
     state.balances = null; state.historyCache = null;
   }
-  function rxIn(n) { RX.q.push(n); notifyTx('recv', n); }
+  function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
+    n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
+    state.balances = null; state.historyCache = null;
+    RX.q.push(n); notifyTx('recv', n);
+  }
   async function rxPollTron() {
     var addr = await core.getAddress(), key = 'sarra.rx.' + addr;
     var list = await core.getHistory(addr, 15), st = rxGet(key);
