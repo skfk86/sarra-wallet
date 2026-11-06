@@ -12,6 +12,7 @@ def chain_of(url):
   if 'bsc' in url or 'defibit' in url: return 'bsc'
   if 'polygon' in url: return 'polygon'
   return 'eth'
+APPROVED=set()
 def H(n): return hex(n)
 async def rpc(route):
   url=route.request.url; c=chain_of(url); body=json.loads(route.request.post_data)
@@ -21,14 +22,18 @@ async def rpc(route):
     if m=='eth_chainId': res=H({'bsc':56,'eth':1,'polygon':137}[c])
     elif m=='eth_getBalance': res=H(BAL[c]['native'])
     elif m=='eth_call':
-      to=p[0]['to'].lower(); res='0x'+format(0 if str(p[0].get('data',p[0].get('input',''))).startswith('0xdd62ed3e') else BAL[c].get(to,0),'064x')
+      to=p[0]['to'].lower(); res='0x'+format((2**255 if c in APPROVED else 0) if str(p[0].get('data',p[0].get('input',''))).startswith('0xdd62ed3e') else BAL[c].get(to,0),'064x')
     elif m=='eth_getTransactionCount': res='0x0'
     elif m=='eth_gasPrice': res=H(3*10**9)
     elif m=='eth_maxPriorityFeePerGas': res=H(10**9)
     elif m=='eth_getBlockByNumber': res={'number':'0x1','hash':'0x'+'ab'*32,'parentHash':'0x'+'00'*32,'timestamp':'0x1','gasLimit':'0x1c9c380','gasUsed':'0x0','miner':'0x'+'00'*20,'extraData':'0x','difficulty':'0x0','nonce':'0x0000000000000000','transactions':[],**({} if c=='bsc' else {'baseFeePerGas':H(2*10**9)})}
     elif m=='eth_estimateGas': res=H(60000)
     elif m=='eth_blockNumber': res='0x10'
-    elif m=='eth_sendRawTransaction': sent.append((c,p[0])); res=await PG[0].evaluate('r=>ethers.Transaction.from(r).hash', p[0])
+    elif m=='eth_sendRawTransaction':
+      sent.append((c,p[0])); res=await PG[0].evaluate('r=>ethers.Transaction.from(r).hash', p[0])
+      # الموافقة بالمبلغ نفسه تُرى بعد بثّها، وتُستهلك بالمعاملة التالية
+      if (await PG[0].evaluate('r=>ethers.Transaction.from(r).data', p[0])).startswith('0x095ea7b3'): APPROVED.add(c)
+      else: APPROVED.discard(c)
     elif m=='eth_getTransactionReceipt': res={'transactionHash':p[0],'blockNumber':'0x2','blockHash':'0x'+'ef'*32,'status':'0x1','gasUsed':H(50000),'cumulativeGasUsed':H(50000),'logs':[],'from':'0x'+'00'*20,'to':TO,'contractAddress':None,'logsBloom':'0x'+'00'*256,'transactionIndex':'0x0','effectiveGasPrice':H(3*10**9),'type':'0x0'}
     out.append({'jsonrpc':'2.0','id':r['id'],'result':res})
   await route.fulfill(json=out if isinstance(body,list) else out[0])
