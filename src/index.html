@@ -3638,12 +3638,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     return { qty: qty, cost: cost, avg: qty > 0 ? cost / qty : null, real: real, n: n };
   }
   function trPortfolio() {
-    var val = 0, un = 0, re = 0, any = false, n = 0;
+    var val = 0, un = 0, re = 0, any = false, n = 0, wait = false;
     trCoins().forEach(function (c) {
       var ps = trPos(c.sym), held = coinTotal(c), p = trPrice(c.sym); re += ps.real; n += ps.n;
+      if (ps.qty > 0 && !p) wait = true; // مركز مفتوح لكن السعر لم يصل بعد
       if (ps.qty > 0 && p) { var q = held == null ? ps.qty : Math.min(ps.qty, held); if (q > 0) { val += q * p; un += q * p - ps.cost * (q / ps.qty); any = true; } }
     });
-    return { val: any ? val : null, un: any ? un : null, re: re, n: n };
+    return { val: any ? val : wait ? null : 0, un: any ? un : wait ? null : 0, re: re, n: n, wait: wait && !any };
   }
 
   // ===== شاشة السوق =====
@@ -3661,8 +3662,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   function renderTrade() {
     var pf = trPortfolio();
-    $('tr-pf-val').textContent = state.hidden ? '••••' : pf.val == null ? '$0.00' : fUsd(pf.val);
-    var un = $('tr-pf-un'); un.textContent = state.hidden ? '••••' : fUsd(pf.un, true); un.className = 'ltr ' + (pf.un > 0 ? 'pl-up' : pf.un < 0 ? 'pl-dn' : '');
+    $('tr-pf-val').textContent = state.hidden ? '••••' : pf.wait ? 'جارٍ…' : fUsd(pf.val);
+    var un = $('tr-pf-un'); un.textContent = state.hidden ? '••••' : pf.wait ? 'جارٍ…' : fUsd(pf.un, true); un.className = 'ltr ' + (pf.un > 0 ? 'pl-up' : pf.un < 0 ? 'pl-dn' : '');
     var rr = $('tr-pf-re'); rr.textContent = state.hidden ? '••••' : fUsd(pf.re, true); rr.className = 'ltr ' + (pf.re > 0 ? 'pl-up' : pf.re < 0 ? 'pl-dn' : '');
     $('tr-pf-n').textContent = pf.n;
     renderOpen();
