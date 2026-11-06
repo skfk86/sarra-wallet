@@ -13,10 +13,8 @@
     if (!k || k === 'tron') return 'TRON (TRC20)';
     var c = EVM[k]; return c ? c.name + ' (' + c.short + ')' : String(k);
   }
-  function explorerName(url) {
-    var h = ''; try { h = new URL(url).hostname; } catch (e) {}
-    return /tronscan/.test(h) ? 'TRONSCAN' : /bscscan/.test(h) ? 'BscScan' : /polygonscan/.test(h) ? 'PolygonScan' : /etherscan/.test(h) ? 'Etherscan' : 'المستكشف';
-  }
+  function explorerName(url) { return SarraLogic.explorerName(url); } // logic/registry.js
+
   function kvRow(dl, k, v, copy) {
     var d = document.createElement('div'), dt = el('dt', null, k), dd = el('dd', null);
     if (v instanceof Node) dd.appendChild(v); else { dd.textContent = v; dd.className = 'ltr'; }

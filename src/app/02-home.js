@@ -80,30 +80,7 @@
     loadHistory();
   }
   // ===== العملات (على طريقة Binance وTrust Wallet) =====
-  var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
-  var COINS = [
-    { sym: 'USDT', name: 'Tether', logo: 'usdt', cg: 'tether', stable: true, nets: ['tron', 'bsc', 'eth', 'polygon'] },
-    { sym: 'USDC', name: 'USD Coin', logo: 'usdc', cg: 'usd-coin', stable: true, nets: ['bsc', 'eth', 'polygon'] },
-    { sym: 'TRX', name: 'TRON', logo: 'trx', cg: 'tron', nets: ['tron', 'bsc'] },
-    { sym: 'BNB', name: 'BNB', logo: 'bnb', cg: 'binancecoin', nets: ['bsc'] },
-    { sym: 'ETH', name: 'Ethereum', logo: 'eth', cg: 'ethereum', nets: ['eth', 'bsc', 'polygon'] },
-    { sym: 'POL', name: 'Polygon', logo: 'pol', cg: 'polygon-ecosystem-token', nets: ['polygon'] },
-    // عملات إضافية على نفس الشبكات (تظهر في الرئيسية فقط إن كان لديك رصيد منها)
-    { sym: 'BTC', name: 'Bitcoin (مغلّف)', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png', cg: 'bitcoin', nets: ['bsc', 'eth', 'polygon'], extra: true },
-    { sym: 'FDUSD', name: 'First Digital USD', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409/logo.png', cg: 'first-digital-usd', stable: true, nets: ['bsc'], extra: true },
-    { sym: 'DAI', name: 'Dai', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png', cg: 'dai', stable: true, nets: ['bsc', 'eth', 'polygon'], extra: true },
-    { sym: 'XRP', name: 'XRP', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ripple/info/logo.png', cg: 'ripple', nets: ['bsc'], extra: true },
-    { sym: 'SOL', name: 'Solana', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png', cg: 'solana', nets: ['bsc'], extra: true },
-    { sym: 'DOGE', name: 'Dogecoin', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/doge/info/logo.png', cg: 'dogecoin', nets: ['bsc'], extra: true },
-    { sym: 'ADA', name: 'Cardano', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cardano/info/logo.png', cg: 'cardano', nets: ['bsc'], extra: true },
-    { sym: 'LINK', name: 'Chainlink', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png', cg: 'chainlink', nets: ['bsc', 'eth', 'polygon'], extra: true },
-    { sym: 'UNI', name: 'Uniswap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png', cg: 'uniswap', nets: ['bsc', 'eth'], extra: true },
-    { sym: 'AAVE', name: 'Aave', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png', cg: 'aave', nets: ['bsc', 'eth', 'polygon'], extra: true },
-    { sym: 'CAKE', name: 'PancakeSwap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82/logo.png', cg: 'pancakeswap-token', nets: ['bsc'], extra: true },
-    { sym: 'SHIB', name: 'Shiba Inu', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE/logo.png', cg: 'shiba-inu', nets: ['bsc', 'eth'], extra: true },
-    { sym: 'PEPE', name: 'Pepe', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png', cg: 'pepe', nets: ['bsc', 'eth'], extra: true }
-  ].map(function (c) { c.nets = c.nets.filter(function (n) { return n === 'tron' || EVM[n]; }); return c; })
-   .filter(function (c) { return c.nets.length; });
+  var COINS = REG.assets; // logic/registry.js: العملات وشبكاتها وأزواج تداولها
   function coinLogo(k) { return 'assets/coins/' + k + '.png'; }
   function coinImg(c) { return c.url || coinLogo(c.logo); }
   // شعار احتياطي (حرف العملة) إن تعذّر تحميل الشعار من الإنترنت
@@ -208,7 +185,7 @@
     var box = $('cs-nets'); box.textContent = '';
     c.nets.forEach(function (n) {
       var nn = netOf(n), v = balOn(c.sym, n), row = el('div'); row.className = 'li'; row.style.cursor = 'default';
-      var im = el('img'); im.src = coinLogo(NET_LOGO[n]); im.alt = ''; im.className = 'net-mini'; row.appendChild(im);
+      var im = el('img'); im.src = netLogo(n); im.alt = ''; im.className = 'net-mini'; row.appendChild(im);
       var t2 = el('span'); t2.className = 't'; t2.appendChild(document.createTextNode(nn.name)); t2.appendChild(el('small', null, state.hidden ? '••••' : (v == null ? '—' : fmt(v, 6)) + ' ' + c.sym));
       row.appendChild(t2);
       var bs = el('div', 'display:flex;gap:6px;flex-shrink:0');

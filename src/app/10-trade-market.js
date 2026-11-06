@@ -1,7 +1,7 @@
   // ===== التداول الفوري: السوق، الشموع اليابانية، التحليل، والربح/الخسارة =====
   // البيانات من Binance (data-api.binance.vision: بيانات سوق عامة بلا حساب)، والاحتياط CoinGecko.
   // التنفيذ من محفظة المستخدم مباشرة: EVM عبر LI.FI (نفس محرك التبديل)، وTRX عبر SunSwap.
-  var BN_SYM = { BTC: 'BTCUSDT', ETH: 'ETHUSDT', BNB: 'BNBUSDT', TRX: 'TRXUSDT', SOL: 'SOLUSDT', XRP: 'XRPUSDT', DOGE: 'DOGEUSDT', ADA: 'ADAUSDT', LINK: 'LINKUSDT', UNI: 'UNIUSDT', AAVE: 'AAVEUSDT', CAKE: 'CAKEUSDT', SHIB: 'SHIBUSDT', PEPE: 'PEPEUSDT', POL: 'POLUSDT' };
+  var BN_SYM = REG.binance; // أزواج Binance من logic/registry.js
   var BN_API = 'https://data-api.binance.vision/api/v3/';
   var TR = { sym: null, tf: '1h', kl: null, hover: null, sort: 'all', q: '', tick: {}, tickAt: 0, timer: null, side: 'buy', net: null, oq: null, view: 80 };
   function trCoins() { return COINS.filter(function (c) { return !c.stable && BN_SYM[c.sym] && trNets(c).length; }); }

@@ -18,11 +18,11 @@
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
   if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
-  var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
-    Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: (function (ts) { return ts.slice(0, 2).concat([c.native], ts.slice(2)); })(c.tokens.map(function (t) { return t.sym; })), evm: true }; }));
-  function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
-  var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
-  function netLogo(k) { return 'assets/coins/' + (NET_LOGO[k] || 'trx') + '.png'; }
+  // كل الشبكات والعملات من سجل واحد (logic/registry.js)؛ عقود التوكنات في wallet-core.js
+  var REG = SarraLogic.buildRegistry(EVM);
+  var NETS = REG.networks;
+  function netOf(k) { return REG.network(k) || NETS[0]; }
+  function netLogo(k) { return REG.netLogo(k); }
   var LOCAL_LOGOS = ['usdt', 'usdc', 'trx', 'bnb', 'eth', 'pol'];
   function symLogo(sym) {
     var k = String(sym).toLowerCase(); if (LOCAL_LOGOS.indexOf(k) >= 0) return 'assets/coins/' + k + '.png';

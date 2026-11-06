@@ -210,6 +210,9 @@
     $('pin-sub').textContent = 'جارٍ الإرسال…';
     toast('جارٍ الإرسال…');
     try {
+      // آخر فحص قبل التوقيع: العملة موجودة على الشبكة والعنوان من نوعها (logic/registry.js)
+      var bad = SarraLogic.checkTransfer(REG, p.net || 'tron', p.coin, p.to, { tron: function (a) { return core.isValidAddress(a); }, evm: function (a) { return core.isEvmAddress(a); } });
+      if (bad) throw new Error(bad);
       var r = p.net && p.net !== 'tron' ? await core.evmSend(p.net, p.coin, p.to, p.amt)
         : p.coin === 'USDT' ? await core.sendUSDT(p.to, p.amt) : await core.sendTRX(p.to, p.amt);
       if (p.net && p.net !== 'tron') state.evmBal = null;
