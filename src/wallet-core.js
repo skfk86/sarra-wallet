@@ -46,7 +46,11 @@
                { sym: 'TRX', addr: '0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3', dec: 6 },
                { sym: 'LINK', addr: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', dec: 18 },
                { sym: 'CAKE', addr: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', dec: 18 },
-               { sym: 'SHIB', addr: '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', dec: 18 }]
+               { sym: 'SHIB', addr: '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', dec: 18 },
+               // Binance-Peg (2026-11-06، bitquery/coinmarketcap): ليُشترى PEPE وUNI وAAVE على BNB Chain برسوم زهيدة بدل Ethereum
+               { sym: 'PEPE', addr: '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00', dec: 18 },
+               { sym: 'UNI', addr: '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1', dec: 18 },
+               { sym: 'AAVE', addr: '0xfb6115445Bff7b52FeB98650C87f44907E58f802', dec: 18 }]
     },
     eth: {
       id: 1, name: 'Ethereum', short: 'ERC20', native: 'ETH', color: '#627EEA', explorer: 'https://etherscan.io',

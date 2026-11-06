@@ -1940,11 +1940,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     { sym: 'DOGE', name: 'Dogecoin', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/doge/info/logo.png', cg: 'dogecoin', nets: ['bsc'], extra: true },
     { sym: 'ADA', name: 'Cardano', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/cardano/info/logo.png', cg: 'cardano', nets: ['bsc'], extra: true },
     { sym: 'LINK', name: 'Chainlink', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png', cg: 'chainlink', nets: ['bsc', 'eth', 'polygon'], extra: true },
-    { sym: 'UNI', name: 'Uniswap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png', cg: 'uniswap', nets: ['eth'], extra: true },
-    { sym: 'AAVE', name: 'Aave', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png', cg: 'aave', nets: ['eth', 'polygon'], extra: true },
+    { sym: 'UNI', name: 'Uniswap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png', cg: 'uniswap', nets: ['bsc', 'eth'], extra: true },
+    { sym: 'AAVE', name: 'Aave', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png', cg: 'aave', nets: ['bsc', 'eth', 'polygon'], extra: true },
     { sym: 'CAKE', name: 'PancakeSwap', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82/logo.png', cg: 'pancakeswap-token', nets: ['bsc'], extra: true },
     { sym: 'SHIB', name: 'Shiba Inu', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE/logo.png', cg: 'shiba-inu', nets: ['bsc', 'eth'], extra: true },
-    { sym: 'PEPE', name: 'Pepe', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png', cg: 'pepe', nets: ['eth'], extra: true }
+    { sym: 'PEPE', name: 'Pepe', url: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png', cg: 'pepe', nets: ['bsc', 'eth'], extra: true }
   ].map(function (c) { c.nets = c.nets.filter(function (n) { return n === 'tron' || EVM[n]; }); return c; })
    .filter(function (c) { return c.nets.length; });
   function coinLogo(k) { return 'assets/coins/' + k + '.png'; }
