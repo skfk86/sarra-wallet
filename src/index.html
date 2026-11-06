@@ -549,7 +549,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <button class="icon-btn flat" id="scan" aria-label="مسح رمز QR"><svg class="i" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
     <button class="icon-btn flat" id="paste" aria-label="لصق"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></button>
   </div>
-  <div class="muted" id="to-hint" style="font-size:12px;line-height:1.7;margin-top:-6px">💡 الأسهل والأسلم: اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان الطويل.</div>
+  <div class="muted" id="to-hint" style="font-size:12px;line-height:1.7;margin-top:-6px">أو اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان.</div>
   <div class="recent" id="recent" hidden></div>
   <label class="lbl" for="amt">المبلغ</label>
   <div class="card" style="display:flex;flex-direction:column;gap:12px">
@@ -580,10 +580,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
   <div class="card" id="recv-sid" hidden style="display:flex;flex-direction:column;gap:12px;padding:16px 18px;border:1px solid var(--ok-bd);background:var(--ok-bg)">
     <div style="display:flex;flex-direction:column;gap:4px"><span class="muted" style="font-size:12px">معرّف صُرّة الخاص بك · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:30px;letter-spacing:2px;color:var(--tx);text-align:right"></b>
-      <span class="muted" style="font-size:12px;line-height:1.7">أعطِه لأي مستخدم صُرّة ليرسل لك مباشرة بدون عنوان محفظة.</span></div>
+      <span class="muted" style="font-size:12px;line-height:1.7">يرسل لك به أي مستخدم صُرّة بدون عنوان.</span></div>
     <div class="row" style="gap:8px"><button type="button" class="chip" id="recv-sid-copy" style="height:38px;flex:1;justify-content:center">نسخ المعرّف</button><button type="button" class="chip" id="recv-sid-share" style="height:38px;flex:1;justify-content:center">مشاركة</button></div>
   </div>
-  <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
+  <div class="note warn" role="note" id="recv-warn"><span>استلم على شبكة TRON (TRC20) فقط.</span></div>
   <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   <div class="netinfo" role="note" id="recv-fee"><span></span> <button type="button" class="linkbtn" id="recv-gas-help">كيف أحصل عليه؟</button></div>
 </section>
@@ -798,7 +798,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 
   <div class="row" style="gap:8px;align-items:center;justify-content:space-between">
-    <div class="info-line" id="p2p-hint"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;color:var(--ac)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+    <div class="info-line" id="p2p-hint"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;color:var(--ac)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>لا تحوّل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
   </div>
   <button type="button" class="chip" id="p2p-nick-btn" style="align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:32px;font-size:12px" aria-label="تعديل اسمك في السوق"></button>
 
@@ -2648,12 +2648,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('recv-warn').firstChild.innerHTML = '';
     var w = $('recv-warn').firstChild;
     w.textContent = evm
-      ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + '). لا ترسل إلى هذا العنوان من TRON.'
-      : 'اطلب من المرسل اختيار شبكة TRON (TRC20). أي مبلغ من شبكة أخرى مثل BEP20 أو ERC20 يضيع.';
-    w.textContent += ' للمبالغ الكبيرة جرّب بمبلغ صغير أولاً.';
+      ? 'استلم على شبكة ' + n.name + ' (' + n.short + ') فقط، وليس من TRON.'
+      : 'استلم على شبكة TRON (TRC20) فقط. الشبكات الأخرى تُضيّع المبلغ.';
     $('recv-fee').firstChild.textContent = evm
-      ? '⛽ لترسل لاحقاً من ' + n.name + ' تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.'
-      : '⛽ لترسل لاحقاً تحتاج TRX لرسوم الشبكة، 15 TRX على الأقل.';
+      ? '⛽ للإرسال لاحقاً تحتاج قليلاً من ' + n.native + '.'
+      : '⛽ للإرسال لاحقاً تحتاج 15 TRX على الأقل.';
     var ad = $('addr'); ad.textContent = '';
     [[a.slice(0, 4), 'hl'], [a.slice(4, -4), ''], [a.slice(-4), 'hl']].forEach(function (x) { var sp = document.createElement('span'); sp.textContent = x[0]; if (x[1]) sp.className = x[1]; ad.appendChild(sp); });
     $('qr-logo').src = netLogo(n.key);
@@ -2705,8 +2704,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
     $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name : 'المستلم';
     $('send-warn').firstChild.textContent = n.evm
-      ? 'الشبكة: ' + n.name + ' (' + n.short + ') · تأكد أن المستلم على نفس الشبكة'
-      : 'الشبكة: TRON (TRC20) · تأكد أن المستلم على نفس الشبكة';
+      ? 'الشبكة: ' + n.name + ' (' + n.short + ')'
+      : 'الشبكة: TRON (TRC20)';
     if (n.evm) {
       var u = evmUnits(state.sendNet, state.coin), nu = evmUnits(state.sendNet, n.native);
       $('avail').textContent = u == null ? '—' : fmt(WalletCore.fromUnits(u, evmDec(state.sendNet, state.coin)), 6) + ' ' + state.coin;
@@ -2755,7 +2754,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('to').addEventListener('input', function () {
     var v = this.value.trim(), h = $('to-hint'), digits = v.replace(/[\s\-#@]/g, '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); });
     h.style.color = '';
-    if (!v) h.innerHTML = '💡 الأسهل والأسلم: اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان الطويل.';
+    if (!v) h.innerHTML = 'أو اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان.';
     else if (asSarraId(v)) { h.textContent = '✓ معرّف صُرّة صحيح الشكل. سنعرض لك اسم المستلم للتأكيد قبل الإرسال.'; h.style.color = 'var(--ac)'; }
     else if (/^\d{1,7}$/.test(digits)) h.textContent = 'معرّف صُرّة يتكوّن من 8 أرقام (' + digits.length + '/8).';
     else if (/^\d{9,}$/.test(digits)) { h.textContent = 'عدد الأرقام أكبر من 8. تحقق من المعرّف.'; h.style.color = 'var(--err)'; }
@@ -3334,7 +3333,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       });
     });
     var bal = balOn(ES.from, ES.net); $('es-bal').textContent = bal == null ? '—' : (Math.floor(bal * 1e6) / 1e6) + ' ' + ES.from;
-    $('es-note').firstChild.textContent = '⛽ تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة. التبديل عبر LI.FI بأفضل سعر متاح على ' + n.name + '، داخل محفظتك نفسها.';
+    $('es-note').firstChild.textContent = '⛽ تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.';
   }
   $('es-amt').addEventListener('input', function () { esReset(); usdEq($('es-usd'), $('es-amt').value, ES.from); });
   $('es-flip').onclick = function () { var f = ES.from; ES.from = ES.to; ES.to = f; $('es-amt').value = ''; usdEq($('es-usd'), '', ES.from); esReset(); renderSwapEvm(); };
@@ -4575,8 +4574,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       state.p2p.tab = b.dataset.p2ptab;
       $('p2p-hint').hidden = state.p2p.tab === 'mine';
       $('p2p-hint').querySelector('span').textContent = state.p2p.tab === 'sell'
-        ? 'هنا أشخاص يريدون الشراء، وأنت البائع: تحتاج الكمية في محفظتك، تودعها في الضمان، يحوّل لك المشتري الجنيه عبر بنكك، ثم تحرّر USDT بعد التأكد من وصول المبلغ.'
-        : 'البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك. لا ترسل أي مبلغ قبل ظهور "محجوز في الضمان".';
+        ? 'تودع USDT في الضمان، يحوّل لك المشتري بالجنيه، ثم تحرّرها بعد وصول المبلغ.'
+        : 'لا تحوّل أي مبلغ قبل ظهور "محجوز في الضمان".';
       $('p2p-filter').hidden = state.p2p.tab === 'mine';
       document.querySelectorAll('[data-p2ptab]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
       loadP2P();
