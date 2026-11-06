@@ -3573,7 +3573,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var ch = $('pr-chg'); ch.textContent = isFinite(t.chg) ? (t.chg > 0 ? '+' : '') + t.chg.toFixed(2) + '%' : '—'; ch.className = 'pr-chg ' + (t.chg >= 0 ? 'up' : t.chg < 0 ? 'dn' : '');
     $('pr-usd').textContent = p ? '≈ $' + fp(p) : '';
     $('pr-hi').textContent = fp(t.hi); $('pr-lo').textContent = fp(t.lo); $('pr-vol').textContent = t.vol ? '$' + fVol(t.vol) : '—';
-    if (TR.kl && TR.kl.length && p) { var last = TR.kl[TR.kl.length - 1]; if (Date.now() - last.t < tfMs(TR.tf)) { last.c = p; if (p > last.h) last.h = p; if (p < last.l) last.l = p; drawCandles(); } }
+    if (TR.kl && TR.kl.length && p && !TR.hover) { var last = TR.kl[TR.kl.length - 1]; if (Date.now() - last.t < tfMs(TR.tf)) { last.c = p; if (p > last.h) last.h = p; if (p < last.l) last.l = p; drawCandles(); } }
     trRenderPos();
   }
   function tfMs(tf) { return { '15m': 9e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 }[tf]; }
@@ -3596,7 +3596,18 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     }
     if (TR.sym !== sym || TR.tf !== tf) return;
     if (!kl || kl.length < 5) { $('pr-load').textContent = 'تعذّر تحميل الشموع الآن. اضغط لإعادة المحاولة'; $('pr-load').onclick = function () { $('pr-load').onclick = null; loadKlines(); }; return; }
-    $('pr-load').hidden = true; TR.kl = kl; TR.hover = null; drawCandles(); renderAnalysis();
+    $('pr-load').hidden = true; TR.kl = kl; TR.hover = null; TR.off = 0; TR.oldDone = false; drawCandles(); renderAnalysis();
+  }
+  async function loadOlder() {
+    if (TR.oldBusy || TR.oldDone || !TR.kl || !TR.kl.length || TR.kl.length >= 1000) return;
+    var sym = TR.sym, tf = TR.tf, first = TR.kl[0].t; TR.oldBusy = true;
+    try {
+      var j = await trJson(BN_API + 'klines?symbol=' + BN_SYM[sym] + '&interval=' + tf + '&limit=200&endTime=' + (first - 1));
+      if (TR.sym !== sym || TR.tf !== tf || TR.kl[0].t !== first) return;
+      var more = j.map(function (x) { return { t: x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[7] }; }).filter(function (k) { return k.t < first; });
+      if (!more.length) { TR.oldDone = true; return; }
+      TR.kl = more.concat(TR.kl); drawCandles(); // TR.off محسوب من النهاية فيبقى المنظر ثابتاً
+    } catch (e) {} finally { TR.oldBusy = false; }
   }
   document.querySelectorAll('#pr-tf button').forEach(function (b) { b.onclick = function () { TR.tf = b.dataset.tf; document.querySelectorAll('#pr-tf button').forEach(function (x) { x.classList.toggle('on', x === b); }); loadKlines(); }; });
 
@@ -3666,7 +3677,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
     var cs = getComputedStyle(document.documentElement), mu = cs.getPropertyValue('--mu').trim() || '#8b99a8', grid = cs.getPropertyValue('--div').trim() || '#e5e7eb', tx = cs.getPropertyValue('--tx').trim() || '#111', bg = cs.getPropertyValue('--s1').trim() || '#fff';
     var UP = '#16A37A', DN = '#E5484D', AX = 58, VOLH = 54, TOP = 8, BOT = 18;
-    var n = Math.min(TR.view, kl.length), s = kl.slice(-n), off = kl.length - n, cw = (W - AX) / n;
+    var n = Math.min(TR.view, kl.length); TR.off = Math.max(0, Math.min(TR.off || 0, kl.length - n));
+    var off = kl.length - n - TR.off, s = kl.slice(off, off + n), cw = (W - AX) / n; // TR.off: كم شمعة رجعنا للخلف بالسحب
     var closes = kl.map(function (k) { return k.c; }), m7 = sma(closes, 7), m25 = sma(closes, 25), m99 = sma(closes, 99);
     var hi = -Infinity, lo = Infinity; s.forEach(function (k) { if (k.h > hi) hi = k.h; if (k.l < lo) lo = k.l; });
     [m7, m25, m99].forEach(function (m) { for (var i = off; i < kl.length; i++) if (m[i] != null) { if (m[i] > hi) hi = m[i]; if (m[i] < lo) lo = m[i]; } });
@@ -3695,9 +3707,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       x.stroke();
     });
     // خط آخر سعر
-    var last = s[s.length - 1], ly = Y(last.c), lc = last.c >= last.o ? UP : DN;
+    var last = s[s.length - 1], now = kl[kl.length - 1], ly = Y(now.c), lc = now.c >= now.o ? UP : DN; // خط آخر سعر فعلي حتى أثناء تصفّح الماضي
     x.strokeStyle = lc; x.setLineDash([4, 3]); x.beginPath(); x.moveTo(0, ly); x.lineTo(W - AX, ly); x.stroke(); x.setLineDash([]);
-    x.fillStyle = lc; x.fillRect(W - AX + 1, ly - 9, AX - 2, 18); x.fillStyle = '#fff'; x.font = 'bold 10px system-ui,sans-serif'; x.fillText(fp(last.c), W - AX + 5, ly);
+    if (ly > TOP && ly < TOP + ph) { x.fillStyle = lc; x.fillRect(W - AX + 1, ly - 9, AX - 2, 18); x.fillStyle = '#fff'; x.font = 'bold 10px system-ui,sans-serif'; x.fillText(fp(now.c), W - AX + 5, ly); }
     // محور الوقت
     x.fillStyle = mu; x.font = '10px system-ui,sans-serif'; x.textAlign = 'center';
     var fmtT = function (t) { var d = new Date(t); return TR.tf === '1d' || TR.tf === '1w' ? (d.getMonth() + 1) + '/' + d.getDate() : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); };
@@ -3714,18 +3726,45 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (hv != null) { var d = new Date(k2.t); o.appendChild(el('span', null, d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))); }
   }
   (function () {
-    var cv = $('pr-cv'), at = function (e) {
-      if (!TR.kl) return; var r = cv.getBoundingClientRect(), px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left, n = Math.min(TR.view, TR.kl.length);
-      TR.hover = Math.floor(px / ((r.width - 58) / n)); drawCandles();
+    // إصبع واحد: سحب يمين/يسار يتصفّح الشموع، ولمسة مطوّلة (أو نقرة) تُظهر بيانات شمعة. إصبعان: تكبير وتصغير
+    var cv = $('pr-cv'), AXW = 58, st = null, holdT = null, d0 = null, v0 = 80;
+    var cwOf = function () { return (cv.getBoundingClientRect().width - AXW) / Math.min(TR.view, (TR.kl || []).length || 1); };
+    var hoverAt = function (x) { if (!TR.kl) return; var r = cv.getBoundingClientRect(); TR.hover = Math.floor((x - r.left) / cwOf()); drawCandles(); };
+    var down = function (x) {
+      if (!TR.kl) return; st = { x: x, off: TR.off || 0, mode: null, t: Date.now() };
+      clearTimeout(holdT); holdT = setTimeout(function () { if (st && !st.mode) { st.mode = 'hover'; hoverAt(st.x); } }, 280);
     };
-    var end = function () { TR.hover = null; drawCandles(); };
-    cv.addEventListener('pointerdown', at); cv.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' || e.buttons) at(e); });
-    cv.addEventListener('touchmove', function (e) { if (e.touches.length === 1) { e.preventDefault(); at(e); } }, { passive: false });
-    cv.addEventListener('pointerleave', end); cv.addEventListener('touchend', end);
-    // تكبير وتصغير: عدد الشموع الظاهرة بقرصة إصبعين
-    var d0 = null, v0 = 80;
-    cv.addEventListener('touchstart', function (e) { if (e.touches.length === 2) { d0 = Math.abs(e.touches[0].clientX - e.touches[1].clientX); v0 = TR.view; } }, { passive: true });
-    cv.addEventListener('touchmove', function (e) { if (e.touches.length === 2 && d0) { var d = Math.abs(e.touches[0].clientX - e.touches[1].clientX); TR.view = Math.max(20, Math.min(200, Math.round(v0 * d0 / Math.max(d, 10)))); drawCandles(); } }, { passive: true });
+    var move = function (x) {
+      if (!st) return;
+      if (!st.mode && Math.abs(x - st.x) > 6) { st.mode = 'pan'; clearTimeout(holdT); TR.hover = null; }
+      if (st.mode === 'hover') return hoverAt(x);
+      if (st.mode === 'pan') {
+        TR.off = Math.max(0, st.off + Math.round((x - st.x) / cwOf())); drawCandles();
+        if (TR.kl && TR.off >= TR.kl.length - Math.min(TR.view, TR.kl.length) - 5) loadOlder(); // وصلنا لأول الشارت: نحمّل شموعاً أقدم
+      }
+    };
+    var up = function () {
+      clearTimeout(holdT);
+      if (st && !st.mode && Date.now() - st.t < 280) { hoverAt(st.x); setTimeout(function () { if (!st) { TR.hover = null; drawCandles(); } }, 2500); } // نقرة: نعرض الشمعة لحظة
+      else if (st && st.mode === 'hover') { TR.hover = null; drawCandles(); }
+      st = null;
+    };
+    cv.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) { clearTimeout(holdT); st = null; TR.hover = null; d0 = Math.abs(e.touches[0].clientX - e.touches[1].clientX); v0 = TR.view; return; }
+      down(e.touches[0].clientX);
+    }, { passive: true });
+    cv.addEventListener('touchmove', function (e) {
+      if (e.touches.length === 2 && d0) { e.preventDefault(); var d = Math.abs(e.touches[0].clientX - e.touches[1].clientX); TR.view = Math.max(20, Math.min(200, Math.round(v0 * d0 / Math.max(d, 10)))); drawCandles(); return; }
+      if (st && (st.mode || Math.abs(e.touches[0].clientX - st.x) > 6)) e.preventDefault(); // نمنع تمرير الصفحة أثناء السحب الأفقي
+      move(e.touches[0].clientX);
+    }, { passive: false });
+    cv.addEventListener('touchend', function (e) { if (!e.touches.length) { d0 = null; up(); } });
+    // الفأرة (للتجربة على الحاسوب): سحب للتصفّح، تمرير للتكبير
+    cv.addEventListener('mousedown', function (e) { down(e.clientX); });
+    window.addEventListener('mousemove', function (e) { if (st) move(e.clientX); });
+    window.addEventListener('mouseup', function () { if (st) up(); });
+    cv.addEventListener('wheel', function (e) { e.preventDefault(); TR.view = Math.max(20, Math.min(200, TR.view + (e.deltaY > 0 ? 8 : -8))); drawCandles(); }, { passive: false });
+    cv.addEventListener('dblclick', function () { TR.off = 0; TR.view = 80; drawCandles(); }); // نقرتان: العودة لآخر سعر
     window.addEventListener('resize', function () { if (state.stack[state.stack.length - 1] === 'pair') drawCandles(); });
   })();
 

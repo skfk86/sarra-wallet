@@ -5,16 +5,17 @@ sys.path.insert(0, __import__('os').path.dirname(__file__))
 import run_evm as E
 from playwright.async_api import async_playwright
 S=sys.argv[1]; SHOTS=sys.argv[2] if len(sys.argv)>2 else None
-DIA='0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE'; Q=[]; PRICE={'BTC':60000.0}
-def kl(n=200, base=58000.0):
-  out=[]; t=1760000000000
+DIA='0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE'; Q=[]; KLCALLS=[]; PRICE={'BTC':60000.0}
+def kl(n=200, base=58000.0, t0=1760000000000):
+  out=[]; t=t0
   for i in range(n):
     o=base+math.sin(i/9)*900+i*12; c=o+math.sin(i/3)*250; h=max(o,c)+120; l=min(o,c)-120
     out.append([t+i*3600000,str(o),str(h),str(l),str(c),'10',t+i*3600000+3599999,str(5e6+i*1000),100,'5','2e6','0'])
   return out
 async def binance(route):
   u=urlparse(route.request.url)
-  if u.path.endswith('/klines'): return await route.fulfill(json=kl())
+  if u.path.endswith('/klines'):
+    KLCALLS.append(route.request.url); return await route.fulfill(json=kl(base=50000.0, t0=1760000000000-200*3600000) if 'endTime' in route.request.url else kl())
   if u.path.endswith('/ticker/24hr'):
     syms=['BTCUSDT','ETHUSDT','BNBUSDT','TRXUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','LINKUSDT','CAKEUSDT','SHIBUSDT','POLUSDT','AAVEUSDT']
     chg={'BTCUSDT':'2.50','ETHUSDT':'-1.20','BNBUSDT':'0.80','DOGEUSDT':'-6.40','SOLUSDT':'7.10'}
@@ -64,8 +65,18 @@ async def main():
     o=await pg.inner_text('#pr-ohlc'); assert 'O' in o and 'C' in o; print('✓ قراءة OHLC')
     sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); assert sig!='—' and 'RSI' in ind and 'أقرب دعم' in ind, (sig,ind); print('✓ التحليل الفني:', sig)
     await pg.click('#pr-tf [data-tf="4h"]'); await pg.wait_for_timeout(800); assert await pg.is_hidden('#pr-load'); print('✓ تغيير الإطار الزمني')
-    box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.mouse.down(); await pg.wait_for_timeout(100)
-    o2=await pg.inner_text('#pr-ohlc'); await pg.mouse.up(); assert '/' in o2, o2; print('✓ مؤشر اللمس يعرض شمعة محددة بتاريخها')
+    box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.mouse.down(); await pg.wait_for_timeout(450)
+    o2=await pg.inner_text('#pr-ohlc'); await pg.mouse.up(); assert '/' in o2, o2; print('✓ لمسة مطوّلة تعرض شمعة محددة بتاريخها')
+    o3=await pg.inner_text('#pr-ohlc'); KLN=len(KLCALLS)
+    await pg.mouse.move(box['x']+60, box['y']+150); await pg.mouse.down()
+    for i in range(1,16): await pg.mouse.move(box['x']+60+i*16, box['y']+150); await pg.wait_for_timeout(15)
+    await pg.mouse.up(); await pg.wait_for_timeout(300)
+    o4=await pg.inner_text('#pr-ohlc'); assert o4!=o3, (o3,o4); print('✓ سحب الشارت يميناً يعرض شموعاً أقدم')
+    for i in range(12):
+      await pg.mouse.move(box['x']+20, box['y']+150); await pg.mouse.down(); await pg.mouse.move(box['x']+300, box['y']+150, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(120)
+    await pg.wait_for_timeout(600)
+    assert any('endTime=' in u for u in KLCALLS[KLN:]), KLCALLS[KLN:]; print('✓ عند أول الشارت تُحمَّل شموع أقدم تلقائياً')
+    await pg.dblclick('#pr-cv'); await pg.wait_for_timeout(200)
     w=await pg.evaluate('document.documentElement.scrollWidth'); assert w<=360, w; print('✓ لا فيضان أفقي في شاشة الزوج')
     if SHOTS: await pg.screenshot(path=SHOTS+'/pair.png', full_page=True)
     # شراء بـ 10 USDT
