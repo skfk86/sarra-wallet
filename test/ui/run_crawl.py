@@ -16,7 +16,7 @@ async def edge(route):
 BAD=re.compile(r'\bundefined\b|\bNaN\b|\[object|\bnull\b|(?<![A-Za-z(])[A-Z]{2,}_[A-Z_]{2,}(?![A-Za-z)])')
 async def main():
   async with async_playwright() as pw:
-    b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':360,'height':740}); E.PG.append(pg)
+    b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':int(__import__('os').environ.get('VW','360')),'height':int(__import__('os').environ.get('VH','740'))}); E.PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
     await pg.route('https://api.coingecko.com/**', lambda r: r.fulfill(status=429, json={}))
