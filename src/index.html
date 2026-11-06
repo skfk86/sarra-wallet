@@ -1172,7 +1172,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <b>عند استخدام سوق P2P أو الإرسال برقم الهاتف فقط</b>
     <p class="muted" style="margin:0">نحفظ: اسمك، رقم هاتفك، حساب بنكك، وعنوان محفظتك العام. صورة الهوية تُحذف بعد مراجعة التوثيق. إيصالات بنكك في الصفقات يراها البائع والمشرف فقط. سجل الصفقات المالية يُحفظ لحل النزاعات.</p>
     <b>خدمات خارجية</b>
-    <p class="muted" style="margin:0">OxaPay (ضمان صفقات P2P)، LI.FI (النقل بين الشبكات)، CoinGecko وBinance (الأسعار والشموع، بلا بياناتك)، Etherscan وNodeReal (سجل المعاملات، يريان عنوانك العام فقط)، TronGrid وخوادم الشبكات العامة. لا إعلانات ولا تتبع.</p>
+    <p class="muted" style="margin:0">Firebase (توصيل الإشعارات: رمز جهازك وعنوانك العام فقط)، OxaPay (ضمان صفقات P2P)، LI.FI (النقل بين الشبكات)، CoinGecko وBinance (الأسعار والشموع، بلا بياناتك)، Etherscan وNodeReal (سجل المعاملات، يريان عنوانك العام فقط)، TronGrid وخوادم الشبكات العامة. لا إعلانات ولا تتبع.</p>
     <b>حذف بياناتك</b>
     <p class="muted" style="margin:0">زر الحذف أدناه يمسح اسمك ورقمك وحساب بنكك وتذاكرك من خوادمنا فوراً. يبقى سجل الصفقات مرتبطاً بعنوان المحفظة فقط. لحذف المحفظة من هاتفك: الأمان ← حذف المحفظة.</p>
   </div>
@@ -1896,8 +1896,33 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (o.e && !state.evmBal) { var eb = {}; Object.keys(o.e).forEach(function (k) { eb[k] = {}; Object.keys(o.e[k]).forEach(function (x) { eb[k][x] = BigInt(o.e[k][x]); }); }); state.evmBal = eb; state.evmBalCached = true; }
     } catch (e) {}
   }
+  // ===== إشعارات Firebase الفورية (تصل والتطبيق مغلق) =====
+  var PN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.PushNotifications;
+  function pushKey() { return 'sarra.push.' + (state.lhAddr || ''); }
+  async function pushInit() {
+    if (!PN || !P2P_URL || state.pushInit) return; state.pushInit = 1;
+    try {
+      await PN.addListener('registration', async function (t) {
+        var tok = t && t.value; if (!tok) return;
+        try { if (localStorage.getItem(pushKey()) === tok) { state.pushOn = true; return; } } catch (e) {}
+        try {
+          var evm = Object.keys(EVM).length ? await core.evmAddress() : null;
+          await p2p('push.register', evm ? { token: tok, evm: evm } : { token: tok });
+          try { localStorage.setItem(pushKey(), tok); } catch (e) {}
+          state.pushOn = true;
+        } catch (e) { /* يُعاد التسجيل عند الفتح التالي */ }
+      });
+      await PN.addListener('registrationError', function () { state.pushOn = false; });
+      // وصل إشعار والتطبيق مفتوح: لا يظهر في الشريط (presentationOptions فارغة)، فنفحص فوراً ونعرض نافذة الاستلام
+      await PN.addListener('pushNotificationReceived', function () { rxTick(true); });
+      await PN.addListener('pushNotificationActionPerformed', function () { setTimeout(function () { rxTick(true); }, 800); });
+      if (PN.createChannel) await PN.createChannel({ id: 'tx2', name: 'المعاملات', description: 'استلام وخصم', importance: 5, visibility: 1, sound: 'coin.wav', vibration: true, lights: true, lightColor: '#16A37A' }).catch(function () {});
+      var pm = await PN.checkPermissions(); if (pm.receive !== 'granted') pm = await PN.requestPermissions();
+      if (pm.receive === 'granted') await PN.register();
+    } catch (e) {}
+  }
   async function loadHome(force) {
-    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     if (!state.balances || !state.evmBal) loadBalCache();
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
@@ -3095,6 +3120,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     return lnOk;
   }
   async function notifyTx(kind, n) {
+    // إشعارات Firebase مفعّلة: الخادم يرسل إشعار USDT/USDC حتى والتطبيق مغلق، فلا نكرره محلياً
+    if (state.pushOn && /^(USDT|USDC)$/.test(n.coin)) return;
     if (!(await lnReady())) return;
     var a = state.hidden ? '' : ' ' + fmtExact(n.amount) + ' ' + n.coin;
     try {
@@ -5126,11 +5153,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // بعد حذف المحفظة نعيد تشغيل التطبيق من الصفر: لا يبقى في الذاكرة أي شيء من المحفظة القديمة
   // (الرصيد والسجل على الشاشة، بيانات السوق، رمز الصندوق، الشارات، الطلب المفتوح...)
   async function wipeAndRestart(next) {
+    try { var pt = localStorage.getItem(pushKey()); if (pt && core.isUnlocked()) await Promise.race([p2p('push.unregister', { token: pt }), new Promise(function (r) { setTimeout(r, 3000); })]); } catch (e) {} // لا إشعارات لمحفظة محذوفة
+    try { if (PN) await PN.unregister(); } catch (e) {}
     await core.wipe();
     await bioDisable();
     try {
       // السجل المحلي وإشعارات الاستلام تخص المحفظة المحذوفة: تُحذف معها
-      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb|bal|tr|kl)\.|^sarra\.(rxe|exactAsked)$/.test(k)) localStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb|bal|tr|kl|push)\.|^sarra\.(rxe|exactAsked)$/.test(k)) localStorage.removeItem(k); });
       sessionStorage.setItem('sarra.after-wipe', next);
     } catch (e) {}
     location.reload();

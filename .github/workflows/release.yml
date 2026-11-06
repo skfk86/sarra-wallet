@@ -49,6 +49,11 @@ jobs:
           SARRA_LIFI_INTEGRATOR: ${{ vars.SARRA_LIFI_INTEGRATOR || 'surra-sd' }}
         run: npm run config
       - run: npx cap add android
+      - name: Firebase config (push notifications)
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > android/app/google-services.json; python3 -c "import json;d=json.load(open('android/app/google-services.json'));print('google-services.json ok, project', d['project_info']['project_id'])"; else echo "::warning::GOOGLE_SERVICES_JSON غير موجود: الإشعارات الفورية معطلة في هذه النسخة"; fi
       - name: Check Google Play API level (target >= 36, min >= 24)
         run: |
           T=$(grep -oP 'targetSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle); M=$(grep -oP 'minSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle); C=$(grep -oP 'compileSdkVersion\s*=\s*\K[0-9]+' android/variables.gradle)

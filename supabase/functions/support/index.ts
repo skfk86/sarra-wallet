@@ -44,6 +44,7 @@ async function handle(action: string, p: Record<string, any>, me: string) {
     await db.from('profiles').update({ full_name: null, phone: null, bankak_account: null, id_doc_path: null, prev_kyc: null,
       phone_link: false, verify_status: 'none', verified_at: null, verify_note: null, nickname: 'محذوف-' + me.slice(-4) }).eq('address', me);
     await db.from('support_tickets').delete().eq('address', me);
+    await db.from('push_tokens').delete().eq('address', me); // لا إشعارات بعد حذف البيانات
     await audit(me, 'account_delete');
     return { ok: true };
   }

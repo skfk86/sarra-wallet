@@ -1,6 +1,6 @@
 name: Deploy edge function (manual)
 
-# نشر يدوي فقط لدالة سجل المعاملات (history) على Supabase. لا يعمل تلقائياً أبداً.
+# نشر يدوي فقط لدوال Supabase (p2p، history، push-watch، support) أو إعداد الإشعارات (push-setup). لا يعمل تلقائياً أبداً.
 # يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN : من supabase.com → Account → Access Tokens
 # ويحتاج في Supabase نفسه (Edge Functions → Secrets): ETHERSCAN_API_KEY (Ethereum وPolygon) وNODEREAL_API_KEY (BNB Chain)، وMORALIS_API_KEY اختياري
@@ -10,7 +10,7 @@ on:
       fn:
         description: 'الدالة'
         type: choice
-        options: [p2p, history]
+        options: [p2p, history, push-watch, support, push-setup]
         default: p2p
 
 permissions:
@@ -33,6 +33,23 @@ jobs:
       - uses: supabase/setup-cli@v1
         with: { version: latest }
       - name: Deploy
+        if: inputs.fn != 'push-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy ${{ inputs.fn }} --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api
+      # push-setup: ينشر دوال الإشعارات الثلاث ثم يطبّق ترحيل الجداول والجدولة (018_push.sql) عبر Management API
+      - name: Push notifications setup (functions + migration 018)
+        if: inputs.fn == 'push-setup'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          for f in push-watch p2p support; do supabase functions deploy $f --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api; done
+          python3 -c "import json;print(json.dumps({'query':open('supabase/migrations/018_push.sql').read()}))" > /tmp/q.json
+          code=$(curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json)
+          echo "migration HTTP $code"; head -c 600 /tmp/r.txt; echo
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق ترحيل الإشعارات"; exit 1; }
+          sleep 75
+          echo "--- آخر تشغيل للماسح (من جدول cron) ---"
+          python3 -c "import json;print(json.dumps({'query':\"select status, return_message, start_time from cron.job_run_details where jobid=(select jobid from cron.job where jobname='push-watch') order by start_time desc limit 2\"}))" > /tmp/q2.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q2.json | head -c 800; echo

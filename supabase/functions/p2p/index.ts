@@ -221,6 +221,19 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { profile: pub, is_admin: ADMINS.includes(me), fee_bps: FEE_BPS, net_fee: NET_FEE, net_fee_bep: NET_FEE_BEP, min_trade: MIN_TRADE, rate, range: L.priceRange(rate), max_offers: L.MAX_ACTIVE_OFFERS };
   }
 
+  // إشعارات Firebase: الجهاز يسجّل رمزه، والعناوين تؤخذ من الطلب الموقّع وملفك (لا يمكن تسجيل محفظة غيرك)
+  if (action === 'push.register') {
+    const token = String(p.token || '');
+    if (!/^[\w:\-]{20,4096}$/.test(token)) throw new Error('BAD_TOKEN');
+    await limit(me, 'push');
+    const evm = L.isEvmAddr(p.evm) ? String(p.evm).toLowerCase() : (profile.evm_address ? String(profile.evm_address).toLowerCase() : null);
+    await db.from('push_tokens').upsert({ token, address: me, evm, updated_at: new Date().toISOString() });
+    return { ok: true };
+  }
+  if (action === 'push.unregister') {
+    await db.from('push_tokens').delete().eq('address', me).eq('token', String(p.token || ''));
+    return { ok: true };
+  }
   if (action === 'profile.set') {
     const nickname = String(p.nickname || '').trim();
     if (nickname.length < 2 || nickname.length > 24) throw new Error('BAD_NICKNAME');

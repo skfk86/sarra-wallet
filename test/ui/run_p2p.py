@@ -25,6 +25,7 @@ async def handler(route):
   r=st['rate']; rg={'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}
   if a=='offers.list': return await ok({'offers':st['buyads'] if p.get('side')=='buy' else st['offers'],'fee_bps':50,'net_fee':'1','min_trade':10,'rate':r,'range':rg})
   if not st['profile']: st['profile']={'address':ME,'nickname':'مستخدم-'+ME[-4:],'verify_status':'none'}
+  if a=='push.register': st.setdefault('push',[]).append(p); return await ok({'ok':True})
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
   if a=='admin.stats': return await ok({'users':7,'active_offers':2,'open_orders':1,'disputes':1,'completed':4,'earnings':{'today':{'trades':1,'volume':'100','commission':'0.5','net_fees':'0.3'},'d7':{'trades':3,'volume':'400','commission':'2','net_fees':'1.3'},'d30':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'},'all':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'}}})
@@ -78,6 +79,10 @@ async def main():
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
     await pg.route('https://mock.supabase.co/**', handler)
     await pg.route('https://mock.supabase.co/functions/v1/market**', lambda r: r.fulfill(status=404, json={}))
+    # Firebase وهمي: يطلب الإذن ثم يعطي رمز جهاز
+    await pg.add_init_script("""window.__pn={l:{}};window.Capacitor={Plugins:{PushNotifications:{
+      addListener:async(n,f)=>{window.__pn.l[n]=f;return {remove(){}}},checkPermissions:async()=>({receive:'prompt'}),requestPermissions:async()=>({receive:'granted'}),
+      createChannel:async()=>{},register:async()=>{setTimeout(()=>window.__pn.l.registration&&window.__pn.l.registration({value:'fcm-token-ABCDEFGHIJKLMNOPQRSTUVWXYZ'}),50)},unregister:async()=>{}}}}""")
     await pg.goto('file://'+S+'/index.html')
     vis=lambda i: pg.locator('#'+i).is_visible()
     async def pin(d):
@@ -90,6 +95,12 @@ async def main():
       assert w<=0 and not bad, (name,w,bad); step('لا شيء يخرج عن الشاشة (360px): '+name)
     await pg.click('[data-go=create]'); await pg.click('#reveal'); await pg.check('#agree'); await pg.click('#backup-next')
     await pin('123456'); await pin('123456'); await pg.wait_for_timeout(1200); await pg.click('#intro-ok')
+    for _ in range(20):
+      if st.get('push'): break
+      await pg.wait_for_timeout(300)
+    assert st.get('push') and st['push'][0]['token'].startswith('fcm-token') and st['signed']>0, st.get('push'); step('Firebase: طلب الإذن وسُجّل رمز الجهاز بطلب موقّع')
+    n0=len(st['push']); await pg.evaluate("window.__pn.l.registration({value:'fcm-token-ABCDEFGHIJKLMNOPQRSTUVWXYZ'})"); await pg.wait_for_timeout(400)
+    assert len(st['push'])==n0; step('نفس الرمز لا يُعاد تسجيله في كل فتح')
     # السوق
     await pg.click('.tab[data-tab=p2p]'); await pg.wait_for_timeout(800)
     t=await pg.inner_text('#p2p-list'); assert 'ود_الخرطوم' in t and '2,700' in t and 'موثّق' in t and 'إتمام 92.3%' in t and 'بنكك' in t, t; step('بطاقات بأسلوب Binance: موثّق، نسبة الإتمام، بنكك')
