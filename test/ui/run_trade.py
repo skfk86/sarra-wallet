@@ -123,7 +123,7 @@ async def main():
     assert '+$1.20' in await pg.inner_text('#tr-pf-un') and await pg.inner_text('#tr-pf-n')=='1'; print('✓ بطاقة المحفظة: ربح مفتوح وعدد الصفقات')
     await pg.click('#tr-pf-hist'); assert 'شراء' in await pg.inner_text('#th-list'); await pg.click('#th-close'); print('✓ سجل الصفقات')
     await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
-    assert 'شراء BTC' in await pg.inner_text('#s-history') or 'BTC' in await pg.inner_text('#s-history'); print('✓ الصفقة في سجل المعاملات')
+    h=await pg.inner_text('#s-history'); assert 'شراء BTC' in h and 'تبديل USDT' not in h, h; print('✓ الصفقة في سجل المعاملات')
     if SHOTS:
       await pg.emulate_media(color_scheme='dark'); await pg.evaluate("document.documentElement.removeAttribute('data-theme')")
       await pg.click('.tab[data-tab=trade]'); await pg.wait_for_timeout(600); await pg.screenshot(path=SHOTS+'/trade-dark.png')

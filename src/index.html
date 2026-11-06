@@ -2273,7 +2273,12 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function txIcon(b, kind) { var c = TX_ICONS[kind] || TX_ICONS.send; b.style.cssText = 'background:' + c[0] + ';color:' + c[1]; b.innerHTML = '<svg class="i" viewBox="0 0 24 24">' + c[2] + '</svg>'; }
   function txTitle(t) {
     var r = t.rec;
-    if (r && r.kind === 'swap') return 'تبديل ' + (r.paidCoin || '') + ' ← ' + r.coin;
+    if (r && r.kind === 'swap') {
+      var tr = r.trade || (/^شراء /.test(r.via || '') ? 'buy' : /^بيع /.test(r.via || '') ? 'sell' : null); // صفقات شاشة التداول
+      if (tr === 'buy') return 'شراء ' + r.coin;
+      if (tr === 'sell') return 'بيع ' + (r.paidCoin || '');
+      return 'تبديل ' + (r.paidCoin || '') + ' ← ' + r.coin;
+    }
     if (r && r.kind === 'bridge') return 'نقل إلى ' + netTag(r.toNet);
     return t.self ? 'تحويل لنفس العنوان' : t.incoming ? 'استلام' : 'إرسال';
   }
@@ -4154,7 +4159,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     state.txBusy = true; toast(q.tSide === 'buy' ? 'جارٍ الشراء…' : 'جارٍ البيع…');
     var c = trCoin(q.tSym), coinAmt = q.tSide === 'buy' ? q.toAmount : q.amount, usdtAmt = q.tSide === 'buy' ? q.amount : q.toAmount;
     var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING', fee: q.appFee ? String(Number(q.amount) * q.appFee) : null };
-    var lh = { kind: 'swap', net: q.tNet, coin: q.tSide === 'buy' ? q.tSym : 'USDT', amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.tSide === 'buy' ? 'USDT' : q.tSym, via: (q.tSide === 'buy' ? 'شراء ' : 'بيع ') + q.tSym + ' · ' + (q.tron ? 'SunSwap' : 'LI.FI'), status: 'PENDING' };
+    var lh = { kind: 'swap', net: q.tNet, coin: q.tSide === 'buy' ? q.tSym : 'USDT', amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.tSide === 'buy' ? 'USDT' : q.tSym, via: (q.tSide === 'buy' ? 'شراء ' : 'بيع ') + q.tSym + ' · ' + (q.tron ? 'SunSwap' : 'LI.FI'), trade: q.tSide, status: 'PENDING' };
     try {
       if (q.tron) {
         var r = await core.swap(q.dir, q.amount, SWAP_SLIPPAGE_BPS, q.toAmount);
