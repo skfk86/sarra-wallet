@@ -3848,6 +3848,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var c = trCoin(TR.sym), pay = odPay(), amt = $('od-amt').value.trim().replace(',', '.'), v = balOn(pay, TR.net);
     if (!(Number(amt) > 0)) return odErr('أدخل المبلغ');
     if (v != null && Number(amt) > v) return odErr('الرصيد غير كافٍ على ' + netOf(TR.net).name);
+    var usdIn = TR.side === 'buy' ? Number(amt) : (trPrice(c.sym) || 0) * Number(amt);
+    if (usdIn && usdIn < 1) return odErr('أقل صفقة 1 دولار: المبالغ الأصغر ترفضها خدمات التبديل لأن رسوم الشبكة تقارب المبلغ نفسه');
     var n = netOf(TR.net);
     if (n.evm) { var nat = evmUnits(TR.net, n.native); if (nat != null && nat === 0n) { odErr('تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة'); return openGasHelp(TR.net); } }
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');

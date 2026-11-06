@@ -392,7 +392,13 @@
         var res = await fetch('https://li.quest/v1' + path, { signal: ctl && ctl.signal });
         var j = await res.json().catch(function () { return {}; });
         if (res.status === 429) throw new Error('BRIDGE_BUSY');
-        if (!res.ok) throw new Error(res.status === 404 || /no.*(route|quote)/i.test(j.message || '') ? 'NO_ROUTE' : 'BRIDGE_NETWORK');
+        if (!res.ok) {
+          // نفرّق بين رفض الخدمة للمبلغ (صغير/سيولة) وبين انقطاع الاتصال، حتى لا يظن المستخدم أن الإنترنت هو السبب
+          var m = String(j.message || '') + ' ' + JSON.stringify(j.errors || '');
+          if (/amount|too (low|small)|minimum|min(imal)? amount|cover (the )?(gas|fees)|dust/i.test(m)) throw new Error('BRIDGE_TOO_SMALL');
+          if (res.status === 404 || /no.*(route|quote)|liquidity|not (supported|available)/i.test(m) || (res.status >= 400 && res.status < 500)) throw new Error('NO_ROUTE');
+          throw new Error('BRIDGE_NETWORK');
+        }
         return j;
       } catch (e) { throw /^[A-Z_]+$/.test(e.message || '') ? e : new Error('BRIDGE_NETWORK'); }
       finally { if (to) clearTimeout(to); }
@@ -983,6 +989,7 @@
     SAME_NETWORK: 'اختر شبكتين مختلفتين',
     BRIDGE_MAX: 'الحد الأقصى للنقل الواحد 2000 دولار. قسّم المبلغ على أكثر من عملية',
     NO_ROUTE: 'لا يوجد مسار نقل لهذا المبلغ حالياً. جرّب مبلغاً أكبر أو شبكة أخرى',
+    BRIDGE_TOO_SMALL: 'المبلغ أصغر من أن تنفّذه خدمة التبديل (رسوم الشبكة قد تساوي المبلغ). جرّب 2 دولار أو أكثر',
     BRIDGE_BUSY: 'خدمة النقل مشغولة الآن. انتظر دقيقة وحاول مجدداً',
     BRIDGE_NETWORK: 'تعذّر الوصول لخدمة النقل. تحقق من الإنترنت وحاول مجدداً',
     QUOTE_EXPIRED: 'انتهت صلاحية السعر. اطلب سعراً جديداً',
