@@ -49,7 +49,7 @@
     },
     eth: {
       id: 1, name: 'Ethereum', short: 'ERC20', native: 'ETH', color: '#627EEA', explorer: 'https://etherscan.io',
-      rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+      rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
       tokens: [{ sym: 'USDT', addr: '0xdAC17F958D2ee523a2206206994597C13D831ec7', dec: 6 },
                { sym: 'USDC', addr: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', dec: 6 },
                { sym: 'DAI', addr: '0x6B175474E89094C44Da98b954EedeAC495271d0F', dec: 18 },
@@ -62,7 +62,7 @@
     },
     polygon: {
       id: 137, name: 'Polygon', short: 'Polygon', native: 'POL', color: '#8247E5', explorer: 'https://polygonscan.com',
-      rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon-rpc.com'],
+      rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org', 'https://1rpc.io/matic', 'https://polygon-rpc.com'],
       tokens: [{ sym: 'USDT', addr: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', dec: 6 },
                { sym: 'USDC', addr: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', dec: 6 },
                { sym: 'DAI', addr: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063', dec: 18 },
@@ -724,12 +724,24 @@
           try {
             out[k] = await evmCall(c, async function (p) {
               var ethers = E(), iface = new ethers.Interface(ERC20_IFACE_ABI), r = {};
-              var calls = [p.getBalance(addr)].concat(c.tokens.map(function (t) {
-                return p.call({ to: t.addr, data: iface.encodeFunctionData('balanceOf', [addr]) });
-              }));
-              var res = await Promise.all(calls);
+              // طلب واحد عبر Multicall3 بدل طلب لكل عملة: الخوادم العامة تحظر الطلبات الكثيرة المتزامنة.
+              // عملة تفشل وحدها لا تُفشل الشبكة كلها (allowFailure)
+              try {
+                var mc = new ethers.Interface(['function aggregate3((address target,bool allowFailure,bytes callData)[] calls) view returns ((bool success,bytes returnData)[] returnData)', 'function getEthBalance(address) view returns (uint256)']);
+                var MC = '0xcA11bde05977b3631167028862bE2a173976CA11';
+                var list = [{ target: MC, allowFailure: false, callData: mc.encodeFunctionData('getEthBalance', [addr]) }].concat(c.tokens.map(function (t) {
+                  return { target: t.addr, allowFailure: true, callData: iface.encodeFunctionData('balanceOf', [addr]) };
+                }));
+                var out3 = mc.decodeFunctionResult('aggregate3', await p.call({ to: MC, data: mc.encodeFunctionData('aggregate3', [list]) }))[0];
+                r.native = BigInt(mc.decodeFunctionResult('getEthBalance', out3[0].returnData)[0]);
+                c.tokens.forEach(function (t, i) { var x = out3[i + 1]; if (x.success && x.returnData !== '0x') r[t.sym] = BigInt(iface.decodeFunctionResult('balanceOf', x.returnData)[0]); }); // الفاشلة تُترك بلا قيمة (لا نعرضها صفراً)
+                return r;
+              } catch (e) { /* خادم لا يدعم Multicall: نعود للطريقة القديمة */ }
+              var res = await Promise.all([p.getBalance(addr)].concat(c.tokens.map(function (t) {
+                return p.call({ to: t.addr, data: iface.encodeFunctionData('balanceOf', [addr]) }).catch(function () { return null; });
+              })));
               r.native = BigInt(res[0]);
-              c.tokens.forEach(function (t, i) { r[t.sym] = BigInt(iface.decodeFunctionResult('balanceOf', res[i + 1])[0]); });
+              c.tokens.forEach(function (t, i) { if (res[i + 1] && res[i + 1] !== '0x') r[t.sym] = BigInt(iface.decodeFunctionResult('balanceOf', res[i + 1])[0]); });
               return r;
             });
           } catch (e) { out[k] = null; }

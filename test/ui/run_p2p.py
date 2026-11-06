@@ -198,6 +198,7 @@ async def main():
     await pg.fill('#buy-amt','200'); await pg.wait_for_timeout(200)
     # البيع على BNB Chain فقط: فحص الرصيد المسبق يقرأ رصيد BNB Chain ويتطلب تفعيل evm (يُختبر في run_evm بعد تثبيت ethers).
     # بدون evm لا نعرض رصيد TRON المضلِّل، ويبقى التحقق النهائي على الخادم.
+    await pg.wait_for_selector('#buy-mybal', state='hidden', timeout=15000)
     assert await pg.is_hidden('#buy-mybal') and 'TRX' not in await pg.inner_text('#buy-sellnote'); step('لا يُعرض رصيد TRON/TRX عند البيع (الشبكة BNB فقط)')
     await pg.fill('#buy-amt','40'); assert '107,600' in await pg.inner_text('#buy-total'); step('حساب ما ستستلمه بالجنيه')
     await pg.click('#buy-go'); await pg.wait_for_timeout(1200)

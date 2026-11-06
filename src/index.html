@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://api.coingecko.com https://li.quest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://api.coingecko.com https://li.quest">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -2751,7 +2751,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   async function rxRebase(ok) {
     try {
       var ea = await core.evmAddress(), key = 'sarra.rxb.' + ea, pre = RX.evmBase || rxGet(key), snap = function (bal) {
-        var n = {}; Object.keys(bal).forEach(function (k) { if (bal[k]) { n[k] = {}; Object.keys(bal[k]).forEach(function (x) { n[k][x] = bal[k][x].toString(); }); } }); return n;
+        var n = {}; Object.keys(bal).forEach(function (k) { if (bal[k]) { n[k] = {}; Object.keys(bal[k]).forEach(function (x) { if (bal[k][x] != null) n[k][x] = bal[k][x].toString(); }); if (pre && pre[k]) Object.keys(pre[k]).forEach(function (x) { if (n[k][x] == null) n[k][x] = pre[k][x]; }); } }); return n;
       };
       for (var i = 0; i < (ok ? 20 : 1); i++) { // حتى ~80 ثانية
         if (i) await new Promise(function (r) { setTimeout(r, 4000); });
@@ -2831,7 +2831,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var key = 'sarra.rxb.' + ea, base = RX.evmBase || rxGet(key), next = {}, skipOut = Date.now() < (RX.ownUntil || 0);
     Object.keys(EVM).forEach(function (k) {
       if (!bal[k]) { next[k] = base && base[k] ? base[k] : null; return; } // شبكة تعذّر قراءتها: نُبقي القديم
-      next[k] = {}; Object.keys(bal[k]).forEach(function (sym) { next[k][sym] = bal[k][sym].toString(); });
+      next[k] = {}; Object.keys(bal[k]).forEach(function (sym) { if (bal[k][sym] != null) next[k][sym] = bal[k][sym].toString(); });
+      if (base && base[k]) Object.keys(base[k]).forEach(function (sym) { if (next[k][sym] == null) next[k][sym] = base[k][sym]; }); // عملة تعذّرت قراءتها: نُبقي القديم
     });
     if (base) Object.keys(next).forEach(function (k) {
       if (!next[k] || !base[k]) return;
