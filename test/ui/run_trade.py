@@ -63,7 +63,9 @@ async def main():
     px=await pg.evaluate("(()=>{const c=document.getElementById('pr-cv');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let g=0,r=0;for(let i=0;i<d.length;i+=4){if(d[i+1]>140&&d[i]<60)g++;if(d[i]>200&&d[i+1]<100)r++;}return [g,r]})()")
     assert px[0]>200 and px[1]>200, px; print('✓ رُسمت شموع صاعدة وهابطة', px)
     o=await pg.inner_text('#pr-ohlc'); assert 'O' in o and 'C' in o; print('✓ قراءة OHLC')
-    sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); assert sig!='—' and 'RSI' in ind and 'أقرب دعم' in ind, (sig,ind); print('✓ التحليل الفني:', sig)
+    await pg.wait_for_timeout(500)
+    sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); bt=await pg.inner_text('#pr-bt'); cf=await pg.inner_text('#pr-conf')
+    assert sig!='—' and 'RSI' in ind and 'ADX' in ind and 'وقف خسارة' in ind and 'الإطار الأعلى' in ind and '📊' in bt and 'الثقة' in cf, (sig,ind,bt,cf); print('✓ التحليل:', sig, '·', cf); print('  ', bt)
     await pg.click('#pr-tf [data-tf="4h"]'); await pg.wait_for_timeout(800); assert await pg.is_hidden('#pr-load'); print('✓ تغيير الإطار الزمني')
     box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.mouse.down(); await pg.wait_for_timeout(450)
     o2=await pg.inner_text('#pr-ohlc'); await pg.mouse.up(); assert '/' in o2, o2; print('✓ لمسة مطوّلة تعرض شمعة محددة بتاريخها')
@@ -117,6 +119,10 @@ async def main():
     await pg.click('#tr-pf-hist'); assert 'شراء' in await pg.inner_text('#th-list'); await pg.click('#th-close'); print('✓ سجل الصفقات')
     await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
     assert 'شراء BTC' in await pg.inner_text('#s-history') or 'BTC' in await pg.inner_text('#s-history'); print('✓ الصفقة في سجل المعاملات')
+    if SHOTS:
+      await pg.emulate_media(color_scheme='dark'); await pg.evaluate("document.documentElement.removeAttribute('data-theme')")
+      await pg.click('.tab[data-tab=trade]'); await pg.wait_for_timeout(600); await pg.screenshot(path=SHOTS+'/trade-dark.png')
+      await pg.click('#tr-list .tr-row[data-sym=BTC]'); await pg.wait_for_timeout(1500); await pg.screenshot(path=SHOTS+'/pair-dark.png', full_page=True)
     assert not errs, errs
     print('✓ لا أخطاء JavaScript')
     await b.close()

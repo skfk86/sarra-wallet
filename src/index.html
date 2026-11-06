@@ -438,6 +438,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .op-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}.op-a button{height:38px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:var(--s2);color:var(--tx)}.op-a button.s{background:rgba(229,72,77,.1);color:var(--dn);border-color:rgba(229,72,77,.35)}
 .td-h{display:flex;align-items:center;gap:10px}.td-h .sd{font-size:12px;font-weight:800;padding:4px 10px;border-radius:7px}.td-h .sd.b{background:rgba(22,163,122,.14);color:var(--up)}.td-h .sd.s{background:rgba(229,72,77,.14);color:var(--dn)}
 .td-st{margin-inline-start:auto;font-size:12px;font-weight:700}.td-big{display:flex;flex-direction:column;gap:2px;background:var(--s2);border-radius:14px;padding:14px}.td-big span{font-size:12px;color:var(--mu)}.td-big b{font-size:24px;text-align:right}
+.pr-conf{font-size:12px;font-weight:700;color:var(--tx2)}
+.pr-bt{font-size:12px;line-height:1.8;background:var(--s2);border-radius:12px;padding:10px 12px;color:var(--tx2)}.pr-bt.up{background:rgba(22,163,122,.1);color:var(--up)}.pr-bt.dn{background:rgba(229,72,77,.1);color:var(--dn)}
 </style>
 </head>
 <body>
@@ -1170,7 +1172,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <b>عند استخدام سوق P2P أو الإرسال برقم الهاتف فقط</b>
     <p class="muted" style="margin:0">نحفظ: اسمك، رقم هاتفك، حساب بنكك، وعنوان محفظتك العام. صورة الهوية تُحذف بعد مراجعة التوثيق. إيصالات بنكك في الصفقات يراها البائع والمشرف فقط. سجل الصفقات المالية يُحفظ لحل النزاعات.</p>
     <b>خدمات خارجية</b>
-    <p class="muted" style="margin:0">OxaPay (ضمان صفقات P2P)، LI.FI (النقل بين الشبكات)، CoinGecko (الأسعار)، Etherscan وNodeReal (سجل المعاملات، يريان عنوانك العام فقط)، TronGrid وخوادم الشبكات العامة. لا إعلانات ولا تتبع.</p>
+    <p class="muted" style="margin:0">OxaPay (ضمان صفقات P2P)، LI.FI (النقل بين الشبكات)، CoinGecko وBinance (الأسعار والشموع، بلا بياناتك)، Etherscan وNodeReal (سجل المعاملات، يريان عنوانك العام فقط)، TronGrid وخوادم الشبكات العامة. لا إعلانات ولا تتبع.</p>
     <b>حذف بياناتك</b>
     <p class="muted" style="margin:0">زر الحذف أدناه يمسح اسمك ورقمك وحساب بنكك وتذاكرك من خوادمنا فوراً. يبقى سجل الصفقات مرتبطاً بعنوان المحفظة فقط. لحذف المحفظة من هاتفك: الأمان ← حذف المحفظة.</p>
   </div>
@@ -1311,8 +1313,10 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="card pr-ana" id="pr-ana">
     <div class="row between"><b style="font-size:15px">التحليل الفني</b><span class="pr-sig" id="pr-sig">—</span></div>
     <div class="pr-gauge"><div class="pr-gauge-bar"><i id="pr-gauge-dot"></i></div><div class="pr-gauge-l"><span>بيع قوي</span><span>محايد</span><span>شراء قوي</span></div></div>
+    <div class="pr-conf" id="pr-conf"></div>
+    <div class="pr-bt" id="pr-bt"></div>
     <div class="pr-ind" id="pr-ind"></div>
-    <small class="muted" style="font-size:11px;line-height:1.7">محسوبة من شموع الإطار الزمني المختار. للمعلومة فقط، وليست نصيحة استثمارية.</small>
+    <small class="muted" style="font-size:11px;line-height:1.7">التحليل يجمع 8 مؤشرات مع اتجاه الإطار الأعلى، ونسبة الصدق محسوبة على شموع هذه العملة الفعلية في الماضي. الأسواق لا تتكرر بالضرورة: لا يوجد تحليل يضمن الربح، فاستخدم وقف الخسارة ولا تتداول بمال تحتاجه.</small>
   </div>
   <div class="pr-bar">
     <button type="button" class="pr-buy" id="pr-buy">شراء</button>
@@ -2992,6 +2996,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     RX.expect.push({ net: q.toNet, coin: q.toSym || q.sym, lo: lo, hi: hi > 0 ? hi : 1e30, until: Date.now() + 3 * 3600000 });
     rxPut('sarra.rxe', RX.expect); // يبقى بعد إغلاق التطبيق: وصول النقل لاحقاً لا يظهر كتحويلة من شخص آخر
   }
+  // المبلغ المستلم فعلاً من حالة LI.FI (بالوحدات الخام) وإلا التقدير
+  function stAmount(st, q) { try { if (st && st.received && q && q.toTok) return WalletCore.fromUnits(BigInt(st.received), q.toTok.dec); } catch (e) {} return String(q.toAmount); }
   function rxUnexpect(q) { // عملية فشلت: لا ننتظر وارداً منها حتى لا نبتلع تحويلة حقيقية بنفس المبلغ
     for (var i = RX.expect.length - 1; i >= 0; i--) { var e = RX.expect[i]; if (e.net === q.toNet && e.coin === (q.toSym || q.sym)) { RX.expect.splice(i, 1); break; } }
     rxPut('sarra.rxe', RX.expect);
@@ -3261,6 +3267,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (!ES.q || state.txBusy) return;
     if (Date.now() - (ES.q.at || 0) > 60000) { $('es-quote-btn').click(); esErr('انتهت صلاحية السعر، جُلب سعر جديد. راجعه ثم أكّد.'); return; } // الأسعار تتغير: لا ننفّذ سعراً قديماً
     var q = ES.q, run = async function () {
+      if (q.used || state.txBusy) return; q.used = true;
       state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
       $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
       try {
@@ -3270,7 +3277,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         state.txBusy = false; // أُرسلت المعاملة: لا نوقف بقية التطبيق (والإشعارات) أثناء المتابعة
         for (var i = 0; i < 45; i++) {
           var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
-          if (st.status === 'DONE') { toast('تم التبديل ✓'); rec.amount = String(st.toAmount || q.toAmount); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); break; }
+          if (st.status === 'DONE') { toast('تم التبديل ✓'); rec.amount = stAmount(st, q); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); break; }
           if (st.status === 'FAILED' || st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
           await new Promise(function (res) { setTimeout(res, i < 15 ? 4000 : 10000); });
         }
@@ -3472,6 +3479,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (bioEnabled()) bioVerify('تأكيد النقل').then(run).catch(askPin); else askPin();
   };
   async function doBridge(q) {
+    if (!q || q.used || state.txBusy) return; q.used = true;
     state.txBusy = true; state.stack = ['home', 'bridge']; show('bridge', false);
     $('br-go').hidden = true; brErr(''); var tr = $('br-track'); tr.hidden = false;
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
@@ -3484,7 +3492,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       for (var i = 0; i < 120; i++) {
         var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
         if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; if (!rec.url) { rec.url = st.link; lhAdd(rec); } }
-        if (st.status === 'DONE') { rec.amount = String(st.toAmount || q.toAmount); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
+        if (st.status === 'DONE') { rec.amount = stAmount(st, q); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
         if (st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
         if (st.status === 'FAILED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
@@ -3682,42 +3690,124 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (res == null) res = Math.max.apply(null, s.map(function (k) { return k.h; }));
     return { sup: sup, res: res };
   }
-  function analyze(kl) {
-    var c = kl.map(function (k) { return k.c; }), p = c[c.length - 1];
-    var m7 = sma(c, 7), m25 = sma(c, 25), m99 = sma(c, 99), r = rsi(c, 14);
-    var e12 = ema(c, 12), e26 = ema(c, 26), macd = [], i;
-    for (i = 0; i < c.length; i++) macd.push(e12[i] != null && e26[i] != null ? e12[i] - e26[i] : null);
-    var mv = macd.filter(function (x) { return x != null; }), sig = ema(mv, 9), hist = mv.length && sig[sig.length - 1] != null ? mv[mv.length - 1] - sig[sig.length - 1] : null;
-    var a7 = m7[m7.length - 1], a25 = m25[m25.length - 1], a99 = m99[m99.length - 1], p25 = m25[m25.length - 6];
-    var atr = 0, n = Math.min(14, kl.length - 1); for (i = kl.length - n; i < kl.length; i++) atr += Math.max(kl[i].h - kl[i].l, Math.abs(kl[i].h - kl[i - 1].c), Math.abs(kl[i].l - kl[i - 1].c)); atr /= n;
-    var score = 0;
-    if (a25 != null) score += p > a25 ? 1 : -1;
-    if (a7 != null && a25 != null) score += a7 > a25 ? 1 : -1;
-    if (a99 != null) score += p > a99 ? 1 : -1;
-    if (a25 != null && p25 != null) score += a25 > p25 ? 0.5 : -0.5;
-    if (r != null) score += r < 30 ? 1 : r > 70 ? -1 : 0;
-    if (hist != null) score += hist > 0 ? 1 : -1;
-    var lv = levels(kl, p);
-    return { p: p, m7: m7, m25: m25, m99: m99, rsi: r, macd: hist, atrPct: atr / p * 100, score: Math.max(-5, Math.min(5, score)), sup: lv.sup, res: lv.res,
-      trend: a25 == null || p25 == null ? 'جانبي' : Math.abs(a25 - p25) / p25 < 0.002 ? 'جانبي' : a25 > p25 ? 'صاعد' : 'هابط' };
+  // سلسلة RSI كاملة (Wilder) لاستخدامها في كل شمعة
+  function rsiSeries(a, n) {
+    var o = new Array(a.length).fill(null), g = 0, l = 0, i, d; if (a.length <= n) return o;
+    for (i = 1; i <= n; i++) { d = a[i] - a[i - 1]; if (d > 0) g += d; else l -= d; }
+    g /= n; l /= n; o[n] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+    for (i = n + 1; i < a.length; i++) { d = a[i] - a[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; o[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l); }
+    return o;
   }
-  function renderAnalysis() {
-    var kl = TR.kl; if (!kl || kl.length < 30) { $('pr-ana').hidden = true; return; } $('pr-ana').hidden = false;
-    var A = analyze(kl), s = A.score, lab = s >= 3 ? ['شراء قوي', 'buy'] : s >= 1 ? ['ميل للشراء', 'buy'] : s <= -3 ? ['بيع قوي', 'sell'] : s <= -1 ? ['ميل للبيع', 'sell'] : ['محايد', ''];
+  // ADX (قوة الاتجاه) و +DI/−DI
+  function adxSeries(kl, n) {
+    var L = kl.length, adx = new Array(L).fill(null), pdi = new Array(L).fill(null), mdi = new Array(L).fill(null);
+    if (L < n * 2 + 1) return { adx: adx, pdi: pdi, mdi: mdi };
+    var tr = 0, pd = 0, md = 0, dxs = [], a = null;
+    for (var i = 1; i < L; i++) {
+      var up = kl[i].h - kl[i - 1].h, dn = kl[i - 1].l - kl[i].l, t = Math.max(kl[i].h - kl[i].l, Math.abs(kl[i].h - kl[i - 1].c), Math.abs(kl[i].l - kl[i - 1].c));
+      var p = up > dn && up > 0 ? up : 0, m = dn > up && dn > 0 ? dn : 0;
+      if (i <= n) { tr += t; pd += p; md += m; if (i < n) continue; } else { tr = tr - tr / n + t; pd = pd - pd / n + p; md = md - md / n + m; }
+      var P = tr ? 100 * pd / tr : 0, M = tr ? 100 * md / tr : 0, dx = P + M ? 100 * Math.abs(P - M) / (P + M) : 0;
+      pdi[i] = P; mdi[i] = M; dxs.push(dx);
+      if (dxs.length === n) a = dxs.reduce(function (s, x) { return s + x; }, 0) / n; else if (dxs.length > n) a = (a * (n - 1) + dx) / n;
+      if (dxs.length >= n) adx[i] = a;
+    }
+    return { adx: adx, pdi: pdi, mdi: mdi };
+  }
+  // كل المؤشرات كسلاسل، ثم درجة لكل شمعة: تُستخدم للإشارة الحالية ولاختبارها على الماضي بنفس القواعد
+  function indicators(kl) {
+    var c = kl.map(function (k) { return k.c; }), v = kl.map(function (k) { return k.v || 0; });
+    var e20 = ema(c, 20), e50 = ema(c, 50), e12 = ema(c, 12), e26 = ema(c, 26), r = rsiSeries(c, 14), dx = adxSeries(kl, 14);
+    var macd = c.map(function (_, i) { return e12[i] != null && e26[i] != null ? e12[i] - e26[i] : null; });
+    var first = macd.findIndex(function (x) { return x != null; }), sig = new Array(c.length).fill(null);
+    if (first >= 0) { var se = ema(macd.slice(first), 9); for (var i = 0; i < se.length; i++) sig[first + i] = se[i]; }
+    var hist = macd.map(function (m, i) { return m != null && sig[i] != null ? m - sig[i] : null; });
+    var s20 = sma(c, 20), sd = c.map(function (_, i) { if (i < 19) return null; var m = s20[i], q = 0; for (var j = i - 19; j <= i; j++) q += (c[j] - m) * (c[j] - m); return Math.sqrt(q / 20); });
+    var v20 = sma(v, 20);
+    return { c: c, v: v, e20: e20, e50: e50, r: r, hist: hist, adx: dx.adx, pdi: dx.pdi, mdi: dx.mdi, s20: s20, sd: sd, v20: v20 };
+  }
+  // درجة من −10 إلى +10 عند الشمعة i. الاتجاه يُعطى وزناً أكبر حين يكون ADX قوياً، والزخم يُؤكَّد بالحجم
+  function scoreAt(I, i) {
+    var c = I.c[i]; if (I.e50[i] == null || I.r[i] == null || I.hist[i] == null || I.hist[i - 1] == null) return null;
+    var s = 0, adx = I.adx[i] || 0, strong = adx >= 25;
+    s += (c > I.e20[i] ? 1 : -1) + (I.e20[i] > I.e50[i] ? 1 : -1);                         // الاتجاه بالمتوسطات
+    if (I.pdi[i] != null) s += (I.pdi[i] > I.mdi[i] ? 1 : -1) * (strong ? 2 : 0.5);           // اتجاه ADX، بوزن قوته
+    s += I.hist[i] > 0 ? 1 : -1; s += I.hist[i] > I.hist[i - 1] ? 0.5 : -0.5;                 // زخم MACD وتسارعه
+    var r = I.r[i];
+    if (r < 30) s += 1.5; else if (r > 70) s -= 1.5; else s += r > 50 ? 0.5 : -0.5;           // RSI
+    if (I.sd[i]) { var pb = (c - (I.s20[i] - 2 * I.sd[i])) / (4 * I.sd[i]); if (pb < 0.05) s += 1; else if (pb > 0.95) s -= 1; } // بولنجر
+    if (I.v20[i] && I.v[i] > I.v20[i] * 1.5) s += (c >= I.c[i - 1] ? 1 : -1);                 // حجم يؤكد الحركة
+    return Math.max(-10, Math.min(10, s));
+  }
+  // اختبار تاريخي صادق: كم مرة صدقت الإشارة نفسها على هذه العملة وهذا الإطار في الشموع المحمّلة
+  function backtest(I, H, th) {
+    var b = { n: 0, w: 0, ret: 0 }, s = { n: 0, w: 0, ret: 0 }, last = -99;
+    for (var i = 60; i < I.c.length - H; i++) {
+      var sc = scoreAt(I, i); if (sc == null || i - last < 3) continue; // لا نعدّ نفس الحركة مرات متتالية
+      var ch = I.c[i + H] / I.c[i] - 1, cost = 0.002;
+      if (sc >= th) { b.n++; if (ch > cost) b.w++; b.ret += ch - cost; last = i; }
+      else if (sc <= -th) { s.n++; if (ch < -cost) s.w++; s.ret += -ch - cost; last = i; }
+    }
+    return { buy: b, sell: s, H: H };
+  }
+  function analyze(kl, hkl) {
+    var I = indicators(kl), L = kl.length - 1, p = I.c[L], sc = scoreAt(I, L);
+    var atr = 0, n = Math.min(14, L); for (var i = L - n + 1; i <= L; i++) atr += Math.max(kl[i].h - kl[i].l, Math.abs(kl[i].h - kl[i - 1].c), Math.abs(kl[i].l - kl[i - 1].c)); atr /= n;
+    var hs = null; // اتجاه الإطار الأعلى يؤكد أو يعاكس
+    if (hkl && hkl.length > 60) { var HI = indicators(hkl), HL = hkl.length - 1; hs = scoreAt(HI, HL); }
+    var total = sc == null ? null : Math.max(-10, Math.min(10, sc + (hs == null ? 0 : hs > 2 ? 1.5 : hs < -2 ? -1.5 : 0)));
+    var lv = levels(kl, p), bt = backtest(I, 10, 4);
+    var agree = hs == null ? null : (total > 0) === (hs > 0);
+    return { p: p, I: I, L: L, score: total, raw: sc, hs: hs, agree: agree, rsi: I.r[L], adx: I.adx[L], hist: I.hist[L], atrPct: atr / p * 100, sup: lv.sup, res: lv.res, bt: bt,
+      bb: I.sd[L] ? (p - (I.s20[L] - 2 * I.sd[L])) / (4 * I.sd[L]) : null, vol: I.v20[L] ? I.v[L] / I.v20[L] : null,
+      trend: I.e50[L] == null ? 'جانبي' : (I.adx[L] || 0) < 20 ? 'جانبي (بلا اتجاه واضح)' : I.e20[L] > I.e50[L] ? 'صاعد' : 'هابط' };
+  }
+  var HTF = { '15m': '1h', '1h': '4h', '4h': '1d', '1d': '1w', '1w': null };
+  async function loadHigherTf() { // شموع الإطار الأعلى للتأكيد (تُحفظ 5 دقائق)
+    var sym = TR.sym, tf = HTF[TR.tf]; if (!tf) return null;
+    var key = 'sarra.kl.' + sym + '.' + tf;
+    try { var cc = JSON.parse(localStorage.getItem(key) || 'null'); if (cc && Date.now() - cc.at < 300000) return cc.k; } catch (e) {}
+    try {
+      var j = await trJson(BN_API + 'klines?symbol=' + BN_SYM[sym] + '&interval=' + tf + '&limit=200');
+      var k = j.map(function (x) { return { t: x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[7] }; });
+      try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), k: k })); } catch (e) {} return k;
+    } catch (e) { return null; }
+  }
+  async function renderAnalysis() {
+    var kl = TR.kl, sym = TR.sym, tf = TR.tf; if (!kl || kl.length < 80) { $('pr-ana').hidden = true; return; } $('pr-ana').hidden = false;
+    var hk = await loadHigherTf(); if (TR.sym !== sym || TR.tf !== tf || TR.kl !== kl) return;
+    var A = analyze(kl, hk), s = A.score == null ? 0 : A.score;
+    var lab = s >= 6 ? ['شراء قوي', 'buy'] : s >= 3 ? ['شراء', 'buy'] : s <= -6 ? ['بيع قوي', 'sell'] : s <= -3 ? ['بيع', 'sell'] : ['محايد · انتظر', ''];
+    // الثقة: توافق المؤشرات مع الإطار الأعلى وقوة الاتجاه
+    var conf = Math.abs(s) >= 6 && A.agree !== false && (A.adx || 0) >= 20 ? 'عالية' : Math.abs(s) >= 3 && A.agree !== false ? 'متوسطة' : 'منخفضة';
     var sg = $('pr-sig'); sg.textContent = lab[0]; sg.className = 'pr-sig ' + lab[1];
-    $('pr-gauge-dot').style.left = ((s + 5) / 10 * 100).toFixed(1) + '%';
+    $('pr-gauge-dot').style.left = ((s + 10) / 20 * 100).toFixed(1) + '%';
+    $('pr-conf').textContent = 'الثقة: ' + conf + (A.agree === true ? ' · يتوافق مع الإطار الأعلى' : A.agree === false ? ' · يعاكس الإطار الأعلى ⚠️' : '');
+    // الدقة التاريخية للإشارة الحالية
+    var side = s >= 3 ? A.bt.buy : s <= -3 ? A.bt.sell : null, btEl = $('pr-bt');
+    if (side && side.n >= 5) {
+      var wr = side.w / side.n * 100, avg = side.ret / side.n * 100;
+      btEl.textContent = '📊 على ' + sym + ' بهذا الإطار، صدقت إشارات ' + (s > 0 ? 'الشراء' : 'البيع') + ' المماثلة ' + wr.toFixed(0) + '% من المرات (' + side.w + ' من ' + side.n + ') بعد ' + A.bt.H + ' شموع، بمتوسط ' + (avg >= 0 ? '+' : '') + avg.toFixed(2) + '% بعد الرسوم.';
+      btEl.className = 'pr-bt ' + (wr >= 55 ? 'up' : wr < 45 ? 'dn' : '');
+    } else if (side) { btEl.textContent = '📊 إشارات قليلة مماثلة في الماضي القريب، فلا يمكن قياس دقتها بعد.'; btEl.className = 'pr-bt'; }
+    else { var tb = A.bt.buy, ts = A.bt.sell; btEl.textContent = '📊 لا إشارة واضحة الآن. تاريخياً على هذا الإطار: الشراء صدق ' + (tb.n ? (tb.w / tb.n * 100).toFixed(0) + '%' : '—') + ' والبيع ' + (ts.n ? (ts.w / ts.n * 100).toFixed(0) + '%' : '—') + ' من المرات.'; btEl.className = 'pr-bt'; }
     var box = $('pr-ind'); box.textContent = '';
-    var add = function (t, v, cls) { var d = el('div'); d.appendChild(el('span', null, t)); var b = el('b', null, v); if (cls) b.className = cls; d.appendChild(b); box.appendChild(d); };
+    var add = function (t, v, cls, sub) { var d = el('div'); d.appendChild(el('span', null, t)); var b = el('b', null, v); if (cls) b.className = cls; d.appendChild(b); if (sub) d.appendChild(el('small', 'font-size:11px;color:var(--mu);direction:ltr;text-align:right', sub)); box.appendChild(d); };
     add('الاتجاه', A.trend, A.trend === 'صاعد' ? 'up' : A.trend === 'هابط' ? 'dn' : '');
+    add('قوة الاتجاه (ADX)', A.adx == null ? '—' : A.adx.toFixed(0) + (A.adx >= 25 ? ' · قوي' : A.adx >= 20 ? ' · متوسط' : ' · ضعيف'));
     add('RSI (14)', A.rsi == null ? '—' : A.rsi.toFixed(1) + (A.rsi > 70 ? ' · تشبّع شراء' : A.rsi < 30 ? ' · تشبّع بيع' : ''), A.rsi > 70 ? 'dn' : A.rsi < 30 ? 'up' : '');
-    var m7 = A.m7[A.m7.length - 1], m25 = A.m25[A.m25.length - 1];
-    add('المتوسطات MA7/MA25', m7 == null || m25 == null ? '—' : m7 > m25 ? 'تقاطع إيجابي' : 'تقاطع سلبي', m7 > m25 ? 'up' : 'dn');
-    add('MACD', A.macd == null ? '—' : A.macd > 0 ? 'زخم صاعد' : 'زخم هابط', A.macd > 0 ? 'up' : 'dn');
-    add('أقرب دعم', fp(A.sup), 'up'); add('أقرب مقاومة', fp(A.res), 'dn');
-    add('التذبذب (ATR)', A.atrPct.toFixed(2) + '% لكل شمعة');
-    add('من الدعم / للمقاومة', '−' + ((A.p - A.sup) / A.p * 100).toFixed(1) + '% / +' + ((A.res - A.p) / A.p * 100).toFixed(1) + '%');
+    add('MACD', A.hist == null ? '—' : A.hist > 0 ? 'زخم صاعد' : 'زخم هابط', A.hist > 0 ? 'up' : 'dn');
+    add('بولنجر', A.bb == null ? '—' : A.bb > 0.95 ? 'عند الحد العلوي' : A.bb < 0.05 ? 'عند الحد السفلي' : 'داخل النطاق', A.bb > 0.95 ? 'dn' : A.bb < 0.05 ? 'up' : '');
+    add('الحجم', A.vol == null || !A.vol ? '—' : A.vol >= 1.5 ? 'مرتفع ×' + A.vol.toFixed(1) : A.vol < 0.6 ? 'ضعيف' : 'عادي');
+    add('الإطار الأعلى (' + ({ '1h': '1س', '4h': '4س', '1d': 'يوم', '1w': 'أسبوع' }[HTF[tf]] || '—') + ')', A.hs == null ? '—' : A.hs > 2 ? 'صاعد' : A.hs < -2 ? 'هابط' : 'محايد', A.hs > 2 ? 'up' : A.hs < -2 ? 'dn' : '');
+    add('التذبذب (ATR)', A.atrPct.toFixed(2) + '%', '', 'متوسط حركة الشمعة');
+    add('أقرب دعم', fp(A.sup), 'up', '−' + ((A.p - A.sup) / A.p * 100).toFixed(1) + '% من السعر');
+    add('أقرب مقاومة', fp(A.res), 'dn', '+' + ((A.res - A.p) / A.p * 100).toFixed(1) + '% من السعر');
+    // مستويات مقترحة للمعلومة: وقف خسارة تحت الدعم بمسافة ATR، والهدف عند المقاومة
+    var stop = Math.min(A.sup, A.p) - A.atrPct / 100 * A.p, rr = (A.res - A.p) / Math.max(A.p - stop, 1e-12);
+    add('وقف خسارة مقترح', fp(stop), 'dn', '−' + ((A.p - stop) / A.p * 100).toFixed(1) + '% من السعر');
+    add('العائد/المخاطرة', rr > 0 ? '1 : ' + rr.toFixed(1) + (rr >= 2 ? ' · جيد' : rr < 1 ? ' · ضعيف' : '') : '—', rr >= 2 ? 'up' : rr < 1 ? 'dn' : '');
   }
-
   // ===== رسم الشموع اليابانية (Canvas بلا مكتبات) =====
   function drawCandles() {
     var kl = TR.kl, cv = $('pr-cv'); if (!kl || !kl.length || !cv.offsetWidth) return;
@@ -4006,7 +4096,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (bioEnabled()) bioVerify(q.tSide === 'buy' ? 'تأكيد الشراء' : 'تأكيد البيع').then(run).catch(askPin); else askPin();
   }
   async function odExec(q) {
-    if (state.txBusy) return;
+    if (state.txBusy || !q || q.used) return; q.used = true; // السعر نفسه لا يُنفَّذ مرتين (نقرتان أو تأكيدان)
     state.txBusy = true; toast(q.tSide === 'buy' ? 'جارٍ الشراء…' : 'جارٍ البيع…');
     var c = trCoin(q.tSym), coinAmt = q.tSide === 'buy' ? q.toAmount : q.amount, usdtAmt = q.tSide === 'buy' ? q.amount : q.toAmount;
     var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING', fee: q.appFee ? String(Number(q.amount) * q.appFee) : null };
@@ -4027,7 +4117,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         for (var i = 0; i < 45; i++) {
           var st = await core.bridgeStatus(r2.txid, q.tNet, q.tNet).catch(function () { return {}; });
           if (st.status === 'DONE') {
-            if (st.toAmount) { if (q.tSide === 'buy') t.qty = String(st.toAmount); else t.usdt = String(st.toAmount); t.price = Number(t.usdt) / Number(t.qty); lh.amount = String(st.toAmount); }
+            var ra = stAmount(st, q); if (q.tSide === 'buy') t.qty = ra; else t.usdt = ra; t.price = Number(t.usdt) / Number(t.qty); lh.amount = ra;
             t.status = 'SUCCESS'; lh.status = 'SUCCESS'; if (st.link) lh.url = st.link; trSave(t); lhAdd(lh); toast(q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓'); break;
           }
           if (st.status === 'FAILED' || st.status === 'REFUNDED') { rxUnexpect(q); t.status = 'FAILED'; lh.status = 'FAILED'; trSave(t); lhAdd(lh); toast('لم تكتمل الصفقة وبقي المبلغ في محفظتك', true); break; }

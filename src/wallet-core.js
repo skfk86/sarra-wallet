@@ -893,6 +893,12 @@
           if ((await waitForTx(txHash, true)) === 'FAILED') throw new Error('TX_FAILED');
         } else {
           var c = EVM_CHAINS[q.fromNet], ethers = E();
+          // قبل أي موافقة أو توقيع: الرصيد يكفي فعلاً (لا نضيّع رسوم موافقة على صفقة ستفشل)
+          if (q.token.addr !== EVM_NATIVE) {
+            var ifc = new ethers.Interface(ERC20_IFACE_ABI), who = session.evm.address;
+            var have = await evmCall(c, async function (p) { return BigInt(ifc.decodeFunctionResult('balanceOf', await p.call({ to: q.token.addr, data: ifc.encodeFunctionData('balanceOf', [who]) }))[0]); });
+            if (have < q.units) throw new Error('INSUFFICIENT_TOKEN');
+          }
           if (q.approval && q.token.addr !== EVM_NATIVE) {
             var iface = new ethers.Interface(ERC20_IFACE_ABI), me = session.evm.address;
             var cur = await evmCall(c, async function (p) { return BigInt(iface.decodeFunctionResult('allowance', await p.call({ to: q.token.addr, data: iface.encodeFunctionData('allowance', [me, q.approval]) }))[0]); });
