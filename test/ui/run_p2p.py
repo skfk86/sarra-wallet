@@ -25,6 +25,8 @@ async def handler(route):
   r=st['rate']; rg={'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}
   if a=='offers.list': return await ok({'offers':st['buyads'] if p.get('side')=='buy' else st['offers'],'fee_bps':50,'net_fee':'1','min_trade':10,'rate':r,'range':rg})
   if not st['profile']: st['profile']={'address':ME,'nickname':'مستخدم-'+ME[-4:],'verify_status':'none'}
+  if a=='vault.put': st['vault']=p['blob']; return await ok({'ok':True})
+  if a=='vault.get': return await ok({'blob':st.get('vault')})
   if a=='push.register': st.setdefault('push',[]).append(p); return await ok({'ok':True})
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
@@ -83,6 +85,7 @@ async def main():
     await pg.add_init_script("""window.__pn={l:{}};window.Capacitor={Plugins:{PushNotifications:{
       addListener:async(n,f)=>{window.__pn.l[n]=f;return {remove(){}}},checkPermissions:async()=>({receive:'prompt'}),requestPermissions:async()=>({receive:'granted'}),
       createChannel:async()=>{},register:async()=>{setTimeout(()=>window.__pn.l.registration&&window.__pn.l.registration({value:'fcm-token-ABCDEFGHIJKLMNOPQRSTUVWXYZ'}),50)},unregister:async()=>{}}}}""")
+    await pg.add_init_script("if(!sessionStorage.getItem('lhseed')){sessionStorage.setItem('lhseed','1');localStorage.setItem('sarra.lh."+ME+"',JSON.stringify([{id:'0xabc',kind:'send',net:'bsc',coin:'USDT',amount:'12.5',to:'0x1111111111111111111111111111111111111111',txid:'0xabc',status:'SUCCESS',time:1762400000000}]))}")
     await pg.goto('file://'+S+'/index.html')
     vis=lambda i: pg.locator('#'+i).is_visible()
     async def pin(d):
@@ -239,5 +242,15 @@ async def main():
     assert '2,800' in await pg.inner_text('#p2p-rate-val'); step('السعر الجديد يظهر في السوق')
     assert st['signed']>8; step(f'كل الطلبات موقّعة بالمحفظة ({st["signed"]} طلب)')
     assert not dialogs, dialogs; step('لا نوافذ متصفح (alert/confirm)')
+    # خزنة السجل: رُفعت نسخة مشفّرة، والخادم لا يرى المحتوى
+    for _ in range(30):
+      if st.get('vault'): break
+      await pg.wait_for_timeout(300)
+    vb=st.get('vault') or ''; assert vb.startswith('v1.') and '12.5' not in vb and 'USDT' not in vb, vb[:80]; step('خزنة السجل: نسخة مشفّرة على الخادم (لا يظهر فيها أي مبلغ أو عملة)')
+    # إعادة تثبيت: نمسح السجل المحلي ثم نفتح التطبيق من جديد
+    await pg.evaluate("localStorage.removeItem('sarra.lh."+ME+"')")
+    await pg.reload(); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(5000)
+    got=await pg.evaluate("JSON.parse(localStorage.getItem('sarra.lh."+ME+"')||'[]').map(r=>r.amount)")
+    assert '12.5' in got, got; step('بعد إعادة الفتح بنفس المحفظة: السجل استُعيد من الخزنة وفُكّ تشفيره')
     print('\nأخطاء JavaScript:', errs or 'لا يوجد'); await b.close()
 asyncio.run(main())

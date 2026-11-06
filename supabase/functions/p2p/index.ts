@@ -222,6 +222,18 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   // إشعارات Firebase: الجهاز يسجّل رمزه، والعناوين تؤخذ من الطلب الموقّع وملفك (لا يمكن تسجيل محفظة غيرك)
+  // خزنة السجل: نص مشفّر على جهاز المستخدم (AES-GCM)، الخادم يحفظه فقط ولا يستطيع قراءته
+  if (action === 'vault.put') {
+    const blob = String(p.blob || '');
+    if (!/^v1\.[A-Za-z0-9+/=]{16,24}\.[A-Za-z0-9+/=]+$/.test(blob) || blob.length > 700000) throw new Error('BAD_VAULT');
+    await limit(me, 'vault');
+    await db.from('user_vault').upsert({ address: me, blob, updated_at: new Date().toISOString() });
+    return { ok: true };
+  }
+  if (action === 'vault.get') {
+    const { data } = await db.from('user_vault').select('blob,updated_at').eq('address', me).maybeSingle();
+    return { blob: data?.blob || null, updated_at: data?.updated_at || null };
+  }
   if (action === 'push.register') {
     const token = String(p.token || '');
     if (!/^[\w:\-]{20,4096}$/.test(token)) throw new Error('BAD_TOKEN');

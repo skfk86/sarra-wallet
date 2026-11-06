@@ -483,6 +483,16 @@
         }
       }
     }
+    function b64(u8) { var s = ''; for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); }
+    function unb64(t) { var s = atob(t), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+    async function vaultKey() {
+      if (!session) throw new Error('LOCKED');
+      var hex = String(session.privateKey).replace(/^0x/, ''), raw = new Uint8Array(hex.length / 2);
+      for (var i = 0; i < raw.length; i++) raw[i] = parseInt(hex.substr(i * 2, 2), 16);
+      var hk = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      var bits = await crypto.subtle.sign('HMAC', hk, new TextEncoder().encode('sarra-vault-v1'));
+      return crypto.subtle.importKey('raw', bits, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
     var readHost = 0;
     function client(privateKey, keyed) {
       var TW = TronWebClass();
@@ -639,6 +649,21 @@
         if (!res || !res.result || !txid) throw new Error('TX_FAILED');
         var status = await waitForTx(txid, false);
         return { txid: txid, url: net.explorer + txid, status: status };
+      },
+
+      // ===== خزنة السجل المشفّرة =====
+      // مفتاح AES-256 مشتق من المفتاح الخاص (HMAC-SHA256) — نفس الكلمات تعطي نفس المفتاح على أي جهاز،
+      // والخادم لا يرى إلا نصاً مشفّراً لا يستطيع فكّه
+      vaultSeal: async function (obj) {
+        var key = await vaultKey(), iv = randomBytes(12);
+        var ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+        return 'v1.' + b64(iv) + '.' + b64(new Uint8Array(ct));
+      },
+      vaultOpen: async function (blob) {
+        var p = String(blob || '').split('.'); if (p[0] !== 'v1' || p.length !== 3) throw new Error('VAULT_FORMAT');
+        var key = await vaultKey();
+        var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(p[1]) }, key, unb64(p[2]));
+        return JSON.parse(new TextDecoder().decode(pt));
       },
 
       // توقيع طلب لخادم P2P: يثبت ملكية المحفظة بدون إرسال المفتاح الخاص

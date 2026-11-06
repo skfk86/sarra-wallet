@@ -152,6 +152,7 @@ export function defaultNickname(address: string): string {
 export const LIMITS: Record<string, [number, number]> = {
   req: [60, 60],              // 60 طلباً في الدقيقة لكل محفظة
   push: [20, 86400],          // تسجيل رمز إشعار: 20 مرة في اليوم
+  vault: [300, 86400],        // حفظ نسخة السجل المشفّرة: 300 مرة في اليوم
   offer_create: [5, 86400],   // 5 إعلانات في اليوم
   order_create: [10, 86400],  // 10 طلبات شراء في اليوم
   order_cancel: [5, 86400],   // 5 إلغاءات في اليوم

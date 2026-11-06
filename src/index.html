@@ -1922,7 +1922,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     } catch (e) {}
   }
   async function loadHome(force) {
-    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(vaultRestore, 2500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     if (!state.balances || !state.evmBal) loadBalCache();
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
@@ -3019,6 +3019,34 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       localStorage.setItem(lhKey(), JSON.stringify(l.slice(0, 300)));
       state.historyCache = null; state.fetchedAt.history = 0;
     } catch (e) {}
+    vaultSoon();
+  }
+  // ===== خزنة السجل المشفّرة على الخادم: سجل المعاملات وصفقات التداول يبقيان بعد حذف التطبيق وإعادة تثبيته =====
+  var vaultT = null;
+  function vaultSoon() { if (!P2P_URL || !state.lhAddr) return; clearTimeout(vaultT); vaultT = setTimeout(vaultPush, 4000); }
+  async function vaultPush() {
+    if (!core.isUnlocked() || !state.lhAddr || !core.vaultSeal) return;
+    try {
+      var blob = await core.vaultSeal({ v: 1, at: Date.now(), lh: lhAll().slice(0, 300), tr: trAll().slice(0, 500) });
+      await p2p('vault.put', { blob: blob }); state.vaultAt = Date.now();
+    } catch (e) { vaultT = setTimeout(vaultPush, 60000); } // نعيد المحاولة بهدوء
+  }
+  // دمج: نتحد حسب المعرّف، والحالة النهائية (نجاح/فشل) تغلب «قيد التنفيذ»
+  function vMerge(a, b, max) {
+    var m = {}, rank = function (x) { return x && x.status && x.status !== 'PENDING' ? 1 : 0; };
+    (a || []).concat(b || []).forEach(function (x) { if (!x || !x.id) return; var o = m[x.id]; if (!o || rank(x) > rank(o) || (rank(x) === rank(o) && (x.time || 0) >= (o.time || 0))) m[x.id] = x; });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (x, y) { return (y.time || 0) - (x.time || 0); }).slice(0, max);
+  }
+  async function vaultRestore() {
+    if (!P2P_URL || !core.vaultOpen || state.vaultDone) return; state.vaultDone = 1;
+    try {
+      var r = await p2p('vault.get', {}); if (!r || !r.blob) { if (lhAll().length || trAll().length) vaultSoon(); return; }
+      var v = await core.vaultOpen(r.blob);
+      var lh0 = lhAll(), tr0 = trAll(), lh = vMerge(lh0, v.lh, 300), tr = vMerge(tr0, v.tr, 500);
+      try { localStorage.setItem(lhKey(), JSON.stringify(lh)); localStorage.setItem(trKey(), JSON.stringify(tr)); } catch (e) {}
+      if (lh.length !== lh0.length || tr.length !== tr0.length) { state.historyCache = null; state.fetchedAt.history = 0; if (state.stack[state.stack.length - 1] === 'trade') renderTrade(); }
+      if (lh.length !== (v.lh || []).length || tr.length !== (v.tr || []).length) vaultSoon(); // عندنا ما ليس في الخزنة
+    } catch (e) { state.vaultDone = 0; }
   }
   // تحويل سجل محلي إلى صف في قائمة السجل
   function lhRow(r) {
@@ -3626,7 +3654,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function trAll() { try { return JSON.parse(localStorage.getItem(trKey()) || '[]'); } catch (e) { return []; } }
   function trSave(t) {
     if (!state.lhAddr) return;
-    try { var l = trAll().filter(function (x) { return x.id !== t.id; }); l.unshift(t); localStorage.setItem(trKey(), JSON.stringify(l.slice(0, 500))); } catch (e) {}
+    try { var l = trAll().filter(function (x) { return x.id !== t.id && x.id !== t.prevId; }); l.unshift(t); localStorage.setItem(trKey(), JSON.stringify(l.slice(0, 500))); } catch (e) {}
+    vaultSoon();
   }
   function trPos(sym) {
     var qty = 0, cost = 0, real = 0, n = 0;
