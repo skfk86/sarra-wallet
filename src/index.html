@@ -2767,6 +2767,15 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var p = await LN.checkPermissions();
       if (p.display !== 'granted') p = await LN.requestPermissions();
       lnOk = p.display === 'granted';
+      // أندرويد 12+: بعض الهواتف لا تعرض الإشعار حتى يُسمح "بالمنبّهات والتذكيرات". نطلبه مرة واحدة مع شرح
+      if (lnOk && LN.checkExactNotificationSetting) {
+        var ex = await LN.checkExactNotificationSetting().catch(function () { return null; });
+        if (ex && ex.exact_alarm && ex.exact_alarm !== 'granted' && localStorage.getItem('sarra.exactAsked') !== '1') {
+          try { localStorage.setItem('sarra.exactAsked', '1'); } catch (e) {}
+          var go = await askConfirm('لتصلك إشعارات الاستلام والخصم فوراً، فعّل "المنبّهات والتذكيرات" لصُرّة في الصفحة التي ستفتح الآن، ثم ارجع للتطبيق.');
+          if (go) await LN.changeExactNotificationSetting().catch(function () {});
+        }
+      }
       if (lnOk && LN.createChannel) await LN.createChannel({ id: 'tx2', name: 'المعاملات', description: 'استلام وخصم', importance: 5, visibility: 1, sound: 'coin.wav', vibration: true, lights: true, lightColor: '#16A37A' }).catch(function () {});
     } catch (e) { lnOk = false; }
     return lnOk;
