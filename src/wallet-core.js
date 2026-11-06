@@ -67,6 +67,7 @@
     },
     polygon: {
       id: 137, name: 'Polygon', short: 'Polygon', native: 'POL', color: '#8247E5', explorer: 'https://polygonscan.com',
+      minTipGwei: 30, // Polygon يرفض أي معاملة بإكرامية أقل من 25 gwei (ethers يقترح 1.5 افتراضياً)
       rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org', 'https://1rpc.io/matic', 'https://polygon-rpc.com'],
       tokens: [{ sym: 'USDT', addr: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', dec: 6 },
                { sym: 'USDC', addr: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', dec: 6 },
@@ -277,6 +278,22 @@
   }
 
   // ===== كائن المحفظة =====
+  // رسوم EIP-1559 آمنة: إكرامية لا تقل عن حد الشبكة (Polygon)، وسقف يكفي ضعف الرسوم الأساسية.
+  // تعيد حقول الرسوم للمعاملة، وprice = أقصى سعر غاز للتحقق من كفاية الرصيد
+  async function evmFees(p, c) {
+    var fee = await p.getFeeData();
+    if (!fee.maxFeePerGas) return { f: { type: 0, gasPrice: fee.gasPrice }, price: fee.gasPrice };
+    var gwei = 1000000000n, tip = BigInt(fee.maxPriorityFeePerGas || 0n), max = BigInt(fee.maxFeePerGas);
+    if (c.minTipGwei) {
+      var minTip = BigInt(c.minTipGwei) * gwei;
+      try { var rt = BigInt(await p.send('eth_maxPriorityFeePerGas', [])); if (rt > tip) tip = rt; } catch (e) {}
+      if (tip < minTip) tip = minTip;
+      var base = 0n; try { var blk = await p.getBlock('latest'); base = BigInt(blk && blk.baseFeePerGas || 0n); } catch (e) {}
+      var need = base * 2n + tip; if (max < need) max = need;
+    }
+    if (max < tip) max = tip;
+    return { f: { type: 2, maxFeePerGas: max, maxPriorityFeePerGas: tip }, price: max };
+  }
   function createCore(opts) {
     opts = opts || {};
     var net = NETWORKS[opts.network || 'nile'];
@@ -434,11 +451,9 @@
     async function evmExec(c, tx, waitHard) {
       var ethers = E(), from = session.evm.address;
       var signed = await evmCall(c, async function (p) {
-        var nonce = await p.getTransactionCount(from, 'pending'), fee = await p.getFeeData();
+        var nonce = await p.getTransactionCount(from, 'pending'), fee = await evmFees(p, c);
         var gas = tx.gasLimit || BigInt(await p.estimateGas({ from: from, to: tx.to, value: tx.value, data: tx.data })) * 12n / 10n;
-        var t = { chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas }, price;
-        if (fee.maxFeePerGas) { t.type = 2; t.maxFeePerGas = fee.maxFeePerGas; t.maxPriorityFeePerGas = fee.maxPriorityFeePerGas || 0n; price = fee.maxFeePerGas; }
-        else { t.type = 0; t.gasPrice = fee.gasPrice; price = fee.gasPrice; }
+        var t = Object.assign({ chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas }, fee.f), price = fee.price;
         if (BigInt(await p.getBalance(from)) < gas * BigInt(price) + tx.value) throw new Error('LOW_GAS');
         return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
       });
@@ -821,13 +836,11 @@
             if (tb < units) throw new Error('INSUFFICIENT_TOKEN');
           }
           var nonce = await p.getTransactionCount(from, 'pending');
-          var fee = await p.getFeeData();
+          var fee = await evmFees(p, c);
           var gas = BigInt(await p.estimateGas({ from: from, to: tx.to, value: tx.value, data: tx.data }));
           gas = gas * 12n / 10n;
-          var t = { chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas };
-          var price;
-          if (fee.maxFeePerGas) { t.type = 2; t.maxFeePerGas = fee.maxFeePerGas; t.maxPriorityFeePerGas = fee.maxPriorityFeePerGas || 0n; price = fee.maxFeePerGas; }
-          else { t.type = 0; t.gasPrice = fee.gasPrice; price = fee.gasPrice; }
+          var t = Object.assign({ chainId: c.id, nonce: nonce, to: tx.to, value: tx.value, data: tx.data, gasLimit: gas }, fee.f);
+          var price = fee.price;
           var cost = gas * BigInt(price) + (isNative ? units : 0n);
           if (bal < cost) throw new Error(isNative ? 'INSUFFICIENT_NATIVE' : 'LOW_GAS');
           return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
@@ -881,7 +894,7 @@
         return { fromNet: fromNet, toNet: toNet, sym: sym, toSym: toSym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
           feesUsd: sum((est.feeCosts || []).filter(function (x) { return !/integrator/i.test(x.name || ''); })), gasUsd: sum(est.gasCosts),
-          gasNative: fromUnits((est.gasCosts || []).reduce(function (s2, x) { return s2 + BigInt(x.amount || 0); }, 0n), 18), seconds: Number(est.executionDuration || 0),
+          gasNative: fromUnits((est.gasCosts || []).reduce(function (s2, x) { return s2 + BigInt(x.amount || 0); }, 0n), 18), seconds: Number(est.executionDuration || 0) || (r.includedSteps || []).reduce(function (s3, x) { return s3 + Number(x.estimate && x.estimate.executionDuration || 0); }, 0),
           appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now(),
           action: r.action || {}, toAddr: toAddr, toTok: b };
       },
@@ -1057,7 +1070,14 @@
   };
   function errorText(e) {
     var code = e && e.message;
-    return ERRORS_AR[code] || 'حدث خطأ في الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً';
+    if (ERRORS_AR[code]) return ERRORS_AR[code];
+    // رسائل الشبكة الخام (من ethers أو خادم RPC): لا نسمّيها «خطأ إنترنت» إن كان السبب معروفاً
+    var raw = String((e && (e.shortMessage || e.message)) || '') + ' ' + String(e && e.info && e.info.error && e.info.error.message || '');
+    if (/insufficient funds/i.test(raw)) return ERRORS_AR.LOW_GAS;
+    if (/underpriced|below minimum|tip cap|fee too low|max fee per gas less than/i.test(raw)) return 'رفضت الشبكة رسوم المعاملة لأنها أقل من المطلوب. حاول مرة أخرى بعد دقيقة';
+    if (/nonce/i.test(raw)) return 'هناك معاملة سابقة لم تُؤكَّد بعد على هذه الشبكة. انتظر دقيقة وحاول مجدداً';
+    if (/execution reverted|CALL_EXCEPTION/i.test(raw)) return 'رفضت الشبكة المعاملة. جرّب مبلغاً آخر أو اطلب سعراً جديداً';
+    return 'حدث خطأ في الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً';
   }
 
   var api = {
@@ -1066,6 +1086,7 @@
     evmFromMnemonic: evmFromMnemonic,
     createCore: createCore,
     errorText: errorText,
+    evmFees: evmFees,
     toUnits: toUnits,
     toUnitsFloor: toUnitsFloor,
     fromUnits: fromUnits,

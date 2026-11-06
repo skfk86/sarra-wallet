@@ -252,7 +252,7 @@
       $('br-plat').textContent = q.feesUsd ? usd2b(q.feesUsd) : 'مضمّنة في السعر';
       $('br-gas-c').textContent = gc;
       $('br-fee').textContent = (fn.evm && Number(q.gasNative) ? fmt(q.gasNative) + ' ' + gc + ' · ' : '') + usd2b(q.gasUsd);
-      $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : '—';
+      $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : 'عادة بضع دقائق';
       $('br-tool').textContent = q.tool || 'LI.FI';
       $('br-app').textContent = q.appFee ? fmt(Number(q.amount) * q.appFee) + ' ' + BR.coin + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('br-quote').hidden = false; $('br-go').hidden = false;
