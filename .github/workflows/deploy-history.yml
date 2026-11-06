@@ -42,7 +42,13 @@ jobs:
         if: inputs.fn == 'push-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FCM_SA: ${{ secrets.FCM_SERVICE_ACCOUNT }}
         run: |
+          # مفتاح حساب خدمة Firebase ← أسرار دوال Supabase (لا يُطبع أبداً)
+          if [ -n "$FCM_SA" ]; then
+            python3 -c "import json,os;j=json.loads(os.environ['FCM_SA']);assert j.get('private_key') and j.get('client_email');open('/tmp/fcm.env','w').write('FCM_SERVICE_ACCOUNT='+json.dumps(j,separators=(',',':'))+'\n')" || { echo "::error::FCM_SERVICE_ACCOUNT ليس ملف JSON صالحاً لحساب خدمة Firebase"; exit 1; }
+            supabase secrets set --env-file /tmp/fcm.env --project-ref osdojhpsfbcqguoctbpk; rm -f /tmp/fcm.env; echo "✓ FCM_SERVICE_ACCOUNT أُضيف لدوال Supabase"
+          else echo "::warning::السر FCM_SERVICE_ACCOUNT غير موجود في GitHub، أضفه من لوحة Supabase يدوياً"; fi
           for f in push-watch p2p support; do supabase functions deploy $f --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes; done
           for m in 018_push 019_vault; do
             python3 -c "import json,sys;print(json.dumps({'query':open('supabase/migrations/'+sys.argv[1]+'.sql').read()}))" $m > /tmp/q.json
