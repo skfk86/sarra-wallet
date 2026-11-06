@@ -18,7 +18,8 @@ async def main():
           data=[item('new1','1234567891234',OTHER,ME,t),            # استلام حقيقي: 1,234,567.891234 USDT
                 item('dust1','1',OTHER,ME,t+1),                     # غبار: 0.000001 يُتجاهل
                 item('zero1','0',OTHER,ME,t+2),                     # صفر (تسميم عناوين) يُتجاهل
-                item('out1','3000000',ME,OTHER,t+3)]+data           # صادر: لا إشعار
+                item('out1','3000000',ME,OTHER,t+3),                # صادر لم يتم من هذا الجهاز: تنبيه خصم
+                item('fee1','2000000',ME,'TFee4bR8xLkP2vN9cW3jH5sD6fGa19xKz',t+4)]+data  # عمولة تبديل لعنوان العمولة: لا تنبيه خصم كاذب
         await route.fulfill(json={'data':data})
       else: await route.fulfill(json={'data':[]})
     await pg.route('**/v1/accounts/**', hist)

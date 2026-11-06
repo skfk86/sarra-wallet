@@ -699,10 +699,10 @@
         if (feeUnits > 0n && feeAddress !== session.address) {
           try {
             var fres = await tw.trx.sendTransaction(feeAddress, Number(feeUnits));
-            if (fres && fres.result) feePaid = fromUnits(feeUnits, 6);
+            if (fres && fres.result) { feePaid = fromUnits(feeUnits, 6); var feeTxid = fres.txid || (fres.transaction && fres.transaction.txID) || null; }
           } catch (e) { /* نتجاهل: المستخدم حصل على التبديل كاملاً */ }
         }
-        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status, fee: feePaid };
+        return { txid: txid, url: net.explorer + txid, out: q.out, minOut: fromUnits(minOut, 6), status: status, fee: feePaid, feeTxid: typeof feeTxid === 'undefined' ? null : feeTxid };
       },
 
       // آخر المعاملات: USDT (TRC20) وTRX معاً، مرتّبة من الأحدث

@@ -2721,17 +2721,22 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // ===== إشعار استلام تحويلة =====
   // مصدر حقيقي فقط: TRON من سجل الشبكة (معاملة واردة جديدة)، وشبكات EVM من زيادة فعلية في الرصيد.
   // لا تُعرض معاملاتك أنت (RX.own) ولا الغبار (أقل من 0.01)، ولا يتكرر إشعار العملية نفسها (معرّفات محفوظة).
-  var RX = { own: {}, evmBase: null, busy: false, q: [], cur: null, tick: 0, expect: [] };
+  var RX = { own: {}, evmBase: null, busy: false, q: [], cur: null, tick: 0, expect: (rxGet('sarra.rxe') || []).filter(function (e) { return e && e.until > Date.now(); }) };
   // وارد متوقع من عملياتك أنت (تبديل أو نقل بين الشبكات): لا يُعرض كـ"استلام تحويلة" عند وصوله
   // تُطابق بالشبكة والعملة والمبلغ معاً (بين "أقل مبلغ مضمون" و"المتوقع" بهامش)، فلا يبتلع وارداً حقيقياً من شخص آخر
   function rxExpect(q) {
     var lo = Number(q.toAmountMin || 0) * 0.97, hi = Number(q.toAmount || q.toAmountMin || 0) * 1.05;
     if (q.toNet === q.fromNet) lo = lo * 0.5; // تبديل داخل الشبكة: رسوم الغاز تُخصم من نفس الرصيد فيظهر الصافي أقل
-    RX.expect.push({ net: q.toNet, coin: q.toSym || q.sym, lo: lo, hi: hi > 0 ? hi : Infinity, until: Date.now() + 3 * 3600000 });
+    RX.expect.push({ net: q.toNet, coin: q.toSym || q.sym, lo: lo, hi: hi > 0 ? hi : 1e30, until: Date.now() + 3 * 3600000 });
+    rxPut('sarra.rxe', RX.expect); // يبقى بعد إغلاق التطبيق: وصول النقل لاحقاً لا يظهر كتحويلة من شخص آخر
+  }
+  function rxUnexpect(q) { // عملية فشلت: لا ننتظر وارداً منها حتى لا نبتلع تحويلة حقيقية بنفس المبلغ
+    for (var i = RX.expect.length - 1; i >= 0; i--) { var e = RX.expect[i]; if (e.net === q.toNet && e.coin === (q.toSym || q.sym)) { RX.expect.splice(i, 1); break; } }
+    rxPut('sarra.rxe', RX.expect);
   }
   function rxConsume(net, coin, amount) {
     var now = Date.now(), a = Number(amount); RX.expect = RX.expect.filter(function (e) { return e.until > now; });
-    for (var i = 0; i < RX.expect.length; i++) { var e = RX.expect[i]; if (e.net === net && e.coin === coin && a >= e.lo && a <= e.hi) { RX.expect.splice(i, 1); return true; } }
+    for (var i = 0; i < RX.expect.length; i++) { var e = RX.expect[i]; if (e.net === net && e.coin === coin && a >= e.lo && a <= e.hi) { RX.expect.splice(i, 1); rxPut('sarra.rxe', RX.expect); return true; } }
     return false;
   }
   // أي عملية صادرة من هذا الجهاز: نعلّمها "منك" حتى لا يظهر نقص رصيدها كخصم غريب
@@ -2739,10 +2744,14 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var f = core[m]; if (typeof f !== 'function') return;
     var evm = m === 'evmSend' || m === 'bridgeExecute';
     core[m] = async function () {
-      RX.ownUntil = Date.now() + 5 * 60000;
+      RX.ownUntil = Date.now() + 5 * 60000; RX.gen = (RX.gen || 0) + 1; // يُبطل أي فحص بدأ قبل العملية
       if (evm) RX.rebasing = (RX.rebasing || 0) + 1; // لا نقارن أرصدة EVM أثناء عمليتك
       var ok = false;
-      try { var r = await f.apply(core, arguments); ok = true; var id = r && (r.txid || r.hash || r.txHash); if (id) RX.own[id] = 1; return r; }
+      try {
+        var r = await f.apply(core, arguments); ok = true;
+        [r && r.txid, r && r.hash, r && r.txHash, r && r.feeTxid].forEach(function (id) { if (id) RX.own[id] = 1; }); // يشمل معاملة عمولة التبديل
+        return r;
+      }
       finally { RX.ownUntil = Date.now() + 5 * 60000; if (evm) rxRebase(ok); }
     };
   });
@@ -2765,7 +2774,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   function rxGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function rxPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   // ===== إشعارات النظام (أندرويد): استلام وخصم. تعمل والتطبيق مفتوح أو في الخلفية ما دام النظام لم يوقفه =====
-  var LN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications, lnOk = null, lnId = 1000;
+  var LN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications, lnOk = null, lnId = Math.floor(Date.now() / 1000) % 1000000000; // معرّف فريد لا يتكرر بعد إعادة الفتح
   async function lnReady() {
     if (!LN) return false; if (lnOk !== null) return lnOk;
     try {
@@ -2807,6 +2816,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   async function rxPollTron() {
     var addr = await core.getAddress(), key = 'sarra.rx.' + addr;
+    if (!state.lhAddr) state.lhAddr = addr; // كي يُحفظ أي وارد في السجل حتى قبل فتح الرئيسية
     var list = await core.getHistory(addr, 15), st = rxGet(key);
     var ids = st && st.ids ? st.ids : [], t0 = st ? st.t : 0, maxT = t0;
     list.forEach(function (t) { if (t.time > maxT) maxT = t.time; });
@@ -2818,7 +2828,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid });
       });
       list.filter(function (t) {
-        return !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; });
+        return !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; })
+          && !(CFG.feeAddress && t.counterparty === CFG.feeAddress && Date.now() - t.time < 30 * 60000); // عمولة تبديل أرسلها هذا الجهاز
       }).forEach(function (t) { rxOut({ net: 'tron', coin: t.coin, amount: t.exact, to: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid }); });
     }
     var all = ids.concat(list.map(function (t) { return t.txid; })).filter(function (x, i, a) { return a.indexOf(x) === i; }).slice(-100);
@@ -2826,8 +2837,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   async function rxPollEvm() {
     if (!Object.keys(EVM).length || RX.rebasing) return;
+    var gen = RX.gen || 0;
     var ea = await core.evmAddress(); if (!ea) return;
     var bal = await core.evmBalances(); if (!bal) return;
+    if (RX.rebasing || (RX.gen || 0) !== gen || state.txBusy) return; // بدأت عملية منك أثناء القراءة: النتيجة قديمة، نتجاهلها
     var key = 'sarra.rxb.' + ea, base = RX.evmBase || rxGet(key), next = {}, skipOut = Date.now() < (RX.ownUntil || 0);
     Object.keys(EVM).forEach(function (k) {
       if (!bal[k]) { next[k] = base && base[k] ? base[k] : null; return; } // شبكة تعذّر قراءتها: نُبقي القديم
@@ -2847,6 +2860,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         }
         var amt = WalletCore.fromUnits(diff, dec);
         if (Number(amt) < 0.01 && sym !== 'native') return;
+        if (sym === 'native') { var uv = usdOf(Number(amt), EVM[k].native); if (uv != null ? uv < 0.01 : Number(amt) < 0.00001) return; } // غبار العملة الأصلية
         if (rxConsume(k, sym === 'native' ? EVM[k].native : sym, amt)) return;
         rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
       });
@@ -2889,7 +2903,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   setInterval(rxTick, 12000);
   setTimeout(rxTick, 4000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) rxTick(true); }); // العودة للتطبيق: فحص فوري
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { if (lnOk === false) lnOk = null; rxTick(true); } }); // العودة للتطبيق: فحص فوري، وإعادة فحص الإذن إن فعّله من الإعدادات
   async function doSend() {
     var p = state.pending;
     if (!p || state.txBusy) return;
@@ -2966,7 +2980,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var nat = evmUnits(ES.net, n.native); if (nat != null && nat === 0n) { esErr('تحتاج ' + n.native + ' لدفع رسوم الشبكة'); return openGasHelp(ES.net); }
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
     try {
-      var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); ES.q = q;
+      var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); q.at = Date.now(); ES.q = q;
       var f = function (v) { return niceNum(v, 6); };
       $('es-out').textContent = f(q.toAmount) + ' ' + ES.to; $('es-min').textContent = f(q.toAmountMin) + ' ' + ES.to;
       $('es-rate').textContent = Number(q.amount) > 0 ? '1 ' + ES.from + ' ≈ ' + niceNum(Number(q.toAmount) / Number(q.amount), 6) + ' ' + ES.to : '—';
@@ -2983,16 +2997,20 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   };
   $('es-go').onclick = function () {
     if (!ES.q || state.txBusy) return;
+    if (Date.now() - (ES.q.at || 0) > 60000) { $('es-quote-btn').click(); esErr('انتهت صلاحية السعر، جُلب سعر جديد. راجعه ثم أكّد.'); return; } // الأسعار تتغير: لا ننفّذ سعراً قديماً
     var q = ES.q, run = async function () {
       state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
       $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
       try {
         var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
-        for (var i = 0; i < 20; i++) {
-          var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
-          if (st.status === 'DONE') { toast('تم التبديل ✓'); lhAdd({ kind: 'swap', net: q.fromNet, coin: q.toSym || q.sym, amount: String(st.toAmount || q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: netOf(q.fromNet).name + ' · LI.FI', txid: r.txid, url: st.link || (core.evmTxUrl ? core.evmTxUrl(q.fromNet, r.txid) : ''), status: 'SUCCESS' }); break; }
-          if (st.status === 'FAILED' || st.status === 'REFUNDED') { esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
-          await new Promise(function (res) { setTimeout(res, 4000); });
+        var rec = { kind: 'swap', net: q.fromNet, coin: q.toSym || q.sym, amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: netOf(q.fromNet).name + ' · LI.FI', txid: r.txid, url: core.evmTxUrl ? core.evmTxUrl(q.fromNet, r.txid) : '', status: 'PENDING' };
+        lhAdd(rec); // يظهر في السجل فوراً "قيد التنفيذ" ثم يُحدَّث، فلا تضيع العملية إن أُغلق التطبيق
+        state.txBusy = false; // أُرسلت المعاملة: لا نوقف بقية التطبيق (والإشعارات) أثناء المتابعة
+        for (var i = 0; i < 45; i++) {
+          var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
+          if (st.status === 'DONE') { toast('تم التبديل ✓'); rec.amount = String(st.toAmount || q.toAmount); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); break; }
+          if (st.status === 'FAILED' || st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
+          await new Promise(function (res) { setTimeout(res, i < 15 ? 4000 : 10000); });
         }
         $('es-quote').hidden = true; $('es-amt').value = '';
         core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderSwapEvm(); } }).catch(function () {});
@@ -3158,7 +3176,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var bal = balOn(BR.coin, BR.from); if (bal != null && Number(amt) > bal) return brErr('الرصيد غير كافٍ على هذه الشبكة');
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
     try {
-      var q = await core.bridgeQuote(BR.from, BR.to, BR.coin, amt); BR.q = q;
+      var q = await core.bridgeQuote(BR.from, BR.to, BR.coin, amt); q.at = Date.now(); BR.q = q;
       var fmt = function (v) { return niceNum(v, 6); };
       $('br-out').textContent = fmt(q.toAmount) + ' ' + BR.coin + ' · ' + netOf(BR.to).name;
       $('br-min').textContent = fmt(q.toAmountMin) + ' ' + BR.coin;
@@ -3186,6 +3204,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   $('brc-ok').onclick = function () {
     $('br-sheet').classList.remove('show');
     if (!BR.q || state.txBusy) return;
+    if (Date.now() - (BR.q.at || 0) > 60000) { $('br-quote-btn').click(); brErr('انتهت صلاحية السعر، جُلب سعر جديد. راجعه ثم أكّد.'); return; }
     var q = BR.q, run = function () { doBridge(q); };
     var askPin = function () { openPin('verify', run); };
     if (bioEnabled()) bioVerify('تأكيد النقل').then(run).catch(askPin); else askPin();
@@ -3196,13 +3215,16 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
     try {
       var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+      var rec = { kind: 'bridge', net: q.fromNet, toNet: q.toNet, coin: q.toSym || q.sym, amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: 'LI.FI', txid: r.txid, url: '', status: 'PENDING' };
+      lhAdd(rec); // في السجل فوراً "قيد التنفيذ"
+      state.txBusy = false; // أُرسلت: المتابعة قد تطول، فلا نوقف الإرسال والإشعارات خلالها
       $('br-track-t').textContent = 'أُرسلت ✓ — بانتظار الوصول على ' + netOf(q.toNet).name + '…';
       for (var i = 0; i < 120; i++) {
-        var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet);
-        if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; }
-        if (st.status === 'DONE') { lhAdd({ kind: 'bridge', net: q.fromNet, toNet: q.toNet, coin: q.toSym || q.sym, amount: String(st.toAmount || q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: 'LI.FI', txid: r.txid, url: st.link || '', status: 'SUCCESS' }); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
-        if (st.status === 'REFUNDED') { $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
-        if (st.status === 'FAILED') { $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
+        var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
+        if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; if (!rec.url) { rec.url = st.link; lhAdd(rec); } }
+        if (st.status === 'DONE') { rec.amount = String(st.toAmount || q.toAmount); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
+        if (st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
+        if (st.status === 'FAILED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
         if (i === 119) $('br-track-t').textContent = 'ما زال النقل قيد التنفيذ — بعض الجسور تتأخر. تابع رابط التتبّع، والمبلغ يصل أو يُعاد تلقائياً';
       }
@@ -4046,7 +4068,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
         authorize('إيداع في الضمان', async function () {
           b.disabled = true; toast('جارٍ الإيداع…');
           try { var sent = localStorage.getItem(depKey); if (sent) { toast('أرسلت الإيداع مسبقاً. اضغط "تحقق من الإيداع"'); return; } } catch (e) {}
-          try { if (o.network === 'BEP20') await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)); else await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); try { localStorage.setItem(depKey, String(Date.now())); } catch (e) {} state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
+          try { var dr = o.network === 'BEP20' ? await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)) : await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); lhAdd({ kind: 'send', net: o.network === 'BEP20' ? 'bsc' : 'tron', coin: 'USDT', amount: String(o.deposit_amount), to: o.deposit_address, via: 'إيداع في ضمان P2P', txid: dr && dr.txid, url: dr && dr.url, status: (dr && dr.status) || 'SUCCESS' }); try { localStorage.setItem(depKey, String(Date.now())); } catch (e) {} state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
           catch (e) { toast(WalletCore.errorText(e), true); }
           b.disabled = false; refreshOrder('order.refresh');
         });
@@ -4152,7 +4174,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     await bioDisable();
     try {
       // السجل المحلي وإشعارات الاستلام تخص المحفظة المحذوفة: تُحذف معها
-      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb)\./.test(k)) localStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb)\.|^sarra\.(rxe|exactAsked)$/.test(k)) localStorage.removeItem(k); });
       sessionStorage.setItem('sarra.after-wipe', next);
     } catch (e) {}
     location.reload();
