@@ -2544,8 +2544,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       var sid = me.profile.sarra_id; if (!sid) me = state.p2p.me = await fetchMe(true), sid = me.profile.sarra_id;
       if (sid) { $('recv-sid-v').textContent = fmtSid(sid); $('recv-sid').hidden = false; } } catch (e) {}
   }
-  $('recv-sid-copy').onclick = function () { copyText(String((state.p2p.me && state.p2p.me.profile.sarra_id) || '')); };
-  $('recv-sid-share').onclick = async function () {
+  $('recv-sid-copy').onclick = function () { rxWatch(); copyText(String((state.p2p.me && state.p2p.me.profile.sarra_id) || '')); };
+  $('recv-sid-share').onclick = async function () { rxWatch();
     var sid = String((state.p2p.me && state.p2p.me.profile.sarra_id) || ''); if (!sid) return;
     var text = 'معرّف صُرّة الخاص بي: ' + fmtSid(sid) + '\nأرسل لي USDT مباشرة من تطبيق صُرّة بكتابة هذا المعرّف بدل عنوان المحفظة.';
     try { if (P.Share) await P.Share.share({ title: 'معرّف صُرّة', text: text }); else copyText(sid); } catch (e) {}
@@ -2601,6 +2601,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
 
   // ===== استلام =====
   async function loadReceive() {
+    rxWatch(); // المستخدم ينتظر تحويلة: فحص أسرع
     renderNetbar($('recv-nets'), state.recvNet, function (k) { state.recvNet = k; loadReceive(); }, 'USDT');
     var n = netOf(state.recvNet), evm = !!n.evm;
     var a = evm ? await core.evmAddress() : await core.getAddress();
@@ -2630,10 +2631,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     try { if (P.Clipboard) await P.Clipboard.write({ string: text }); else await navigator.clipboard.writeText(text); toast('تم النسخ'); }
     catch (e) { toast('تعذّر النسخ', true); }
   }
-  $('copy').onclick = function () { copyText($('addr').textContent); };
+  $('copy').onclick = function () { copyText($('addr').textContent); rxWatch(); };
   $('share').onclick = async function () {
     var a = $('addr').textContent;
     var n = netOf(state.recvNet);
+    rxWatch();
     try { if (P.Share) await P.Share.share({ title: 'عنوان محفظتي', text: 'عنوان محفظتي على شبكة ' + n.name + ' (' + n.short + '):\n' + a }); else copyText(a); } catch (e) {}
   };
 
@@ -3196,6 +3198,21 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   setInterval(rxTick, 12000);
   setTimeout(rxTick, 4000);
+  // وضع الترقّب: فتح شاشة الاستلام أو نسخ/مشاركة العنوان أو المعرّف يعني أن تحويلة قادمة غالباً،
+  // فنفحص كل ~5 ثوانٍ (EVM كل ~10) لمدة 15 دقيقة ثم نعود للإيقاع العادي
+  var rxWatchT = null, rxWatchN = 0;
+  function rxWatch() {
+    RX.watchUntil = Date.now() + 15 * 60000;
+    if (rxWatchT) return;
+    rxWatchT = setInterval(async function () {
+      if (Date.now() > RX.watchUntil) { clearInterval(rxWatchT); rxWatchT = null; return; }
+      if (RX.busy || !core.isUnlocked() || state.txBusy) return;
+      RX.busy = true; rxWatchN++;
+      try { await rxPollTron().catch(function () {}); if (rxWatchN % 2 === 0) await rxPollEvm().catch(function () {}); }
+      finally { RX.busy = false; }
+      rxShow();
+    }, 5000);
+  }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) { if (lnOk === false) lnOk = null; rxTick(true); } }); // العودة للتطبيق: فحص فوري، وإعادة فحص الإذن إن فعّله من الإعدادات
   async function doSend() {
     var p = state.pending;

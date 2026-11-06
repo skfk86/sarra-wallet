@@ -15,7 +15,7 @@ async def main():
         data=[item('old1','5000000',OTHER,ME,1760000000000)]
         if st['new']:
           t=st['ts']
-          data=[item('new1','1234567891234',OTHER,ME,t),            # استلام حقيقي: 1,234,567.891234 USDT
+          data=([item('w1','7000000',OTHER,ME,st['w'])] if st.get('w') else [])+[item('new1','1234567891234',OTHER,ME,t),            # استلام حقيقي: 1,234,567.891234 USDT
                 item('dust1','1',OTHER,ME,t+1),                     # غبار: 0.000001 يُتجاهل
                 item('zero1','0',OTHER,ME,t+2),                     # صفر (تسميم عناوين) يُتجاهل
                 item('out1','3000000',ME,OTHER,t+3),                # صادر لم يتم من هذا الجهاز: تنبيه خصم
@@ -64,6 +64,13 @@ async def main():
     ln=await pg.evaluate("window.__ln.length"); await pg.click('#s-success [data-go=home]'); await kick(); await kick()
     ln2=await pg.evaluate("window.__ln.map(n=>n.title)"); assert len(ln2)==ln, ln2; step('الإرسال من هذا الجهاز لا يُشعر كخصم غريب')
     await pg.evaluate("window.__log=[]")
+    # وضع الترقّب: بعد فتح شاشة الاستلام يُكتشف الوارد خلال ~5 ثوانٍ دون انتظار الفحص العادي (12 ث)
+    await pg.wait_for_timeout(800); await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(5600)  # أول دورة ترقّب تضبط الحالة
+    st['w']=int(time.time()*1000)+1000
+    for _ in range(14):
+      if await vis('rx-sheet'): break
+      await pg.wait_for_timeout(500)
+    assert await vis('rx-sheet') and '+7' in await pg.inner_text('#rx-amt'), await pg.inner_text('#rx-amt'); step('شاشة الاستلام: الوارد يُكتشف خلال ثوانٍ (وضع الترقّب)')
     await pg.wait_for_timeout(500)
     print('\nأخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()
