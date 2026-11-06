@@ -299,7 +299,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos{display:inline-flex;flex-direction:row-reverse}
 .net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .net-stack .logos img:last-child{margin-inline-start:0}
-.recv-lim{display:grid;grid-template-columns:1fr 1fr;gap:8px}.recv-lim>div{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}.recv-lim span{font-size:12px;color:var(--mu)}.recv-lim b{font-size:15px;direction:ltr;text-align:right}
+.rc-more{font-size:12px;font-weight:700;color:var(--mu);background:var(--s2);border-radius:999px;padding:3px 8px}
 .linkbtn{background:none;border:0;padding:8px 2px;margin:-8px 0;white-space:nowrap;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
 #swap-evm[hidden]{display:none!important}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
@@ -482,13 +482,12 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <button class="btn btn-ghost" id="share" style="height:48px;border-radius:14px;font-size:15px">مشاركة</button>
     </div>
   </div>
-  <div class="recv-lim" id="recv-lim"><div><span>أقل مبلغ للاستلام</span><b id="recv-min"></b></div><div><span>أقصى مبلغ للتحويلة</span><b id="recv-max"></b></div></div>
-  <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
   <div class="card" id="recv-sid" hidden style="display:flex;flex-direction:column;gap:12px;padding:16px 18px;border:1px solid var(--ok-bd);background:var(--ok-bg)">
     <div style="display:flex;flex-direction:column;gap:4px"><span class="muted" style="font-size:12px">معرّف صُرّة الخاص بك · يعمل على كل الشبكات</span><b class="ltr" id="recv-sid-v" style="font-size:30px;letter-spacing:2px;color:var(--tx);text-align:right"></b>
       <span class="muted" style="font-size:12px;line-height:1.7">أعطِه لأي مستخدم صُرّة ليرسل لك مباشرة بدون عنوان محفظة.</span></div>
     <div class="row" style="gap:8px"><button type="button" class="chip" id="recv-sid-copy" style="height:38px;flex:1;justify-content:center">نسخ المعرّف</button><button type="button" class="chip" id="recv-sid-share" style="height:38px;flex:1;justify-content:center">مشاركة</button></div>
   </div>
+  <div class="note warn" role="note" id="recv-warn"><span><b>اطلب من المرسل اختيار شبكة TRON (TRC20)</b> عند الإرسال. هذا العنوان يستقبل USDT وTRX على شبكة TRON فقط، وأي مبلغ يُرسل من شبكة أخرى (مثل BEP20 أو ERC20) يضيع ولا يمكن استرجاعه.</span></div>
   <button type="button" class="netinfo" id="recv-phone" hidden style="cursor:pointer;text-align:right;width:100%"><span style="font-size:22px">📱</span><span id="recv-phone-t" style="flex-grow:1"></span><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu)"><path d="m15 18-6-6 6-6"/></svg></button>
   <div class="netinfo" role="note" id="recv-fee"><span></span> <button type="button" class="linkbtn" id="recv-gas-help">كيف أحصل عليه؟</button></div>
 </section>
@@ -1194,6 +1193,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <div><dt>رسوم الشبكة</dt><dd id="c-fee">تُدفع بعملة الشبكة</dd></div>
       <div><dt>رسوم التطبيق</dt><dd style="color:var(--ac)">مجاناً</dd></div>
     </dl>
+    <div class="note ok" id="c-cheaper" hidden><span id="c-cheaper-t"></span></div>
+    <button class="btn btn-ghost" id="c-cheaper-go" hidden style="height:44px">الإرسال على BNB Chain بدلاً من ذلك</button>
     <button class="btn btn-primary" id="confirm-send">تأكيد وإرسال</button>
     <button class="btn btn-ghost" id="cancel-send">إلغاء</button>
   </div>
@@ -2347,12 +2348,9 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('recv-warn').firstChild.innerHTML = '';
     var w = $('recv-warn').firstChild;
     w.textContent = evm
-      ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + '). هذا العنوان يعمل على BNB Chain وEthereum وPolygon، والعملة تصل على الشبكة التي أُرسلت عليها. لا ترسل إليه من TRON.'
+      ? 'اطلب من المرسل اختيار شبكة ' + n.name + ' (' + n.short + '). لا ترسل إلى هذا العنوان من TRON.'
       : 'اطلب من المرسل اختيار شبكة TRON (TRC20). أي مبلغ من شبكة أخرى مثل BEP20 أو ERC20 يضيع.';
-    // حدود مقترحة لكل شبكة: الأدنى حتى لا تأكل رسوم المرسل المبلغ، والأعلى للأمان (جرّب بمبلغ صغير أولاً)
-    var LIM = { tron: [10, 10000], bsc: [1, 10000], polygon: [1, 10000], eth: [50, 10000] }[n.key] || [1, 10000];
-    $('recv-min').textContent = LIM[0] + ' USDT'; $('recv-max').textContent = LIM[1].toLocaleString('en') + ' USDT';
-    w.textContent += ' المبالغ الأقل من ' + LIM[0] + ' USDT قد تأكلها رسوم المرسل، وللمبالغ الكبيرة جرّب بمبلغ صغير أولاً ثم أرسل الباقي على دفعات.';
+    w.textContent += ' للمبالغ الكبيرة جرّب بمبلغ صغير أولاً.';
     $('recv-fee').firstChild.textContent = evm
       ? '⛽ لترسل لاحقاً من ' + n.name + ' تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.'
       : '⛽ لترسل لاحقاً تحتاج TRX لرسوم الشبكة، 15 TRX على الأقل.';
@@ -2360,7 +2358,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     [[a.slice(0, 4), 'hl'], [a.slice(4, -4), ''], [a.slice(-4), 'hl']].forEach(function (x) { var sp = document.createElement('span'); sp.textContent = x[0]; if (x[1]) sp.className = x[1]; ad.appendChild(sp); });
     $('qr-logo').src = netLogo(n.key);
     var rc = $('recv-coins'); rc.textContent = 'يستقبل:';
-    n.coins.forEach(function (c) { var im = document.createElement('img'); im.src = symLogo(c); im.alt = c; im.title = c; rc.appendChild(im); });
+    n.coins.slice(0, 6).forEach(function (c) { var im = document.createElement('img'); im.src = symLogo(c); im.alt = c; im.title = c; rc.appendChild(im); });
+    if (n.coins.length > 6) { var more = document.createElement('span'); more.className = 'rc-more'; more.dir = 'ltr'; more.textContent = '+' + (n.coins.length - 6); rc.appendChild(more); }
     syncRecvPhone();
     var qr = qrcode(0, 'Q'); qr.addData(a); qr.make();
     var img = document.createElement('img');
@@ -2418,9 +2417,25 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       $('avail').textContent = b ? (state.coin === 'USDT' ? b.usdt : b.trx) + ' ' + state.coin : '—';
       $('send-fee-note').firstChild.innerHTML = ''; $('send-gas-help').hidden = false; $('send-gas-help').textContent = 'ما هذا؟'; $('send-fee-note').style.color = '';
       $('send-fee-note').firstChild.textContent = '⛽ الرسوم بعملة TRX · متاح ' + (b ? b.trx : '—');
+      liveFee();
     }
     if (Object.keys(EVM).length && !state.evmBal) core.evmBalances().then(function (eb) { if (!eb) return; state.evmBal = eb; if (state.stack[state.stack.length - 1] === 'send') prepareSend(); }).catch(function () {});
   }
+  // تقدير رسوم TRON أثناء الكتابة: يظهر قبل المراجعة كم TRX ستُخصم تقريباً
+  var feeT = null, feeSeq = 0;
+  function liveFee() {
+    clearTimeout(feeT);
+    var to = $('to').value.trim();
+    if (state.sendNet !== 'tron' || !core.estimateTronFee || !core.isValidAddress(to)) return;
+    var seq = ++feeSeq, coin = state.coin;
+    feeT = setTimeout(async function () {
+      var e = await core.estimateTronFee(to, coin).catch(function () { return null; });
+      if (!e || seq !== feeSeq || state.sendNet !== 'tron' || state.coin !== coin) return;
+      var u = usdOf(e.trx, 'TRX'), b = state.balances;
+      $('send-fee-note').firstChild.textContent = '⛽ الرسوم المتوقعة ≈ ' + e.trx + ' TRX' + (u != null ? ' (≈ $' + u.toFixed(2) + ')' : '') + ' · متاح ' + (b ? b.trx : '—') + (e.freshRecipient && coin === 'USDT' ? ' · مضاعفة لأن المستلم لم يستلم USDT من قبل' : '');
+    }, 500);
+  }
+  $('to').addEventListener('input', liveFee);
   state.coin = state.coin || 'USDT'; renderCoinSeg();
   // آخر المستلمين لكل شبكة (على هذا الجهاز فقط)
   function recentList(net) { try { return JSON.parse(localStorage.getItem('sarra.recent.' + net) || '[]'); } catch (e) { return []; } }
@@ -2576,7 +2591,8 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (evia) { $('c-to').textContent = recipLabel(evia); $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
       else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
       $('c-net').textContent = n.name + ' (' + n.short + ')';
-      $('c-fee').textContent = 'تُدفع بعملة ' + n.native + ' من رصيدك';
+      $('c-fee').textContent = 'تُدفع بعملة ' + n.native + ' من رصيدك' + (n.key === 'bsc' || n.key === 'polygon' ? ' (عادة أقل من $0.05)' : '');
+      $('c-cheaper').hidden = true; $('c-cheaper-go').hidden = true;
       $('sheet').classList.add('show');
       return;
     }
@@ -2597,6 +2613,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var have = coinUnits();
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
     if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
+    var rbtn = $('review'); rbtn.disabled = true; rbtn.textContent = 'جارٍ حساب الرسوم…';
+    var est = await Promise.race([core.estimateTronFee ? core.estimateTronFee(to, state.coin) : null, new Promise(function (r) { setTimeout(function () { r(null); }, 6000); })]).catch(function () { return null; });
+    rbtn.disabled = false; rbtn.textContent = 'مراجعة الإرسال';
+    if (est && state.balances) {
+      var needSun = BigInt(Math.round(est.trx * 1e6)) + (state.coin === 'TRX' ? units : 0n);
+      if (needSun > state.balances.trxUnits) return sendError('رصيد TRX لا يكفي لرسوم الشبكة: تحتاج تقريباً ' + est.trx + ' TRX' + (state.coin === 'TRX' ? ' فوق المبلغ' : '') + '، ومتاح ' + state.balances.trx + ' TRX');
+    }
+    $('c-fee').textContent = est ? (est.trx > 0 ? '≈ ' + est.trx + ' TRX' + (usdOf(est.trx, 'TRX') != null ? ' (≈ $' + usdOf(est.trx, 'TRX').toFixed(2) + ')' : '') : 'مجاناً (من طاقتك المجانية)') + (est.freshRecipient && state.coin === 'USDT' ? ' · المستلم لم يستلم USDT من قبل فالرسوم مضاعفة' : '') : 'تُدفع بعملة TRX من رصيدك';
+    var bscU = evmUnits('bsc', 'USDT'), cheap = state.coin === 'USDT' && est && est.trx >= 3 && netOf('bsc').key === 'bsc' && EVM.bsc;
+    $('c-cheaper').hidden = !cheap; $('c-cheaper-go').hidden = !(cheap && bscU != null && bscU >= units * 1000000000000n);
+    if (cheap) $('c-cheaper-t').textContent = '💡 نفس التحويل على BNB Chain (BEP20) يكلّف عادة أقل من $0.05. إن كان المستلم يقبل BEP20 (مثل Binance) فاطلب منه عنوانه على BNB Chain.';
     state.pending = { to: to, amt: WalletCore.fromUnits(units, 6), coin: state.coin, via: via, phone: phone || null };
     $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
     // بالرقم: نعرض الاسم المخفي جزئياً والرقم، ولا نعرض العنوان
@@ -2605,6 +2632,10 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('sheet').classList.add('show');
   };
   $('cancel-send').onclick = function () { $('sheet').classList.remove('show'); };
+  $('c-cheaper-go').onclick = function () { // ننقل المبلغ نفسه إلى شاشة BNB Chain، والمستلم يُكتب من جديد (عنوان مختلف)
+    var a = $('amt').value; $('sheet').classList.remove('show'); state.sendNet = 'bsc'; state.coin = 'USDT'; renderCoinSeg(); prepareSend();
+    $('amt').value = a; $('to').value = ''; updUsd(); $('to').focus(); toast('اكتب عنوان المستلم على BNB Chain أو معرّف صُرّة');
+  };
   // كل إرسال يحتاج تأكيد الهوية: البصمة إن كانت مفعّلة، وإلا رمز القفل
   $('confirm-send').onclick = function () {
     $('sheet').classList.remove('show');

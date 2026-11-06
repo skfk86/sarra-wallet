@@ -71,7 +71,11 @@ async def main():
     # معاملة فاشلة على الشبكة
     await pg.evaluate('window.__log=[]; window.__failNext=true')
     await pg.click('#s-success [data-go=home]'); await pg.click('.actions [data-go=send]')
-    await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw'); await pg.fill('#amt','5'); await pg.click('#review'); await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(8000)
+    await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw'); await pg.fill('#amt','5'); await pg.wait_for_timeout(1500)
+    fn=await pg.inner_text('#send-fee-note'); assert '6.5 TRX' in fn, fn; print('✓ تقدير الرسوم أثناء الكتابة:', fn.split('·')[0].strip())
+    await pg.click('#review'); await pg.wait_for_selector('#sheet.show')
+    cf=await pg.inner_text('#c-fee'); assert cf.startswith('≈ 6.5 TRX'), cf; print('✓ رسوم TRON المتوقعة في التأكيد:', cf)
+    await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(8000)
     assert await vis('s-send') and 'فشلت المعاملة' in await pg.inner_text('#send-err'); step('المعاملة الفاشلة على الشبكة تظهر كفشل وليس نجاحاً')
     # مسح QR بالكاميرا (الماسح الداخلي، لأن ماسح Google غير موجود في المتصفح)
     await pg.fill('#to','')

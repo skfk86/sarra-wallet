@@ -7,6 +7,9 @@
   function TW(){
     this.trx={
       getBalance: async()=>window.__trx,
+      getAccountResources: async()=>({freeNetLimit:600,freeNetUsed:0}),
+      getChainParameters: async()=>[{key:'getEnergyFee',value:100},{key:'getTransactionFee',value:1000}],
+      getAccount: async(a)=>({address:a}),
       sendTransaction: async(to,amt)=>{ window.__log.push(['TRX',to,amt]); return {result:true,txid:id('trx')}; },
       getTransactionInfo: async(txid)=>({id:txid, receipt:{result: String(txid).indexOf('fail')===0?'REVERT':'SUCCESS'}}),
       sign: async(tx)=>{ window.__log.push(['SIGN',tx.txID]); return Object.assign({},tx,{signature:['ab']}); },

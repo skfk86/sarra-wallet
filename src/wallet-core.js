@@ -574,6 +574,28 @@
         };
       },
 
+      // تقدير رسوم الإرسال على TRON قبل التأكيد (بـ TRX). USDT لعنوان لم يملك USDT قط يستهلك ضعف الطاقة تقريباً.
+      // يُحسب ما ستحرقه فعلاً بعد خصم الطاقة والنطاق المجانيين في حسابك. تقدير فقط: الشبكة قد تختلف قليلاً.
+      estimateTronFee: async function (to, coin) {
+        var me = session ? session.address : await this.getAddress();
+        if (!this.isValidAddress(to)) throw new Error('INVALID_ADDRESS');
+        var res = await readRetry(function (k) { return client(null, k).trx.getAccountResources(me); }).catch(function () { return {}; }) || {};
+        var params = await readRetry(function (k) { return client(null, k).trx.getChainParameters(); }).catch(function () { return []; }) || [];
+        var pv = function (key, d) { for (var i = 0; i < params.length; i++) if (params[i] && params[i].key === key && params[i].value) return Number(params[i].value); return d; };
+        var ePrice = pv('getEnergyFee', 100), bPrice = pv('getTransactionFee', 1000), energy = 0, bw = coin === 'USDT' ? 345 : 270, extra = 0, fresh = false;
+        if (coin === 'USDT') {
+          var rb = await readRetry(function (k) { var tw = client(null, k); tw.setAddress(me); return tw.contract(TRC20_ABI, net.usdt).balanceOf(to).call(); });
+          fresh = BigInt(rb.toString()) === 0n; energy = fresh ? 130000 : 65000;
+        } else {
+          var acc = await readRetry(function (k) { return client(null, k).trx.getAccount(to); }).catch(function () { return null; });
+          fresh = !acc || !acc.address; if (fresh) extra = 1100000; // تفعيل حساب جديد على TRON
+        }
+        var freeE = Math.max(0, (res.EnergyLimit || 0) - (res.EnergyUsed || 0));
+        var freeB = Math.max(0, (res.freeNetLimit || 0) - (res.freeNetUsed || 0)) + Math.max(0, (res.NetLimit || 0) - (res.NetUsed || 0));
+        var sun = Math.max(0, energy - freeE) * ePrice + (freeB >= bw ? 0 : bw * bPrice) + extra;
+        return { trx: Math.ceil(sun / 1e4) / 100, freshRecipient: fresh, energy: energy };
+      },
+
       sendUSDT: async function (to, amountStr) {
         if (!session) throw new Error('LOCKED');
         if (!this.isValidAddress(to)) throw new Error('INVALID_ADDRESS');
