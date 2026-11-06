@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;--tx3:#A3B0BE;--faint:#5E6E80;--dot:#33445A;--hi:#2A3644;--tab:rgba(14,19,25,.92);--danger-bg:#5A262B;--danger-tx:#FFD6D9;--danger:#FF8A8F;--danger-mu:#C98A8E;--tag-bg:#3A2A10;--tag:#F5C26B;--trx:#FF5A5F;--usdt:#26A17B;--ok-tx:#A9C9BC;--in-bg:#10241D;--in:#2BD9A0;--out-bg:#1E2935;--out:#C5D0DB;--row:#161E28;--shadow:none;--hero:linear-gradient(145deg,#132A24 0%,#131A22 60%);--bg:#0B0F14;--s1:#131A22;--s2:#1A232E;--line:#233040;--div:#1E2935;--tx:#EEF2F6;--tx2:#C5D0DB;--mu:#8B99A8;--ac:#2BD9A0;--on-ac:#052219;--warn-bg:#241A10;--warn-bd:#4A3218;--warn:#FFC58A;--err-bg:#2A1416;--err-bd:#5A262B;--err:#FFB3B8;--ok-bg:#10241D;--ok-bd:#1E4A3A}
-:root[data-theme="light"]{color-scheme:light;--sel-bg:#DDF4EA;--sel-bd:#0FA678;--sel-tx:#0B5F46;--ac-bg:#DDF4EA;--bg:#F3F5F8;--s1:#FFFFFF;--s2:#EDF0F4;--line:#E1E6EC;--div:#EBEEF2;--tx:#0F1720;--tx2:#334155;--tx3:#475569;--mu:#64748B;--faint:#94A3B8;--dot:#CBD5E1;--hi:#FFFFFF;--tab:rgba(255,255,255,.94);--ac:#0FA678;--on-ac:#FFFFFF;--warn-bg:#FFF6E9;--warn-bd:#F5D9AE;--warn:#8A4B08;--err-bg:#FDEEEF;--err-bd:#F4C7CB;--err:#B42330;--ok-bg:#E8F7F1;--ok-bd:#BFE8D7;--ok-tx:#1E5B47;--danger-bg:#D93645;--danger-tx:#FFFFFF;--danger:#C62B3A;--danger-mu:#B8606A;--tag-bg:#FFF1D6;--tag:#9A5B00;--trx:#E5333B;--in-bg:#E3F6EF;--in:#0B8A63;--out-bg:#EDF0F4;--out:#475569;--row:#EEF1F4;--shadow:0 1px 2px rgba(15,23,32,.04),0 4px 14px rgba(15,23,32,.05);--hero:linear-gradient(145deg,#E3F7EF 0%,#FFFFFF 65%)}
+:root[data-theme="light"]{color-scheme:light;--sel-bg:#DDF4EA;--sel-bd:#0FA678;--sel-tx:#0B5F46;--ac-bg:#DDF4EA;--bg:#F3F5F8;--s1:#FFFFFF;--s2:#EDF0F4;--line:#E1E6EC;--div:#EBEEF2;--tx:#0F1720;--tx2:#334155;--tx3:#475569;--mu:#64748B;--faint:#94A3B8;--dot:#CBD5E1;--hi:#FFFFFF;--tab:rgba(255,255,255,.94);--ac:#0B8A63;--on-ac:#FFFFFF;--warn-bg:#FFF6E9;--warn-bd:#F5D9AE;--warn:#8A4B08;--err-bg:#FDEEEF;--err-bd:#F4C7CB;--err:#B42330;--ok-bg:#E8F7F1;--ok-bd:#BFE8D7;--ok-tx:#1E5B47;--danger-bg:#D93645;--danger-tx:#FFFFFF;--danger:#C62B3A;--danger-mu:#B8606A;--tag-bg:#FFF1D6;--tag:#9A5B00;--trx:#E5333B;--in-bg:#E3F6EF;--in:#0B8A63;--out-bg:#EDF0F4;--out:#475569;--row:#EEF1F4;--shadow:0 1px 2px rgba(15,23,32,.04),0 4px 14px rgba(15,23,32,.05);--hero:linear-gradient(145deg,#E3F7EF 0%,#FFFFFF 65%)}
 html,body,.card,.field,.list,.btn,.chip,.icon-btn,.tabbar,.sheet,.key,.ad{transition:background-color .25s,border-color .25s,color .25s}
 .card,.list,.ad,.field{box-shadow:var(--shadow)}
 .btn:active,.chip:active,.action:active span.ic,.li:active{transform:scale(.98)}
@@ -238,7 +238,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .netgrid .chip .netbal{font-size:11px;font-weight:600;color:var(--mu);direction:ltr}
 .seg button img{width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-inline-end:6px}
 .pct{display:flex;gap:6px}
-.pct button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--s2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
+.pct button{height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--s2);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer}
 .pct button.max{color:var(--ac);border-color:var(--ac)}
 #to:placeholder-shown{direction:rtl;text-align:right}
 .acc-hero{display:flex;align-items:center;gap:14px;padding:4px 2px}
@@ -310,7 +310,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .ch-box{position:relative;height:150px;border-radius:14px;overflow:hidden}.ch-box svg{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
 .ch-hi,.ch-lo{position:absolute;left:6px;font-size:10px;color:var(--mu);background:var(--s1);padding:1px 6px;border-radius:6px;opacity:.9}.ch-hi{top:2px}.ch-lo{bottom:2px}
 .ch-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mu)}
-.ch-range{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--s2);border-radius:12px;padding:3px}.ch-range button{height:30px;border:0;border-radius:9px;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer}.ch-range button.on{background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ch-range{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--s2);border-radius:12px;padding:3px}.ch-range button{height:34px;border:0;border-radius:9px;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--mu);cursor:pointer}.ch-range button.on{background:var(--s1);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .spark{flex:0 0 56px;height:24px;margin:0 6px;opacity:.95}.spark svg{width:100%;height:100%;display:block}
 .txd-head{display:flex;align-items:center;gap:10px}.txd-head b{font-size:17px;flex-grow:1}
 .txd-ic{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.txd-ic .i{width:20px;height:20px}
@@ -440,6 +440,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .td-st{margin-inline-start:auto;font-size:12px;font-weight:700}.td-big{display:flex;flex-direction:column;gap:2px;background:var(--s2);border-radius:14px;padding:14px}.td-big span{font-size:12px;color:var(--mu)}.td-big b{font-size:24px;text-align:right}
 .pr-conf{font-size:12px;font-weight:700;color:var(--tx2)}
 .pr-bt{font-size:12px;line-height:1.8;background:var(--s2);border-radius:12px;padding:10px 12px;color:var(--tx2)}.pr-bt.up{background:rgba(22,163,122,.1);color:var(--up)}.pr-bt.dn{background:rgba(229,72,77,.1);color:var(--dn)}
+.offline-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:#B42330;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:1.6;padding:calc(6px + env(safe-area-inset-top)) 16px 6px}
 </style>
 </head>
 <body>
@@ -514,7 +515,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="bal-chg" id="bal-chg" hidden></div>
     <div class="row between" style="gap:8px">
       <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT</span>
-      <span id="fee-hint" hidden></span>
+      
       <button type="button" class="hero-sid" id="hero-sid" hidden></button>
     </div>
   </div>
@@ -700,7 +701,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="netbar" id="sw-nets" role="tablist" hidden></div>
   <div id="swap-evm" hidden style="display:flex;flex-direction:column;gap:14px">
     <div class="card" style="display:flex;flex-direction:column;gap:10px;padding:16px 18px">
-      <div class="row between"><span class="muted">من</span><button type="button" class="chip" id="es-max" style="height:28px">الكل: <bdi class="ltr" id="es-bal">—</bdi></button></div>
+      <div class="row between"><span class="muted">من</span><button type="button" class="chip" id="es-max" style="height:34px">الكل: <bdi class="ltr" id="es-bal">—</bdi></button></div>
       <div class="seg" id="es-from" role="radiogroup" aria-label="من عملة"></div>
       <input id="es-amt" inputmode="decimal" placeholder="0" autocomplete="off" class="ltr" style="background:none;border:0;outline:none;font-size:28px;font-weight:700;padding:0;color:var(--tx)">
       <span class="muted ltr usd-eq" id="es-usd"></span>
@@ -817,7 +818,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <span class="muted" style="font-size:13px">العملة</span><div class="seg" id="br-coin" role="radiogroup"></div>
   </div>
   <div class="card" style="display:flex;flex-direction:column;gap:8px;padding:16px 18px">
-    <div class="row between"><label for="br-amt" class="muted">المبلغ</label><button type="button" class="chip" id="br-max" style="height:28px">الكل: <bdi class="ltr" id="br-bal">—</bdi></button></div>
+    <div class="row between"><label for="br-amt" class="muted">المبلغ</label><button type="button" class="chip" id="br-max" style="height:34px">الكل: <bdi class="ltr" id="br-bal">—</bdi></button></div>
     <input id="br-amt" inputmode="decimal" placeholder="0" autocomplete="off" class="ltr" style="background:none;border:0;outline:none;font-size:28px;font-weight:700;padding:0;color:var(--tx)">
   </div>
   <dl class="kv card" id="br-quote" style="padding:4px 16px" hidden>
@@ -1042,7 +1043,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="note ok" style="font-size:13px;line-height:1.9"><span>عنوانك <b>0x</b> واحد لـ BNB Chain وPolygon وEthereum، وعنوان <b>T</b> مختلف لـ TRON.</span></div>
     <div class="note warn" style="font-size:13px;line-height:1.9"><span>عملة غير موجودة في القائمة (مثل DAI على BNB Chain) لا تضيع، لكنها لا تظهر في التطبيق. تصل إليها باستيراد كلماتك في محفظة أخرى.</span></div>
     <div class="note err" style="font-size:13px;line-height:1.9"><span><b>لا ترسل من شبكات غير مدعومة</b> مثل Bitcoin أو Solana أو TON: المبلغ يضيع لأن صُرّة لا تملك عنواناً عليها.</span></div>
-    <button class="btn btn-ghost" id="coins-close">فهمت</button>
+    <button class="btn btn-ghost" id="coins-close" style="min-height:48px">فهمت</button>
   </div>
 </div>
 <div class="sheet-bg" id="gas-sheet" role="dialog" aria-modal="true" aria-labelledby="gas-t">
@@ -1327,6 +1328,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   </div>
 </section>
 
+<div class="offline-bar" id="offline-bar" role="status" hidden>لا يوجد اتصال بالإنترنت · نعرض آخر رصيد محفوظ، ولا يمكن الإرسال حتى يعود الاتصال</div>
 <nav class="tabbar" id="tabbar" aria-label="التنقل الرئيسي">
   <button type="button" class="tab" data-tab="home"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>المحفظة</button>
   <button type="button" class="tab" data-tab="trade"><svg class="i" style="width:22px;height:22px" viewBox="0 0 24 24"><path d="M7 3v4"/><rect x="5" y="7" width="4" height="8" rx="1"/><path d="M7 15v6"/><path d="M17 3v6"/><rect x="15" y="9" width="4" height="7" rx="1"/><path d="M17 16v5"/></svg>تداول</button>
@@ -1896,6 +1898,13 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if (o.e && !state.evmBal) { var eb = {}; Object.keys(o.e).forEach(function (k) { eb[k] = {}; Object.keys(o.e[k]).forEach(function (x) { eb[k][x] = BigInt(o.e[k][x]); }); }); state.evmBal = eb; state.evmBalCached = true; }
     } catch (e) {}
   }
+  // ===== انقطاع الإنترنت: شريط واضح، وتحديث تلقائي عند عودته =====
+  function netState() {
+    var off = navigator.onLine === false; $('offline-bar').hidden = !off;
+    if (!off && state.wasOffline && core.isUnlocked()) { state.balances && (state.balances.cached = true); var cur = state.stack[state.stack.length - 1]; if (cur === 'home') loadHome(true); rxTick(true); }
+    state.wasOffline = off;
+  }
+  window.addEventListener('offline', netState); window.addEventListener('online', netState); netState();
   // ===== إشعارات Firebase الفورية (تصل والتطبيق مغلق) =====
   var PN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.PushNotifications;
   function pushKey() { return 'sarra.push.' + (state.lhAddr || ''); }
@@ -2857,6 +2866,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   }
   $('review').onclick = async function () {
     $('send-err').hidden = true;
+    if (navigator.onLine === false) return sendError('لا يوجد اتصال بالإنترنت. تحقق من الاتصال ثم حاول');
     var to = $('to').value.trim(), amt = $('amt').value, via = null;
     var n = netOf(state.sendNet);
     if (n.evm) {

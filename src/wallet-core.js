@@ -107,17 +107,6 @@
     var s = String((e && (e.message || e.code || e.status)) || e || '') + ' ' + String(e && e.response && e.response.status || '');
     return /429|rate|limit|timeout|network|fetch|ECONN|socket|503|502|Failed to fetch/i.test(s);
   }
-  async function withRetry(fn, tries) {
-    tries = tries || 3;
-    for (var i = 0; ; i++) {
-      try { return await fn(); }
-      catch (e) {
-        if (i >= tries - 1 || !isTransient(e)) throw e;
-        await new Promise(function (r) { setTimeout(r, 700 * Math.pow(2, i) + Math.random() * 300); });
-      }
-    }
-  }
-
   // TronWeb يعيد العنوان بصيغ مختلفة حسب الإصدار: base58، أو hex بـ 41، أو 0x، أو 40 خانة
   function normalizeAddress(tw, v) {
     if (Array.isArray(v)) v = v[0];
