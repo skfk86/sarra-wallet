@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://api.coingecko.com https://li.quest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://cloudflare-eth.com https://polygon-rpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -389,7 +389,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .pr-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mu)}
 .pr-leg{display:flex;gap:12px;font-size:10px;color:var(--mu);padding:0 4px}.pr-leg i{display:inline-block;width:10px;height:2px;margin-right:4px;vertical-align:middle;border-radius:2px}
 .pr-ana{display:flex;flex-direction:column;gap:12px;padding:16px}
-.pr-sig{font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;background:var(--s2);color:var(--mu)}
+.pr-sig{font-size:16px;font-weight:800;padding:7px 18px;border-radius:999px;background:var(--s2);color:var(--mu)}
 .pr-sig.buy{background:rgba(22,163,122,.14);color:var(--up)}.pr-sig.sell{background:rgba(229,72,77,.14);color:var(--dn)}
 .pr-gauge-bar{position:relative;height:8px;border-radius:999px;background:linear-gradient(90deg,#E5484D,#F5A623 35%,#9aa5b1 50%,#7BC67E 65%,#16A37A)}
 .pr-gauge-bar i{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--s1);border:3px solid var(--tx);transform:translate(-50%,-50%);transition:left .4s;left:50%}
@@ -1311,12 +1311,15 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div id="pp-hist" hidden><div id="pr-trades"></div></div>
   </div>
   <div class="card pr-ana" id="pr-ana">
-    <div class="row between"><b style="font-size:15px">التحليل الفني</b><span class="pr-sig" id="pr-sig">—</span></div>
-    <div class="pr-gauge"><div class="pr-gauge-bar"><i id="pr-gauge-dot"></i></div><div class="pr-gauge-l"><span>بيع قوي</span><span>محايد</span><span>شراء قوي</span></div></div>
+    <div class="row between"><b style="font-size:15px">إشارة التحليل</b><span class="pr-sig" id="pr-sig">—</span></div>
+    <div class="pr-gauge"><div class="pr-gauge-bar"><i id="pr-gauge-dot"></i></div><div class="pr-gauge-l"><span>بيع</span><span>محايد</span><span>شراء</span></div></div>
+    <button type="button" class="linkbtn" id="pr-more-btn" style="align-self:flex-start;font-size:12px">عرض التفاصيل</button>
+    <div id="pr-more" hidden style="display:flex;flex-direction:column;gap:10px">
     <div class="pr-conf" id="pr-conf"></div>
     <div class="pr-bt" id="pr-bt"></div>
     <div class="pr-ind" id="pr-ind"></div>
     <small class="muted" style="font-size:11px;line-height:1.7">التحليل يجمع 8 مؤشرات مع اتجاه الإطار الأعلى، ونسبة الصدق محسوبة على شموع هذه العملة الفعلية في الماضي. الأسواق لا تتكرر بالضرورة: لا يوجد تحليل يضمن الربح، فاستخدم وقف الخسارة ولا تتداول بمال تحتاجه.</small>
+    </div>
   </div>
   <div class="pr-bar">
     <button type="button" class="pr-buy" id="pr-buy">شراء</button>
@@ -1388,6 +1391,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
       <div><dt>عمولة صُرّة</dt><dd class="ltr" id="od-fee">—</dd></div>
       <div><dt>رسوم الشبكة</dt><dd class="ltr" id="od-gas">—</dd></div>
     </dl>
+    <div class="note warn" id="od-hint" hidden><span id="od-hint-t"></span></div>
+    <button class="btn btn-ghost" id="od-hint-go" hidden style="height:44px"></button>
     <div class="note err" id="od-err" hidden></div>
     <button class="btn btn-primary" id="od-go" disabled>عرض السعر</button>
     <button class="btn btn-ghost" id="od-cancel">إلغاء</button>
@@ -1874,26 +1879,46 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // التنقل بين الأقسام لا يعيد الجلب إن كانت البيانات حديثة (أقل من 20 ثانية)، حتى لا نتجاوز حد طلبات TronGrid
   var FRESH_MS = 20000;
   state.fetchedAt = { home: 0, history: 0 };
+  // آخر رصيد معروف يُحفظ على الجهاز ويُعرض فوراً عند الفتح، ثم يُحدَّث من الشبكة
+  function balCacheKey() { return 'sarra.bal.' + (state.lhAddr || ''); }
+  function saveBalCache() {
+    try {
+      var b = state.balances, eb = state.evmBal, o = { at: Date.now() };
+      if (b) o.t = { trxUnits: String(b.trxUnits), usdtUnits: String(b.usdtUnits), trx: b.trx, usdt: b.usdt };
+      if (eb) { o.e = {}; Object.keys(eb).forEach(function (k) { if (eb[k]) { o.e[k] = {}; Object.keys(eb[k]).forEach(function (x) { if (eb[k][x] != null) o.e[k][x] = String(eb[k][x]); }); } }); }
+      localStorage.setItem(balCacheKey(), JSON.stringify(o));
+    } catch (e) {}
+  }
+  function loadBalCache() {
+    try {
+      var o = JSON.parse(localStorage.getItem(balCacheKey()) || 'null'); if (!o) return;
+      if (o.t && !state.balances) state.balances = { trxUnits: BigInt(o.t.trxUnits), usdtUnits: BigInt(o.t.usdtUnits), trx: o.t.trx, usdt: o.t.usdt, cached: true };
+      if (o.e && !state.evmBal) { var eb = {}; Object.keys(o.e).forEach(function (k) { eb[k] = {}; Object.keys(o.e[k]).forEach(function (x) { eb[k][x] = BigInt(o.e[k][x]); }); }); state.evmBal = eb; state.evmBalCached = true; }
+    } catch (e) {}
+  }
   async function loadHome(force) {
-    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 800); } // فتح التطبيق: افحص فوراً ما وصل أثناء إغلاقه
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
+    if (!state.balances || !state.evmBal) loadBalCache();
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();
     renderBalances();
     loadPrices();
-    var evmFetch = function () { if (Object.keys(EVM).length) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderBalances(); } }).catch(function () {}); };
-    if (force !== true && state.balances && Date.now() - state.fetchedAt.home < FRESH_MS) { if (!state.evmBal) evmFetch(); return; }
+    var evmFetch = function () { if (Object.keys(EVM).length) core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; state.evmBalCached = false; renderBalances(); saveBalCache(); } }).catch(function () {}); };
+    if (force !== true && state.balances && !state.balances.cached && Date.now() - state.fetchedAt.home < FRESH_MS) { if (!state.evmBal || state.evmBalCached) evmFetch(); return; }
     state.fetchedAt.home = Date.now();
     evmFetch();
     try {
       var b = await core.getBalances();
       state.balances = b;
-      renderBalances();
+      renderBalances(); saveBalCache();
       var trx = Number(WalletCore.fromUnits(b.trxUnits, 6));
       $('low-trx').hidden = !(trx < 15 && b.usdtUnits > 0n);
     } catch (e) {
       state.fetchedAt.home = 0;
       // عند وجود رصيد معروض مسبقاً لا نزعج المستخدم برسالة عند كل تنقّل؛ نُظهرها عند التحديث اليدوي أو أول تحميل
-      if (force === true || !state.balances) toast(WalletCore.errorText(e), true);
+      // رصيد محفوظ معروض: لا نزعج المستخدم؛ نعيد المحاولة بهدوء بعد قليل
+      if (state.balances && state.balances.cached) { if (!state.homeRetry) { state.homeRetry = 1; setTimeout(function () { state.homeRetry = 0; if (state.stack[state.stack.length - 1] === 'home') loadHome(true); }, 8000); } }
+      else if (force === true || !state.balances) toast('تعذّر تحديث الرصيد الآن. سنحاول مجدداً تلقائياً', true);
     }
     loadHistory();
   }
@@ -2230,7 +2255,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       mid.appendChild(t1); mid.appendChild(t2);
       var amt = document.createElement('span'); amt.className = 'ltr';
       amt.style.cssText = 'font-size:14px;font-weight:600;color:' + (t.incoming ? 'var(--in)' : 'var(--tx)');
-      amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + t.amount + ' ' + coin;
+      amt.textContent = state.hidden ? '••••' : (t.incoming ? '+' : '−') + fmtExact(t.amount) + ' ' + coin;
       var end = document.createElement('div'); end.className = 'tx-end'; end.appendChild(amt);
       var uv = !state.hidden && usdOf(t.amount, coin);
       if (uv) end.appendChild(el('span', null, '≈\u00a0' + (t.incoming ? '+' : '−') + usd(uv)));
@@ -3666,6 +3691,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       TR.kl = more.concat(TR.kl); drawCandles(); // TR.off محسوب من النهاية فيبقى المنظر ثابتاً
     } catch (e) {} finally { TR.oldBusy = false; }
   }
+  $('pr-more-btn').onclick = function () { var m = $('pr-more'); m.hidden = !m.hidden; this.textContent = m.hidden ? 'عرض التفاصيل' : 'إخفاء التفاصيل'; };
   document.querySelectorAll('#pr-tf button').forEach(function (b) { b.onclick = function () { TR.tf = b.dataset.tf; document.querySelectorAll('#pr-tf button').forEach(function (x) { x.classList.toggle('on', x === b); }); loadKlines(); }; });
 
   // ===== المؤشرات =====
@@ -3777,7 +3803,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var kl = TR.kl, sym = TR.sym, tf = TR.tf; if (!kl || kl.length < 80) { $('pr-ana').hidden = true; return; } $('pr-ana').hidden = false;
     var hk = await loadHigherTf(); if (TR.sym !== sym || TR.tf !== tf || TR.kl !== kl) return;
     var A = analyze(kl, hk), s = A.score == null ? 0 : A.score;
-    var lab = s >= 6 ? ['شراء قوي', 'buy'] : s >= 3 ? ['شراء', 'buy'] : s <= -6 ? ['بيع قوي', 'sell'] : s <= -3 ? ['بيع', 'sell'] : ['محايد · انتظر', ''];
+    var lab = s >= 3 ? ['شراء', 'buy'] : s <= -3 ? ['بيع', 'sell'] : ['محايد', ''];
     // الثقة: توافق المؤشرات مع الإطار الأعلى وقوة الاتجاه
     var conf = Math.abs(s) >= 6 && A.agree !== false && (A.adx || 0) >= 20 ? 'عالية' : Math.abs(s) >= 3 && A.agree !== false ? 'متوسطة' : 'منخفضة';
     var sg = $('pr-sig'); sg.textContent = lab[0]; sg.className = 'pr-sig ' + lab[1];
@@ -4042,6 +4068,17 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     $('od-in-l').textContent = TR.side === 'buy' ? 'تدفع (USDT)' : 'تبيع (' + c.sym + ')'; $('od-unit').textContent = pay;
     $('od-avail').textContent = state.hidden ? '••••' : v == null ? '—' : niceNum(v, 8) + ' ' + pay;
     $('od-q').hidden = !TR.oq; $('od-err').hidden = true;
+    // لا يوجد ما تدفعه على هذه الشبكة: نشرح السبب ونقترح الحل بدل أن يبقى «0» بلا تفسير
+    var hint = '', hgo = null;
+    if (v != null && !(v > 0)) {
+      if (TR.side === 'buy') {
+        var other = NETS.filter(function (n) { var x = balOn('USDT', n.key); return n.key !== TR.net && x != null && x > 0; })[0];
+        hint = c.sym + ' يُشترى على ' + netOf(TR.net).name + ' بعملة USDT الموجودة على نفس الشبكة، ورصيدك من USDT عليها 0.';
+        if (other) { hint += ' لديك ' + niceNum(balOn('USDT', other.key), 6) + ' USDT على ' + other.name + ': انقلها أولاً (دقائق ورسوم بسيطة).'; hgo = { t: 'نقل USDT من ' + other.name + ' إلى ' + netOf(TR.net).name, f: other.key }; }
+      } else hint = 'لا تملك ' + c.sym + ' على ' + netOf(TR.net).name + ' لتبيعه.';
+    }
+    $('od-hint').hidden = !hint; $('od-hint-t').textContent = hint;
+    var hg = $('od-hint-go'); hg.hidden = !hgo; if (hgo) { var hf = hgo.f; hg.textContent = hgo.t; hg.onclick = function () { $('od-sheet').classList.remove('show'); BR.from = hf; BR.to = TR.net; BR.coin = 'USDT'; show('bridge'); }; }
     var go = $('od-go'); go.classList.toggle('sell', TR.side === 'sell'); go.disabled = !(Number($('od-amt').value) > 0);
     go.textContent = TR.oq ? (TR.side === 'buy' ? 'تأكيد شراء ' : 'تأكيد بيع ') + c.sym : 'عرض السعر';
   }
@@ -5071,7 +5108,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     await bioDisable();
     try {
       // السجل المحلي وإشعارات الاستلام تخص المحفظة المحذوفة: تُحذف معها
-      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb)\.|^sarra\.(rxe|exactAsked)$/.test(k)) localStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb|bal|tr|kl)\.|^sarra\.(rxe|exactAsked)$/.test(k)) localStorage.removeItem(k); });
       sessionStorage.setItem('sarra.after-wipe', next);
     } catch (e) {}
     location.reload();

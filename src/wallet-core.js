@@ -11,6 +11,7 @@
   var NETWORKS = {
     mainnet: {
       fullHost: 'https://api.trongrid.io',
+      altHosts: ['https://tron-rpc.publicnode.com'], // احتياط للقراءة إن ضغطت TronGrid المجانية (429)
       usdt: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
       explorer: 'https://tronscan.org/#/transaction/',
       // SunSwap V2 — يُتحقق منه وقت التشغيل: router.WETH() يجب أن يساوي wtrx
@@ -469,17 +470,21 @@
     function noteRateLimited() { if (apiKey) keyUntil = Date.now() + 60000; }
     async function readRetry(fn) {
       for (var i = 0; ; i++) {
+        readHost = i; // المحاولة الثانية فما بعد تتناوب على خادم احتياطي
         try { return await fn(readKeyed()); }
         catch (e) {
-          if (i >= 3 || !isTransient(e)) throw e;
+          if (i >= 3 || !isTransient(e)) { readHost = 0; throw e; }
           noteRateLimited();
           await new Promise(function (r) { setTimeout(r, (i === 0 ? 150 : 700 * Math.pow(2, i - 1)) + Math.random() * 300); });
         }
       }
     }
+    var readHost = 0;
     function client(privateKey, keyed) {
       var TW = TronWebClass();
-      var conf = { fullHost: net.fullHost };
+      var hosts = [net.fullHost].concat(net.altHosts || []), h = privateKey ? net.fullHost : hosts[readHost % hosts.length];
+      var conf = { fullHost: h };
+      if (h !== net.fullHost) keyed = false; // مفتاح TronGrid لا يُرسل لخادم آخر
       if (apiKey && keyed !== false) conf.headers = { 'TRON-PRO-API-KEY': apiKey };
       if (privateKey) conf.privateKey = privateKey;
       return new TW(conf);
@@ -566,11 +571,11 @@
 
       getBalances: async function (address) {
         var addr = address || (await this.getAddress());
-        var trxSun = await readRetry(function (k) { var tw = client(null, k); return tw.trx.getBalance(addr); });
-        var usdtRaw = await readRetry(function (k) {
-          var tw = client(null, k); tw.setAddress(addr);
-          return tw.contract(TRC20_ABI, net.usdt).balanceOf(addr).call();
-        });
+        var both = await Promise.all([ // بالتوازي: نصف زمن الانتظار
+          readRetry(function (k) { var tw = client(null, k); return tw.trx.getBalance(addr); }),
+          readRetry(function (k) { var tw = client(null, k); tw.setAddress(addr); return tw.contract(TRC20_ABI, net.usdt).balanceOf(addr).call(); })
+        ]);
+        var trxSun = both[0], usdtRaw = both[1];
         var usdtUnits = BigInt(usdtRaw.toString());
         return {
           trxUnits: BigInt(trxSun),
