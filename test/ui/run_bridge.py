@@ -132,7 +132,7 @@ async def main():
     # إشعار الاستلام: رصيد BNB ارتفع بمقدار ناتج تبديلك أنت (ضمن السعر المعروض) ← لا إشعار "استلام تحويلة"
     async def idle(also_tx=True):
       for _ in range(300):
-        if await pg.evaluate("() => !window.__core.rx().busy && " + ("!window.__core.busy()" if also_tx else "true")): return
+        if await pg.evaluate("() => !window.__core.rx().busy && !window.__core.rx().rebasing && " + ("!window.__core.busy()" if also_tx else "true")): return
         await pg.wait_for_timeout(300)
       raise AssertionError('busy')
     async def kick():
@@ -144,6 +144,14 @@ async def main():
     E.BAL['bsc']['0x55d398326f99059ff775485246999027b3197955']+=7*10**18
     await kick()
     assert await pg.locator('#rx-sheet').is_visible() and '+7' in await pg.inner_text('#rx-amt') and 'USDT' in await pg.inner_text('#rx-coin'); print('✓ تحويلة واردة حقيقية بعد التبديل تظهر كإشعار (7 USDT)')
+    await pg.click('#rx-close'); await pg.wait_for_timeout(400)
+    # إرسال إلى Binance ثم استلام من Binance قبل الفحص التالي: يجب ألا يُلغي أحدهما الآخر
+    U='0x55d398326f99059ff775485246999027b3197955'
+    E.BAL['bsc'][U]-=10*10**18   # أثر إرسالك (10 USDT) يظهر على الشبكة
+    await pg.evaluate("window.__core.rebase(true)"); await idle(False)
+    E.BAL['bsc'][U]+=99*10**17   # Binance أعادت 9.9 USDT
+    await kick()
+    assert await pg.locator('#rx-sheet').is_visible() and '+9.9' in await pg.inner_text('#rx-amt'), await pg.inner_text('#rx-amt'); print('✓ الاستلام بعد إرسالك مباشرة يُكتشف (لا تلغي العمليتان بعضهما)')
     await pg.click('#rx-close'); await pg.wait_for_timeout(400)
     await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1000)
     await pg.click('#sw-nets [data-net=tron]'); await pg.wait_for_timeout(600)

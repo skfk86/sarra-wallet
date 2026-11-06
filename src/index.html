@@ -1313,7 +1313,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiSwapFee: CFG.lifiSwapFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
-  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; } }; // للاختبارات الآلية فقط
+  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
   var NETS = [{ key: 'tron', name: 'TRON', short: 'TRC20', color: '#EB0029', native: 'TRX', coins: ['USDT', 'TRX'] }].concat(
     Object.keys(EVM).map(function (k) { var c = EVM[k]; return { key: k, name: c.name, short: c.short, color: c.color, native: c.native, coins: (function (ts) { return ts.slice(0, 2).concat([c.native], ts.slice(2)); })(c.tokens.map(function (t) { return t.sym; })), evm: true }; }));
   function netOf(k) { return NETS.filter(function (n) { return n.key === k; })[0] || NETS[0]; }
@@ -2732,12 +2732,31 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // أي عملية صادرة من هذا الجهاز: نعلّمها "منك" حتى لا يظهر نقص رصيدها كخصم غريب
   ['sendTRX', 'sendUSDT', 'swap', 'evmSend', 'bridgeExecute'].forEach(function (m) {
     var f = core[m]; if (typeof f !== 'function') return;
+    var evm = m === 'evmSend' || m === 'bridgeExecute';
     core[m] = async function () {
       RX.ownUntil = Date.now() + 5 * 60000;
-      try { var r = await f.apply(core, arguments); var id = r && (r.txid || r.hash || r.txHash); if (id) RX.own[id] = 1; return r; }
-      finally { RX.ownUntil = Date.now() + 5 * 60000; RX.evmBase = null; }
+      if (evm) RX.rebasing = (RX.rebasing || 0) + 1; // لا نقارن أرصدة EVM أثناء عمليتك
+      var ok = false;
+      try { var r = await f.apply(core, arguments); ok = true; var id = r && (r.txid || r.hash || r.txHash); if (id) RX.own[id] = 1; return r; }
+      finally { RX.ownUntil = Date.now() + 5 * 60000; if (evm) rxRebase(ok); }
     };
   });
+  // بعد عملية EVM من جهازك: ننتظر حتى يظهر أثرها في الرصيد ثم نعتمده أساساً جديداً للمقارنة.
+  // هكذا لا يُلغي الإرسال (مثلاً إلى Binance) أي استلام لاحق (من Binance) عند المقارنة.
+  async function rxRebase(ok) {
+    try {
+      var ea = await core.evmAddress(), key = 'sarra.rxb.' + ea, pre = RX.evmBase || rxGet(key), snap = function (bal) {
+        var n = {}; Object.keys(bal).forEach(function (k) { if (bal[k]) { n[k] = {}; Object.keys(bal[k]).forEach(function (x) { n[k][x] = bal[k][x].toString(); }); } }); return n;
+      };
+      for (var i = 0; i < (ok ? 20 : 1); i++) { // حتى ~80 ثانية
+        if (i) await new Promise(function (r) { setTimeout(r, 4000); });
+        var bal = await core.evmBalances().catch(function () { return null; }); if (!bal) continue;
+        var n = snap(bal);
+        Object.keys(pre || {}).forEach(function (k) { if (!n[k] && pre[k]) n[k] = pre[k]; }); // شبكة تعذّرت قراءتها
+        if (!ok || !pre || JSON.stringify(n) !== JSON.stringify(pre) || i === 19) { RX.evmBase = n; rxPut(key, n); break; }
+      }
+    } catch (e) {} finally { RX.rebasing = Math.max(0, (RX.rebasing || 1) - 1); }
+  }
   function rxGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function rxPut(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   // ===== إشعارات النظام (أندرويد): استلام وخصم. تعمل والتطبيق مفتوح أو في الخلفية ما دام النظام لم يوقفه =====
@@ -2792,7 +2811,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     rxPut(key, { t: st ? maxT : Math.max(maxT, Date.now()), ids: all });
   }
   async function rxPollEvm() {
-    if (!Object.keys(EVM).length) return;
+    if (!Object.keys(EVM).length || RX.rebasing) return;
     var ea = await core.evmAddress(); if (!ea) return;
     var bal = await core.evmBalances(); if (!bal) return;
     var key = 'sarra.rxb.' + ea, base = RX.evmBase || rxGet(key), next = {}, skipOut = Date.now() < (RX.ownUntil || 0);
