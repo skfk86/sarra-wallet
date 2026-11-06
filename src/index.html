@@ -2634,7 +2634,11 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var m = /^(\d+)(?:\.(\d+))?$/.exec(t); if (!m) return String(v == null ? '' : v);
     var whole = m[1].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     if (whole === '0' && m[2] && /^0{4,}/.test(m[2])) return niceNum(t); // 0.00000123 ← 0.0₅123
-    var fr = m[2] ? m[2].replace(/0+$/, '') : '';
+    // لا نعرض ذيلاً طويلاً من الكسور (مثل 0.000312456789012345 BNB): 6 أرقام بعد الفاصلة للمبالغ ≥ 1،
+    // و6 أرقام معنوية لما دون 1. قطعٌ لا تقريب، فلا يظهر مبلغ أكبر من الحقيقي
+    var fr = m[2] || '';
+    if (whole !== '0') fr = fr.slice(0, 6); else { var z = (/^0*/.exec(fr) || [''])[0].length; fr = fr.slice(0, z + 6); }
+    fr = fr.replace(/0+$/, '');
     return fr ? whole + '.' + fr : whole;
   }
   // حجم الخط يصغّر تدريجياً مع طول الرقم كي لا يخرج عن الشاشة
@@ -2722,6 +2726,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
   // تُطابق بالشبكة والعملة والمبلغ معاً (بين "أقل مبلغ مضمون" و"المتوقع" بهامش)، فلا يبتلع وارداً حقيقياً من شخص آخر
   function rxExpect(q) {
     var lo = Number(q.toAmountMin || 0) * 0.97, hi = Number(q.toAmount || q.toAmountMin || 0) * 1.05;
+    if (q.toNet === q.fromNet) lo = lo * 0.5; // تبديل داخل الشبكة: رسوم الغاز تُخصم من نفس الرصيد فيظهر الصافي أقل
     RX.expect.push({ net: q.toNet, coin: q.toSym || q.sym, lo: lo, hi: hi > 0 ? hi : Infinity, until: Date.now() + 3 * 3600000 });
   }
   function rxConsume(net, coin, amount) {
