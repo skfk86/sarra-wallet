@@ -19,3 +19,7 @@ console.log('✓ BNB Chain: الرسوم القديمة كما هي');
 assert.match(W.errorText({ message: 'x', shortMessage: 'transaction gas price below minimum: gas tip cap 1500000000, minimum needed 25000000000' }), /أقل من المطلوب/);
 assert.match(W.errorText({ message: 'insufficient funds for gas * price + value' }), /عملة الشبكة/);
 console.log('✓ رسائل الشبكة الخام تظهر بسببها الحقيقي بدل «خطأ في الاتصال»');
+assert.match(W.errorText({ message: 'EVM_REJECTED', raw: 'execution reverted: ERC20: transfer amount exceeds allowance' }), /الموافقة/);
+assert.match(W.errorText({ message: 'EVM_NETWORK', raw: 'could not detect network' }), /تعذّر الاتصال.*could not detect network/);
+assert.equal(W.errorText({ message: 'EVM_NETWORK' }), 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً');
+console.log('✓ رفض الشبكة يظهر بسببه، والانقطاع الحقيقي يُرفق بمقتطف تقني للدعم');

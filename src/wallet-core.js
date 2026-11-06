@@ -373,6 +373,8 @@
       if (!evmProviders[key]) evmProviders[key] = new ethers.JsonRpcProvider(url, c.id, { staticNetwork: true, batchMaxCount: 1 });
       return evmProviders[key];
     }
+    var EVM_REJECT = /insufficient funds|underpriced|below minimum|tip cap|fee too low|max fee per gas less than|nonce too low|nonce too high|execution reverted|CALL_EXCEPTION|exceeds allowance|exceeds balance/i;
+    function rawOf(e) { return e ? String(e.shortMessage || e.message || '') + ' ' + String(e.info && e.info.error && e.info.error.message || '') : ''; }
     async function evmCall(c, fn) {
       var last;
       for (var i = 0; i < c.rpcs.length; i++) {
@@ -382,9 +384,12 @@
           var code = e && e.message;
           // أخطاء منطقية (رصيد غير كافٍ...) لا تُعاد مع خادم آخر
           if (/^(INSUFFICIENT_|LOW_GAS|TX_FAILED|BAD_|INVALID_|SELF_SEND)/.test(code || '')) throw e;
+          // رفض صريح من الشبكة نفسها (لا انقطاع): نُظهر سببه الحقيقي بدل «تعذّر الاتصال»
+          if (EVM_REJECT.test(rawOf(e))) { var rj = new Error('EVM_REJECTED'); rj.raw = rawOf(e); throw rj; }
         }
       }
-      throw last && /^[A-Z_]+$/.test(last.message || '') ? last : new Error('EVM_NETWORK');
+      if (last && /^[A-Z_]+$/.test(last.message || '')) throw last;
+      var ne = new Error('EVM_NETWORK'); ne.raw = rawOf(last); throw ne;
     }
 
     var TRX_LIFI = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', EVM_NATIVE = '0x0000000000000000000000000000000000000000';
@@ -938,7 +943,15 @@
           if (q.approval && q.token.addr !== EVM_NATIVE) {
             var iface = new ethers.Interface(ERC20_IFACE_ABI), me = session.evm.address;
             var cur = await evmCall(c, async function (p) { return BigInt(iface.decodeFunctionResult('allowance', await p.call({ to: q.token.addr, data: iface.encodeFunctionData('allowance', [me, q.approval]) }))[0]); });
-            if (cur < q.units) await evmExec(c, { to: q.token.addr, value: 0n, data: iface.encodeFunctionData('approve', [q.approval, q.units]) }, true);
+            if (cur < q.units) {
+              await evmExec(c, { to: q.token.addr, value: 0n, data: iface.encodeFunctionData('approve', [q.approval, q.units]) }, true);
+              // بعض خوادم RPC تتأخر في رؤية الموافقة: ننتظر حتى تظهر قبل بناء معاملة النقل، وإلا رفضتها الشبكة
+              for (var w = 0; w < 10; w++) {
+                var seen = await evmCall(c, async function (p) { return BigInt(iface.decodeFunctionResult('allowance', await p.call({ to: q.token.addr, data: iface.encodeFunctionData('allowance', [me, q.approval]) }))[0]); }).catch(function () { return 0n; });
+                if (seen >= q.units) break;
+                await new Promise(function (r) { setTimeout(r, 3000); });
+              }
+            }
           }
           txHash = await evmExec(c, { to: q.tx.to, value: BigInt(q.tx.value || 0), data: q.tx.data || '0x', gasLimit: q.tx.gasLimit ? BigInt(q.tx.gasLimit) : null }, false);
         }
@@ -1039,6 +1052,7 @@
     INSUFFICIENT_NATIVE: 'الرصيد غير كافٍ للمبلغ مع رسوم الشبكة',
     LOW_GAS: 'تحتاج عملة الشبكة (BNB أو ETH أو POL) في محفظتك لدفع رسوم الإرسال على هذه الشبكة',
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
+    EVM_REJECTED: 'رفضت الشبكة المعاملة. اطلب سعراً جديداً وحاول مجدداً',
     BAD_NETWORK: 'شبكة غير مدعومة', BAD_TOKEN: 'عملة غير مدعومة على هذه الشبكة',
     INVALID_AMOUNT: 'المبلغ غير صحيح',
     AMOUNT_TOO_SMALL: 'المبلغ صغير جداً لهذه العملة. اكتب مبلغاً أكبر',
@@ -1070,14 +1084,19 @@
   };
   function errorText(e) {
     var code = e && e.message;
-    if (ERRORS_AR[code]) return ERRORS_AR[code];
+    if (ERRORS_AR[code] && code !== 'EVM_NETWORK' && code !== 'EVM_REJECTED') return ERRORS_AR[code];
     // رسائل الشبكة الخام (من ethers أو خادم RPC): لا نسمّيها «خطأ إنترنت» إن كان السبب معروفاً
-    var raw = String((e && (e.shortMessage || e.message)) || '') + ' ' + String(e && e.info && e.info.error && e.info.error.message || '');
+    var raw = String((e && (e.shortMessage || e.message)) || '') + ' ' + String(e && e.info && e.info.error && e.info.error.message || '') + ' ' + String(e && e.raw || '');
+    if (/exceeds allowance/i.test(raw)) return 'لم تظهر الموافقة على الشبكة بعد. انتظر دقيقة وحاول مجدداً، ولن تُدفع الموافقة مرة ثانية';
+    if (/exceeds balance/i.test(raw)) return ERRORS_AR.INSUFFICIENT_TOKEN || 'الرصيد غير كافٍ';
     if (/insufficient funds/i.test(raw)) return ERRORS_AR.LOW_GAS;
     if (/underpriced|below minimum|tip cap|fee too low|max fee per gas less than/i.test(raw)) return 'رفضت الشبكة رسوم المعاملة لأنها أقل من المطلوب. حاول مرة أخرى بعد دقيقة';
     if (/nonce/i.test(raw)) return 'هناك معاملة سابقة لم تُؤكَّد بعد على هذه الشبكة. انتظر دقيقة وحاول مجدداً';
     if (/execution reverted|CALL_EXCEPTION/i.test(raw)) return 'رفضت الشبكة المعاملة. جرّب مبلغاً آخر أو اطلب سعراً جديداً';
-    return 'حدث خطأ في الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً';
+    // سبب غير معروف: نعرض مقتطفاً تقنياً قصيراً ليساعد الدعم الفني (لا يحتوي مفاتيح؛ رسائل الخادم فقط)
+    var hint = String(e && e.raw || '').replace(/0x[0-9a-fA-F]{20,}/g, '0x…').trim().slice(0, 90);
+    var msg = ERRORS_AR[code] || 'حدث خطأ في الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً';
+    return hint && code === 'EVM_NETWORK' ? msg + ' (' + hint + ')' : msg;
   }
 
   var api = {
