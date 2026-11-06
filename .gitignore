@@ -6,3 +6,4 @@ src/vendor/
 *.jks
 .env
 src/config.js
+src/app.js

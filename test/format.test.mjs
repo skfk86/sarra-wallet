@@ -1,9 +1,7 @@
-// اختبار عرض الأرقام (niceNum وfmtExact من index.html): لا أصفار طويلة، ولا تقريب يخفي مبلغاً صغيراً
-import fs from 'node:fs';
+// اختبار عرض الأرقام (niceNum وfmtExact من src/logic/format.js): لا أصفار طويلة، ولا تقريب يخفي مبلغاً صغيراً
 import assert from 'node:assert/strict';
-const src = fs.readFileSync(new URL('../src/index.html', import.meta.url), 'utf8');
-const code = src.slice(src.indexOf("  var SUB = '₀₁₂₃₄₅₆₇₈₉';"), src.indexOf('  // حجم الخط يصغّر'));
-const { niceNum, fmtExact } = new Function(code + '; return { niceNum, fmtExact };')();
+import { createRequire } from 'node:module';
+const { niceNum, fmtExact } = createRequire(import.meta.url)('../src/logic/format.js');
 const cases = [
   [0.00000000000495, undefined, '0.0₁₁495'], [0.00012345, 6, '0.0001235'], [0.5, 6, '0.5'],
   [1234.5678, 6, '1,234.57'], [12.345678, 6, '12.3457'], [0, 6, '0'], [25.5, 2, '25.5'],

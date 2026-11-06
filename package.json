@@ -4,12 +4,13 @@
   "private": true,
   "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
   "scripts": {
-    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js && cp node_modules/ethers/dist/ethers.umd.min.js src/vendor/ethers.js",
-    "test": "node test/core.test.mjs && node test/format.test.mjs && node --experimental-strip-types --no-warnings test/p2p-logic.test.ts && node --experimental-strip-types --no-warnings test/push-logic.test.ts",
+    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js && cp node_modules/ethers/dist/ethers.umd.min.js src/vendor/ethers.js && npm run build",
+    "test": "node test/core.test.mjs && node test/format.test.mjs && node test/indicators.test.mjs && node test/records.test.mjs && node --experimental-strip-types --no-warnings test/p2p-logic.test.ts && node --experimental-strip-types --no-warnings test/push-logic.test.ts",
     "config": "node scripts/write-config.mjs",
     "patch:android": "node scripts/patch-android.mjs",
     "sync": "npm run vendor && npm run config && npx cap sync android",
-    "build:debug": "npm run sync && cd android && ./gradlew assembleDebug"
+    "build:debug": "npm run sync && cd android && ./gradlew assembleDebug",
+    "build": "node scripts/build-app.mjs --check"
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.0.0",

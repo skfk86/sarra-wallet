@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # يشغّل سيناريوهين: شبكة الاختبار (التدفق الكامل) والشبكة الرئيسية (تبديل وعمولة وفشل)
 set -e
+node scripts/build-app.mjs --check >/dev/null
 ONLY=${ONLY:-}
 run() {
   DIR=$(mktemp -d); mkdir -p "$DIR/vendor"
-  cp -r src/index.html src/wallet-core.js src/assets "$DIR/"
+  cp -r src/index.html src/wallet-core.js src/app.js src/assets src/css src/logic "$DIR/"
   cp "test/ui/stubs/$2" "$DIR/vendor/tronweb.js"; cp test/ui/stubs/qrcode.js test/ui/stubs/jsqr.js "$DIR/vendor/"
   [ -f node_modules/ethers/dist/ethers.umd.min.js ] && cp node_modules/ethers/dist/ethers.umd.min.js "$DIR/vendor/ethers.js"
   echo "window.SARRA_CONFIG = $3;" > "$DIR/config.js"
