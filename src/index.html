@@ -400,6 +400,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .pr-pos{display:flex;flex-direction:column;gap:10px;padding:16px}
 .pr-pos-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.pr-pos-grid div{display:flex;flex-direction:column;gap:2px;min-width:0}.pr-pos-grid span{font-size:11px;color:var(--mu)}.pr-pos-grid b{font-size:14px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pl-up{color:var(--up)!important}.pl-dn{color:var(--dn)!important}
+.tr-pf .pl-up{color:#b9f6dc!important}.tr-pf .pl-dn{color:#ffc4c6!important}
 .th-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--div);font-size:13px}.th-row:first-child{border-top:0}
 .th-row .sd{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;flex-shrink:0}.th-row .sd.b{background:rgba(22,163,122,.14);color:var(--up)}.th-row .sd.s{background:rgba(229,72,77,.14);color:var(--dn)}
 .th-row div{flex:1;min-width:0;display:flex;flex-direction:column}.th-row small{color:var(--mu);font-size:11px}.th-row .am{direction:ltr;text-align:left;font-weight:700;white-space:nowrap}
@@ -416,6 +417,27 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .od-in input{flex:1;min-width:0;background:none;border:0;outline:none;color:var(--tx);font:inherit;font-size:28px;font-weight:800;padding:0}
 .od-in b{font-size:15px;color:var(--mu)}
 #od-go.sell{background:linear-gradient(135deg,#f25c61,#d63a40);color:#fff}
+
+.pp{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.pp-tabs{display:flex;border-bottom:1px solid var(--div)}.pp-tabs button{flex:1;height:46px;border:0;background:none;color:var(--mu);font:inherit;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent}
+.pp-tabs button.on{color:var(--tx);border-bottom-color:var(--tx)}.pp-n{display:inline-block;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--s2);font-size:11px;padding:0 5px;margin-inline-start:4px}
+#pp-pos,#pp-hist{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.pp-empty{padding:18px 6px;text-align:center;color:var(--mu);font-size:13px;line-height:1.8}
+#pp-card{display:flex;flex-direction:column;gap:12px}
+.pp-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pp-sym{display:flex;gap:10px;align-items:center;min-width:0}.pp-sym img{width:34px;height:34px;border-radius:50%}.pp-sym div{display:flex;flex-direction:column}.pp-sym b{font-size:15px}
+.pp-tag{font-size:11px;color:var(--up);background:rgba(22,163,122,.12);padding:2px 7px;border-radius:6px;align-self:flex-start;margin-top:2px}
+.pp-pl{display:flex;flex-direction:column;align-items:flex-end}.pp-pl b{font-size:18px}.pp-pl small{font-size:12px;font-weight:700}
+.pp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px}.pp-grid div{display:flex;flex-direction:column;gap:2px;min-width:0}.pp-grid span{font-size:11px;color:var(--mu)}.pp-grid b{font-size:13px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-bar{height:6px;border-radius:999px;background:var(--s2);overflow:hidden;position:relative}.pp-bar i{position:absolute;top:0;bottom:0;border-radius:999px}
+.pp-sell{display:flex;align-items:center;gap:6px}.pp-sell span{font-size:12px;color:var(--mu);flex-grow:1}
+.pp-sell button{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(229,72,77,.4);background:rgba(229,72,77,.08);color:var(--dn);font:inherit;font-size:12px;font-weight:800;cursor:pointer}.pp-sell button.all{background:var(--dn);color:#fff;border-color:var(--dn)}
+.op{display:flex;flex-direction:column;gap:10px;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+.op-h{display:flex;justify-content:space-between;align-items:center;gap:8px}.op-h .pp-sym img{width:30px;height:30px}
+.op-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.op-g div{display:flex;flex-direction:column;gap:2px;min-width:0}.op-g span{font-size:11px;color:var(--mu)}.op-g b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.op-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}.op-a button{height:38px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:var(--s2);color:var(--tx)}.op-a button.s{background:rgba(229,72,77,.1);color:var(--dn);border-color:rgba(229,72,77,.35)}
+.td-h{display:flex;align-items:center;gap:10px}.td-h .sd{font-size:12px;font-weight:800;padding:4px 10px;border-radius:7px}.td-h .sd.b{background:rgba(22,163,122,.14);color:var(--up)}.td-h .sd.s{background:rgba(229,72,77,.14);color:var(--dn)}
+.td-st{margin-inline-start:auto;font-size:12px;font-weight:700}.td-big{display:flex;flex-direction:column;gap:2px;background:var(--s2);border-radius:14px;padding:14px}.td-big span{font-size:12px;color:var(--mu)}.td-big b{font-size:24px;text-align:right}
 </style>
 </head>
 <body>
@@ -1226,6 +1248,11 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
   <div class="tr-tabs" id="tr-sort" role="tablist">
     <button type="button" data-sort="all" class="on">الكل</button><button type="button" data-sort="gain">الأكثر صعوداً</button><button type="button" data-sort="loss">الأكثر هبوطاً</button><button type="button" data-sort="mine">ممتلكاتي</button>
   </div>
+  <div id="tr-open" hidden style="display:flex;flex-direction:column;gap:8px">
+    <div class="row between"><b style="font-size:16px">مراكزي المفتوحة</b><small class="muted" id="tr-open-n"></small></div>
+    <div id="tr-open-l" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+  <b style="font-size:16px;margin-top:4px">السوق</b>
   <div class="tr-head"><span>العملة</span><span>السعر</span><span>24س</span></div>
   <div class="tr-list" id="tr-list"></div>
   <p class="muted" style="font-size:11px;line-height:1.8;text-align:center;margin:4px 0 0">الأسعار والشموع من Binance. الشراء والبيع يتمّان من محفظتك مباشرة على الشبكة. المؤشرات للمعلومة فقط وليست نصيحة مالية.</p>
@@ -1257,25 +1284,35 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="pr-cv-wrap"><canvas id="pr-cv" aria-label="رسم الشموع اليابانية"></canvas><div class="pr-load" id="pr-load">جارٍ تحميل الشموع…</div></div>
     <div class="pr-leg ltr"><span><i style="background:#f0b90b"></i>MA7</span><span><i style="background:#8b5cf6"></i>MA25</span><span><i style="background:#3b82f6"></i>MA99</span></div>
   </div>
+  <div class="card pp" id="pr-pos">
+    <div class="pp-tabs" role="tablist"><button type="button" data-pp="pos" class="on">المركز</button><button type="button" data-pp="hist">صفقاتي <span id="pp-n" class="pp-n">0</span></button></div>
+    <div id="pp-pos">
+      <div class="pp-empty" id="pp-empty" hidden>لا يوجد مركز مفتوح في <bdi id="pr-pos-sym">BTC</bdi>. اضغط «شراء» لفتح صفقة.</div>
+      <div id="pp-card">
+        <div class="pp-h">
+          <div class="pp-sym"><img id="pp-logo" alt=""><div><b class="ltr" id="pp-pair">BTC/USDT</b><small class="pp-tag">Spot · <bdi id="pp-net">BNB Chain</bdi></small></div></div>
+          <div class="pp-pl"><b class="ltr" id="pr-pos-pl">—</b><small class="ltr" id="pp-roi">—</small></div>
+        </div>
+        <div class="pp-grid">
+          <div><span>الكمية</span><b class="ltr" id="pr-pos-q">—</b></div>
+          <div><span>القيمة الحالية</span><b class="ltr" id="pr-pos-v">—</b></div>
+          <div><span>متوسط الدخول</span><b class="ltr" id="pr-pos-avg">—</b></div>
+          <div><span>السعر الحالي</span><b class="ltr" id="pp-mark">—</b></div>
+          <div><span>التكلفة</span><b class="ltr" id="pp-cost">—</b></div>
+          <div><span>ربح محقق</span><b class="ltr" id="pp-real">—</b></div>
+        </div>
+        <div class="pp-bar" aria-hidden="true"><i id="pp-bar-i"></i></div>
+        <div class="pp-sell"><span>بيع سريع</span><button type="button" data-qs="25">25%</button><button type="button" data-qs="50">50%</button><button type="button" data-qs="100" class="all">إغلاق الكل</button></div>
+      </div>
+      <small class="muted" id="pr-pos-note" style="font-size:11px;line-height:1.7"></small>
+    </div>
+    <div id="pp-hist" hidden><div id="pr-trades"></div></div>
+  </div>
   <div class="card pr-ana" id="pr-ana">
     <div class="row between"><b style="font-size:15px">التحليل الفني</b><span class="pr-sig" id="pr-sig">—</span></div>
     <div class="pr-gauge"><div class="pr-gauge-bar"><i id="pr-gauge-dot"></i></div><div class="pr-gauge-l"><span>بيع قوي</span><span>محايد</span><span>شراء قوي</span></div></div>
     <div class="pr-ind" id="pr-ind"></div>
     <small class="muted" style="font-size:11px;line-height:1.7">محسوبة من شموع الإطار الزمني المختار. للمعلومة فقط، وليست نصيحة استثمارية.</small>
-  </div>
-  <div class="card pr-pos" id="pr-pos">
-    <b style="font-size:15px">مركزك في <bdi id="pr-pos-sym">BTC</bdi></b>
-    <div class="pr-pos-grid">
-      <div><span>الكمية</span><b class="ltr" id="pr-pos-q">—</b></div>
-      <div><span>القيمة الحالية</span><b class="ltr" id="pr-pos-v">—</b></div>
-      <div><span>متوسط سعر الشراء</span><b class="ltr" id="pr-pos-avg">—</b></div>
-      <div><span>الربح/الخسارة</span><b class="ltr" id="pr-pos-pl">—</b></div>
-    </div>
-    <small class="muted" id="pr-pos-note" style="font-size:11px;line-height:1.7"></small>
-  </div>
-  <div class="card" id="pr-trades-c" hidden style="display:flex;flex-direction:column;gap:6px">
-    <b style="font-size:15px">صفقاتك على هذه العملة</b>
-    <div id="pr-trades"></div>
   </div>
   <div class="pr-bar">
     <button type="button" class="pr-buy" id="pr-buy">شراء</button>
@@ -1350,6 +1387,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
     <div class="note err" id="od-err" hidden></div>
     <button class="btn btn-primary" id="od-go" disabled>عرض السعر</button>
     <button class="btn btn-ghost" id="od-cancel">إلغاء</button>
+  </div>
+</div>
+<!-- ===== تفاصيل صفقة ===== -->
+<div class="sheet-bg" id="td-sheet" role="dialog" aria-modal="true" aria-labelledby="td-title">
+  <div class="sheet" style="gap:12px">
+    <div class="td-h"><span class="sd" id="td-side">شراء</span><h2 id="td-title" class="ltr" style="font-size:18px;margin:0">BTC/USDT</h2><span class="td-st" id="td-st"></span></div>
+    <div class="td-big"><span id="td-big-l">الكمية</span><b class="ltr" id="td-qty">—</b></div>
+    <dl class="kv" id="td-kv"></dl>
+    <div class="row" style="gap:8px"><button class="btn btn-ghost" id="td-link" style="flex:1;height:46px">عرض على المستكشف</button><button class="btn btn-primary" id="td-pair" style="flex:1;height:46px">فتح الزوج</button></div>
+    <button class="btn btn-ghost" id="td-close">إغلاق</button>
   </div>
 </div>
 <!-- ===== سجل الصفقات ===== -->
@@ -1598,6 +1645,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
       if ($('sheet').classList.contains('show')) { $('sheet').classList.remove('show'); return; }
       if ($('wipe-sheet').classList.contains('show')) { $('wipe-sheet').classList.remove('show'); return; }
       if ($('od-sheet').classList.contains('show')) { $('od-sheet').classList.remove('show'); return; }
+      if ($('td-sheet').classList.contains('show')) { $('td-sheet').classList.remove('show'); return; }
       if ($('th-sheet').classList.contains('show')) { $('th-sheet').classList.remove('show'); return; }
       if ($('txd-sheet').classList.contains('show')) { $('txd-sheet').classList.remove('show'); return; }
       if ($('rx-sheet').classList.contains('show')) { rxClose(); return; }
@@ -3535,6 +3583,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     var un = $('tr-pf-un'); un.textContent = state.hidden ? '••••' : fUsd(pf.un, true); un.className = 'ltr ' + (pf.un > 0 ? 'pl-up' : pf.un < 0 ? 'pl-dn' : '');
     var rr = $('tr-pf-re'); rr.textContent = state.hidden ? '••••' : fUsd(pf.re, true); rr.className = 'ltr ' + (pf.re > 0 ? 'pl-up' : pf.re < 0 ? 'pl-dn' : '');
     $('tr-pf-n').textContent = pf.n;
+    renderOpen();
     var q = TR.q.trim().toUpperCase(), list = trCoins().filter(function (c) { return !q || c.sym.indexOf(q) >= 0 || c.name.toUpperCase().indexOf(q) >= 0; });
     if (TR.sort === 'mine') list = list.filter(function (c) { var t = coinTotal(c); return (t && t > 0) || trPos(c.sym).qty > 0; });
     var chg = function (c) { var t = TR.tick[c.sym]; return t && isFinite(t.chg) ? t.chg : null; };
@@ -3768,31 +3817,110 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     window.addEventListener('resize', function () { if (state.stack[state.stack.length - 1] === 'pair') drawCandles(); });
   })();
 
-  // ===== مركز المستخدم =====
+  // ===== مركز المستخدم (على طريقة منصات التداول) =====
+  function plCls(v) { return v > 0 ? 'pl-up' : v < 0 ? 'pl-dn' : ''; }
+  function pctTxt(v) { return v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + '%'; }
+  // بيانات مركز عملة: الكمية الفعلية (الأقل بين المشترى والموجود)، والقيمة والربح غير المحقق ونسبة العائد
+  function trPosView(c) {
+    var ps = trPos(c.sym), held = coinTotal(c), p = trPrice(c.sym);
+    var q = ps.qty > 0 ? (held == null ? ps.qty : Math.min(ps.qty, held)) : 0, cost = ps.qty > 0 ? ps.cost * (q / ps.qty) : 0;
+    var un = q > 0 && p ? q * p - cost : null;
+    var last = trAll().filter(function (t) { return t.sym === c.sym && t.side === 'buy' && t.status !== 'FAILED'; })[0];
+    return { ps: ps, held: held, p: p, q: q, cost: cost, val: q > 0 && p ? q * p : null, un: un, roi: un != null && cost > 0 ? un / cost * 100 : null, net: last ? last.net : null };
+  }
   function trRenderPos() {
     var c = trCoin(TR.sym); if (!c) return;
-    var ps = trPos(c.sym), held = coinTotal(c), p = trPrice(c.sym), hid = state.hidden;
-    $('pr-pos-q').textContent = hid ? '••••' : held == null ? '—' : niceNum(held, 8) + ' ' + c.sym;
-    $('pr-pos-v').textContent = hid ? '••••' : held != null && p ? fUsd(held * p) : '—';
-    $('pr-pos-avg').textContent = ps.avg ? fp(ps.avg) : '—';
-    var pl = $('pr-pos-pl'), q = ps.qty > 0 && held != null ? Math.min(ps.qty, held) : ps.qty;
-    if (ps.qty > 0 && p && q > 0) { var v = q * p - ps.cost * (q / ps.qty), pc = v / (ps.cost * (q / ps.qty)) * 100; pl.textContent = hid ? '••••' : fUsd(v, true) + ' (' + (pc >= 0 ? '+' : '') + pc.toFixed(2) + '%)'; pl.className = 'ltr ' + (v >= 0 ? 'pl-up' : 'pl-dn'); }
-    else { pl.textContent = ps.real ? (hid ? '••••' : 'محقق ' + fUsd(ps.real, true)) : '—'; pl.className = 'ltr ' + (ps.real > 0 ? 'pl-up' : ps.real < 0 ? 'pl-dn' : ''); }
-    $('pr-pos-note').textContent = held && held > 0 && !(ps.qty > 0) ? 'رصيدك من ' + c.sym + ' لم يُشترَ من شاشة التداول، فلا نعرف سعر شرائه. الصفقات الجديدة تُحسب تلقائياً.' : ps.real ? 'الربح المحقق من صفقات البيع: ' + (hid ? '••••' : fUsd(ps.real, true)) : '';
-    var tl = trAll().filter(function (t) { return t.sym === c.sym; }).slice(0, 10), box = $('pr-trades');
-    $('pr-trades-c').hidden = !tl.length; box.textContent = ''; tl.forEach(function (t) { box.appendChild(trRow(t)); });
+    var v = trPosView(c), hid = state.hidden, H = function (x) { return hid ? '••••' : x; };
+    $('pr-pos-sym').textContent = c.sym;
+    var open = v.q > 0; $('pp-empty').hidden = open; $('pp-card').hidden = !open;
+    $('pp-logo').src = coinImg(c); $('pp-pair').textContent = c.sym + '/USDT'; $('pp-net').textContent = v.net ? netOf(v.net).name : '—';
+    var pl = $('pr-pos-pl'); pl.textContent = H(v.un == null ? '—' : fUsd(v.un, true)); pl.className = 'ltr ' + plCls(v.un);
+    var roi = $('pp-roi'); roi.textContent = pctTxt(v.roi); roi.className = 'ltr ' + plCls(v.roi);
+    $('pr-pos-q').textContent = H(niceNum(v.q, 8));
+    $('pr-pos-v').textContent = H(v.val == null ? '—' : fUsd(v.val));
+    $('pr-pos-avg').textContent = v.ps.avg ? fp(v.ps.avg) : '—';
+    $('pp-mark').textContent = fp(v.p);
+    $('pp-cost').textContent = H(v.cost ? fUsd(v.cost) : '—');
+    var re = $('pp-real'); re.textContent = H(v.ps.real ? fUsd(v.ps.real, true) : '$0.00'); re.className = 'ltr ' + plCls(v.ps.real);
+    // شريط يوضّح بُعد السعر الحالي عن سعر الدخول (حتى ±20%)
+    var bi = $('pp-bar-i'), r = v.roi == null ? 0 : Math.max(-20, Math.min(20, v.roi));
+    bi.style.background = r >= 0 ? 'var(--up)' : 'var(--dn)'; bi.style.left = r >= 0 ? '50%' : (50 + r * 2.5) + '%'; bi.style.width = Math.abs(r * 2.5) + '%';
+    $('pr-pos-note').textContent = v.held && v.held > v.q + 1e-12 ? 'لديك ' + H(niceNum(v.held, 8)) + ' ' + c.sym + ' إجمالاً؛ ما لم يُشترَ من شاشة التداول لا يدخل في حساب الربح.' : '';
+    var tl = trAll().filter(function (t) { return t.sym === c.sym; }), box = $('pr-trades');
+    $('pp-n').textContent = tl.length; box.textContent = '';
+    if (!tl.length) box.appendChild(el('div', null, 'لا صفقات على ' + c.sym + ' بعد')).className = 'pp-empty';
+    tl.slice(0, 30).forEach(function (t) { box.appendChild(trRow(t)); });
   }
+  document.querySelectorAll('.pp-tabs button').forEach(function (b) {
+    b.onclick = function () { document.querySelectorAll('.pp-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); }); $('pp-pos').hidden = b.dataset.pp !== 'pos'; $('pp-hist').hidden = b.dataset.pp !== 'hist'; };
+  });
+  // بيع سريع من المركز: يفتح أمر البيع بالنسبة المختارة من الكمية المشتراة
+  document.querySelectorAll('.pp-sell button').forEach(function (b) {
+    b.onclick = function () {
+      var c = trCoin(TR.sym), v = trPosView(c); if (!(v.q > 0)) return;
+      if (v.net) TR.net = v.net;
+      odOpen('sell'); if (v.net && trNets(c).indexOf(v.net) >= 0) { TR.net = v.net; odRender(); }
+      var have = balOn(c.sym, TR.net), q = Math.min(v.q, have == null ? v.q : have) * Number(b.dataset.qs) / 100;
+      $('od-amt').value = String(Math.floor(q * 1e8) / 1e8); TR.oq = null; odRender();
+    };
+  });
   function trRow(t) {
-    var r = el('div'); r.className = 'th-row';
+    var r = el('button'); r.type = 'button'; r.className = 'th-row'; r.style.cssText = 'width:100%;background:none;border:0;border-top:1px solid var(--div);color:var(--tx);font:inherit;text-align:start;cursor:pointer';
     var sd = el('span', null, t.side === 'buy' ? 'شراء' : 'بيع'); sd.className = 'sd ' + (t.side === 'buy' ? 'b' : 's'); r.appendChild(sd);
-    var d = el('div'); d.appendChild(el('b', null, t.sym + ' @ ' + fp(t.price)));
+    var d = el('div'); d.appendChild(el('b', null, t.sym + '/USDT · ' + fp(t.price)));
     var dt = new Date(t.time); d.appendChild(el('small', null, dt.toLocaleDateString('ar') + ' · ' + dt.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) + ' · ' + netOf(t.net).name));
     if (t.status === 'PENDING') d.appendChild(el('small', null, 'قيد التنفيذ…')).className = 'pend';
     if (t.status === 'FAILED') d.appendChild(el('small', 'color:var(--err)', 'لم تكتمل'));
     r.appendChild(d);
-    var am = el('span', null, (t.side === 'buy' ? '+' : '−') + niceNum(t.qty, 8) + ' ' + t.sym); am.className = 'am'; r.appendChild(am);
-    if (t.url) { r.style.cursor = 'pointer'; r.onclick = function () { window.open(t.url, '_blank'); }; }
+    var e = el('div', 'flex:0 0 auto;align-items:flex-end'), am = el('span', null, (t.side === 'buy' ? '+' : '−') + niceNum(t.qty, 8) + ' ' + t.sym); am.className = 'am'; e.appendChild(am);
+    e.appendChild(el('small', 'direction:ltr', (t.side === 'buy' ? '−' : '+') + fUsd(Number(t.usdt)).replace('$', '') + ' USDT')); r.appendChild(e);
+    r.onclick = function () { openTrade(t); };
     return r;
+  }
+  function openTrade(t) {
+    var buy = t.side === 'buy', p = trPrice(t.sym), kv = $('td-kv'); kv.textContent = '';
+    var sd = $('td-side'); sd.textContent = buy ? 'شراء' : 'بيع'; sd.className = 'sd ' + (buy ? 'b' : 's');
+    $('td-title').textContent = t.sym + '/USDT';
+    var st = $('td-st'); st.textContent = t.status === 'SUCCESS' ? '✓ مكتملة' : t.status === 'FAILED' ? 'لم تكتمل' : 'قيد التنفيذ'; st.style.color = t.status === 'SUCCESS' ? 'var(--up)' : t.status === 'FAILED' ? 'var(--err)' : 'var(--warn)';
+    $('td-big-l').textContent = buy ? 'الكمية المشتراة' : 'الكمية المباعة'; $('td-qty').textContent = niceNum(t.qty, 8) + ' ' + t.sym;
+    var row = function (k, v, cls) { var d = el('div'); d.appendChild(el('dt', null, k)); var dd = el('dd', null, v); dd.className = 'ltr ' + (cls || ''); d.appendChild(dd); kv.appendChild(d); };
+    row('سعر التنفيذ', fp(t.price) + ' USDT');
+    row(buy ? 'المبلغ المدفوع' : 'المبلغ المستلم', niceNum(t.usdt, 6) + ' USDT');
+    if (t.fee) row('عمولة صُرّة', niceNum(t.fee, 6) + ' ' + (buy ? 'USDT' : t.sym));
+    row('الشبكة', netOf(t.net).name);
+    row('الوقت', new Date(t.time).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    if (buy && p && t.status !== 'FAILED') { var u = (p - t.price) * Number(t.qty); row('السعر الآن', fp(p)); row('الربح/الخسارة منذ الشراء', fUsd(u, true) + ' (' + pctTxt((p / t.price - 1) * 100) + ')', plCls(u)); }
+    if (!buy && p && t.status !== 'FAILED') { var m = (t.price - p) * Number(t.qty); row('السعر الآن', fp(p)); row(m >= 0 ? 'وفّرت بالبيع' : 'فاتك منذ البيع', fUsd(Math.abs(m)), m >= 0 ? 'pl-up' : 'pl-dn'); }
+    if (t.id && /^0x|^[0-9a-f]{64}$/i.test(t.id)) row('رقم المعاملة', t.id.slice(0, 10) + '…' + t.id.slice(-6));
+    $('td-link').hidden = !t.url; $('td-link').onclick = function () { window.open(t.url, '_blank'); };
+    $('td-pair').hidden = state.stack[state.stack.length - 1] === 'pair' && TR.sym === t.sym;
+    $('td-pair').onclick = function () { $('td-sheet').classList.remove('show'); $('th-sheet').classList.remove('show'); openPair(t.sym); };
+    $('td-sheet').classList.add('show');
+  }
+  $('td-close').onclick = function () { $('td-sheet').classList.remove('show'); };
+  $('td-sheet').onclick = function (e) { if (e.target === this) this.classList.remove('show'); };
+  // المراكز المفتوحة في شاشة السوق
+  function renderOpen() {
+    var box = $('tr-open-l'), list = trCoins().map(function (c) { return { c: c, v: trPosView(c) }; }).filter(function (x) { return x.v.q > 0; });
+    $('tr-open').hidden = !list.length; box.textContent = ''; if (!list.length) return;
+    $('tr-open-n').textContent = list.length + (list.length === 1 ? ' مركز' : ' مراكز');
+    var hid = state.hidden;
+    list.sort(function (a, b) { return (b.v.val || 0) - (a.v.val || 0); }).forEach(function (x) {
+      var c = x.c, v = x.v, card = el('div'); card.className = 'op'; card.dataset.sym = c.sym;
+      var h = el('div'); h.className = 'op-h';
+      var sy = el('div'); sy.className = 'pp-sym'; var im = document.createElement('img'); im.src = coinImg(c); im.alt = ''; sy.appendChild(im);
+      var nd = el('div'); nd.appendChild(el('b', 'direction:ltr', c.sym + '/USDT')); var tg = el('small', null, 'Spot' + (v.net ? ' · ' + netOf(v.net).name : '')); tg.className = 'pp-tag'; nd.appendChild(tg); sy.appendChild(nd); h.appendChild(sy);
+      var pl = el('div'); pl.className = 'pp-pl'; var pb = el('b', null, hid ? '••••' : v.un == null ? '—' : fUsd(v.un, true)); pb.className = 'ltr ' + plCls(v.un); pl.appendChild(pb);
+      var pr = el('small', null, pctTxt(v.roi)); pr.className = 'ltr ' + plCls(v.roi); pl.appendChild(pr); h.appendChild(pl); card.appendChild(h);
+      var g = el('div'); g.className = 'op-g';
+      [['الكمية', hid ? '••••' : niceNum(v.q, 6)], ['الدخول', fp(v.ps.avg)], ['الحالي', fp(v.p)]].forEach(function (k) { var d = el('div'); d.appendChild(el('span', null, k[0])); var b = el('b', null, k[1]); b.className = 'ltr'; d.appendChild(b); g.appendChild(d); });
+      card.appendChild(g);
+      var a = el('div'); a.className = 'op-a';
+      var t1 = el('button', null, 'تفاصيل'); t1.type = 'button'; t1.onclick = function () { openPair(c.sym); };
+      var t2 = el('button', null, 'بيع'); t2.type = 'button'; t2.className = 's'; t2.onclick = function () { openPair(c.sym); setTimeout(function () { var q = document.querySelector('.pp-sell button[data-qs="100"]'); if (q) q.click(); }, 50); };
+      a.appendChild(t1); a.appendChild(t2); card.appendChild(a);
+      box.appendChild(card);
+    });
   }
   $('tr-pf-hist').onclick = function () {
     var box = $('th-list'), l = trAll(); box.textContent = '';
@@ -3881,7 +4009,7 @@ window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reaso
     if (state.txBusy) return;
     state.txBusy = true; toast(q.tSide === 'buy' ? 'جارٍ الشراء…' : 'جارٍ البيع…');
     var c = trCoin(q.tSym), coinAmt = q.tSide === 'buy' ? q.toAmount : q.amount, usdtAmt = q.tSide === 'buy' ? q.amount : q.toAmount;
-    var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING' };
+    var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING', fee: q.appFee ? String(Number(q.amount) * q.appFee) : null };
     var lh = { kind: 'swap', net: q.tNet, coin: q.tSide === 'buy' ? q.tSym : 'USDT', amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.tSide === 'buy' ? 'USDT' : q.tSym, via: (q.tSide === 'buy' ? 'شراء ' : 'بيع ') + q.tSym + ' · ' + (q.tron ? 'SunSwap' : 'LI.FI'), status: 'PENDING' };
     try {
       if (q.tron) {
