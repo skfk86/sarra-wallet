@@ -5,14 +5,17 @@ const require = createRequire(import.meta.url);
 globalThis.TronWeb = { TronWeb: { isAddress: () => true } };
 const W = require('../src/wallet-core.js');
 const G = 1000000000n;
-const prov = (fd, rpcTip, base) => ({ getFeeData: async () => fd, send: async () => (rpcTip == null ? Promise.reject(new Error('x')) : '0x' + rpcTip.toString(16)), getBlock: async () => ({ baseFeePerGas: base }) });
+const prov = (fd, rpcTip, base) => ({
+  getFeeData: async () => { if (fd === 'boom') throw new Error('error encountered with polygon gas station'); return fd; },
+  send: async (m) => m === 'eth_maxPriorityFeePerGas' ? (rpcTip == null ? Promise.reject(new Error('x')) : '0x' + rpcTip.toString(16))
+    : m === 'eth_getBlockByNumber' ? { baseFeePerGas: '0x' + base.toString(16) } : '0x' + (2n * base).toString(16) });
 const poly = W.EVM_CHAINS.polygon, bsc = W.EVM_CHAINS.bsc;
-let r = await W.evmFees(prov({ maxFeePerGas: 40n * G, maxPriorityFeePerGas: 1500000000n }, null, 30n * G), poly);
+let r = await W.evmFees(prov('boom', null, 30n * G), poly);
 assert.equal(r.f.maxPriorityFeePerGas, 30n * G); assert.equal(r.f.maxFeePerGas, 90n * G); assert.equal(r.price, 90n * G);
-console.log('✓ Polygon: إكرامية ethers الافتراضية (1.5 gwei) تُرفع إلى 30، والسقف = ضعف الأساسية + الإكرامية');
-r = await W.evmFees(prov({ maxFeePerGas: 200n * G, maxPriorityFeePerGas: 1500000000n }, 45n * G, 50n * G), poly);
-assert.equal(r.f.maxPriorityFeePerGas, 45n * G); assert.equal(r.f.maxFeePerGas, 200n * G);
-console.log('✓ Polygon: نأخذ إكرامية الشبكة إن كانت أعلى، ولا نخفض سقفاً أعلى');
+console.log('✓ Polygon: لا يستدعي محطة الغاز الخارجية (getFeeData)، والإكرامية 30 على الأقل والسقف = ضعف الأساسية + الإكرامية');
+r = await W.evmFees(prov('boom', 45n * G, 50n * G), poly);
+assert.equal(r.f.maxPriorityFeePerGas, 45n * G); assert.equal(r.f.maxFeePerGas, 145n * G);
+console.log('✓ Polygon: نأخذ إكرامية الشبكة إن كانت أعلى');
 r = await W.evmFees(prov({ gasPrice: 1n * G }, null, 0n), bsc);
 assert.equal(r.f.type, 0); assert.equal(r.f.gasPrice, 1n * G);
 console.log('✓ BNB Chain: الرسوم القديمة كما هي');

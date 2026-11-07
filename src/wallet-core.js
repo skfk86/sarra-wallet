@@ -281,19 +281,24 @@
   // رسوم EIP-1559 آمنة: إكرامية لا تقل عن حد الشبكة (Polygon)، وسقف يكفي ضعف الرسوم الأساسية.
   // تعيد حقول الرسوم للمعاملة، وprice = أقصى سعر غاز للتحقق من كفاية الرصيد
   async function evmFees(p, c) {
+    var gwei = 1000000000n;
+    if (c.minTipGwei) {
+      // Polygon: لا نستخدم getFeeData لأن ethers يستدعي فيه «محطة غاز Polygon» الخارجية (gasstation.polygon.technology)،
+      // وهي محجوبة داخل التطبيق فيفشل كل شيء بـ Failed to fetch. نحسب الرسوم من الشبكة نفسها مباشرة.
+      var minTip = BigInt(c.minTipGwei) * gwei, tip = minTip, base = 0n, gp = 0n;
+      try { var rt = BigInt(await p.send('eth_maxPriorityFeePerGas', [])); if (rt > tip) tip = rt; } catch (e) {}
+      try { var blk = await p.send('eth_getBlockByNumber', ['latest', false]); base = BigInt(blk && blk.baseFeePerGas || 0); } catch (e) {}
+      if (!base) { gp = BigInt(await p.send('eth_gasPrice', [])); base = gp; } // يرمي إن تعذّر الاتصال فعلاً
+      var maxP = base * 2n + tip;
+      return { f: { type: 2, maxFeePerGas: maxP, maxPriorityFeePerGas: tip }, price: maxP };
+    }
     var fee = await p.getFeeData();
     if (!fee.maxFeePerGas) return { f: { type: 0, gasPrice: fee.gasPrice }, price: fee.gasPrice };
-    var gwei = 1000000000n, tip = BigInt(fee.maxPriorityFeePerGas || 0n), max = BigInt(fee.maxFeePerGas);
-    if (c.minTipGwei) {
-      var minTip = BigInt(c.minTipGwei) * gwei;
-      try { var rt = BigInt(await p.send('eth_maxPriorityFeePerGas', [])); if (rt > tip) tip = rt; } catch (e) {}
-      if (tip < minTip) tip = minTip;
-      var base = 0n; try { var blk = await p.getBlock('latest'); base = BigInt(blk && blk.baseFeePerGas || 0n); } catch (e) {}
-      var need = base * 2n + tip; if (max < need) max = need;
-    }
-    if (max < tip) max = tip;
-    return { f: { type: 2, maxFeePerGas: max, maxPriorityFeePerGas: tip }, price: max };
+    var t = BigInt(fee.maxPriorityFeePerGas || 0n), max = BigInt(fee.maxFeePerGas);
+    if (max < t) max = t;
+    return { f: { type: 2, maxFeePerGas: max, maxPriorityFeePerGas: t }, price: max };
   }
+
   function createCore(opts) {
     opts = opts || {};
     var net = NETWORKS[opts.network || 'nile'];

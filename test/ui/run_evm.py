@@ -42,6 +42,7 @@ async def main():
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':360,'height':780}); PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
+    await pg.route('https://gasstation.polygon.technology/**', lambda r: r.abort())
     CG=[]; MK=[]
     PR={'tether':(1,0.01),'usd-coin':(1,-0.02),'tron':(0.25,2.5),'binancecoin':(600,-1.2),'ethereum':(3000,0.8),'polygon-ecosystem-token':(0.5,-3.1)}
     import math
@@ -150,7 +151,19 @@ async def main():
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(1500)
     await pg.click('#send-nets [data-net=polygon]'); await pg.click('#coin-seg [data-coin=USDC]')
     await pg.fill('#to', TO); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(400)
-    assert 'Polygon' in await pg.inner_text('#c-net'); await pg.click('#cancel-send')
+    assert 'Polygon' in await pg.inner_text('#c-net')
+    # إرسال حقيقي على Polygon ومحطة الغاز الخارجية محجوبة (كما داخل التطبيق): يجب أن ينجح بإكرامية ≥ 30 gwei
+    n0=len(sent); await pg.click('#confirm-send'); await pin('123456')
+    for _ in range(30):
+      if len(sent)>n0: break
+      await pg.wait_for_timeout(300)
+    assert len(sent)>n0 and sent[-1][0]=='polygon', await pg.inner_text('#send-err')
+    tx=await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return {cid:Number(t.chainId),tip:String(t.maxPriorityFeePerGas),max:String(t.maxFeePerGas)}}", sent[-1][1])
+    assert tx['cid']==137 and int(tx['tip'])>=30*10**9 and int(tx['max'])>int(tx['tip']), tx
+    print('✓ Polygon: الإرسال ينجح دون محطة الغاز الخارجية، بإكرامية', int(tx['tip'])//10**9, 'gwei')
+    await pg.wait_for_timeout(2500)
+    await pg.goto('file://'+S+'/index.html'); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
+    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(1500)
     await pg.click('#send-nets [data-net=eth]'); await pg.wait_for_timeout(300)
     await pg.fill('#to', TO); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(300)
     e=await pg.inner_text('#send-err'); assert 'غير كافٍ' in e or 'ETH' in e, e; print('✓ Ethereum بدون رصيد: رسالة واضحة')
