@@ -68,7 +68,7 @@
     polygon: {
       id: 137, name: 'Polygon', short: 'Polygon', native: 'POL', color: '#8247E5', explorer: 'https://polygonscan.com',
       minTipGwei: 30, // Polygon يرفض أي معاملة بإكرامية أقل من 25 gwei (ethers يقترح 1.5 افتراضياً)
-      rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org', 'https://1rpc.io/matic', 'https://polygon-rpc.com'],
+      rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org', 'https://1rpc.io/matic', 'https://polygon.llamarpc.com'], // polygon-rpc.com صار يطلب مفتاحاً (401)
       tokens: [{ sym: 'USDT', addr: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', dec: 6 },
                { sym: 'USDC', addr: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', dec: 6 },
                { sym: 'DAI', addr: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063', dec: 18 },
@@ -376,11 +376,14 @@
     var EVM_REJECT = /insufficient funds|underpriced|below minimum|tip cap|fee too low|max fee per gas less than|nonce too low|nonce too high|execution reverted|CALL_EXCEPTION|exceeds allowance|exceeds balance/i;
     function rawOf(e) { return e ? String(e.shortMessage || e.message || '') + ' ' + String(e.info && e.info.error && e.info.error.message || '') : ''; }
     async function evmCall(c, fn) {
-      var last;
+      var last, seen = [];
       for (var i = 0; i < c.rpcs.length; i++) {
         try { return await fn(evmProvider(c, c.rpcs[i])); }
         catch (e) {
           last = e;
+          // نحتفظ بسبب فشل كل خادم (للتشخيص)، باسم النطاق فقط
+          var host = ''; try { host = new URL(c.rpcs[i]).hostname.split('.').slice(-2, -1)[0]; } catch (x) {}
+          seen.push(host + ': ' + String((e && (e.shortMessage || e.code || e.message)) || '?').slice(0, 40));
           var code = e && e.message;
           // أخطاء منطقية (رصيد غير كافٍ...) لا تُعاد مع خادم آخر
           if (/^(INSUFFICIENT_|LOW_GAS|TX_FAILED|BAD_|INVALID_|SELF_SEND)/.test(code || '')) throw e;
@@ -389,7 +392,7 @@
         }
       }
       if (last && /^[A-Z_]+$/.test(last.message || '')) throw last;
-      var ne = new Error('EVM_NETWORK'); ne.raw = rawOf(last); throw ne;
+      var ne = new Error('EVM_NETWORK'); ne.raw = seen.join(' | '); throw ne;
     }
 
     var TRX_LIFI = 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', EVM_NATIVE = '0x0000000000000000000000000000000000000000';
@@ -1094,7 +1097,7 @@
     if (/nonce/i.test(raw)) return 'هناك معاملة سابقة لم تُؤكَّد بعد على هذه الشبكة. انتظر دقيقة وحاول مجدداً';
     if (/execution reverted|CALL_EXCEPTION/i.test(raw)) return 'رفضت الشبكة المعاملة. جرّب مبلغاً آخر أو اطلب سعراً جديداً';
     // سبب غير معروف: نعرض مقتطفاً تقنياً قصيراً ليساعد الدعم الفني (لا يحتوي مفاتيح؛ رسائل الخادم فقط)
-    var hint = String(e && e.raw || '').replace(/0x[0-9a-fA-F]{20,}/g, '0x…').trim().slice(0, 90);
+    var hint = String(e && e.raw || '').replace(/0x[0-9a-fA-F]{20,}/g, '0x…').trim().slice(0, 220);
     var msg = ERRORS_AR[code] || 'حدث خطأ في الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً';
     return hint && code === 'EVM_NETWORK' ? msg + ' (' + hint + ')' : msg;
   }
