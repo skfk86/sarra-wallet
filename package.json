@@ -1,6 +1,6 @@
 {
   "name": "sarra-wallet",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
   "scripts": {
