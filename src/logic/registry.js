@@ -15,6 +15,9 @@
   // ترتيب ظهور الشبكات بعد TRON
   var EVM_ORDER = ['bsc', 'eth', 'polygon'];
   var NET_LOGO = { tron: 'trx', bsc: 'bnb', eth: 'eth', polygon: 'pol' };
+  // ما نتركه من العملة الأصلية عند «الكل» في التبديل والنقل والتداول (تبديل = موافقة + معاملة):
+  // Polygon يحتاج إكرامية ≥ 30 gwei فرسومه أعلى بالوحدات؛ TRON يحرق TRX للطاقة
+  var GAS_KEEP = { tron: 15, bsc: 0.001, eth: 0.001, polygon: 0.05 };
   // اسم المستكشف المعروض على زر «عرض على …» (حسب نطاق الرابط)
   var EXPLORERS = [[/tronscan/, 'TRONSCAN'], [/bscscan/, 'BscScan'], [/polygonscan/, 'PolygonScan'], [/etherscan/, 'Etherscan'], [/basescan/, 'BaseScan'], [/arbiscan/, 'Arbiscan']];
   function explorerName(url) {
@@ -72,6 +75,7 @@
       network: function (k) { return byKey[k] || null; },
       asset: function (s) { return bySym[s] || null; },
       netLogo: function (k) { return 'assets/coins/' + (NET_LOGO[k] || 'trx') + '.png'; },
+      gasKeep: function (k) { return GAS_KEEP[k] != null ? GAS_KEEP[k] : 0.001; },
       supports: function (k, s) { var n = byKey[k]; return !!n && n.coins.indexOf(s) >= 0; }
     };
   }

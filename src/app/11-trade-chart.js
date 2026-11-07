@@ -252,7 +252,7 @@
   document.querySelectorAll('#od-pct button').forEach(function (b) {
     b.onclick = function () {
       var pay = odPay(), v = balOn(pay, TR.net); if (v == null || !(v > 0)) return;
-      var n = netOf(TR.net), keep = pay === 'TRX' && TR.net === 'tron' ? 15 : n.evm && pay === n.native ? 0.001 : 0; // نُبقي رسوم الشبكة
+      var n = netOf(TR.net), keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // نُبقي رسوم الشبكة
       var a = Math.max(0, (Number(b.dataset.p) === 100 ? v - keep : v * Number(b.dataset.p) / 100));
       $('od-amt').value = String(Math.floor(a * 1e6) / 1e6); TR.oq = null; odRender();
     };

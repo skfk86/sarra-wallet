@@ -1091,6 +1091,7 @@
     TRONWEB_NOT_LOADED: 'تعذّر تحميل مكتبة الشبكة'
   };
   function errorText(e) {
+    if (typeof e === 'string') e = { message: e, raw: e }; // TronWeb يرمي نصوصاً أحياناً بدل Error
     var code = e && e.message;
     if (ERRORS_AR[code] && code !== 'EVM_NETWORK' && code !== 'EVM_REJECTED') return ERRORS_AR[code];
     // رسائل الشبكة الخام (من ethers أو خادم RPC): لا نسمّيها «خطأ إنترنت» إن كان السبب معروفاً
@@ -1098,6 +1099,9 @@
     if (/exceeds allowance/i.test(raw)) return 'لم تظهر الموافقة على الشبكة بعد. انتظر دقيقة وحاول مجدداً، ولن تُدفع الموافقة مرة ثانية';
     if (/exceeds balance/i.test(raw)) return ERRORS_AR.INSUFFICIENT_TOKEN || 'الرصيد غير كافٍ';
     if (/insufficient funds/i.test(raw)) return ERRORS_AR.LOW_GAS;
+    // رسائل TRON الخام
+    if (/BANDWITH_ERROR|BANDWIDTH|OUT_OF_ENERGY|Account resource insufficient|balance is not sufficient|account .* does not exist/i.test(raw)) return ERRORS_AR.LOW_TRX_FOR_FEES;
+    if (/REVERT|CONTRACT_VALIDATE_ERROR/i.test(raw)) return 'رفضت شبكة TRON المعاملة. تحقق من الرصيد والعنوان وحاول مجدداً';
     if (/underpriced|below minimum|tip cap|fee too low|max fee per gas less than/i.test(raw)) return 'رفضت الشبكة رسوم المعاملة لأنها أقل من المطلوب. حاول مرة أخرى بعد دقيقة';
     if (/nonce/i.test(raw)) return 'هناك معاملة سابقة لم تُؤكَّد بعد على هذه الشبكة. انتظر دقيقة وحاول مجدداً';
     if (/execution reverted|CALL_EXCEPTION/i.test(raw)) return 'رفضت الشبكة المعاملة. جرّب مبلغاً آخر أو اطلب سعراً جديداً';

@@ -204,6 +204,9 @@
     var u = coinUnits(); if (u == null) return;
     // عند إرسال كل TRX نترك 2 TRX للرسوم
     if (state.coin === 'TRX') u = u > 2000000n ? u - 2000000n : 0n;
+    // عند إرسال كل العملة الأصلية على EVM نترك رسوم الإرسال (وإلا ترفض الشبكة المعاملة)
+    var nn = netOf(state.sendNet);
+    if (nn.evm && state.coin === nn.native) { var keep = { bsc: 100000000000000n, polygon: 10000000000000000n, eth: 300000000000000n }[nn.key] || 300000000000000n; u = u > keep ? u - keep : 0n; }
     $('amt').value = WalletCore.fromUnits(u, state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin)); updUsd();
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }

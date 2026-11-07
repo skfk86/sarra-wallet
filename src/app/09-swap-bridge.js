@@ -36,7 +36,7 @@
   });
   $('es-max').onclick = function () {
     var n = netOf(ES.net), b = balOn(ES.from, ES.net); if (b == null) return;
-    if (ES.from === n.native) b = Math.max(0, b - 0.001); // نترك وقوداً للرسوم
+    if (ES.from === n.native) b = Math.max(0, b - REG.gasKeep(ES.net)); // نترك وقوداً للرسوم
     $('es-amt').value = String(Math.floor(b * 1e6) / 1e6); esReset();
   };
   $('es-quote-btn').onclick = async function () {
@@ -236,7 +236,7 @@
   $('br-flip').onclick = function () { var t = BR.from; BR.from = BR.to; BR.to = t; $('br-amt').value = ''; brReset(); prepareBridge(); };
   function brErr(m) { var e = $('br-err'); e.textContent = m; e.hidden = !m; }
   $('br-amt').addEventListener('input', brReset);
-  $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
+  $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null && BR.coin === netOf(BR.from).native) b = Math.max(0, b - REG.gasKeep(BR.from)); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
   $('br-quote-btn').onclick = async function () {
     brReset();
     var amt = $('br-amt').value.trim().replace(',', '.');
