@@ -119,6 +119,15 @@
     var all = ids.concat(list.map(function (t) { return t.txid; })).filter(function (x, i, a) { return a.indexOf(x) === i; }).slice(-100);
     rxPut(key, { t: st ? maxT : Math.max(maxT, Date.now()), ids: all });
   }
+  // الغبار يُقاس بالدولار لا بعدد الوحدات: 0.001 ETH (~$3) استلام حقيقي، بينما 0.000001 USDT تسميم عناوين.
+  // بلا سعر معروف: المستقرة تحت 0.01، والعملة الأصلية تحت 0.00001، وغيرها لا يُعدّ غباراً إلا إن كان أقل من 1e-9
+  function rxDust(amount, coin, minUsd) {
+    var n = Number(amount), v = usdOf(n, coin), a = REG.asset(coin);
+    if (v != null) return v < minUsd;
+    if (a && a.stable) return n < minUsd;
+    if (NETS.some(function (x) { return x.native === coin; })) return n < 0.00001;
+    return n < 1e-9;
+  }
   async function rxPollEvm() {
     if (!Object.keys(EVM).length || RX.rebasing) return;
     var gen = RX.gen || 0;
@@ -139,12 +148,11 @@
         var tk = EVM[k].tokens.filter(function (t) { return t.sym === sym; })[0], dec = sym === 'native' ? 18 : tk ? tk.dec : 18;
         if (diff < 0n) { if (skipOut) return; // نقص: الرسوم والعمليات من هذا الجهاز تُصفّر الأساس قبلها، فالنقص هنا ليس منك
           var out = WalletCore.fromUnits(-diff, dec);
-          if (sym === 'native' ? Number(out) >= 0.0005 : Number(out) >= 0.01) rxOut({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: out, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
+          if (!rxDust(out, sym === 'native' ? EVM[k].native : sym, 0.05)) rxOut({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: out, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
           return;
         }
         var amt = WalletCore.fromUnits(diff, dec);
-        if (Number(amt) < 0.01 && sym !== 'native') return;
-        if (sym === 'native') { var uv = usdOf(Number(amt), EVM[k].native); if (uv != null ? uv < 0.01 : Number(amt) < 0.00001) return; } // غبار العملة الأصلية
+        if (rxDust(amt, sym === 'native' ? EVM[k].native : sym, 0.01)) return;
         if (rxConsume(k, sym === 'native' ? EVM[k].native : sym, amt)) return;
         rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
       });

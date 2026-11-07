@@ -153,6 +153,12 @@ async def main():
     await kick()
     assert await pg.locator('#rx-sheet').is_visible() and '+9.9' in await pg.inner_text('#rx-amt'), await pg.inner_text('#rx-amt'); print('✓ الاستلام بعد إرسالك مباشرة يُكتشف (لا تلغي العمليتان بعضهما)')
     await pg.click('#rx-close'); await pg.wait_for_timeout(400)
+    # استلام 0.001 ETH (BEP20) من Binance (~$3): مبلغ صغير بالوحدات لكنه حقيقي، يجب ألا يُعامَل كغبار
+    EW='0x2170ed0880ac9a755fd29b2688956bd959f933f8'
+    E.BAL['bsc'][EW]=E.BAL['bsc'].get(EW,0)+10**15
+    await kick()
+    assert await pg.locator('#rx-sheet').is_visible() and '+0.001' in await pg.inner_text('#rx-amt') and 'ETH' in await pg.inner_text('#rx-coin'), await pg.inner_text('#rx-coin'); print('✓ استلام 0.001 ETH على BNB Chain يظهر كإشعار ويُسجَّل (الغبار يُقاس بالدولار)')
+    await pg.click('#rx-close'); await pg.wait_for_timeout(400)
     await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1000)
     await pg.click('#sw-nets [data-net=tron]'); await pg.wait_for_timeout(600)
     assert not await pg.locator('#swap-evm').is_visible(); print('✓ اختيار TRON يعيد التبديل عبر SunSwap')
