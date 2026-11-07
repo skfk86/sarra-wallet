@@ -54,7 +54,7 @@
     },
     eth: {
       id: 1, name: 'Ethereum', short: 'ERC20', native: 'ETH', color: '#627EEA', explorer: 'https://etherscan.io',
-      rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+      rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org', 'https://eth.llamarpc.com', 'https://1rpc.io/eth'],
       tokens: [{ sym: 'USDT', addr: '0xdAC17F958D2ee523a2206206994597C13D831ec7', dec: 6 },
                { sym: 'USDC', addr: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', dec: 6 },
                { sym: 'DAI', addr: '0x6B175474E89094C44Da98b954EedeAC495271d0F', dec: 18 },
