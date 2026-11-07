@@ -422,3 +422,4 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .pr-conf{font-size:12px;font-weight:700;color:var(--tx2)}
 .pr-bt{font-size:12px;line-height:1.8;background:var(--s2);border-radius:12px;padding:10px 12px;color:var(--tx2)}.pr-bt.up{background:rgba(22,163,122,.1);color:var(--up)}.pr-bt.dn{background:rgba(229,72,77,.1);color:var(--dn)}
 .offline-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:#B42330;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:1.6;padding:calc(6px + env(safe-area-inset-top)) 16px 6px}
+.upd-card{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 12px;padding:12px 14px;border:1px solid var(--ac);border-radius:14px;background:color-mix(in srgb,var(--ac) 10%,transparent);color:var(--tx);font:inherit;font-size:14px;text-align:start;cursor:pointer}.upd-card span{color:var(--mu);font-size:12px;flex:1}.upd-card em{font-style:normal;font-weight:700;color:var(--ac)}

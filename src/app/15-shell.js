@@ -71,6 +71,24 @@
 
   // ===== القائمة الجانبية =====
   var APP_VERSION = CFG.version || '';
+
+  // ===== التحديثات (للنسخة الموزّعة خارج Google Play): مرة يومياً نسأل GitHub عن آخر إصدار منشور =====
+  var UPDATE_PAGE = CFG.updatePage || 'https://skfk86.github.io/sarra-wallet/';
+  async function checkUpdate() {
+    if (CFG.channel === 'play' || !APP_VERSION || navigator.onLine === false) return;
+    var c = lsJson('sarra.upd', null), tag = c && Date.now() - c.at < 86400000 ? c.tag : null;
+    if (!tag) {
+      try {
+        var r = await fetch('https://api.github.com/repos/' + (CFG.updateRepo || 'skfk86/sarra-wallet') + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+        if (!r.ok) return; tag = (await r.json()).tag_name || ''; cachePut('sarra.upd', 'tag', tag);
+      } catch (e) { return; }
+    }
+    var newer = SarraLogic.cmpVersion(tag, APP_VERSION) > 0;
+    $('upd-card').hidden = !newer;
+    if (newer) $('upd-ver').textContent = 'الإصدار ' + String(tag).replace(/^v/i, '') + ' · لديك ' + APP_VERSION;
+  }
+  $('upd-card').onclick = function () { window.open(UPDATE_PAGE, '_blank'); };
+  setTimeout(checkUpdate, 4000);
   function openDrawer(on) {
     $('drawer').classList.toggle('show', on); $('drawer-bg').classList.toggle('show', on);
     $('drawer').setAttribute('aria-hidden', on ? 'false' : 'true'); $('menu-btn').setAttribute('aria-expanded', on ? 'true' : 'false');

@@ -8,9 +8,14 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      republish:
+        description: 'استبدال ملف APK المنشور لنفس رقم الإصدار'
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write   # لنشر ملف APK في GitHub Releases (صفحة التنزيل)
 
 concurrency:
   group: release
@@ -98,3 +103,24 @@ jobs:
         with:
           name: sarra-release-${{ env.VERSION }}
           path: out/
+
+      # صفحة التنزيل: يُنشر APK مرة واحدة لكل رقم إصدار جديد (في package.json).
+      # لا يُستبدل الإصدار المنشور تلقائياً مع كل تعديل، كي لا يصل للمستخدمين كود لم يُختبر؛ ارفع الرقم لنشر تحديث.
+      - name: Publish APK (GitHub Releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPUBLISH: ${{ inputs.republish }}
+        run: |
+          TAG="v$VERSION"; cp out/sarra-$VERSION-release.apk out/sarra.apk
+          SHA=$(sha256sum out/sarra.apk | cut -d' ' -f1)
+          NOTES="صُرّة $VERSION — ملف التثبيت لأندرويد (موقّع).
+          SHA-256: $SHA"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$REPUBLISH" = "true" ]; then
+              gh release upload "$TAG" out/sarra.apk out/sarra-$VERSION-release.apk --clobber
+              gh release edit "$TAG" --notes "$NOTES"; echo "✓ استُبدل ملف $TAG"
+            else echo "الإصدار $TAG منشور مسبقاً: لا تغيير (ارفع رقم الإصدار أو شغّل يدوياً مع republish)"; fi
+          else
+            gh release create "$TAG" out/sarra.apk out/sarra-$VERSION-release.apk --title "صُرّة $VERSION" --notes "$NOTES" --latest
+            echo "✓ نُشر $TAG"
+          fi

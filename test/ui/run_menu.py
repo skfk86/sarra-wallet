@@ -9,12 +9,15 @@ async def main():
     opened=[]; await pg.expose_function('rec', lambda u: opened.append(u))
     await pg.add_init_script("window.open=function(u){window.rec&&rec(u);return null}")
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
+    await pg.route('https://api.github.com/**', lambda r: r.fulfill(json={'tag_name':'v0.2.0'}))
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
       await pg.wait_for_timeout(2500)
     await pg.click('[data-go=create]'); await pg.click('#reveal'); await pg.check('#agree'); await pg.click('#backup-next')
     await pin('123456'); await pin('123456'); await pg.wait_for_timeout(1000); await pg.click('#intro-ok')
+    await pg.wait_for_timeout(5000)
+    assert await pg.locator('#upd-card').is_visible() and '0.2.0' in await pg.inner_text('#upd-card'), 'upd'; print('✓ تنبيه التحديث: يظهر عند وجود إصدار أحدث (0.2.0 > 0.1.0)')
     async def no_overflow(name):
       bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *, .drawer.show *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).slice(0,3).map(e=>e.tagName+'#'+e.id)''')
       assert not bad, (name,bad); print('✓ لا شيء يخرج عن الشاشة (360px):', name)

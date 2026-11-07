@@ -28,7 +28,14 @@
     fr = fr.replace(/0+$/, '');
     return fr ? whole + '.' + fr : whole;
   }
-  var api = { niceNum: niceNum, fmtExact: fmtExact };
+  // مقارنة إصدارات: '1.0.10' > '1.0.9'، وتقبل 'v1.2.0'. تعيد 1 أو 0 أو -1، و0 لأي قيمة غير صالحة
+  function cmpVersion(a, b) {
+    var p = function (v) { var m = String(v || '').trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)\.(\d+)$/); return m ? [+m[1], +m[2], +m[3]] : null; };
+    var x = p(a), y = p(b); if (!x || !y) return 0;
+    for (var i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i] ? 1 : -1;
+    return 0;
+  }
+  var api = { niceNum: niceNum, fmtExact: fmtExact, cmpVersion: cmpVersion };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.SarraLogic = Object.assign(root.SarraLogic || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

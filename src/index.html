@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest https://api.github.com">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script>
@@ -82,6 +82,7 @@
     </div>
     <button class="icon-btn" id="refresh" aria-label="تحديث الرصيد"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
   </header>
+  <button type="button" class="upd-card" id="upd-card" hidden><b>تحديث جديد متاح</b><span id="upd-ver"></span><em>تنزيل</em></button>
   <div class="card hero-card">
     <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
       <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" aria-pressed="false" style="width:36px;height:32px;background:none"><svg class="i eye-on" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
