@@ -173,6 +173,8 @@
     var failed = [];
     await Promise.all(keys.map(function (k) { return loadEvmChain(k).catch(function () { failed.push(k); }); }));
     var note = $('hist-note');
+    // شبكة تعذّر سجلها الكامل لكن عملياتك من هذا الجهاز ظاهرة: لا داعي لتنبيه يربك المستخدم
+    failed = failed.filter(function (k) { return !lhAll().some(function (r) { return r.net === k; }) && !(state.evmHist[k] && state.evmHist[k].length); });
     if (failed.length) { note.hidden = false; note.textContent = 'تعذّر تحميل سجل ' + failed.map(netTag).join(' و') + ' الآن. يمكنك فتحه من المستكشف أدناه.'; }
     else if (!core.isUnlocked() && keys.some(function (k) { return !state.evmHist[k]; })) { note.hidden = false; note.textContent = 'افتح المحفظة بالرمز لتحديث سجل الشبكات الأخرى.'; }
     else note.hidden = true;
