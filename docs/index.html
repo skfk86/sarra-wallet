@@ -3,56 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>صُرّة — محفظة USDT سودانية</title>
-<meta name="description" content="صُرّة: محفظة USDT غير احتجازية. أرسل واستلم على TRON وBNB Chain وEthereum وPolygon، وبِع واشترِ بالجنيه عبر بنكك.">
-<link rel="icon" href="icon.png">
+<title>صُرّة — محفظة USDT سودانية | التنزيل الرسمي</title>
+<meta name="description" content="صُرّة: محفظة USDT غير احتجازية. أرسل واستلم على TRON وBNB Chain وEthereum وPolygon، وبِع واشترِ بالجنيه عبر بنكك مع ضمان. التنزيل الرسمي لأندرويد.">
+<meta name="theme-color" content="#0b6b50">
+<link rel="canonical" href="https://skfk86.github.io/sarra-wallet/">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<!-- معاينة الرابط عند مشاركته في فيسبوك وواتساب وتيليجرام -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="صُرّة">
+<meta property="og:locale" content="ar_AR">
+<meta property="og:url" content="https://skfk86.github.io/sarra-wallet/">
+<meta property="og:title" content="صُرّة — محفظة USDT سودانية">
+<meta property="og:description" content="أرسل واستلم USDT، وبِع واشترِ بالجنيه عبر بنكك مع ضمان. مفاتيحك على هاتفك فقط. حمّلها مجاناً من الموقع الرسمي.">
+<meta property="og:image" content="https://skfk86.github.io/sarra-wallet/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
-:root{--ac:#0B8A63;--ac2:#16A37A;--tx:#14171c;--mu:#5d6673;--bg:#f6f8f7;--card:#fff;--ln:#e3e8e6}
-@media(prefers-color-scheme:dark){:root{--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36}}
+:root{--ac:#0B8A63;--ac2:#16A37A;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--warn:#b7791f}
+@media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--warn:#e7b54a}}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--tx);line-height:1.8}
-.wrap{max-width:760px;margin:0 auto;padding:0 16px}
-header{background:radial-gradient(120% 140% at 80% 0%,#16a37a 0%,#0b6b50 50%,#062e24 100%);color:#fff;padding:40px 0 56px}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--tx);line-height:1.8;-webkit-text-size-adjust:100%}
+.wrap{max-width:780px;margin:0 auto;padding:0 16px}
+a{color:var(--ac)}
+header{background:radial-gradient(120% 140% at 80% 0%,#16a37a 0%,#0b6b50 50%,#062e24 100%);color:#fff;padding:36px 0 60px}
 .brand{display:flex;align-items:center;gap:14px}
-.brand img{width:72px;height:72px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
-h1{font-size:34px;margin:0}
-.tag{font-size:20px;font-weight:700;margin:22px 0 6px}
-.sub{opacity:.9;margin:0 0 24px}
-.dl{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#0b6b50;font-weight:800;font-size:18px;padding:14px 26px;border-radius:14px;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-.meta{font-size:13px;opacity:.85;margin-top:12px;min-height:1.5em}
-main{margin-top:-28px}
+.brand img{width:76px;height:76px;border-radius:19px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+h1{font-size:34px;margin:0;line-height:1.2}
+.brand small{display:block;font-size:14px;opacity:.85;font-weight:400}
+.tag{font-size:22px;font-weight:800;margin:24px 0 6px;line-height:1.5}
+.sub{opacity:.92;margin:0 0 22px}
+.dl{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#0b6b50;font-weight:800;font-size:19px;padding:16px 26px;border-radius:16px;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:420px}
+.dl:active{transform:scale(.98)}
+.dl svg{width:24px;height:24px;flex:none}
+.meta{font-size:13.5px;opacity:.9;margin-top:12px;min-height:1.6em}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding:0;list-style:none}
+.trust li{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px;font-size:13px}
+.notice{background:#fff7e0;color:#5b4300;border-radius:14px;padding:12px 14px;margin-top:16px;font-size:14.5px;max-width:420px}
+.notice a{color:#5b4300;font-weight:800}
+main{margin-top:-30px}
 .card{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:20px;margin-bottom:16px}
-h2{font-size:19px;margin:0 0 10px}
+h2{font-size:19px;margin:0 0 12px}
 ol,ul{margin:0;padding-inline-start:22px}
-li{margin:4px 0}
-.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+li{margin:5px 0}
+.steps{list-style:none;padding:0;counter-reset:s}
+.steps li{counter-increment:s;position:relative;padding-inline-start:46px;margin:14px 0}
+.steps li::before{content:counter(s);position:absolute;inset-inline-start:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .feat div{background:var(--bg);border-radius:12px;padding:12px 14px;font-size:15px}
 .feat b{display:block;color:var(--ac)}
-.warn{border-color:#e7b54a;background:color-mix(in srgb,#e7b54a 10%,var(--card))}
+.shots{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory}
+.shots img{height:380px;width:190px;border-radius:14px;border:1px solid var(--ln);scroll-snap-align:start;flex:none}
+.cap{color:var(--mu);font-size:13px;margin:8px 0 0}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td{padding:9px 4px;border-bottom:1px solid var(--ln)}
+tr:last-child td{border-bottom:0}
+td:last-child{text-align:end;font-weight:700;white-space:nowrap}
+.safe{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 9%,var(--card))}
 code{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;direction:ltr;display:inline-block}
-.shots{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
-.shots img{height:360px;border-radius:14px;border:1px solid var(--ln)}
-footer{color:var(--mu);font-size:14px;text-align:center;padding:24px 0 40px}
-footer a{color:var(--ac)}
+details{border-bottom:1px solid var(--ln);padding:10px 0}
+details:last-child{border-bottom:0}
+summary{font-weight:700;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';color:var(--ac);font-size:20px;line-height:1.3}
+details[open] summary::after{content:'−'}
+details p{margin:8px 0 2px;color:var(--mu)}
+.cta2{text-align:center}
+.cta2 .dl{margin:0 auto;background:var(--ac);color:#fff;box-shadow:none}
+footer{color:var(--mu);font-size:14px;text-align:center;padding:20px 0 44px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <header><div class="wrap">
-  <div class="brand"><img src="icon.png" alt=""><h1>صُرّة</h1></div>
+  <div class="brand"><img src="icon-192.png" alt="شعار صُرّة" width="76" height="76"><h1>صُرّة<small>الموقع الرسمي للتنزيل</small></h1></div>
   <p class="tag">محفظة USDT سودانية. أموالك بيدك أنت.</p>
   <p class="sub">أرسل واستلم على أربع شبكات، وبِع واشترِ بالجنيه عبر بنكك، وبدّل وتداول من مكان واحد.</p>
-  <a class="dl" href="https://github.com/skfk86/sarra-wallet/releases/latest/download/sarra.apk">⬇ تنزيل لأندرويد</a>
+  <a class="dl" id="dl" href="https://github.com/skfk86/sarra-wallet/releases/latest/download/sarra.apk" download>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+    تنزيل لأندرويد
+  </a>
   <div class="meta" id="meta">ملف APK موقّع · أندرويد 7 فأحدث</div>
+  <div class="notice" id="inapp" hidden>أنت تتصفح من داخل تطبيق فيسبوك أو إنستغرام، وقد لا يبدأ التنزيل هنا. <a id="open-chrome" href="#">افتح الصفحة في Chrome</a>، أو اضغط ⋮ ثم «فتح في المتصفح».</div>
+  <div class="notice" id="not-android" hidden>صُرّة تعمل على هواتف أندرويد فقط. افتح هذا الرابط من هاتف أندرويد للتنزيل.</div>
+  <ul class="trust"><li>مجاني وبلا إعلانات</li><li>موقّع رقمياً</li><li>عربي بالكامل</li><li>مفاتيحك على هاتفك</li></ul>
 </div></header>
 
 <main class="wrap">
   <section class="card">
-    <h2>طريقة التثبيت</h2>
-    <ol>
-      <li>اضغط «تنزيل لأندرويد» وانتظر اكتمال تنزيل الملف <b>sarra.apk</b>.</li>
-      <li>افتح الملف من الإشعارات أو من مجلد التنزيلات.</li>
-      <li>إن ظهرت رسالة «تثبيت التطبيقات غير المعروفة»، اضغط <b>الإعدادات</b> وفعّل <b>السماح من هذا المصدر</b>، ثم ارجع واضغط <b>تثبيت</b>.</li>
-      <li>إن ظهر تنبيه من Google Play Protect، اختر <b>تثبيت على أي حال</b>. يظهر هذا لأي تطبيق لم يُنزَّل من المتجر.</li>
+    <h2>التثبيت في 4 خطوات</h2>
+    <ol class="steps">
+      <li>اضغط <b>تنزيل لأندرويد</b> وانتظر اكتمال تنزيل الملف <b>sarra.apk</b>.</li>
+      <li>افتح الملف من شريط الإشعارات أو من مجلد «التنزيلات».</li>
+      <li>إن ظهرت رسالة «غير مسموح بتثبيت تطبيقات من هذا المصدر»، اضغط <b>الإعدادات</b> وفعّل <b>السماح من هذا المصدر</b>، ثم ارجع واضغط <b>تثبيت</b>.</li>
+      <li>إن ظهر تنبيه من Play Protect، اختر <b>تثبيت على أي حال</b>. يظهر هذا لأي تطبيق يُنزَّل من خارج المتجر.</li>
     </ol>
   </section>
 
@@ -60,52 +106,90 @@ footer a{color:var(--ac)}
     <h2>ماذا تقدّم صُرّة؟</h2>
     <div class="feat">
       <div><b>أرسل واستلم</b>USDT وUSDC على TRON وBNB Chain وEthereum وPolygon، أو بمعرّف صُرّة من 8 أرقام.</div>
-      <div><b>سوق P2P</b>بِع واشترِ USDT بالجنيه عبر بنكك، مع ضمان يحجز المبلغ حتى يؤكد البائع.</div>
+      <div><b>سوق P2P بالجنيه</b>بِع واشترِ USDT عبر بنكك، مع ضمان يحجز المبلغ حتى يؤكد البائع الاستلام.</div>
       <div><b>تبديل ونقل</b>بين العملات والشبكات داخل محفظتك، والسعر والرسوم واضحة قبل التأكيد.</div>
       <div><b>تداول فوري</b>شارت مباشر وقراءة فنية مبسّطة، ومتابعة الربح والخسارة.</div>
-      <div><b>إشعارات فورية</b>لحظة وصول أي تحويلة USDT أو USDC.</div>
-      <div><b>حماية</b>رمز سري وبصمة، ومفاتيحك لا تغادر هاتفك أبداً.</div>
+      <div><b>إشعارات فورية</b>لحظة وصول تحويلة USDT أو USDC، حتى والتطبيق مغلق.</div>
+      <div><b>حماية</b>رمز سري وبصمة وقفل تلقائي، ومفاتيحك لا تغادر هاتفك أبداً.</div>
     </div>
   </section>
 
   <section class="card">
     <h2>من داخل التطبيق</h2>
     <div class="shots">
-      <img src="shots/1.png" alt="الرئيسية" loading="lazy"><img src="shots/2.png" alt="التداول" loading="lazy">
-      <img src="shots/3.png" alt="سوق P2P" loading="lazy"><img src="shots/4.png" alt="التبديل" loading="lazy">
+      <img src="shots/1.png" alt="الشاشة الرئيسية والرصيد" loading="lazy" width="190" height="380">
+      <img src="shots/3.png" alt="سوق P2P" loading="lazy" width="190" height="380">
+      <img src="shots/4.png" alt="التبديل بين العملات" loading="lazy" width="190" height="380">
+      <img src="shots/2.png" alt="التداول والشارت" loading="lazy" width="190" height="380">
     </div>
+    <p class="cap">صور توضيحية، والأرقام والأسماء فيها أمثلة وليست حسابات حقيقية.</p>
   </section>
 
-  <section class="card warn">
+  <section class="card">
+    <h2>الرسوم</h2>
+    <table>
+      <tr><td>الإرسال والاستلام</td><td>بلا عمولة</td></tr>
+      <tr><td>التبديل والتداول الفوري</td><td>0.8%</td></tr>
+      <tr><td>النقل بين الشبكات</td><td>0.5%</td></tr>
+      <tr><td>صفقات P2P</td><td>0.5%</td></tr>
+    </table>
+    <p class="cap">تُضاف رسوم الشبكة نفسها، ورسوم بوابة الضمان في P2P. يظهر المبلغ النهائي قبل تأكيد أي عملية.</p>
+  </section>
+
+  <section class="card safe">
     <h2>للأمان</h2>
     <ul>
       <li>نزّل صُرّة من هذه الصفحة فقط. أي نسخة من مكان آخر قد تكون مزيّفة وتسرق أموالك.</li>
-      <li>لن نطلب منك كلمات الاسترجاع الـ12 أو الرمز السري أبداً، لا في رسالة ولا في اتصال.</li>
-      <li>التطبيق ينبّهك داخله عند صدور تحديث جديد، وينقلك إلى هذه الصفحة.</li>
-      <li id="sha-li" hidden>بصمة الملف الحالي (SHA-256) للتحقق: <code id="sha"></code></li>
+      <li>لن نطلب منك كلمات الاسترجاع الـ12 أو الرمز السري أبداً، لا في رسالة ولا في اتصال ولا في الخاص.</li>
+      <li>اكتب كلمات الاسترجاع على ورقة واحفظها في مكان آمن. من يفقدها يفقد الوصول إلى محفظته.</li>
+      <li id="sha-li" hidden>بصمة الملف الحالي (SHA-256) لمن يريد التحقق: <code id="sha"></code></li>
     </ul>
   </section>
 
   <section class="card">
+    <h2>أسئلة شائعة</h2>
+    <details><summary>لماذا ليست في Google Play؟</summary><p>Google تشترط حساب شركة مسجّلة لنشر محافظ العملات الرقمية، وحسابنا الحالي شخصي. نعمل على تسجيل الشركة، وبعدها تُنشر صُرّة في المتجر. المشكلة في نوع الحساب وليست في التطبيق.</p></details>
+    <details><summary>هل التنزيل من هنا آمن؟</summary><p>الملف موقّع رقمياً بمفتاح المطوّر، ويُبنى آلياً من الكود المنشور، وبصمته معروضة في قسم الأمان. التنبيه الذي يظهر عند التثبيت يظهر لكل تطبيق من خارج المتجر.</p></details>
+    <details><summary>كيف أحصل على التحديثات؟</summary><p>عند صدور إصدار جديد تظهر في الشاشة الرئيسية للتطبيق بطاقة «تحديث جديد متاح». اضغطها ونزّل الملف الجديد وثبّته فوق القديم. محفظتك وسجلك يبقيان كما هما.</p></details>
+    <details><summary>هل تستطيعون الوصول إلى أموالي؟</summary><p>لا. صُرّة محفظة غير احتجازية: مفاتيحك تُنشأ وتُحفظ مشفّرة على هاتفك فقط، ولا تُرسل إلى أي خادم.</p></details>
+    <details><summary>ماذا لو ضاع هاتفي أو حذفت التطبيق؟</summary><p>ثبّت صُرّة على أي هاتف، واختر «استيراد محفظة»، واكتب كلمات الاسترجاع الـ12. ترجع محفظتك وسجل معاملاتك. بدون الكلمات لا يستطيع أحد استرجاعها، ولا نحن.</p></details>
+    <details><summary>ما الهواتف المدعومة؟</summary><p>أندرويد 7 فأحدث. لا توجد نسخة للآيفون حالياً.</p></details>
+    <details><summary>كيف أتواصل مع الدعم؟</summary><p>من داخل التطبيق: القائمة ← الدعم الفني. افتح تذكرة واكتب مشكلتك، وسنرد عليك هناك.</p></details>
+  </section>
+
+  <section class="card cta2">
+    <a class="dl" href="https://github.com/skfk86/sarra-wallet/releases/latest/download/sarra.apk" download>تنزيل صُرّة لأندرويد</a>
+  </section>
+
+  <section class="card">
     <h2>تنبيه</h2>
-    <p style="margin:0">صُرّة محفظة غير احتجازية، وليست بنكاً ولا جهة إيداع. أسعار العملات مثل BTC وETH ترتفع وتنخفض، فقد تبيع بأقل مما اشتريت. أما USDT فقيمته ثابتة تقريباً عند دولار واحد، والتحليل في التطبيق معلومات وليس نصيحة مالية. التطبيق لمن بلغوا 18 عاماً فأكثر.</p>
+    <p style="margin:0">صُرّة محفظة غير احتجازية، وليست بنكاً ولا جهة إيداع. أسعار العملات مثل BTC وETH ترتفع وتنخفض، فقد تبيع بأقل مما اشتريت. أما USDT فقيمته ثابتة تقريباً عند دولار واحد. التحليل في التطبيق معلومات مساعدة وليس نصيحة مالية. التطبيق لمن بلغوا 18 عاماً فأكثر.</p>
   </section>
 </main>
 
 <footer><div class="wrap">
   <a href="privacy.html">سياسة الخصوصية</a> · <a href="terms.html">شروط الاستخدام</a> · <a href="delete-account.html">حذف الحساب والبيانات</a>
+  <div style="margin-top:8px">© 2026 صُرّة</div>
 </div></footer>
 
 <script>
-// يعرض رقم آخر إصدار وتاريخه وبصمته من GitHub Releases (إن تعذّر، تبقى الصفحة صالحة والزر يعمل)
-fetch('https://api.github.com/repos/skfk86/sarra-wallet/releases/latest').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-  if (!j) return;
-  var a = (j.assets || []).filter(function (x) { return x.name === 'sarra.apk'; })[0];
-  var d = new Date(j.published_at).toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' });
-  document.getElementById('meta').textContent = 'الإصدار ' + String(j.tag_name).replace(/^v/, '') + ' · ' + d + (a ? ' · ' + (a.size / 1048576).toFixed(1) + ' ميغابايت' : '') + ' · أندرويد 7 فأحدث';
-  var m = String(j.body || '').match(/SHA-256:\s*([0-9a-f]{64})/i);
-  if (m) { document.getElementById('sha').textContent = m[1]; document.getElementById('sha-li').hidden = false; }
-}).catch(function () {});
+(function () {
+  var ua = navigator.userAgent || '', $ = function (id) { return document.getElementById(id); };
+  // متصفح فيسبوك/إنستغرام الداخلي لا ينزّل ملفات APK غالباً: نعرض طريقة الفتح في Chrome
+  if (/FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua)) {
+    $('inapp').hidden = false;
+    $('open-chrome').href = 'intent://skfk86.github.io/sarra-wallet/#Intent;scheme=https;package=com.android.chrome;end';
+  } else if (!/Android/i.test(ua)) { $('not-android').hidden = false; }
+  // رقم آخر إصدار وتاريخه وحجمه وبصمته من GitHub Releases (إن تعذّر، تبقى الصفحة والزر صالحين)
+  fetch('https://api.github.com/repos/skfk86/sarra-wallet/releases/latest').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (!j || !j.tag_name) return;
+    var a = (j.assets || []).filter(function (x) { return x.name === 'sarra.apk'; })[0];
+    var d = new Date(j.published_at).toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' });
+    $('meta').textContent = 'الإصدار ' + String(j.tag_name).replace(/^v/, '') + ' · ' + d + (a ? ' · ' + Math.round(a.size / 1048576) + ' ميغابايت' : '') + ' · أندرويد 7 فأحدث';
+    var m = String(j.body || '').match(/SHA-256:\s*([0-9a-f]{64})/i);
+    if (m) { $('sha').textContent = m[1]; $('sha-li').hidden = false; }
+  }).catch(function () {});
+})();
 </script>
 </body>
 </html>
