@@ -10,7 +10,7 @@ on:
       fn:
         description: 'الدالة'
         type: choice
-        options: [p2p, history, push-watch, support, push-setup]
+        options: [p2p, history, push-watch, support, pay, push-setup, pay-setup]
         default: p2p
 
 permissions:
@@ -33,10 +33,32 @@ jobs:
       - uses: supabase/setup-cli@v1
         with: { version: latest }
       - name: Deploy
-        if: inputs.fn != 'push-setup'
+        if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy ${{ inputs.fn }} --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes
+      # pay-setup: بوابة الدفع للتجار — يضبط عنواني شحن الرصيد، وينشر الدالة، ويطبّق الترحيل 020 (جداول + جدولة كل دقيقة)
+      - name: Payment gateway setup (function + migration 020)
+        if: inputs.fn == 'pay-setup'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          TOPUP_TRON: ${{ vars.SARRA_FEE_ADDRESS }}
+          TOPUP_EVM: ${{ vars.SARRA_EVM_FEE_ADDRESS }}
+        run: |
+          : > /tmp/pay.env
+          echo "$TOPUP_TRON" | grep -Eq '^T[1-9A-HJ-NP-Za-km-z]{33}$' && echo "PAY_TOPUP_TRON=$TOPUP_TRON" >> /tmp/pay.env || echo "::warning::SARRA_FEE_ADDRESS ليس عنوان TRON: شحن الرصيد على TRON غير متاح"
+          echo "$TOPUP_EVM" | grep -Eq '^0x[0-9a-fA-F]{40}$' && echo "PAY_TOPUP_EVM=$TOPUP_EVM" >> /tmp/pay.env || echo "::warning::SARRA_EVM_FEE_ADDRESS ليس عنوان 0x: شحن الرصيد على BNB/Polygon/Ethereum غير متاح"
+          [ -s /tmp/pay.env ] && supabase secrets set --env-file /tmp/pay.env --project-ref osdojhpsfbcqguoctbpk || echo "::error::لا يوجد أي عنوان لشحن الرصيد"
+          supabase functions deploy pay --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes
+          python3 -c "import json;print(json.dumps({'query':open('supabase/migrations/020_pay.sql').read()}))" > /tmp/q.json
+          code=$(curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json)
+          echo "migration 020_pay HTTP $code"; head -c 600 /tmp/r.txt; echo
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق الترحيل 020_pay"; exit 1; }
+          sleep 75
+          echo "--- آخر رد من ماسح الدفعات ---"
+          python3 -c "import json;print(json.dumps({'query':\"select status_code, left(content::text, 300) as body, created from net._http_response order by created desc limit 4\"}))" > /tmp/q2.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q2.json | head -c 1500; echo
       # push-setup: ينشر الدوال الثلاث ثم يطبّق ترحيلي الإشعارات (018) وخزنة السجل (019) عبر Management API
       - name: Push notifications setup (functions + migration 018)
         if: inputs.fn == 'push-setup'

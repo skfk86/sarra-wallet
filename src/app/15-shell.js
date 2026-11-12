@@ -103,6 +103,7 @@
       if (m === 'coins') { openCoinsHelp(); return; }
       if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; var pc = function (x) { return (Math.round((Number(x) || 0) * 10000) / 100) + '%'; }; $('about-evmfee').textContent = pc(CFG.lifiSwapFee != null ? CFG.lifiSwapFee : CFG.lifiFee); $('about-brfee').textContent = pc(CFG.lifiFee); $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
+      if (m === 'merchant') openMerchant();
       if (m === 'account') openAccount();
       if (m === 'support') openSupport();
       if (m === 'privacy') show('privacy');

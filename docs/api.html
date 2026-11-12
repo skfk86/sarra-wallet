@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>بوابة دفع صُرّة — توثيق API للتجار والمطوّرين</title>
+<meta name="description" content="اقبل مدفوعات USDT في متجرك أو تطبيقك عبر API صُرّة. المبلغ يصل مباشرة إلى محفظتك، وتصلك إشارة تأكيد تلقائية.">
+<link rel="icon" href="icon-192.png">
+<meta property="og:title" content="بوابة دفع صُرّة — API للتجار">
+<meta property="og:description" content="اقبل USDT في متجرك. المبلغ يصل مباشرة إلى محفظتك.">
+<meta property="og:image" content="https://skfk86.github.io/sarra-wallet/og.png">
+<style>
+:root{--ac:#0B8A63;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--code:#0d1a16;--codetx:#d7f5e9}
+@media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--code:#060a0d}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--tx);line-height:1.85}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}
+header{background:radial-gradient(120% 140% at 80% 0%,#16a37a 0%,#0b6b50 50%,#062e24 100%);color:#fff;padding:30px 0 50px}
+header a{color:#fff;font-weight:700;text-decoration:none;font-size:14px}
+h1{font-size:28px;margin:12px 0 6px;line-height:1.4}
+header p{margin:0;opacity:.92}
+main{margin-top:-26px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:20px;margin-bottom:16px;overflow:hidden}
+h2{font-size:20px;margin:0 0 10px}
+h3{font-size:16px;margin:18px 0 6px}
+a{color:var(--ac)}
+ol,ul{margin:0;padding-inline-start:22px}
+pre{background:var(--code);color:var(--codetx);border-radius:12px;padding:14px;overflow-x:auto;direction:ltr;text-align:left;font-size:13px;line-height:1.6;margin:8px 0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:embed}
+p code,li code,td code{background:var(--bg);padding:1px 6px;border-radius:6px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;display:block;overflow-x:auto}
+th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:start;vertical-align:top}
+th{color:var(--mu);font-weight:600;white-space:nowrap}
+.ep{display:flex;gap:8px;align-items:center;direction:ltr;justify-content:flex-end;font-family:ui-monospace,monospace;font-size:14px;font-weight:700;margin:16px 0 4px}
+.ep b{background:var(--ac);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px}
+.note{background:color-mix(in srgb,#e7b54a 14%,var(--card));border:1px solid #e7b54a;border-radius:12px;padding:10px 14px;margin:10px 0}
+footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a href="./">→ صُرّة</a>
+  <h1>بوابة دفع صُرّة للتجار</h1>
+  <p>اقبل مدفوعات USDT في متجرك أو تطبيقك. المبلغ يصل مباشرة إلى محفظتك، ونحن نؤكد لك الدفع تلقائياً.</p>
+</div></header>
+
+<main class="wrap">
+  <section class="card">
+    <h2>كيف تعمل؟</h2>
+    <ol>
+      <li>نظامك يطلب من الـ API <b>فاتورة</b> بمبلغ معيّن، فيرجع له رابط صفحة دفع.</li>
+      <li>العميل يفتح الرابط ويرسل USDT <b>مباشرة إلى محفظتك</b> من أي محفظة أو منصة.</li>
+      <li>نراقب الشبكة، وعند وصول التحويل نرسل إلى خادمك إشعاراً موقّعاً بأن الفاتورة دُفعت.</li>
+    </ol>
+    <div class="note"><b>غير احتجازية:</b> أموال عملائك لا تمر بنا أبداً، فلا نستطيع حجزها أو تأخيرها. دورنا التأكيد والإشعار فقط.</div>
+    <h3>كيف نعرف أن التحويل يخص فاتورتك؟</h3>
+    <p style="margin:0">نضيف إلى المبلغ كسراً صغيراً فريداً أقل من سنت واحد. فاتورة بـ <code>10</code> USDT يدفعها العميل <code>10.004321</code> مثلاً. لذلك يجب أن يرسل العميل المبلغ المعروض <b>بالضبط</b>.</p>
+  </section>
+
+  <section class="card">
+    <h2>البدء في 3 خطوات</h2>
+    <ol>
+      <li>ثبّت <a href="./">تطبيق صُرّة</a>، وافتح <b>القائمة ← بوابة الدفع للتجار</b>، واكتب اسم متجرك. عنوان الاستلام هو محفظتك في صُرّة.</li>
+      <li>اضغط <b>إنشاء مفتاح API</b> وانسخه. يظهر مرة واحدة فقط، فاحفظه في خادمك ولا تضعه في كود الواجهة أو التطبيق.</li>
+      <li>أنشئ أول فاتورة بالطلب التالي.</li>
+    </ol>
+<pre><code>curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices \
+  -H "Authorization: Bearer sk_live_XXXXXXXX" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":"10","network":"bsc","order_id":"ORDER-1001","description":"طلب رقم 1001"}'</code></pre>
+    <p>الرد:</p>
+<pre><code>{
+  "invoice": {
+    "id": "inv_3f9a1c0b7e2d4a8815c6",
+    "status": "pending",
+    "network": "bsc",
+    "currency": "USDT",
+    "amount": "10",
+    "pay_amount": "10.004321",
+    "address": "0x…",
+    "fee": "0.05",
+    "order_id": "ORDER-1001",
+    "expires_at": "2026-11-12T14:30:00.000Z",
+    "pay_url": "https://skfk86.github.io/sarra-wallet/pay.html?i=inv_3f9a1c0b7e2d4a8815c6"
+  }
+}</code></pre>
+    <p style="margin:0">وجّه العميل إلى <code>pay_url</code>، أو اعرض له <code>pay_amount</code> و<code>address</code> والشبكة في واجهتك.</p>
+  </section>
+
+  <section class="card">
+    <h2>الرسوم</h2>
+    <p style="margin:0">حسابك فيه <b>رصيد مدفوع مسبقاً</b> بـ USDT. عن كل فاتورة <b>مدفوعة</b> نخصم <b>0.5%</b> من مبلغها، بحد أدنى <b>0.02 USDT</b>. الفواتير غير المدفوعة مجانية. يبدأ كل حساب برصيد تجريبي 1 USDT، وتشحن الرصيد من نفس الشاشة في التطبيق. إذا لم يكفِ الرصيد لعمولة فاتورة جديدة، يرجع الخطأ <code>INSUFFICIENT_CREDIT</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>مرجع الـ API</h2>
+    <p>العنوان الأساسي: <code>https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay</code><br>كل الطلبات تحمل الترويسة <code>Authorization: Bearer &lt;مفتاحك&gt;</code>.</p>
+
+    <div class="ep"><span>/v1/invoices</span><b>POST</b></div>
+    <p>إنشاء فاتورة.</p>
+    <table>
+      <tr><th>الحقل</th><th>الوصف</th></tr>
+      <tr><td><code>amount</code></td><td>إلزامي. نص مثل <code>"25"</code> أو <code>"25.50"</code>. من 1 إلى 100000، وبخانتين عشريتين كحد أقصى.</td></tr>
+      <tr><td><code>network</code></td><td>إلزامي: <code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات.</td></tr>
+      <tr><td><code>order_id</code></td><td>اختياري، وننصح به: رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم ترجع الفاتورة نفسها ولا تنشئ ثانية.</td></tr>
+      <tr><td><code>description</code></td><td>اختياري: نص يظهر للعميل في صفحة الدفع (حتى 140 حرفاً).</td></tr>
+      <tr><td><code>expires_min</code></td><td>اختياري: مهلة الدفع بالدقائق، من 10 إلى 120. الافتراضي 30.</td></tr>
+    </table>
+
+    <div class="ep"><span>/v1/invoices/{id}</span><b>GET</b></div>
+    <p>حالة فاتورة: <code>pending</code> بانتظار الدفع، <code>paid</code> مدفوعة، <code>expired</code> منتهية.</p>
+
+    <div class="ep"><span>/v1/invoices?status=paid&amp;limit=20</span><b>GET</b></div>
+    <p>آخر الفواتير، الأحدث أولاً. <code>limit</code> حتى 100.</p>
+
+    <div class="ep"><span>/v1/balance</span><b>GET</b></div>
+    <p style="margin:0">رصيد حسابك ونسبة العمولة.</p>
+  </section>
+
+  <section class="card">
+    <h2>إشعار الدفع (Webhook)</h2>
+    <p>أضف رابط خادمك (<code>https</code> فقط) في شاشة بوابة الدفع في التطبيق. عند دفع أي فاتورة نرسل إليه طلب <code>POST</code>:</p>
+<pre><code>{
+  "event": "invoice.paid",
+  "invoice": { "id": "inv_…", "status": "paid", "order_id": "ORDER-1001",
+               "amount": "10", "pay_amount": "10.004321", "network": "bsc",
+               "tx": "0x…", "paid_at": "2026-11-12T14:07:31Z" }
+}</code></pre>
+    <h3>تحقّق من التوقيع دائماً</h3>
+    <p>أي شخص يعرف رابطك يستطيع أن يرسل له طلباً مزيّفاً. كل إشعار منا يحمل الترويسة <code>X-Sarra-Signature: t=&lt;وقت&gt;,v1=&lt;توقيع&gt;</code>، والتوقيع هو <code>HMAC-SHA256(سر_الإشعار, t + "." + نص_الطلب_الخام)</code>. سر الإشعار (<code>whsec_…</code>) تجده في نفس الشاشة.</p>
+<pre><code>// Node.js (Express): استخدم النص الخام للطلب، لا الكائن بعد تحليله
+const crypto = require('crypto');
+app.post('/sarra-hook', express.raw({ type: 'application/json' }), (req, res) => {
+  const m = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(req.get('X-Sarra-Signature') || '');
+  if (!m || Math.abs(Date.now() / 1000 - Number(m[1])) > 300) return res.sendStatus(400);
+  const expected = crypto.createHmac('sha256', process.env.SARRA_WEBHOOK_SECRET)
+    .update(m[1] + '.' + req.body).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(m[2]))) return res.sendStatus(400);
+  const { event, invoice } = JSON.parse(req.body);
+  if (event === 'invoice.paid') markOrderPaid(invoice.order_id, invoice.id); // اجعلها آمنة للتكرار
+  res.sendStatus(200);
+});</code></pre>
+<pre><code>&lt;?php // PHP
+$raw = file_get_contents('php://input');
+preg_match('/^t=(\d+),v1=([0-9a-f]{64})$/', $_SERVER['HTTP_X_SARRA_SIGNATURE'] ?? '', $m) or exit(http_response_code(400));
+if (abs(time() - (int)$m[1]) > 300) exit(http_response_code(400));
+$expected = hash_hmac('sha256', $m[1] . '.' . $raw, getenv('SARRA_WEBHOOK_SECRET'));
+if (!hash_equals($expected, $m[2])) exit(http_response_code(400));
+$data = json_decode($raw, true);
+if ($data['event'] === 'invoice.paid') mark_order_paid($data['invoice']['order_id'], $data['invoice']['id']);
+http_response_code(200);</code></pre>
+    <ul>
+      <li>ردّ بكود <code>2xx</code> خلال 8 ثوانٍ. إن لم يصل الرد نعيد المحاولة 6 مرات على مدى نحو 16 ساعة.</li>
+      <li>قد يصلك الإشعار نفسه أكثر من مرة، فلا تسلّم الطلب مرتين: تحقق من <code>invoice.id</code>.</li>
+      <li>بدون رابط إشعار، استعلم عن الفاتورة بـ <code>GET /v1/invoices/{id}</code> كل بضع ثوانٍ.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>الأخطاء</h2>
+    <p>الخطأ يرجع بالشكل <code>{"error":"CODE"}</code>:</p>
+    <table>
+      <tr><th>الرمز</th><th>HTTP</th><th>المعنى</th></tr>
+      <tr><td><code>UNAUTHORIZED</code></td><td>401</td><td>المفتاح ناقص أو خاطئ أو استُبدل بمفتاح جديد.</td></tr>
+      <tr><td><code>INSUFFICIENT_CREDIT</code></td><td>402</td><td>الرصيد لا يكفي لعمولة هذه الفاتورة. اشحن الرصيد من التطبيق.</td></tr>
+      <tr><td><code>BAD_AMOUNT</code></td><td>400</td><td>صيغة المبلغ غير صحيحة. ومعها <code>AMOUNT_TOO_SMALL</code> و<code>AMOUNT_TOO_LARGE</code>.</td></tr>
+      <tr><td><code>BAD_NETWORK</code></td><td>400</td><td>شبكة غير مدعومة.</td></tr>
+      <tr><td><code>NETWORK_NOT_CONFIGURED</code></td><td>400</td><td>لا يوجد عنوان استلام لهذه الشبكة في حسابك.</td></tr>
+      <tr><td><code>BAD_ORDER_ID</code></td><td>400</td><td><code>order_id</code> فيه رموز غير مسموحة أو أطول من 64.</td></tr>
+      <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة. انتظر انتهاء بعضها.</td></tr>
+      <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحد 300 فاتورة في الساعة.</td></tr>
+      <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>ملاحظات مهمة</h2>
+    <ul>
+      <li><b>التأكيد يأخذ من دقيقة إلى ثلاث دقائق</b> بعد وصول التحويل، لأننا ننتظر تثبيته على الشبكة.</li>
+      <li><b>المبلغ المختلف لا يُحتسب تلقائياً.</b> لو أرسل العميل مبلغاً ناقصاً أو زائداً فقد وصل إلى محفظتك فعلاً، لكن الفاتورة تبقى غير مدفوعة، وتسوّيه أنت مع عميلك.</li>
+      <li><b>الدفع بعد انتهاء المهلة</b> يُقبل خلال 20 دقيقة إضافية، ثم تُغلق الفاتورة نهائياً.</li>
+      <li><b>الاسترجاع:</b> المبلغ في محفظتك، فأنت من يعيده للعميل إن لزم.</li>
+      <li><b>أمان المفتاح:</b> إن تسرّب، أنشئ مفتاحاً جديداً من التطبيق، فيتوقف القديم فوراً.</li>
+      <li>تتحمل أنت الالتزام بقوانين بلدك في بيع السلع والخدمات وقبول العملات الرقمية.</li>
+    </ul>
+  </section>
+</main>
+<footer><div class="wrap"><a href="./">صُرّة</a> · <a href="privacy.html">الخصوصية</a> · <a href="terms.html">الشروط</a></div></footer>
+</body></html>

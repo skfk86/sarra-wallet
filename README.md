@@ -34,6 +34,17 @@ src/
 - `npm run build` يولّد `src/app.js` ويتحقق من صياغته، ويُشغَّل تلقائياً مع `npm run vendor` وفي اختبارات الواجهة.
 - `npm test` اختبارات النواة والمنطق، و`bash test/ui/run.sh` اختبارات الواجهة (Playwright).
 
+## بوابة الدفع للتجار (API مدفوع)
+
+بوابة غير احتجازية: التاجر يستلم USDT مباشرة على محفظته، والخادم يطابق التحويل بالفاتورة عبر «مبلغ فريد» ويبلّغ التاجر بإشعار موقّع. الربح من رصيد مدفوع مسبقاً يُخصم منه 0.5% عن كل فاتورة مدفوعة.
+
+- `supabase/functions/pay/index.ts`: الـ API (فواتير، رصيد)، إدارة التاجر بطلبات موقّعة من التطبيق، والماسح (`/cron` كل دقيقة).
+- `supabase/functions/_shared/pay.ts`: المنطق الصافي (مبالغ، مطابقة، توقيع الإشعار)، واختباراته في `test/pay-logic.test.ts`.
+- `supabase/migrations/020_pay.sql`: الجداول، التسديد الذرّي `pay_settle`، والجدولة.
+- `src/app/16-merchant.js`: شاشة التاجر في التطبيق. `docs/pay.html`: صفحة الدفع للعميل. `docs/api.html`: توثيق المطوّرين.
+- النشر: Actions ← Deploy edge function ← `pay-setup`. يحتاج المتغيرين `SARRA_FEE_ADDRESS` (TRON) و`SARRA_EVM_FEE_ADDRESS` (0x) كعنواني شحن الرصيد.
+- إعدادات اختيارية في أسرار الدوال: `PAY_FEE_BPS` (50)، `PAY_FEE_MIN_USDT` (0.02)، `PAY_PAGE_URL`.
+
 ## الإعدادات (src/config.js، يُكتب وقت البناء)
 
 - الشبكة الافتراضية: **mainnet** (شبكة TRON الحقيقية). لبناء نسخة اختبار على Nile: Actions ← Build Android APK ← Run workflow ← network: nile.
