@@ -21,7 +21,7 @@ body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-se
 .amt small{font-size:16px;font-weight:700;color:var(--mu)}
 .net{display:block;text-align:center;font-weight:800;color:var(--ac);margin-bottom:10px}
 #qr{display:flex;justify-content:center;margin:12px 0}
-#qr svg,#qr img{width:190px;height:190px;background:#fff;padding:8px;border-radius:12px}
+#qr svg{width:200px;height:200px;border-radius:12px}
 .box{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:12px;padding:10px 12px;margin-top:6px}
 .box code{flex:1;font-family:ui-monospace,monospace;font-size:13px;direction:ltr;text-align:left;word-break:break-all}
 button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(--ac);color:#fff;font-weight:700;cursor:pointer;flex:none}
@@ -48,7 +48,7 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
       <div class="lbl" style="text-align:center">أرسل هذا المبلغ بالضبط</div>
       <div class="amt"><span id="amt"></span> <small>USDT</small></div>
       <span class="net" id="net"></span>
-      <div class="box"><code id="amt2"></code><button type="button" data-copy="amt2">نسخ المبلغ</button></div>
+      <div style="text-align:center"><button type="button" data-copy="amt">نسخ المبلغ</button></div>
       <div id="qr"></div>
       <div class="lbl">إلى هذا العنوان</div>
       <div class="box"><code id="addr"></code><button type="button" data-copy="addr">نسخ</button></div>
@@ -66,7 +66,7 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
 
   <div class="foot">بوابة دفع غير احتجازية: المبلغ يذهب مباشرة إلى محفظة المتجر. <a href="./">ما هي صُرّة؟</a></div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="qr.js"></script>
 <script>
 (function () {
   var API = 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/public/';
@@ -84,9 +84,9 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
     $('merchant').textContent = inv.merchant || 'الدفع عبر صُرّة'; $('desc').textContent = inv.description || '';
     if (inv.status === 'paid') { $('paid-amt').textContent = inv.pay_amount; $('paid-tx').textContent = inv.tx || ''; return view('paid'); }
     if (inv.status === 'expired') return view('exp');
-    $('amt').textContent = $('amt2').textContent = inv.pay_amount; $('addr').textContent = inv.address;
+    $('amt').textContent = inv.pay_amount; $('addr').textContent = inv.address;
     $('net').textContent = $('net2').textContent = inv.network_name;
-    if (!drawn && window.qrcode) { try { var q = qrcode(0, 'M'); q.addData(inv.address); q.make(); $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); drawn = true; } catch (e) {} }
+    if (!drawn && window.sarraQR) { try { $('qr').innerHTML = sarraQR.svg(inv.address, 2); drawn = true; } catch (e) {} }
     view('pay'); tick();
   }
   async function load(first) {
