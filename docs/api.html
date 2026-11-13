@@ -3,73 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>بوابة دفع صُرّة — توثيق API للتجار والمطوّرين</title>
-<meta name="description" content="اقبل مدفوعات USDT في متجرك أو تطبيقك عبر API صُرّة. المبلغ يصل مباشرة إلى محفظتك، وتصلك إشارة تأكيد تلقائية.">
+<title>بوابة دفع صُرّة — توثيق API للمطوّرين</title>
+<meta name="description" content="اقبل مدفوعات USDT في متجرك أو تطبيقك عبر API صُرّة. أمثلة جاهزة بـ cURL وNode.js وPHP وPython.">
 <link rel="icon" href="icon-192.png">
-<meta property="og:title" content="بوابة دفع صُرّة — API للتجار">
+<meta property="og:title" content="بوابة دفع صُرّة — API للمطوّرين">
 <meta property="og:description" content="اقبل USDT في متجرك. المبلغ يصل مباشرة إلى محفظتك.">
 <meta property="og:image" content="https://skfk86.github.io/sarra-wallet/og.png">
 <style>
-:root{--ac:#0B8A63;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--code:#0d1a16;--codetx:#d7f5e9}
-@media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--code:#060a0d}}
+:root{--ac:#0B8A63;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--soft:#eaf5f1}
+@media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--soft:#10231d}}
 *{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:60px}
 body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--tx);line-height:1.85}
 .wrap{max-width:820px;margin:0 auto;padding:0 16px}
-header{background:radial-gradient(120% 140% at 80% 0%,#16a37a 0%,#0b6b50 50%,#062e24 100%);color:#fff;padding:30px 0 50px}
+header{background:radial-gradient(120% 140% at 80% 0%,#16a37a 0%,#0b6b50 50%,#062e24 100%);color:#fff;padding:28px 0 26px}
 header a{color:#fff;font-weight:700;text-decoration:none;font-size:14px}
 h1{font-size:28px;margin:12px 0 6px;line-height:1.4}
 header p{margin:0;opacity:.92}
-main{margin-top:-26px}
-.card{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:20px;margin-bottom:16px;overflow:hidden}
-h2{font-size:20px;margin:0 0 10px}
-h3{font-size:16px;margin:18px 0 6px}
+nav{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--ln)}
+nav .wrap{display:flex;gap:6px;overflow-x:auto;padding-top:9px;padding-bottom:9px;scrollbar-width:none}
+nav a{flex:none;color:var(--tx);text-decoration:none;font-size:14px;font-weight:600;padding:4px 12px;border-radius:99px;background:var(--card);border:1px solid var(--ln)}
+main{padding-top:16px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:20px;margin-bottom:16px}
+h2{font-size:21px;margin:0 0 10px}
+h3{font-size:16.5px;margin:20px 0 6px}
+p{margin:8px 0}
 a{color:var(--ac)}
-ol,ul{margin:0;padding-inline-start:22px}
-pre{background:var(--code);color:var(--codetx);border-radius:12px;padding:14px;overflow-x:auto;direction:ltr;text-align:left;font-size:13px;line-height:1.6;margin:8px 0}
+ul{margin:0;padding-inline-start:22px}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:embed}
-p code,li code,td code{background:var(--bg);padding:1px 6px;border-radius:6px;font-size:13px}
-table{width:100%;border-collapse:collapse;font-size:14.5px;display:block;overflow-x:auto}
+p code,li code,td code,.step code{background:var(--bg);padding:1px 6px;border-radius:6px;font-size:13px}
+/* الخطوات */
+.step{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;margin-top:18px}
+.step>i{font-style:normal;width:34px;height:34px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;display:grid;place-items:center}
+.step h3{margin:3px 0 4px}
+/* الكود */
+.cb{background:#0d1a16;border-radius:12px;margin:10px 0;overflow:hidden;direction:ltr;border:1px solid #1d2f29}
+.cbh{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#12241e;padding:0 6px 0 10px;min-height:38px}
+.cbh>span{color:#8fb3a6;font-size:12.5px;font-weight:700}
+.tb{display:flex;overflow-x:auto;scrollbar-width:none}
+.tb button{background:none;border:0;border-bottom:2px solid transparent;color:#8fb3a6;font:inherit;font-size:13px;font-weight:700;padding:9px 11px 7px;cursor:pointer;white-space:nowrap}
+.tb button[aria-selected=true]{color:#fff;border-bottom-color:#22c497}
+.cp{flex:none;background:#1c352d;color:#d7f5e9;border:0;border-radius:7px;font:inherit;font-size:12.5px;padding:3px 10px;cursor:pointer;font-family:system-ui,'Noto Sans Arabic',sans-serif}
+pre{margin:0;padding:14px;overflow-x:auto;text-align:left;font-size:13px;line-height:1.65;color:#d7f5e9;tab-size:2}
+.cb pre code{background:none!important;padding:0!important;font-size:13px;border-radius:0}
+.tp[hidden]{display:none}
+.c{color:#7f9c90;font-style:italic}.s{color:#f3cf7a}.k{color:#7cc7ff}.n{color:#ffa873}.p{color:#7ee0c0}.f{color:#c9a6ff}
+/* الجداول والمسارات */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
 th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:start;vertical-align:top}
 th{color:var(--mu);font-weight:600;white-space:nowrap}
-.ep{display:flex;gap:8px;align-items:center;direction:ltr;justify-content:flex-end;font-family:ui-monospace,monospace;font-size:14px;font-weight:700;margin:16px 0 4px}
-.ep b{background:var(--ac);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px}
-.note{background:color-mix(in srgb,#e7b54a 14%,var(--card));border:1px solid #e7b54a;border-radius:12px;padding:10px 14px;margin:10px 0}
+.ep{display:flex;gap:8px;align-items:center;direction:ltr;justify-content:flex-end;font-family:ui-monospace,monospace;font-size:14px;font-weight:700;margin:24px 0 4px;padding-top:16px;border-top:1px solid var(--ln);overflow-wrap:anywhere}
+.ep b{background:var(--ac);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;flex:none}
+.ep b.g{background:#2f6fd0}
+.req{color:#c0392b;font-size:12px;font-weight:700}
+.note{background:var(--soft);border-inline-start:4px solid var(--ac);border-radius:10px;padding:10px 14px;margin:12px 0}
+.warn{background:color-mix(in srgb,#e7b54a 14%,var(--card));border-inline-start:4px solid #e7b54a;border-radius:10px;padding:10px 14px;margin:12px 0}
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px;text-align:center;font-size:14px}
+.flow div{background:var(--soft);border-radius:12px;padding:12px 8px}
+.flow b{display:block;font-size:22px}
+@media(max-width:520px){.flow{grid-template-columns:1fr}h1{font-size:24px}.card{padding:16px}}
 footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
 </style>
 </head>
 <body>
 <header><div class="wrap">
   <a href="./">→ صُرّة</a>
-  <h1>بوابة دفع صُرّة للتجار</h1>
-  <p>اقبل مدفوعات USDT في متجرك أو تطبيقك. المبلغ يصل مباشرة إلى محفظتك، ونحن نؤكد لك الدفع تلقائياً.</p>
+  <h1>اقبل USDT في متجرك</h1>
+  <p>طلب واحد ينشئ فاتورة. العميل يدفع إلى محفظتك مباشرة، وخادمك يعرف فوراً أن الدفع تم.</p>
 </div></header>
+<nav><div class="wrap">
+  <a href="#start">ابدأ</a><a href="#example">مثال كامل</a><a href="#webhook">إشعار الدفع</a><a href="#ref">المرجع</a><a href="#errors">الأخطاء</a><a href="#fees">الرسوم</a>
+</div></nav>
 
 <main class="wrap">
-  <section class="card">
-    <h2>كيف تعمل؟</h2>
-    <ol>
-      <li>نظامك يطلب من الـ API <b>فاتورة</b> بمبلغ معيّن، فيرجع له رابط صفحة دفع.</li>
-      <li>العميل يفتح الرابط ويرسل USDT <b>مباشرة إلى محفظتك</b> من أي محفظة أو منصة.</li>
-      <li>نراقب الشبكة، وعند وصول التحويل نرسل إلى خادمك إشعاراً موقّعاً بأن الفاتورة دُفعت.</li>
-    </ol>
-    <div class="note"><b>غير احتجازية:</b> أموال عملائك لا تمر بنا أبداً، فلا نستطيع حجزها أو تأخيرها. دورنا التأكيد والإشعار فقط.</div>
-    <h3>كيف نعرف أن التحويل يخص فاتورتك؟</h3>
-    <p style="margin:0">نضيف إلى المبلغ كسراً صغيراً فريداً أقل من سنت واحد. فاتورة بـ <code>10</code> USDT يدفعها العميل <code>10.004321</code> مثلاً. لذلك يجب أن يرسل العميل المبلغ المعروض <b>بالضبط</b>.</p>
-  </section>
+  <section class="card" id="start">
+    <h2>ابدأ في 3 خطوات</h2>
+    <div class="flow">
+      <div><b>1</b>خادمك ينشئ فاتورة</div>
+      <div><b>2</b>العميل يدفع في صفحة الدفع</div>
+      <div><b>3</b>يصلك تأكيد الدفع</div>
+    </div>
 
-  <section class="card">
-    <h2>البدء في 3 خطوات</h2>
-    <ol>
-      <li>ثبّت <a href="./">تطبيق صُرّة</a>، وافتح <b>القائمة ← بوابة الدفع للتجار</b>، واكتب اسم متجرك. عنوان الاستلام هو محفظتك في صُرّة.</li>
-      <li>اضغط <b>إنشاء مفتاح API</b> وانسخه. يظهر مرة واحدة فقط، فاحفظه في خادمك ولا تضعه في كود الواجهة أو التطبيق.</li>
-      <li>أنشئ أول فاتورة بالطلب التالي.</li>
-    </ol>
-<pre><code>curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices \
+    <div class="step"><i>1</i><div>
+      <h3>احصل على مفتاح API</h3>
+      <p>ثبّت <a href="./">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
+      <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك.</p>
+    </div></div>
+
+    <div class="step"><i>2</i><div>
+      <h3>أنشئ فاتورة</h3>
+      <p>اختر لغتك:</p>
+      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices \
   -H "Authorization: Bearer sk_live_XXXXXXXX" \
   -H "Content-Type: application/json" \
-  -d '{"amount":"10","network":"bsc","order_id":"ORDER-1001","description":"طلب رقم 1001"}'</code></pre>
-    <p>الرد:</p>
-<pre><code>{
+  -d '{"amount":"10","network":"bsc","order_id":"ORDER-1001","description":"طلب رقم 1001"}'</code></pre></div><div class="tp" data-l="js"><pre><code data-lang="js">// Node.js 18+ (بدون مكتبات)
+const res = await fetch('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer ' + process.env.SARRA_KEY,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    amount: '10',            // المبلغ بالـ USDT (نص)
+    network: 'bsc',          // bsc | tron | polygon | eth
+    order_id: 'ORDER-1001',  // رقم الطلب عندك
+    description: 'طلب رقم 1001'
+  })
+});
+const data = await res.json();
+if (!res.ok) throw new Error(data.error);
+
+console.log(data.invoice.pay_url); // وجّه العميل إلى هذا الرابط</code></pre></div><div class="tp" data-l="php"><pre><code data-lang="php">&lt;?php
+$ch = curl_init('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices');
+curl_setopt_array($ch, [
+  CURLOPT_POST =&gt; true,
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; [
+    'Authorization: Bearer ' . getenv('SARRA_KEY'),
+    'Content-Type: application/json',
+  ],
+  CURLOPT_POSTFIELDS =&gt; json_encode([
+    'amount' =&gt; '10',            // المبلغ بالـ USDT (نص)
+    'network' =&gt; 'bsc',          // bsc | tron | polygon | eth
+    'order_id' =&gt; 'ORDER-1001',  // رقم الطلب عندك
+    'description' =&gt; 'طلب رقم 1001',
+  ]),
+]);
+$data = json_decode(curl_exec($ch), true);
+if (isset($data['error'])) exit('خطأ: ' . $data['error']);
+
+header('Location: ' . $data['invoice']['pay_url']); // وجّه العميل إلى صفحة الدفع</code></pre></div><div class="tp" data-l="py"><pre><code data-lang="py">import os, requests
+
+res = requests.post(
+    'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices',
+    headers={'Authorization': 'Bearer ' + os.environ['SARRA_KEY']},
+    json={
+        'amount': '10',            # المبلغ بالـ USDT (نص)
+        'network': 'bsc',          # bsc | tron | polygon | eth
+        'order_id': 'ORDER-1001',  # رقم الطلب عندك
+        'description': 'طلب رقم 1001',
+    },
+)
+data = res.json()
+if not res.ok:
+    raise Exception(data['error'])
+
+print(data['invoice']['pay_url'])  # وجّه العميل إلى هذا الرابط</code></pre></div></div>
+      <p>الرد:</p>
+      <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{
   "invoice": {
     "id": "inv_3f9a1c0b7e2d4a8815c6",
     "status": "pending",
@@ -83,84 +165,193 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
     "expires_at": "2026-11-12T14:30:00.000Z",
     "pay_url": "https://skfk86.github.io/sarra-wallet/pay.html?i=inv_3f9a1c0b7e2d4a8815c6"
   }
-}</code></pre>
-    <p style="margin:0">وجّه العميل إلى <code>pay_url</code>، أو اعرض له <code>pay_amount</code> و<code>address</code> والشبكة في واجهتك.</p>
+}</code></pre></div>
+      <p>الحقل المهم هو <code>pay_url</code>: افتحه للعميل. هذه صفحة دفع جاهزة فيها المبلغ والعنوان ورمز QR.</p>
+    </div></div>
+
+    <div class="step"><i>3</i><div>
+      <h3>اعرف أن الدفع تم</h3>
+      <p>أبسط طريقة: اسأل عن الفاتورة كل بضع ثوانٍ حتى تصبح <code>paid</code>.</p>
+      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
+  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div><div class="tp" data-l="js"><pre><code data-lang="js">const res = await fetch('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' + invoiceId, {
+  headers: { Authorization: 'Bearer ' + process.env.SARRA_KEY }
+});
+const { invoice } = await res.json();
+
+if (invoice.status === 'paid') {
+  // سلّم الطلب
+}</code></pre></div><div class="tp" data-l="php"><pre><code data-lang="php">&lt;?php
+$ch = curl_init('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' . $invoiceId);
+curl_setopt_array($ch, [
+  CURLOPT_RETURNTRANSFER =&gt; true,
+  CURLOPT_HTTPHEADER =&gt; ['Authorization: Bearer ' . getenv('SARRA_KEY')],
+]);
+$invoice = json_decode(curl_exec($ch), true)['invoice'];
+
+if ($invoice['status'] === 'paid') {
+  // سلّم الطلب
+}</code></pre></div><div class="tp" data-l="py"><pre><code data-lang="py">res = requests.get(
+    'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' + invoice_id,
+    headers={'Authorization': 'Bearer ' + os.environ['SARRA_KEY']},
+)
+invoice = res.json()['invoice']
+
+if invoice['status'] == 'paid':
+    pass  # سلّم الطلب</code></pre></div></div>
+      <p>الحالات ثلاث: <code>pending</code> بانتظار الدفع، <code>paid</code> مدفوعة، <code>expired</code> منتهية.</p>
+      <p>الطريقة الأفضل للمتاجر الحقيقية هي <a href="#webhook">إشعار الدفع</a>: نحن نبلّغ خادمك لحظة الدفع.</p>
+    </div></div>
+
+    <div class="warn"><b>لا تضع المفتاح في المتصفح أو تطبيق الموبايل.</b> كل الطلبات أعلاه تُرسل من خادمك فقط. من يحصل على المفتاح يستطيع إنشاء فواتير باسمك.</div>
   </section>
 
-  <section class="card">
-    <h2>الرسوم</h2>
-    <p style="margin:0">حسابك فيه <b>رصيد مدفوع مسبقاً</b> بـ USDT. عن كل فاتورة <b>مدفوعة</b> نخصم <b>0.5%</b> من مبلغها، بحد أدنى <b>0.02 USDT</b>. الفواتير غير المدفوعة مجانية. يبدأ كل حساب برصيد تجريبي 1 USDT، وتشحن الرصيد من نفس الشاشة في التطبيق. إذا لم يكفِ الرصيد لعمولة فاتورة جديدة، يرجع الخطأ <code>INSUFFICIENT_CREDIT</code>.</p>
+  <section class="card" id="example">
+    <h2>مثال كامل: متجر في ملف واحد</h2>
+    <p>متجر تجريبي بـ Node.js بلا أي مكتبات: يعرض منتجات، ينشئ فاتورة عند الشراء، ويحدّث صفحة الطلب عند الدفع. انسخه وعدّل عليه.</p>
+    <div class="cb"><div class="cbh"><span>Terminal</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">git clone https://github.com/skfk86/sarra-wallet
+cd sarra-wallet/examples/demo-store
+SARRA_KEY=sk_live_XXXXXXXX node server.js
+# افتح http://localhost:3000</code></pre></div>
+    <p><a href="https://github.com/skfk86/sarra-wallet/tree/main/examples/demo-store"><b>شاهد الكود على GitHub ←</b></a></p>
   </section>
 
-  <section class="card">
+  <section class="card" id="webhook">
+    <h2>إشعار الدفع (Webhook)</h2>
+    <p>أضف رابط خادمك (<code>https</code> فقط) في شاشة بوابة الدفع في التطبيق. عند دفع أي فاتورة نرسل إليه طلب <code>POST</code> بهذا الشكل:</p>
+    <div class="cb"><div class="cbh"><span>POST → خادمك</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{
+  "event": "invoice.paid",
+  "invoice": {
+    "id": "inv_3f9a1c0b7e2d4a8815c6",
+    "status": "paid",
+    "order_id": "ORDER-1001",
+    "amount": "10",
+    "pay_amount": "10.004321",
+    "network": "bsc",
+    "tx": "0x…",
+    "paid_at": "2026-11-12T14:07:31Z"
+  }
+}</code></pre></div>
+    <h3>تحقّق من التوقيع</h3>
+    <p>أي شخص يعرف رابطك يستطيع إرسال إشعار مزيّف، لذلك كل إشعار منا موقّع بسر الإشعار (<code>whsec_…</code>) الذي تجده في نفس الشاشة. انسخ الدالة الجاهزة:</p>
+    <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="js"><pre><code data-lang="js">const crypto = require('crypto');
+
+// ترجع true إذا كان الإشعار من صُرّة فعلاً
+function isFromSarra(signatureHeader, rawBody, secret) {
+  const m = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(signatureHeader || '');
+  if (!m) return false;
+  if (Math.abs(Date.now() / 1000 - Number(m[1])) &gt; 300) return false; // أقدم من 5 دقائق
+  const expected = crypto.createHmac('sha256', secret)
+    .update(m[1] + '.' + rawBody).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(m[2]));
+}
+
+// مثال مع Express: خذ النص الخام للطلب، لا الكائن بعد تحليله
+app.post('/sarra-hook', express.raw({ type: 'application/json' }), (req, res) =&gt; {
+  const raw = req.body.toString();
+  const ok = isFromSarra(req.get('X-Sarra-Signature'), raw, process.env.SARRA_WEBHOOK_SECRET);
+  if (!ok) return res.sendStatus(400);
+
+  const { event, invoice } = JSON.parse(raw);
+  if (event === 'invoice.paid') markOrderPaid(invoice.order_id, invoice.id);
+  res.sendStatus(200);
+});</code></pre></div><div class="tp" data-l="php"><pre><code data-lang="php">&lt;?php
+// ترجع true إذا كان الإشعار من صُرّة فعلاً
+function is_from_sarra(string $signatureHeader, string $rawBody, string $secret): bool {
+  if (!preg_match('/^t=(\d+),v1=([0-9a-f]{64})$/', $signatureHeader, $m)) return false;
+  if (abs(time() - (int)$m[1]) &gt; 300) return false; // أقدم من 5 دقائق
+  $expected = hash_hmac('sha256', $m[1] . '.' . $rawBody, $secret);
+  return hash_equals($expected, $m[2]);
+}
+
+$raw = file_get_contents('php://input');
+$sig = $_SERVER['HTTP_X_SARRA_SIGNATURE'] ?? '';
+if (!is_from_sarra($sig, $raw, getenv('SARRA_WEBHOOK_SECRET'))) {
+  http_response_code(400);
+  exit;
+}
+
+$data = json_decode($raw, true);
+if ($data['event'] === 'invoice.paid') {
+  mark_order_paid($data['invoice']['order_id'], $data['invoice']['id']);
+}
+http_response_code(200);</code></pre></div><div class="tp" data-l="py"><pre><code data-lang="py">import hmac, hashlib, os, re, time
+from flask import Flask, request
+
+app = Flask(__name__)
+
+# ترجع True إذا كان الإشعار من صُرّة فعلاً
+def is_from_sarra(signature_header, raw_body, secret):
+    m = re.fullmatch(r't=(\d+),v1=([0-9a-f]{64})', signature_header or '')
+    if not m:
+        return False
+    if abs(time.time() - int(m[1])) &gt; 300:  # أقدم من 5 دقائق
+        return False
+    msg = m[1].encode() + b'.' + raw_body
+    expected = hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, m[2])
+
+@app.post('/sarra-hook')
+def sarra_hook():
+    raw = request.get_data()
+    sig = request.headers.get('X-Sarra-Signature')
+    if not is_from_sarra(sig, raw, os.environ['SARRA_WEBHOOK_SECRET']):
+        return '', 400
+
+    data = request.get_json()
+    if data['event'] == 'invoice.paid':
+        mark_order_paid(data['invoice']['order_id'], data['invoice']['id'])
+    return '', 200</code></pre></div></div>
+    <div class="note">
+      <b>ثلاث قواعد:</b>
+      <ul>
+        <li>ردّ بكود <code>200</code> خلال 8 ثوانٍ. إن لم يصل ردّك نعيد المحاولة 6 مرات على مدى نحو 16 ساعة.</li>
+        <li>قد يصلك الإشعار نفسه أكثر من مرة. لا تسلّم الطلب مرتين: تحقق من <code>invoice.id</code>.</li>
+        <li>استخدم نص الطلب الخام في التحقق، لا الكائن بعد تحليله.</li>
+      </ul>
+    </div>
+    <p>للمهتمين بالتفاصيل: الترويسة <code>X-Sarra-Signature: t=&lt;وقت&gt;,v1=&lt;توقيع&gt;</code>، والتوقيع هو <code>HMAC-SHA256(السر, t + "." + نص_الطلب)</code>.</p>
+  </section>
+
+  <section class="card" id="ref">
     <h2>مرجع الـ API</h2>
-    <p>العنوان الأساسي: <code>https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay</code><br>كل الطلبات تحمل الترويسة <code>Authorization: Bearer &lt;مفتاحك&gt;</code>.</p>
+    <p>العنوان الأساسي:</p>
+    <div class="cb"><pre><code>https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay</code></pre></div>
+    <p>كل طلب يحمل الترويسة <code>Authorization: Bearer sk_live_…</code> والردود كلها JSON.</p>
 
     <div class="ep"><span>/v1/invoices</span><b>POST</b></div>
     <p>إنشاء فاتورة.</p>
-    <table>
+    <div class="tw"><table>
       <tr><th>الحقل</th><th>الوصف</th></tr>
-      <tr><td><code>amount</code></td><td>إلزامي. نص مثل <code>"25"</code> أو <code>"25.50"</code>. من 1 إلى 100000، وبخانتين عشريتين كحد أقصى.</td></tr>
-      <tr><td><code>network</code></td><td>إلزامي: <code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات.</td></tr>
-      <tr><td><code>order_id</code></td><td>اختياري، وننصح به: رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم ترجع الفاتورة نفسها ولا تنشئ ثانية.</td></tr>
-      <tr><td><code>description</code></td><td>اختياري: نص يظهر للعميل في صفحة الدفع (حتى 140 حرفاً).</td></tr>
-      <tr><td><code>expires_min</code></td><td>اختياري: مهلة الدفع بالدقائق، من 10 إلى 120. الافتراضي 30.</td></tr>
-    </table>
+      <tr><td><code>amount</code> <span class="req">إلزامي</span></td><td>نص مثل <code>"25"</code> أو <code>"25.50"</code>. من 1 إلى 100000، بخانتين عشريتين كحد أقصى.</td></tr>
+      <tr><td><code>network</code> <span class="req">إلزامي</span></td><td><code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات.</td></tr>
+      <tr><td><code>order_id</code></td><td>رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم ترجع الفاتورة نفسها ولا تنشئ ثانية.</td></tr>
+      <tr><td><code>description</code></td><td>نص يظهر للعميل في صفحة الدفع (حتى 140 حرفاً).</td></tr>
+      <tr><td><code>expires_min</code></td><td>مهلة الدفع بالدقائق، من 10 إلى 120. الافتراضي 30.</td></tr>
+    </table></div>
 
-    <div class="ep"><span>/v1/invoices/{id}</span><b>GET</b></div>
-    <p>حالة فاتورة: <code>pending</code> بانتظار الدفع، <code>paid</code> مدفوعة، <code>expired</code> منتهية.</p>
+    <div class="ep"><span>/v1/invoices/{id}</span><b class="g">GET</b></div>
+    <p>فاتورة واحدة بحالتها الحالية. الرد بنفس شكل رد الإنشاء، ومعه <code>tx</code> و<code>paid_at</code> بعد الدفع.</p>
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
+  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
-    <div class="ep"><span>/v1/invoices?status=paid&amp;limit=20</span><b>GET</b></div>
-    <p>آخر الفواتير، الأحدث أولاً. <code>limit</code> حتى 100.</p>
+    <div class="ep"><span>/v1/invoices</span><b class="g">GET</b></div>
+    <p>آخر الفواتير، الأحدث أولاً. اختياري: <code>status</code> للتصفية و<code>limit</code> حتى 100.</p>
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl "https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices?status=paid&amp;limit=20" \
+  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
-    <div class="ep"><span>/v1/balance</span><b>GET</b></div>
-    <p style="margin:0">رصيد حسابك ونسبة العمولة.</p>
+    <div class="ep"><span>/v1/balance</span><b class="g">GET</b></div>
+    <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة.</p>
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/balance \
+  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
+    <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "credit": "0.98", "currency": "USDT", "fee_pct": 0.5, "fee_min": "0.02" }</code></pre></div>
   </section>
 
-  <section class="card">
-    <h2>إشعار الدفع (Webhook)</h2>
-    <p>أضف رابط خادمك (<code>https</code> فقط) في شاشة بوابة الدفع في التطبيق. عند دفع أي فاتورة نرسل إليه طلب <code>POST</code>:</p>
-<pre><code>{
-  "event": "invoice.paid",
-  "invoice": { "id": "inv_…", "status": "paid", "order_id": "ORDER-1001",
-               "amount": "10", "pay_amount": "10.004321", "network": "bsc",
-               "tx": "0x…", "paid_at": "2026-11-12T14:07:31Z" }
-}</code></pre>
-    <h3>تحقّق من التوقيع دائماً</h3>
-    <p>أي شخص يعرف رابطك يستطيع أن يرسل له طلباً مزيّفاً. كل إشعار منا يحمل الترويسة <code>X-Sarra-Signature: t=&lt;وقت&gt;,v1=&lt;توقيع&gt;</code>، والتوقيع هو <code>HMAC-SHA256(سر_الإشعار, t + "." + نص_الطلب_الخام)</code>. سر الإشعار (<code>whsec_…</code>) تجده في نفس الشاشة.</p>
-<pre><code>// Node.js (Express): استخدم النص الخام للطلب، لا الكائن بعد تحليله
-const crypto = require('crypto');
-app.post('/sarra-hook', express.raw({ type: 'application/json' }), (req, res) => {
-  const m = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(req.get('X-Sarra-Signature') || '');
-  if (!m || Math.abs(Date.now() / 1000 - Number(m[1])) > 300) return res.sendStatus(400);
-  const expected = crypto.createHmac('sha256', process.env.SARRA_WEBHOOK_SECRET)
-    .update(m[1] + '.' + req.body).digest('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(m[2]))) return res.sendStatus(400);
-  const { event, invoice } = JSON.parse(req.body);
-  if (event === 'invoice.paid') markOrderPaid(invoice.order_id, invoice.id); // اجعلها آمنة للتكرار
-  res.sendStatus(200);
-});</code></pre>
-<pre><code>&lt;?php // PHP
-$raw = file_get_contents('php://input');
-preg_match('/^t=(\d+),v1=([0-9a-f]{64})$/', $_SERVER['HTTP_X_SARRA_SIGNATURE'] ?? '', $m) or exit(http_response_code(400));
-if (abs(time() - (int)$m[1]) > 300) exit(http_response_code(400));
-$expected = hash_hmac('sha256', $m[1] . '.' . $raw, getenv('SARRA_WEBHOOK_SECRET'));
-if (!hash_equals($expected, $m[2])) exit(http_response_code(400));
-$data = json_decode($raw, true);
-if ($data['event'] === 'invoice.paid') mark_order_paid($data['invoice']['order_id'], $data['invoice']['id']);
-http_response_code(200);</code></pre>
-    <ul>
-      <li>ردّ بكود <code>2xx</code> خلال 8 ثوانٍ. إن لم يصل الرد نعيد المحاولة 6 مرات على مدى نحو 16 ساعة.</li>
-      <li>قد يصلك الإشعار نفسه أكثر من مرة، فلا تسلّم الطلب مرتين: تحقق من <code>invoice.id</code>.</li>
-      <li>بدون رابط إشعار، استعلم عن الفاتورة بـ <code>GET /v1/invoices/{id}</code> كل بضع ثوانٍ.</li>
-    </ul>
-  </section>
-
-  <section class="card">
+  <section class="card" id="errors">
     <h2>الأخطاء</h2>
-    <p>الخطأ يرجع بالشكل <code>{"error":"CODE"}</code>:</p>
-    <table>
-      <tr><th>الرمز</th><th>HTTP</th><th>المعنى</th></tr>
+    <p>عند الخطأ يرجع كود HTTP غير 200 مع رمز ثابت:</p>
+    <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "error": "INSUFFICIENT_CREDIT" }</code></pre></div>
+    <div class="tw"><table>
+      <tr><th>الرمز</th><th>HTTP</th><th>المعنى والحل</th></tr>
       <tr><td><code>UNAUTHORIZED</code></td><td>401</td><td>المفتاح ناقص أو خاطئ أو استُبدل بمفتاح جديد.</td></tr>
       <tr><td><code>INSUFFICIENT_CREDIT</code></td><td>402</td><td>الرصيد لا يكفي لعمولة هذه الفاتورة. اشحن الرصيد من التطبيق.</td></tr>
       <tr><td><code>BAD_AMOUNT</code></td><td>400</td><td>صيغة المبلغ غير صحيحة. ومعها <code>AMOUNT_TOO_SMALL</code> و<code>AMOUNT_TOO_LARGE</code>.</td></tr>
@@ -170,20 +361,93 @@ http_response_code(200);</code></pre>
       <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة. انتظر انتهاء بعضها.</td></tr>
       <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحد 300 فاتورة في الساعة.</td></tr>
       <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك.</td></tr>
-    </table>
+    </table></div>
+  </section>
+
+  <section class="card" id="fees">
+    <h2>الرسوم</h2>
+    <p>حسابك فيه <b>رصيد مدفوع مسبقاً</b> بـ USDT. عن كل فاتورة <b>مدفوعة</b> نخصم <b>0.5%</b> من مبلغها، بحد أدنى <b>0.02 USDT</b>. الفواتير غير المدفوعة مجانية.</p>
+    <p>يبدأ كل حساب برصيد تجريبي 1 USDT، وتشحن الرصيد من شاشة بوابة الدفع في التطبيق.</p>
   </section>
 
   <section class="card">
-    <h2>ملاحظات مهمة</h2>
-    <ul>
-      <li><b>التأكيد يأخذ من دقيقة إلى ثلاث دقائق</b> بعد وصول التحويل، لأننا ننتظر تثبيته على الشبكة.</li>
-      <li><b>المبلغ المختلف لا يُحتسب تلقائياً.</b> لو أرسل العميل مبلغاً ناقصاً أو زائداً فقد وصل إلى محفظتك فعلاً، لكن الفاتورة تبقى غير مدفوعة، وتسوّيه أنت مع عميلك.</li>
-      <li><b>الدفع بعد انتهاء المهلة</b> يُقبل خلال 20 دقيقة إضافية، ثم تُغلق الفاتورة نهائياً.</li>
-      <li><b>الاسترجاع:</b> المبلغ في محفظتك، فأنت من يعيده للعميل إن لزم.</li>
-      <li><b>أمان المفتاح:</b> إن تسرّب، أنشئ مفتاحاً جديداً من التطبيق، فيتوقف القديم فوراً.</li>
-      <li>تتحمل أنت الالتزام بقوانين بلدك في بيع السلع والخدمات وقبول العملات الرقمية.</li>
-    </ul>
+    <h2>أسئلة شائعة</h2>
+    <h3>لماذا <code>pay_amount</code> يختلف قليلاً عن <code>amount</code>؟</h3>
+    <p>نضيف كسراً صغيراً فريداً أقل من سنت واحد لنعرف أن التحويل يخص فاتورتك. فاتورة بـ <code>10</code> يدفعها العميل <code>10.004321</code> مثلاً، ويجب أن يرسل هذا الرقم <b>بالضبط</b>.</p>
+    <h3>هل تمر أموال عملائي بكم؟</h3>
+    <p>لا. التحويل يذهب من العميل إلى محفظتك مباشرة، فلا نستطيع حجزه أو تأخيره. دورنا التأكيد والإشعار فقط.</p>
+    <h3>كم يأخذ التأكيد؟</h3>
+    <p>من دقيقة إلى ثلاث دقائق بعد وصول التحويل، لأننا ننتظر تثبيته على الشبكة.</p>
+    <h3>ماذا لو أرسل العميل مبلغاً مختلفاً؟</h3>
+    <p>المبلغ وصل إلى محفظتك فعلاً، لكن الفاتورة تبقى غير مدفوعة، وتسوّيه أنت مع عميلك.</p>
+    <h3>ماذا لو دفع بعد انتهاء المهلة؟</h3>
+    <p>يُقبل الدفع خلال 20 دقيقة إضافية، ثم تُغلق الفاتورة نهائياً.</p>
+    <h3>كيف أسترجع مبلغاً لعميل؟</h3>
+    <p>المبلغ في محفظتك، فأنت من يعيده إليه.</p>
+    <h3>تسرّب مفتاحي، ماذا أفعل؟</h3>
+    <p>أنشئ مفتاحاً جديداً من التطبيق، فيتوقف القديم فوراً.</p>
+    <p style="color:var(--mu);font-size:14px;margin-top:16px">تتحمل أنت الالتزام بقوانين بلدك في بيع السلع والخدمات وقبول العملات الرقمية.</p>
   </section>
 </main>
 <footer><div class="wrap"><a href="./">صُرّة</a> · <a href="privacy.html">الخصوصية</a> · <a href="terms.html">الشروط</a></div></footer>
+<script>
+(function () {
+  // ملوّن كود صغير بلا مكتبات
+  var KW = {
+    js: 'const let var function return if else await async new throw require true false null undefined',
+    php: 'function return if else exit echo true false null string bool int isset',
+    py: 'import from def return if not else raise pass True False None',
+    bash: 'curl git cd node', json: 'true false null'
+  };
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function paint(src, lang) {
+    var cm = lang === 'js' ? '\\/\\/[^\\n]*' : lang === 'php' ? '\\/\\/[^\\n]*' : lang === 'json' ? null : '(?:^|(?<=\\s))#[^\\n]*';
+    var parts = [];
+    if (cm) parts.push('(' + cm + ')'); else parts.push('($^)');
+    parts.push('("(?:[^"\\\\\\n]|\\\\.)*"|\'(?:[^\'\\\\\\n]|\\\\.)*\'|`(?:[^`\\\\]|\\\\.)*`)');
+    parts.push('(\\$[A-Za-z_]\\w*)');
+    parts.push('\\b(\\d+(?:\\.\\d+)?)\\b');
+    parts.push('([A-Za-z_]\\w*)');
+    var re = new RegExp(parts.join('|'), 'gm'), kw = (' ' + (KW[lang] || '') + ' '), out = '', last = 0, m;
+    while ((m = re.exec(src))) {
+      out += esc(src.slice(last, m.index)); last = re.lastIndex;
+      var t = m[0], cls = '';
+      if (m[1] != null) cls = 'c';
+      else if (m[2] != null) cls = (lang === 'json' && /^\s*:/.test(src.slice(last))) ? 'p' : 's';
+      else if (m[3] != null) cls = lang === 'php' ? 'p' : '';
+      else if (m[4] != null) cls = 'n';
+      else if (kw.indexOf(' ' + t + ' ') >= 0) cls = 'k';
+      else if (lang !== 'bash' && lang !== 'json' && src.charAt(last) === '(') cls = 'f';
+      out += cls ? '<span class="' + cls + '">' + esc(t) + '</span>' : esc(t);
+      if (m[0] === '') re.lastIndex++;
+    }
+    return out + esc(src.slice(last));
+  }
+  document.querySelectorAll('code[data-lang]').forEach(function (c) {
+    try { c.innerHTML = paint(c.textContent, c.dataset.lang); } catch (e) {}
+  });
+  // التبويبات: اختيار اللغة يُطبَّق على كل الأمثلة ويُحفظ
+  var groups = [].slice.call(document.querySelectorAll('.tabs'));
+  function pick(lang) {
+    groups.forEach(function (g) {
+      var has = g.querySelector('.tp[data-l="' + lang + '"]'), use = has ? lang : g.querySelector('.tp').dataset.l;
+      if (!has && g.dataset.cur) return;
+      g.dataset.cur = use;
+      g.querySelectorAll('.tp').forEach(function (p) { p.hidden = p.dataset.l !== use; });
+      g.querySelectorAll('.tb button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.l === use); });
+    });
+  }
+  var saved = null; try { saved = localStorage.getItem('sarra-doc-lang'); } catch (e) {}
+  pick(saved || 'bash');
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('.tb button');
+    if (b) { pick(b.dataset.l); try { localStorage.setItem('sarra-doc-lang', b.dataset.l); } catch (x) {} return; }
+    var c = e.target.closest('.cp'); if (!c) return;
+    var box = c.closest('.cb'), pre = box.querySelector('.tp:not([hidden]) code') || box.querySelector('code'), t = pre.textContent;
+    var done = function () { c.textContent = 'تم النسخ'; setTimeout(function () { c.textContent = 'نسخ'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () {});
+    else { var a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); done(); } catch (x) {} a.remove(); }
+  });
+})();
+</script>
 </body></html>
