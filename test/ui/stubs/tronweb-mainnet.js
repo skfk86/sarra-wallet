@@ -16,7 +16,7 @@
       sendRawTransaction: async(tx)=>{ window.__log.push(['BROADCAST',tx.txID]); return {result:true,txid:tx.txID}; },
       signMessageV2: async(m)=>{ window.__signed=(window.__signed||0)+1; return '0x'+'5'.repeat(130); }
     };
-    this.address={fromHex:(h)=>h==='41aa'?ADDR:h==='41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18'?WTRX:OTHER};
+    this.address={toHex:(a)=>'41'+Array.from(String(a).slice(1,21)).map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(''),fromHex:(h)=>h==='41aa'?ADDR:h==='41891cdb91d149f23b1a45d9c5ca78a88d0cb44c18'?WTRX:OTHER};
   }
   TW.prototype.setAddress=function(){};
   TW.prototype.contract=function(abi,addr){

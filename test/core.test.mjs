@@ -246,4 +246,72 @@ await t('evmHistoryItems: اتجاه، فلترة سبام، تنسيق المب
   assert.equal(core.evmTxUrl('bsc', h(1)), 'https://bscscan.com/tx/' + h(1));
 });
 
+// ===== حماية النقل عبر LI.FI =====
+const DIA = '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE', ME = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', USDT_BSC = '0x55d398326f99059fF775485246999027B3197955', USDT_POL = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+const goodQ = () => ({ fromNet: 'bsc', toNet: 'polygon', units: 5n * 10n ** 18n, token: { addr: USDT_BSC }, toTok: { addr: USDT_POL }, toAddr: ME, approval: DIA,
+  action: { fromAmount: '5000000000000000000', fromChainId: 56, toChainId: 137, fromAddress: ME, toAddress: ME, fromToken: { address: USDT_BSC.toLowerCase() }, toToken: { address: USDT_POL } },
+  tx: { to: DIA, chainId: 56, value: '0x0', data: '0xdeadbeef' + '00'.repeat(12) + ME.slice(2).toLowerCase() + '00'.repeat(32) } });
+const ctx = { chainId: 56, toChainId: 137, toIsEvm: true, fromAddr: ME };
+const bad = (mut, why) => { const q = goodQ(); mut(q); assert.throws(() => W.checkBridgeQuote(q, ctx), (e) => e.message === 'ROUTE_MISMATCH' && (!why || e.raw === why), why); };
+await t('عرض نقل سليم يُقبل', () => { W.checkBridgeQuote(goodQ(), ctx); });
+await t('عرض ناقص الحقول يُرفض (لا تساهل عند غياب حقل)', () => {
+  bad((q) => { q.action = {}; }, 'amount');
+  bad((q) => { delete q.action.fromToken; }, 'fromToken');
+  bad((q) => { delete q.action.toToken; }, 'toToken');
+  bad((q) => { delete q.action.toAddress; }, 'toAddress');
+  bad((q) => { delete q.action.toChainId; }, 'toChain');
+  bad((q) => { delete q.action.fromChainId; }, 'fromChain');
+  bad((q) => { delete q.tx.data; }, 'data');
+});
+await t('عرض متلاعَب به يُرفض: مبلغ، عملة، وجهة، شبكة، عقد، موافقة، قيمة، مستلم', () => {
+  bad((q) => { q.action.fromAmount = '6000000000000000000'; }, 'amount');
+  bad((q) => { q.action.toToken.address = USDT_BSC; }, 'toToken');
+  bad((q) => { q.action.toAddress = '0x' + '9'.repeat(40); }, 'toAddress');
+  bad((q) => { q.action.fromAddress = '0x' + '9'.repeat(40); }, 'fromAddress');
+  bad((q) => { q.action.toChainId = 1; }, 'toChain');
+  bad((q) => { q.tx.to = '0x' + '9'.repeat(40); }, 'to');
+  bad((q) => { q.tx.chainId = 1; }, 'chainId');
+  bad((q) => { q.tx.from = '0x' + '9'.repeat(40); }, 'from');
+  bad((q) => { q.approval = '0x' + '9'.repeat(40); }, 'approval');
+  bad((q) => { q.tx.value = '0x' + (10n ** 17n).toString(16); }, 'value');
+  bad((q) => { q.tx.value = 'zz'; }, 'value');
+  bad((q) => { q.tx.data = '0xdeadbeef' + '00'.repeat(12) + '9'.repeat(40); }, 'receiver');
+  // الوجهة TRON: لا نشترط ظهور العنوان في البيانات (يُرمَّز بصيغة أخرى)
+  const q = goodQ(); q.tx.data = '0xdeadbeef' + '00'.repeat(64); q.toAddr = q.action.toAddress = 'T' + 'A'.repeat(33); q.action.toChainId = 728126428;
+  W.checkBridgeQuote(q, { chainId: 56, toChainId: 728126428, toIsEvm: false, fromAddr: ME });
+});
+// معاملة ترون: نبني protobuf حقيقياً ونتحقق من البايتات التي ستُوقَّع
+const { createHash } = await import('node:crypto');
+const vi = (n) => { n = BigInt(n); const o = []; for (;;) { const b = Number(n & 127n); n >>= 7n; if (n) o.push(b | 128); else { o.push(b); return Buffer.from(o); } } };
+const pb = (f, v) => Buffer.isBuffer(v) ? Buffer.concat([vi(f << 3 | 2), vi(v.length), v]) : Buffer.concat([vi(f << 3), vi(v)]);
+const OWNER = '41' + 'aa'.repeat(20), LIFI_T = '41' + 'bb'.repeat(20);
+const tronRaw = (o = {}) => {
+  const trig = Buffer.concat([pb(1, Buffer.from(o.owner || OWNER, 'hex')), pb(2, Buffer.from(o.contract || LIFI_T, 'hex')), o.callValue ? pb(3, o.callValue) : Buffer.alloc(0),
+    pb(4, Buffer.from(o.data || 'deadbeef' + '00'.repeat(12) + ME.slice(2).toLowerCase(), 'hex')), o.tokenValue ? pb(5, o.tokenValue) : Buffer.alloc(0)]);
+  const ct = pb(11, Buffer.concat([pb(1, o.type || 31), pb(2, Buffer.concat([pb(1, Buffer.from('type.googleapis.com/protocol.TriggerSmartContract')), pb(2, trig)]))]));
+  const raw = Buffer.concat([pb(1, Buffer.from('1234', 'hex')), pb(4, Buffer.alloc(8, 1)), pb(8, 1700000000000), ct, o.second ? ct : Buffer.alloc(0), pb(14, 1700000000000), pb(18, o.fee || 150000000)]);
+  return { raw_data_hex: raw.toString('hex'), txID: o.txID || createHash('sha256').update(raw).digest('hex'), raw_data: {} };
+};
+const exp = { ownerHex: OWNER, units: 5000000n, native: false, approvalHex: LIFI_T, pinHex: '', evmDest: ME };
+const badT = async (o, why, e2) => assert.rejects(W.checkTronBridgeTx(tronRaw(o), Object.assign({}, exp, e2)), (e) => e.message === 'ROUTE_MISMATCH' && e.raw === why, why);
+await t('معاملة جسر ترون سليمة تُقبل وتُقرأ من البايتات الموقَّعة', async () => {
+  const r = await W.checkTronBridgeTx(tronRaw(), exp);
+  assert.equal(r.owner, OWNER); assert.equal(r.contract, LIFI_T); assert.equal(r.callValue, 0n); assert.equal(r.feeLimit, 150000000n);
+  await W.checkTronBridgeTx(tronRaw({ callValue: 5000000 }), Object.assign({}, exp, { native: true, approvalHex: '' }));
+});
+await t('معاملة ترون متلاعَب بها تُرفض قبل أي توقيع أو موافقة', async () => {
+  await badT({ txID: 'ab'.repeat(32) }, 'txid');
+  await badT({ owner: '41' + 'cc'.repeat(20) }, 'owner');
+  await badT({ contract: '41' + 'cc'.repeat(20) }, 'approval');
+  await badT({ contract: '41' + 'cc'.repeat(20) }, 'pin', { approvalHex: '', pinHex: LIFI_T });
+  await badT({ callValue: 60000000 }, 'value');
+  await badT({ tokenValue: 5 }, 'value');
+  await badT({ fee: 600000000 }, 'feeLimit');
+  await badT({ type: 1 }, 'type');
+  await badT({ second: true }, 'contracts');
+  await badT({ data: 'deadbeef' + '00'.repeat(12) + '99'.repeat(20) }, 'receiver');
+  await assert.rejects(W.checkTronBridgeTx({ txID: 'x', raw_data: {} }, exp), /ROUTE_MISMATCH/);
+  await assert.rejects(W.checkTronBridgeTx({ txID: 'x', raw_data_hex: 'zz' }, exp), /ROUTE_MISMATCH/);
+});
+
 console.log(`\n${pass} اختبارات نجحت`);

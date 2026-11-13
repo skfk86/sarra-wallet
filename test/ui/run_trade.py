@@ -29,8 +29,8 @@ async def lifi(route):
     to=fa*10**18//(60000*10**18) if buy else fa*60000   # USDT→BTC أو BTC→USDT بسعر 60,000 (18 خانة على BSC)
     return await route.fulfill(json={'tool':'pancakeswap','toolDetails':{'name':'PancakeSwap'},'estimate':{'toAmount':str(to),'toAmountMin':str(to*99//100),'approvalAddress':DIA,
       'feeCosts':[],'gasCosts':[{'amountUSD':'0.03','amount':'50000000000000'}],'executionDuration':10},
-      'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress']},
-      'transactionRequest':{'to':DIA,'data':'0xdeadbeef','value':'0x0','gasLimit':'0x30d40','chainId':56}})
+      'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress'],'fromChainId':int(q['fromChain']),'toChainId':int(q['toChain']),'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}},
+      'transactionRequest':{'to':DIA,'data':'0xdeadbeef'+'00'*12+q['toAddress'][2:].lower(),'value':'0x0','gasLimit':'0x30d40','chainId':56}})
   if u.path.endswith('/status'): return await route.fulfill(json={'status':'DONE','substatus':'COMPLETED'})
   await route.fulfill(status=404, json={})
 async def main():

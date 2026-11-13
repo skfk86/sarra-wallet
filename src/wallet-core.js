@@ -299,6 +299,87 @@
     return { f: { type: 2, maxFeePerGas: max, maxPriorityFeePerGas: t }, price: max };
   }
 
+  // ===== حماية النقل/التبديل عبر LI.FI: دوال صافية تُختبر وحدها =====
+  // القاعدة: ما لا نستطيع التحقق منه نرفضه (لا نتساهل عند غياب حقل).
+  var LIFI_DIAMOND = '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae'; // LiFiDiamond على BNB Chain وEthereum وPolygon
+  var TRON_LIFI_ID = 728126428, EVM_ZERO = '0x0000000000000000000000000000000000000000';
+  function sameAddr(a, b) { return !!a && String(a).toLowerCase() === String(b || '').toLowerCase(); }
+  function routeBad(why) { var e = new Error('ROUTE_MISMATCH'); e.raw = why; return e; }
+  function bigOf(x) { try { return BigInt(x); } catch (e) { return null; } }
+  // ctx: { chainId, toChainId, toIsEvm, fromAddr }
+  function checkBridgeQuote(q, ctx) {
+    var act = q.action || {}, ft = act.fromToken || {}, tt = act.toToken || {};
+    if (bigOf(act.fromAmount) !== q.units) throw routeBad('amount');
+    if (!sameAddr(ft.address, q.token.addr)) throw routeBad('fromToken');
+    if (!q.toTok || !sameAddr(tt.address, q.toTok.addr)) throw routeBad('toToken');
+    if (!sameAddr(act.toAddress, q.toAddr)) throw routeBad('toAddress');
+    if (act.fromAddress && !sameAddr(act.fromAddress, ctx.fromAddr)) throw routeBad('fromAddress');
+    if (Number(act.fromChainId) !== ctx.chainId) throw routeBad('fromChain');
+    if (Number(act.toChainId) !== ctx.toChainId) throw routeBad('toChain');
+    if (q.fromNet === 'tron') return; // معاملة ترون تُفحص في checkTronBridgeTx
+    var tx = q.tx || {}, data = String(tx.data || '').toLowerCase();
+    if (!sameAddr(tx.to, LIFI_DIAMOND)) throw routeBad('to');
+    if (tx.chainId != null && Number(tx.chainId) !== ctx.chainId) throw routeBad('chainId');
+    if (tx.from && !sameAddr(tx.from, ctx.fromAddr)) throw routeBad('from');
+    if (q.approval && !sameAddr(q.approval, LIFI_DIAMOND)) throw routeBad('approval');
+    if (!/^0x([0-9a-f]{2}){4,}$/.test(data)) throw routeBad('data');
+    var val = bigOf(tx.value || 0), native = sameAddr(q.token.addr, EVM_ZERO);
+    if (val === null || val < 0n) throw routeBad('value');
+    // التوكن: قيمة أصلية صغيرة فقط (رسوم بعض الجسور). الأصلية: لا تزيد عن المبلغ + 2%
+    if (!native && val > 10n ** 16n) throw routeBad('value');
+    if (native && val > q.units + q.units / 50n) throw routeBad('value');
+    // عنوان المستلم (عنواننا) يجب أن يظهر داخل بيانات الاستدعاء حين تكون الوجهة شبكة EVM
+    if (ctx.toIsEvm && data.indexOf(String(q.toAddr).toLowerCase().replace(/^0x/, '')) < 0) throw routeBad('receiver');
+  }
+  // قارئ protobuf صغير (varint وحقول الطول فقط، وهو كل ما في معاملات ترون)
+  function hexBytes(h) { h = String(h || '').replace(/^0x/, ''); if (!h || h.length % 2 || /[^0-9a-f]/i.test(h)) throw routeBad('hex'); var o = new Uint8Array(h.length / 2); for (var i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); return o; }
+  function bytesHex(b) { var s = ''; for (var i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16); return s; }
+  function pbRead(b) {
+    var out = [], i = 0;
+    var varint = function () { var v = 0n, sh = 0n; for (;;) { if (i >= b.length || sh > 63n) throw routeBad('pb'); var x = b[i++]; v |= BigInt(x & 127) << sh; if (!(x & 128)) return v; sh += 7n; } };
+    while (i < b.length) {
+      var k = varint(), f = Number(k >> 3n), w = Number(k & 7n);
+      if (w === 0) out.push({ f: f, v: varint() });
+      else if (w === 2) { var n = Number(varint()); if (i + n > b.length) throw routeBad('pb'); out.push({ f: f, b: b.subarray(i, i + n) }); i += n; }
+      else throw routeBad('pb');
+    }
+    return out;
+  }
+  function pbOne(fs, f) { var x = fs.filter(function (y) { return y.f === f; }); if (x.length > 1) throw routeBad('pb-dup'); return x[0] || null; }
+  // يقرأ البايتات التي ستُوقَّع فعلاً (raw_data_hex) لا نسخة JSON المرافقة
+  function parseTronTrigger(rawHex) {
+    var top = pbRead(hexBytes(rawHex)), cs = top.filter(function (x) { return x.f === 11; });
+    if (cs.length !== 1 || !cs[0].b) throw routeBad('contracts');
+    var c = pbRead(cs[0].b), type = pbOne(c, 1), par = pbOne(c, 2);
+    if (!type || type.v !== 31n || !par || !par.b) throw routeBad('type'); // 31 = TriggerSmartContract
+    var any = pbRead(par.b), url = pbOne(any, 1), val = pbOne(any, 2);
+    if (!val || !val.b || !url || !url.b || !/TriggerSmartContract$/.test(String.fromCharCode.apply(null, url.b))) throw routeBad('any');
+    var t = pbRead(val.b), g = function (f) { return pbOne(t, f); }, num = function (x) { return x ? (x.b ? null : x.v) : 0n; };
+    var fee = pbOne(top, 18);
+    if (!g(1) || !g(1).b || !g(2) || !g(2).b) throw routeBad('addr');
+    return { owner: bytesHex(g(1).b), contract: bytesHex(g(2).b), callValue: num(g(3)), data: g(4) && g(4).b ? bytesHex(g(4).b) : '',
+      tokenValue: num(g(5)), tokenId: num(g(6)), feeLimit: num(fee) };
+  }
+  async function sha256Hex(bytes) { return bytesHex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))); }
+  // exp: { ownerHex, units, native, approvalHex, pinHex, evmDest }
+  async function checkTronBridgeTx(raw, exp) {
+    if (!raw || !raw.raw_data_hex || !raw.txID) throw routeBad('raw');
+    // المحفظة توقّع txID؛ فنتأكد أنه بصمة البايتات التي فحصناها
+    if ((await sha256Hex(hexBytes(raw.raw_data_hex))) !== String(raw.txID).toLowerCase()) throw routeBad('txid');
+    var t = parseTronTrigger(raw.raw_data_hex);
+    if (t.owner !== exp.ownerHex) throw routeBad('owner');
+    // الموافقة تُعطى فقط للعقد نفسه الذي ستستدعيه المعاملة
+    if (exp.approvalHex && t.contract !== exp.approvalHex) throw routeBad('approval');
+    if (exp.pinHex && t.contract !== exp.pinHex) throw routeBad('pin');
+    if (t.callValue === null || t.tokenValue !== 0n || t.tokenId !== 0n) throw routeBad('value');
+    if (t.feeLimit === null || t.feeLimit > 500000000n) throw routeBad('feeLimit'); // أقصى 500 TRX
+    if (!exp.native && t.callValue > 50000000n) throw routeBad('value');
+    if (exp.native && t.callValue > exp.units + exp.units / 50n + 50000000n) throw routeBad('value');
+    if (t.data.length < 8) throw routeBad('data');
+    if (exp.evmDest && t.data.indexOf(String(exp.evmDest).toLowerCase().replace(/^0x/, '')) < 0) throw routeBad('receiver');
+    return t;
+  }
+
   function createCore(opts) {
     opts = opts || {};
     var net = NETWORKS[opts.network || 'nile'];
@@ -427,38 +508,17 @@
       } catch (e) { throw /^[A-Z_]+$/.test(e.message || '') ? e : new Error('BRIDGE_NETWORK'); }
       finally { if (to) clearTimeout(to); }
     }
-    // ===== حماية النقل: لا نوقّع ما لم يطابق ما رآه المستخدم =====
-    // عقد LI.FI الرسمي (LiFiDiamond) على BNB Chain وEthereum وPolygon
-    var LIFI_DIAMOND = '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae';
-    function same(a, b) { return String(a || '').toLowerCase() === String(b || '').toLowerCase(); }
+    // ===== حماية النقل: لا نوقّع ما لم يطابق ما رآه المستخدم (المنطق في checkBridgeQuote/checkTronBridgeTx أعلى الملف) =====
     function verifyBridgeQuote(q) {
-      var act = q.action || {};
-      if (act.fromAmount && BigInt(act.fromAmount) !== q.units) throw new Error('ROUTE_MISMATCH');
-      if (act.fromToken && act.fromToken.address && !same(act.fromToken.address, q.token.addr)) throw new Error('ROUTE_MISMATCH');
-      if (act.toAddress && !same(act.toAddress, q.toAddr)) throw new Error('ROUTE_MISMATCH');
-      if (act.toToken && act.toToken.address && q.toTok && !same(act.toToken.address, q.toTok.addr)) throw new Error('ROUTE_MISMATCH');
-      if (q.fromNet !== 'tron') {
-        var c = EVM_CHAINS[q.fromNet];
-        if (!same(q.tx.to, LIFI_DIAMOND)) throw new Error('ROUTE_MISMATCH');
-        if (q.tx.chainId != null && Number(q.tx.chainId) !== c.id) throw new Error('ROUTE_MISMATCH');
-        if (q.approval && !same(q.approval, LIFI_DIAMOND)) throw new Error('ROUTE_MISMATCH');
-        var val = BigInt(q.tx.value || 0), native = q.token.addr === EVM_NATIVE;
-        // التوكن: قيمة أصلية صغيرة فقط (رسوم بعض الجسور). الأصلية: لا تزيد عن المبلغ + 2%
-        if (!native && val > 10n ** 16n) throw new Error('ROUTE_MISMATCH');
-        if (native && val > q.units + q.units / 50n) throw new Error('ROUTE_MISMATCH');
-      }
+      checkBridgeQuote(q, { chainId: q.fromNet === 'tron' ? TRON_LIFI_ID : EVM_CHAINS[q.fromNet].id,
+        toChainId: q.toNet === 'tron' ? TRON_LIFI_ID : EVM_CHAINS[q.toNet].id, toIsEvm: q.toNet !== 'tron',
+        fromAddr: q.fromNet === 'tron' ? session.address : session.evm.address });
     }
-    function verifyTronBridgeTx(tw, raw, q) {
-      var ct = raw.raw_data.contract && raw.raw_data.contract[0], v = ct && ct.parameter && ct.parameter.value;
-      if (!v || ct.type !== 'TriggerSmartContract') throw new Error('ROUTE_MISMATCH');
-      var b58 = function (x) { x = String(x || ''); return x.charAt(0) === 'T' ? x : tw.address.fromHex(x); };
-      if (b58(v.owner_address) !== session.address) throw new Error('ROUTE_MISMATCH');
-      var target = b58(v.contract_address);
-      // الموافقة تُعطى فقط للعقد نفسه الذي ستستدعيه المعاملة
-      if (q.approval && b58(q.approval) !== target) throw new Error('ROUTE_MISMATCH');
-      var cv = BigInt(v.call_value || 0);
-      if (q.token.addr !== TRX_LIFI && cv > 50000000n) throw new Error('ROUTE_MISMATCH');
-      if (q.token.addr === TRX_LIFI && cv > q.units + q.units / 50n + 50000000n) throw new Error('ROUTE_MISMATCH');
+    function tronHex(tw, x) { x = String(x || ''); return (x.charAt(0) === 'T' ? tw.address.toHex(x) : x.replace(/^0x/, '41')).toLowerCase(); }
+    async function verifyTronBridgeTx(tw, raw, q) {
+      await checkTronBridgeTx(raw, { ownerHex: tronHex(tw, session.address), units: q.units, native: q.token.addr === TRX_LIFI,
+        approvalHex: q.approval ? tronHex(tw, q.approval) : '', pinHex: opts.lifiTron ? tronHex(tw, opts.lifiTron) : '',
+        evmDest: q.toNet !== 'tron' ? session.evm.address : '' });
     }
     // توقيع وبث معاملة EVM عامة (موافقة أو جسر) وانتظار تأكيدها
     async function evmExec(c, tx, waitHard) {
@@ -921,6 +981,10 @@
           var tw = client(session.privateKey);
           var bal = await this.getBalances(session.address);
           if (bal.trxUnits < 20000000n) throw new Error('LOW_TRX_FOR_FEES');
+          // نتحقق من المعاملة أولاً: لا موافقة لعقد قبل التأكد أن المعاملة سليمة
+          var raw = q.tx.customData && q.tx.customData.tronTransaction;
+          if (!raw || !raw.raw_data) throw new Error('NO_ROUTE');
+          await verifyTronBridgeTx(tw, raw, q);
           if (q.token.addr !== TRX_LIFI) {
             if (bal.usdtUnits < q.units) throw new Error('INSUFFICIENT_USDT');
             if (q.approval) {
@@ -932,9 +996,6 @@
               }
             }
           }
-          var raw = q.tx.customData && q.tx.customData.tronTransaction;
-          if (!raw || !raw.raw_data) throw new Error('NO_ROUTE');
-          verifyTronBridgeTx(tw, raw, q);
           var signedT = await tw.trx.sign(raw, session.privateKey);
           var res = await tw.trx.sendRawTransaction(signedT);
           if (!res || res.result !== true) throw new Error('TX_FAILED');
@@ -1113,6 +1174,7 @@
 
   var api = {
     normalizeAddress: normalizeAddress,
+    checkBridgeQuote: checkBridgeQuote, checkTronBridgeTx: checkTronBridgeTx, parseTronTrigger: parseTronTrigger,
     EVM_CHAINS: EVM_CHAINS,
     evmFromMnemonic: evmFromMnemonic,
     createCore: createCore,

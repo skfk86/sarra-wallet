@@ -5,7 +5,7 @@
   function TW(conf){ this.conf=conf; var self=this;
     this.trx={ getBalance: async()=>50000000, sendTransaction: async(to,amt)=>{window.__sent.push(['TRX',to,amt]);return {result:true,txid:'trx'+window.__sent.length}},
       getTransactionInfo: async(id)=>({id:id,receipt:{result:'SUCCESS'}}) };
-    this.address={fromHex:(h)=>h};
+    this.address={toHex:(a)=>'41'+Array.from(String(a).slice(1,21)).map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(''),fromHex:(h)=>h};
   }
   TW.prototype.setAddress=function(){};
   function C(){ return {

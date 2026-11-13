@@ -7,19 +7,39 @@ from playwright.async_api import async_playwright
 S=sys.argv[1]
 Q=[]; ST=[]; EVIL={'on':None}
 DIA='0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE'; ME_T='TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'; APPR='TApprZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'
+import hashlib
+def cid(x): return 728126428 if x=='TRN' else int(x)
+def thex(a): return '41'+a[1:21].encode().hex()
+def pb(f,v):
+  def vi(n):
+    o=b''
+    while True:
+      b=n&127; n>>=7
+      if n: o+=bytes([b|128])
+      else: return o+bytes([b])
+  return vi(f<<3)+vi(v) if isinstance(v,int) else vi(f<<3|2)+vi(len(v))+v
+def tron_raw(owner,contract,data,call_value=0,fee=150000000):
+  trig=pb(1,bytes.fromhex(thex(owner)))+pb(2,bytes.fromhex(thex(contract)))+(pb(3,call_value) if call_value else b'')+pb(4,data)
+  anyv=pb(1,b'type.googleapis.com/protocol.TriggerSmartContract')+pb(2,trig)
+  raw=pb(1,b'\x12\x34')+pb(4,b'\x01'*8)+pb(8,1700000000000)+pb(11,pb(1,31)+pb(2,anyv))+pb(14,1700000000000)+pb(18,fee)
+  return raw.hex(), hashlib.sha256(raw).hexdigest()
+def act(q,to=None): return {'fromAmount':q['fromAmount'],'toAddress':to or q['toAddress'],'fromAddress':q['fromAddress'],'fromChainId':cid(q['fromChain']),'toChainId':cid(q['toChain']),'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}}
+def evm_data(q): return '0xdeadbeef'+'00'*12+(q['toAddress'][2:].lower() if q['toAddress'].startswith('0x') else '11'*20)+'00'*32
 async def lifi(route):
   u=urlparse(route.request.url); q={k:v[0] for k,v in parse_qs(u.query).items()}
   if u.path.endswith('/quote'):
     Q.append(q)
     if q['fromChain']=='TRN':
+      rh,txid=tron_raw('TOTHERx4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='owner' else ME_T, APPR, bytes.fromhex('deadbeef'+'00'*12+('99'*20 if EVIL['on']=='recv' else q['toAddress'][2:].lower())), 60000000 if EVIL['on']=='value' else 0)
+      if EVIL['on']=='txid': txid='ab'*32
       return await route.fulfill(json={'tool':'symbiosis','toolDetails':{'name':'Symbiosis'},'estimate':{'toAmount':str(int(q['fromAmount'])*10**12*99//100),'toAmountMin':str(int(q['fromAmount'])*10**12*98//100),
-        'approvalAddress':'TApprZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf','feeCosts':[{'amountUSD':'0.40'}],'gasCosts':[{'amountUSD':'1.10'}],'executionDuration':60},
-        'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress'],'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}},
-        'transactionRequest':{'customData':{'tronTransaction':{'txID':'brtx1','raw_data':{'contract':[{'type':'TriggerSmartContract','parameter':{'value':{'owner_address':('TOTHERx4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='owner' else ME_T),'contract_address':APPR,'call_value':0}}}]},'raw_data_hex':'0a'}}}})
+        'approvalAddress':APPR,'feeCosts':[{'amountUSD':'0.40'}],'gasCosts':[{'amountUSD':'1.10'}],'executionDuration':60},
+        'action':act(q),
+        'transactionRequest':{'customData':{'tronTransaction':{'txID':txid,'raw_data':{'contract':[{'type':'TriggerSmartContract','parameter':{'value':{'owner_address':ME_T,'contract_address':APPR,'call_value':0}}}]},'raw_data_hex':rh}}}})
     return await route.fulfill(json={'tool':'allbridge','estimate':{'toAmount':str(int(q['fromAmount'])//10**12*99//100),'toAmountMin':'1','approvalAddress':DIA,
         'feeCosts':[],'gasCosts':[{'amountUSD':'0.05','amount':'80000000000000'}],'executionDuration':300},
-        'action':{'fromAmount':q['fromAmount'],'toAddress':('TEvilZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='dest' else q['toAddress'])},
-        'transactionRequest':{'to':('0x9999999999999999999999999999999999999999' if EVIL['on']=='to' else DIA),'data':'0xdeadbeef','value':'0x0','gasLimit':'0x30d40','chainId':56}})
+        'action':dict(act(q,'TEvilZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='dest' else None),**({'toChainId':1} if EVIL['on']=='chain' else {})),
+        'transactionRequest':{'to':('0x9999999999999999999999999999999999999999' if EVIL['on']=='to' else DIA),'data':('0xdeadbeef'+'00'*64 if EVIL['on']=='recv' else evm_data(q)),'value':'0x0','gasLimit':'0x30d40','chainId':cid(q['fromChain'])}})
   if u.path.endswith('/status'):
     ST.append(q); return await route.fulfill(json={'status':'DONE','substatus':'COMPLETED','lifiExplorerLink':'https://scan.li.fi/tx/x'})
   await route.fulfill(status=404, json={})
@@ -58,7 +78,7 @@ async def main():
     for _ in range(20):
       if ST: break
       await pg.wait_for_timeout(500)
-    assert ST and ST[0]['txHash']=='brtx1' and ST[0]['fromChain']=='TRN'
+    assert ST and len(ST[0]['txHash'])==64 and ST[0]['fromChain']=='TRN'
     await pg.wait_for_timeout(500)
     assert 'تم النقل بنجاح' in await pg.inner_text('#br-track-t'); print('✓ تتبّع الحالة حتى "تم النقل بنجاح"')
     # BNB Chain → TRON
@@ -72,25 +92,25 @@ async def main():
       await pg.wait_for_timeout(500)
     new=E.sent[n:]; assert len(new)==2, len(new)
     t=[await pg.evaluate("r=>{const t=ethers.Transaction.from(r);return {to:t.to,data:t.data,cid:Number(t.chainId)}}", x[1]) for x in new]
-    assert t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['data']=='0xdeadbeef' and t[1]['cid']==56, t
+    assert t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['data'].startswith('0xdeadbeef') and t[1]['cid']==56, t
     print('✓ من BNB Chain إلى TRON: موافقة ERC20 ثم معاملة الجسر موقّعة على السلسلة 56')
     for _ in range(40):
       if 'تم النقل' in await pg.inner_text('#br-track-t'): break
       await pg.wait_for_timeout(500)
     # هجمات: خدمة النقل (أو وسيط) تعيد معاملة مختلفة عمّا رآه المستخدم
-    for kind,label in [('to','عقد غير عقد LI.FI الرسمي'),('dest','وجهة غير محفظتك')]:
+    for kind,label in [('to','عقد غير عقد LI.FI الرسمي'),('dest','وجهة غير محفظتك'),('chain','شبكة وجهة مختلفة')]:
       EVIL['on']=kind; n=len(E.sent)
       await pg.fill('#br-amt','5'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
       await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(1500)
       assert len(E.sent)==n and 'لا تطابق' in await pg.inner_text('#br-err'), (kind, await pg.inner_text('#br-err'))
       print('✓ هجوم مرفوض قبل التوقيع: '+label+' (لم تُبث أي معاملة)')
-    EVIL['on']='owner'
     await pg.click('#br-from [data-net=tron]'); await pg.wait_for_timeout(1200)
-    lg=len(await pg.evaluate('window.__log'))
-    await pg.fill('#br-amt','5'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
-    await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(2500)
-    new=[l[0] for l in (await pg.evaluate('window.__log'))[lg:]]
-    assert 'SIGN' not in new and 'لا تطابق' in await pg.inner_text('#br-err'), new; print('✓ هجوم مرفوض على TRON: معاملة باسم محفظة أخرى لا تُوقَّع')
+    for kind,label in [('owner','معاملة باسم محفظة أخرى'),('recv','مستلم مختلف داخل البيانات الموقَّعة'),('value','سحب TRX زائد'),('txid','بصمة لا تطابق البايتات')]:
+      EVIL['on']=kind; lg=len(await pg.evaluate('window.__log'))
+      await pg.fill('#br-amt','5'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
+      await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456'); await pg.wait_for_timeout(2500)
+      new=[l[0] for l in (await pg.evaluate('window.__log'))[lg:]]
+      assert 'SIGN' not in new and not any('approve' in str(x).lower() for x in new) and 'لا تطابق' in await pg.inner_text('#br-err'), (kind,new,await pg.inner_text('#br-err')); print('✓ هجوم مرفوض على TRON: '+label+' (لا توقيع ولا موافقة)')
     EVIL['on']=None
     # التبديل داخل BNB Chain: USDT ← BNB
     await pg.click('#s-bridge [data-back]'); await pg.wait_for_timeout(400); await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(1200)
