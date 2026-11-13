@@ -59,6 +59,10 @@ th{color:var(--mu);font-weight:600;white-space:nowrap}
 .req{color:#c0392b;font-size:12px;font-weight:700}
 .note{background:var(--soft);border-inline-start:4px solid var(--ac);border-radius:10px;padding:10px 14px;margin:12px 0}
 .warn{background:color-mix(in srgb,#e7b54a 14%,var(--card));border-inline-start:4px solid #e7b54a;border-radius:10px;padding:10px 14px;margin:12px 0}
+.story{display:grid;gap:6px;margin:8px 0}
+.story div{display:flex;gap:10px;align-items:flex-start;background:var(--soft);border-radius:10px;padding:8px 12px}
+.story b{flex:none;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-size:13px;margin-top:3px}
+#what td:first-child{white-space:nowrap}
 .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px;text-align:center;font-size:14px}
 .flow div{background:var(--soft);border-radius:12px;padding:12px 8px}
 .flow b{display:block;font-size:22px}
@@ -73,10 +77,41 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
   <p>طلب واحد ينشئ فاتورة. العميل يدفع إلى محفظتك مباشرة، وخادمك يعرف فوراً أن الدفع تم.</p>
 </div></header>
 <nav><div class="wrap">
-  <a href="#start">ابدأ</a><a href="#example">مثال كامل</a><a href="#webhook">إشعار الدفع</a><a href="#ref">المرجع</a><a href="#errors">الأخطاء</a><a href="#fees">الرسوم</a>
+  <a href="#what">ما هذه؟</a><a href="#start">ابدأ</a><a href="try.html">جرّب الآن</a><a href="#example">مثال كامل</a><a href="#webhook">إشعار الدفع</a><a href="#ref">المرجع</a><a href="#errors">الأخطاء</a><a href="#fees">الرسوم</a>
 </div></nav>
 
 <main class="wrap">
+  <section class="card" id="what">
+    <h2>ما هذه البوابة؟ (شرح بدون مصطلحات)</h2>
+    <p>تخيّل أن عندك متجراً على الإنترنت، وتريد أن يدفع لك الزبون بالـ USDT. المشكلة: كيف يعرف متجرك أن هذا الزبون بالذات دفع، وكم دفع، ومتى؟</p>
+    <p>البوابة تحل هذا. متجرك يطلب منها "فاتورة" بمبلغ معيّن، فتعطيه رابط صفحة دفع. الزبون يدفع من أي محفظة، والمال يذهب <b>إلى محفظتك أنت مباشرة</b>. البوابة تراقب الشبكة، وحين يصل التحويل تخبر متجرك: "الطلب رقم كذا دُفع".</p>
+
+    <h3>مثال: متجر أحمد</h3>
+    <div class="story">
+      <div><b>1</b>زبون يضغط "اشترِ" على كتاب بـ 5 دولار في موقع أحمد.</div>
+      <div><b>2</b>موقع أحمد يطلب من صُرّة فاتورة بـ 5 USDT، فيحصل على رابط صفحة دفع.</div>
+      <div><b>3</b>الزبون يفتح الصفحة، يرى المبلغ والعنوان ورمز QR، ويدفع.</div>
+      <div><b>4</b>الـ 5 USDT تصل محفظة أحمد مباشرة.</div>
+      <div><b>5</b>صُرّة تخبر موقع أحمد أن الدفع تم، فيرسل الكتاب للزبون تلقائياً.</div>
+    </div>
+
+    <h3>الكلمات التي ستقابلها</h3>
+    <div class="tw"><table>
+      <tr><td><b>API</b></td><td>طريقة يتكلم بها برنامجك مع صُرّة: يرسل طلباً ويستقبل رداً.</td></tr>
+      <tr><td><b>مفتاح API</b></td><td>كلمة سر طويلة تبدأ بـ <code>sk_live_</code>، تثبت أن الطلب منك. تحصل عليها من التطبيق.</td></tr>
+      <tr><td><b>فاتورة</b></td><td>طلب دفع واحد: مبلغ، شبكة، ومهلة 30 دقيقة.</td></tr>
+      <tr><td><b>Webhook (إشعار الدفع)</b></td><td>رسالة ترسلها صُرّة إلى خادمك تلقائياً لحظة الدفع، بدل أن تسأل أنت كل مرة.</td></tr>
+      <tr><td><b>الرصيد</b></td><td>رصيد صغير مدفوع مسبقاً تُخصم منه عمولة الخدمة. ليس مال زبائنك.</td></tr>
+    </table></div>
+
+    <h3>ما الـ 1 USDT الذي يبدأ به حسابك؟</h3>
+    <p>هو <b>رصيد عمولات مجاني للتجربة</b>، وليس مالاً يُرسل لك ولا يُسحب. عن كل فاتورة يدفعها زبون نخصم عمولتنا من هذا الرصيد (0.5%، وأقلها 0.02 USDT)، بينما يصلك مبلغ الزبون كاملاً في محفظتك.</p>
+    <p>مثال: زبون دفع 10 USDT ← يصل محفظتك 10 USDT كاملة، وينقص رصيد العمولات 0.05. الـ 1 USDT يكفي لنحو 50 فاتورة صغيرة. حين ينتهي تشحنه من شاشة بوابة الدفع في التطبيق.</p>
+
+    <h3>هل أحتاج أن أكون مبرمجاً؟</h3>
+    <p>لربط موقعك تلقائياً، نعم: تحتاج من يضيف طلبين بسيطين في خادم موقعك (الأمثلة أدناه جاهزة للنسخ). أما للتجربة فقط فلا: <a href="try.html"><b>جرّب من المتصفح</b></a> بدون كتابة أي كود.</p>
+  </section>
+
   <section class="card" id="start">
     <h2>ابدأ في 3 خطوات</h2>
     <div class="flow">
@@ -213,7 +248,6 @@ cd sarra-wallet/examples/demo-store
 SARRA_KEY=sk_live_XXXXXXXX node server.js
 # افتح http://localhost:3000</code></pre></div>
     <p><a href="https://github.com/skfk86/sarra-wallet/tree/main/examples/demo-store"><b>شاهد الكود على GitHub ←</b></a></p>
-    <p>لا تريد كتابة كود الآن؟ <a href="try.html"><b>جرّب البوابة من المتصفح ←</b></a></p>
   </section>
 
   <section class="card" id="webhook">
@@ -368,7 +402,7 @@ def sarra_hook():
   <section class="card" id="fees">
     <h2>الرسوم</h2>
     <p>حسابك فيه <b>رصيد مدفوع مسبقاً</b> بـ USDT. عن كل فاتورة <b>مدفوعة</b> نخصم <b>0.5%</b> من مبلغها، بحد أدنى <b>0.02 USDT</b>. الفواتير غير المدفوعة مجانية.</p>
-    <p>يبدأ كل حساب برصيد تجريبي 1 USDT، وتشحن الرصيد من شاشة بوابة الدفع في التطبيق.</p>
+    <p>يبدأ كل حساب برصيد عمولات مجاني 1 USDT (يكفي لنحو 50 فاتورة صغيرة)، وهو ليس مالاً يُسحب. تشحن الرصيد من شاشة بوابة الدفع في التطبيق.</p>
   </section>
 
   <section class="card">
