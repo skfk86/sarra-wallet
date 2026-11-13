@@ -35,6 +35,9 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
 .big p{margin:0;color:var(--mu)}
 .foot{text-align:center;color:var(--mu);font-size:12.5px;padding:6px 0 20px}
 .foot a{color:var(--ac)}
+.test{background:#fde7c2;color:#6b4300;border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;text-align:center}
+@media(prefers-color-scheme:dark){.test{background:#3a2a0c;color:#f6cf86}}
+.sim{width:100%;margin-top:12px;padding:12px;background:#b07a12}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -43,8 +46,9 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
 
   <div class="card" id="v-load"><div class="st"><span class="dot"></span>جارٍ تحميل الفاتورة…</div></div>
 
+  <div class="test" id="test" hidden><b>فاتورة تجريبية.</b> لا ترسل أي مال حقيقي: هذا الدفع للاختبار فقط.</div>
   <div id="v-pay" hidden>
-    <div class="card">
+    <div class="card" id="real">
       <div class="lbl" style="text-align:center">أرسل هذا المبلغ بالضبط</div>
       <div class="amt"><span id="amt"></span> <small>USDT</small></div>
       <span class="net" id="net"></span>
@@ -55,6 +59,13 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
       <div class="warn">
         <b>مهم:</b> أرسل المبلغ كما هو بكل كسوره، وعلى شبكة <b id="net2"></b> فقط. إن كنت ترسل من منصة تخصم رسوم سحب، تأكد أن المبلغ <b>الواصل</b> يساوي الرقم أعلاه. أي مبلغ مختلف لا يُحتسب تلقائياً.
       </div>
+    </div>
+    <div class="card" id="simc" hidden>
+      <div class="lbl" style="text-align:center">المبلغ</div>
+      <div class="amt"><span id="samt"></span> <small>USDT</small></div>
+      <span class="net" id="snet"></span>
+      <button type="button" class="sim" id="sim">محاكاة الدفع</button>
+      <div class="lbl" style="text-align:center;margin-top:8px">يحوّل الفاتورة إلى «مدفوعة» ويرسل الإشعار إلى خادم المتجر، بدون أي تحويل.</div>
     </div>
     <div class="card"><div class="st"><span class="dot"></span><span>بانتظار الدفع · يتبقى <b id="left" style="direction:ltr;display:inline-block"></b></span></div>
       <div class="lbl" style="text-align:center">تتحدث هذه الصفحة تلقائياً بعد تأكيد التحويل على الشبكة.</div></div>
@@ -82,11 +93,13 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
   }
   function render() {
     $('merchant').textContent = inv.merchant || 'الدفع عبر صُرّة'; $('desc').textContent = inv.description || '';
+    $('test').hidden = !inv.test; $('real').hidden = !!inv.test; $('simc').hidden = !inv.test;
+    if (inv.test) { $('samt').textContent = inv.pay_amount; $('snet').textContent = inv.network_name; }
     if (inv.status === 'paid') { $('paid-amt').textContent = inv.pay_amount; $('paid-tx').textContent = inv.tx || ''; return view('paid'); }
     if (inv.status === 'expired') return view('exp');
     $('amt').textContent = inv.pay_amount; $('addr').textContent = inv.address;
     $('net').textContent = $('net2').textContent = inv.network_name;
-    if (!drawn && window.sarraQR) { try { $('qr').innerHTML = sarraQR.svg(inv.address, 2); drawn = true; } catch (e) {} }
+    if (!inv.test && !drawn && window.sarraQR) { try { $('qr').innerHTML = sarraQR.svg(inv.address, 2); drawn = true; } catch (e) {} }
     view('pay'); tick();
   }
   async function load(first) {
@@ -99,6 +112,12 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
       if (inv.status === 'paid' || (inv.status === 'expired' && Date.now() - Date.parse(inv.expires_at) > 25 * 60000)) clearInterval(timer);
     } catch (e) { if (first) err('تعذّر تحميل الفاتورة', 'تحقق من الإنترنت ثم أعد فتح الصفحة.'); }
   }
+  $('sim').onclick = async function () {
+    var b = this; b.disabled = true; b.textContent = 'جارٍ…';
+    try { var r = await fetch(API + id + '/simulate', { method: 'POST' }), j = await r.json(); if (j.invoice) { inv = j.invoice; render(); clearInterval(timer); return; } b.textContent = 'تعذّر: ' + (j.error || r.status); }
+    catch (e) { b.textContent = 'تعذّر الاتصال'; }
+    b.disabled = false; setTimeout(function () { b.textContent = 'محاكاة الدفع'; }, 2500);
+  };
   document.querySelectorAll('[data-copy]').forEach(function (b) {
     b.onclick = function () {
       var t = $(b.dataset.copy).textContent, old = b.textContent, done = function () { b.textContent = 'تم النسخ'; setTimeout(function () { b.textContent = old; }, 1500); };

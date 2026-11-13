@@ -10,17 +10,17 @@ function fakeDb() {
   const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [] };
   const hits: Record<string, number> = {}; let hitLimit = Infinity;
   const DEF: Record<string, () => Row> = {
-    pay_merchants: () => ({ id: 'm' + (T.pay_merchants.length + 1), key_hash: null, key_hint: null, webhook_url: null, credit: 1000000, active: true, tron_addr: null, evm_addr: null }),
-    pay_invoices: () => ({ kind: 'payment', fee: 0, order_id: null, description: null, status: 'pending', tx: null, tx_key: null, payer: null, paid_at: null, hook_state: 'none', hook_attempts: 0, hook_next: null, created_at: new Date(clock.t).toISOString() })
+    pay_merchants: () => ({ id: 'm' + (T.pay_merchants.length + 1), key_hash: null, key_hint: null, test_key_hash: null, test_key_hint: null, webhook_url: null, credit: 1000000, active: true, tron_addr: null, evm_addr: null }),
+    pay_invoices: () => ({ test: false, kind: 'payment', fee: 0, order_id: null, description: null, status: 'pending', tx: null, tx_key: null, payer: null, paid_at: null, hook_state: 'none', hook_attempts: 0, hook_next: null, created_at: new Date(clock.t).toISOString() })
   };
   // قيود التفرّد كما في 020_pay.sql
   const violates = (t: string, rows: Row[], r: Row) => {
     const others = rows.filter((x) => x !== r);
     if (t === 'pay_invoices') return others.some((x) => x.id === r.id
-      || (r.status === 'pending' && x.status === 'pending' && x.network === r.network && x.match_hex === r.match_hex && String(x.exact) === String(r.exact))
-      || (r.order_id != null && r.status !== 'expired' && x.status !== 'expired' && x.merchant_id === r.merchant_id && x.order_id === r.order_id)
+      || (r.status === 'pending' && x.status === 'pending' && !r.test && !x.test && x.network === r.network && x.match_hex === r.match_hex && String(x.exact) === String(r.exact))
+      || (r.order_id != null && r.status !== 'expired' && x.status !== 'expired' && x.merchant_id === r.merchant_id && !!x.test === !!r.test && x.order_id === r.order_id)
       || (r.tx_key != null && x.network === r.network && x.tx_key === r.tx_key));
-    if (t === 'pay_merchants') return others.some((x) => x.address === r.address || (r.key_hash && x.key_hash === r.key_hash));
+    if (t === 'pay_merchants') return others.some((x) => x.address === r.address || (r.key_hash && x.key_hash === r.key_hash) || (r.test_key_hash && x.test_key_hash === r.test_key_hash));
     if (t === 'used_nonces') return others.some((x) => x.nonce === r.nonce);
     return false;
   };
@@ -226,6 +226,51 @@ await t('الإشعار الفاشل: يُعاد بمهل متزايدة ثم ي
   for (const m of [1, 2, 6, 16, 61, 181, 721, 5]) await tick(m);
   const r2 = db.T.pay_invoices.find((x) => x.id === inv2.id)!; assert.equal(r2.hook_state, 'failed'); assert.equal(r2.hook_attempts, 7); hookStatus = 200;
 });
+await t('الوضع التجريبي: مفتاح sk_test_ منفصل، فواتير لا تخصم رصيداً ولا تحجز مبلغاً ولا تُراقَب', async () => {
+  const TK = (await call(signed('pay.key', { test: true }))).j.api_key; assert.match(TK, /^sk_test_[0-9a-f]{48}$/);
+  assert.equal((await api('GET', '/v1/balance', KEY)).status, 200, 'المفتاح الحقيقي لم يتغير');
+  assert.equal((await call(signed('pay.me'))).j.merchant.test_key_hint, TK.slice(-4));
+  const b = (await api('GET', '/v1/balance', TK)).j; assert.equal(b.test, true);
+  const credit0 = db.T.pay_merchants[0].credit;
+  const ti = (await api('POST', '/v1/invoices', TK, { amount: '50', network: 'bsc', order_id: 'ORDER-1' })).j.invoice; // نفس رقم طلب حقيقي سابق
+  assert.equal(ti.test, true); assert.notEqual(ti.id, INV.id); assert.equal(ti.status, 'pending');
+  assert.equal((await api('GET', '/v1/invoices/' + ti.id, KEY)).status, 404, 'المفتاح الحقيقي لا يرى التجريبية');
+  assert.equal((await api('GET', '/v1/invoices/' + INV.id, TK)).status, 404, 'والتجريبي لا يرى الحقيقية');
+  assert.ok(!(await api('GET', '/v1/invoices', KEY)).j.invoices.some((x: Row) => x.test));
+  assert.deepEqual((await api('GET', '/v1/invoices', TK)).j.invoices.map((x: Row) => x.id), [ti.id]);
+  // تحويل حقيقي بنفس المبلغ لا يسددها، والماسح لا يراها
+  pay('bsc', EVM, units(ti.pay_amount)); const j = await tick(); assert.equal(j.pending, 0);
+  assert.equal((await api('GET', '/v1/invoices/' + ti.id, TK)).j.invoice.status, 'pending');
+  // المحاكاة: بالمفتاح الحقيقي مرفوضة، وبالتجريبي تسدد وترسل الإشعار فوراً مع test=true
+  assert.equal((await api('POST', '/v1/invoices/' + ti.id + '/simulate', KEY, {})).j.error, 'TEST_KEY_REQUIRED');
+  const n0 = hooks.length, paid = (await api('POST', '/v1/invoices/' + ti.id + '/simulate', TK, {})).j.invoice;
+  assert.equal(paid.status, 'paid'); assert.match(paid.tx, /^0xtest/); assert.equal(hooks.length, n0 + 1);
+  const ev = JSON.parse(hooks[n0].body); assert.equal(ev.event, 'invoice.paid'); assert.equal(ev.invoice.test, true); assert.equal(ev.invoice.order_id, 'ORDER-1');
+  assert.equal(db.T.pay_merchants[0].credit, credit0, 'لا خصم عمولة');
+  assert.equal((await api('POST', '/v1/invoices/' + ti.id + '/simulate', TK, {})).j.error, 'NOT_PENDING');
+  // انتهاء المهلة بالمحاكاة
+  const t2 = (await api('POST', '/v1/invoices', TK, { amount: '5', network: 'tron' })).j.invoice;
+  assert.equal((await api('POST', '/v1/invoices/' + t2.id + '/simulate', TK, { status: 'expired' })).j.invoice.status, 'expired');
+  // الفاتورة التجريبية لا تتطلب رصيداً
+  db.T.pay_merchants[0].credit = 0; assert.equal((await api('POST', '/v1/invoices', TK, { amount: '500', network: 'bsc' })).status, 200);
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '500', network: 'bsc' })).j.error, 'INSUFFICIENT_CREDIT'); db.T.pay_merchants[0].credit = credit0;
+});
+await t('صفحة الدفع: محاكاة الدفع للتجريبية فقط', async () => {
+  const TK = (await call(signed('pay.key', { test: true }))).j.api_key;
+  const ti = (await api('POST', '/v1/invoices', TK, { amount: '3', network: 'bsc' })).j.invoice;
+  assert.equal((await api('GET', '/v1/public/' + ti.id)).j.invoice.test, true);
+  assert.equal((await api('GET', '/v1/public/' + INV.id)).j.invoice.test, false);
+  assert.equal((await api('POST', '/v1/public/' + INV.id + '/simulate')).j.error, 'NOT_TEST_INVOICE');
+  const r = await api('POST', '/v1/public/' + ti.id + '/simulate'); assert.equal(r.j.invoice.status, 'paid'); assert.ok(!('fee' in r.j.invoice));
+});
+await t('إشعار تجريبي من التطبيق: يُرسل موقّعاً فوراً ويعيد رد خادم التاجر', async () => {
+  const n0 = hooks.length; hookStatus = 200;
+  let r = (await call(signed('pay.hooktest'))).j; assert.deepEqual(r, { ok: true, status: 200 });
+  const ev = JSON.parse(hooks[n0].body); assert.equal(ev.event, 'test'); assert.equal(ev.invoice.test, true);
+  const sg = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(hooks[n0].sig)!; assert.equal(sg[2], await P.hmacHex(db.T.pay_merchants[0].webhook_secret, sg[1] + '.' + hooks[n0].body));
+  hookStatus = 500; r = (await call(signed('pay.hooktest'))).j; assert.deepEqual(r, { ok: false, status: 500 }); hookStatus = 200;
+  const o = db.T.pay_merchants[0].webhook_url; db.T.pay_merchants[0].webhook_url = null; assert.equal((await call(signed('pay.hooktest'))).j.error, 'NO_WEBHOOK_URL'); db.T.pay_merchants[0].webhook_url = o;
+});
 await t('تاجران على العنوان نفسه: كل دفعة تسدد فاتورتها فقط', async () => {
   await call(signed('pay.save', { name: 'متجر ثانٍ', evm_addr: EVM }, OTHER)); const k2 = (await call(signed('pay.key', {}, OTHER))).j.api_key;
   const a = (await api('POST', '/v1/invoices', KEY, { amount: '9', network: 'bsc' })).j.invoice, b = (await api('POST', '/v1/invoices', k2, { amount: '9', network: 'bsc' })).j.invoice;
@@ -236,7 +281,7 @@ await t('تاجران على العنوان نفسه: كل دفعة تسدد ف�
 await t('حساب موقوف، وحد الطلبات، وحد الفواتير المعلّقة', async () => {
   db.setHitLimit(0); assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '2', network: 'bsc' })).status, 429); db.setHitLimit(Infinity);
   const m = db.T.pay_merchants[0]; m.credit = 1e12;
-  for (let i = 0; i < 200; i++) db.T.pay_invoices.push({ id: 'f' + i, merchant_id: m.id, kind: 'payment', network: 'eth', match_hex: 'ee'.repeat(20), exact: String(i + 1), amount: '1', status: 'pending', order_id: null, tx_key: null, expires_at: new Date(clock.t + 6e5).toISOString() });
+  for (let i = 0; i < 200; i++) db.T.pay_invoices.push({ id: 'f' + i, merchant_id: m.id, test: false, kind: 'payment', network: 'eth', match_hex: 'ee'.repeat(20), exact: String(i + 1), amount: '1', status: 'pending', order_id: null, tx_key: null, expires_at: new Date(clock.t + 6e5).toISOString() });
   assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '2', network: 'bsc' })).j.error, 'TOO_MANY_PENDING');
   m.active = false; assert.equal((await api('GET', '/v1/balance', KEY)).status, 403);
 });

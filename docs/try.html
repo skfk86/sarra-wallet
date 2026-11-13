@@ -34,12 +34,12 @@ a{color:var(--ac)}
 <body><div class="wrap">
   <a href="api.html">→ التوثيق</a>
   <h1>جرّب البوابة من المتصفح</h1>
-  <p class="mu" style="margin:0">أنشئ فاتورة حقيقية بمفتاحك وتابع حالتها، بدون كتابة كود.</p>
+  <p class="mu" style="margin:0">أنشئ فاتورة بمفتاحك وتابع حالتها، بدون كتابة كود. ابدأ بالمفتاح التجريبي <code dir="ltr">sk_test_</code>: لا مال حقيقي، وتستطيع "دفع" الفاتورة بزر.</p>
 
   <div class="card">
     <div class="warn"><b>للتجربة فقط.</b> المفتاح يُستخدم من هذه الصفحة مباشرة ولا يُحفظ ولا يُرسل إلا إلى خادم صُرّة. في متجرك الحقيقي يبقى المفتاح في الخادم، لا في صفحة ويب.</div>
     <label for="key">مفتاح الـ API</label>
-    <input id="key" type="password" dir="ltr" placeholder="sk_live_…" autocomplete="off" spellcheck="false">
+    <input id="key" type="password" dir="ltr" placeholder="sk_test_… أو sk_live_…" autocomplete="off" spellcheck="false">
     <div class="row">
       <div><label for="amount">المبلغ (USDT)</label><input id="amount" dir="ltr" inputmode="decimal" value="1"></div>
       <div><label for="network">الشبكة</label><select id="network"><option value="bsc">BNB Chain</option><option value="tron">TRON</option><option value="polygon">Polygon</option><option value="eth">Ethereum</option></select></div>
@@ -56,6 +56,7 @@ a{color:var(--ac)}
     <p class="st" id="st"></p>
     <p class="mu" id="sub" style="margin:2px 0 0"></p>
     <a class="btn" id="pay" target="_blank" rel="noopener">افتح صفحة الدفع</a>
+    <button type="button" id="simbtn" hidden style="background:#b07a12">محاكاة الدفع (تجريبي)</button>
     <p class="mu" style="margin:10px 0 0">رد الخادم:</p>
     <pre id="out"></pre>
   </div>
@@ -63,26 +64,26 @@ a{color:var(--ac)}
 <script>
 (function () {
   var API = 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay';
-  var $ = function (i) { return document.getElementById(i); }, timer = null;
+  var $ = function (i) { return document.getElementById(i); }, timer = null, cur = null;
   var ERR = { UNAUTHORIZED: 'المفتاح غير صحيح أو استُبدل بمفتاح جديد.', INSUFFICIENT_CREDIT: 'الرصيد لا يكفي لعمولة هذه الفاتورة. اشحنه من التطبيق.',
     BAD_AMOUNT: 'صيغة المبلغ غير صحيحة (مثال: 1 أو 2.50).', AMOUNT_TOO_SMALL: 'أقل مبلغ 1 USDT.', AMOUNT_TOO_LARGE: 'المبلغ أكبر من الحد.',
-    NETWORK_NOT_CONFIGURED: 'لا يوجد عنوان استلام لهذه الشبكة في حسابك.', TOO_MANY_PENDING: 'عندك فواتير معلّقة كثيرة.', RATE_LIMITED: 'طلبات كثيرة، انتظر قليلاً.' };
+    NETWORK_NOT_CONFIGURED: 'لا يوجد عنوان استلام لهذه الشبكة في حسابك.', TOO_MANY_PENDING: 'عندك فواتير معلّقة كثيرة.', RATE_LIMITED: 'طلبات كثيرة، انتظر قليلاً.', NOT_PENDING: 'الفاتورة لم تعد بانتظار الدفع.', TEST_KEY_REQUIRED: 'المحاكاة للمفتاح التجريبي فقط.' };
   function fail(code) { $('err').textContent = (ERR[code] || 'تعذّر الطلب') + ' (' + code + ')'; $('err').hidden = false; }
   async function call(method, path, body) {
     var key = $('key').value.trim();
-    if (!/^sk_live_\w+$/.test(key)) throw new Error('NO_KEY');
+    if (!/^sk_(live|test)_\w+$/.test(key)) throw new Error('NO_KEY');
     var r; try { r = await fetch(API + path, { method: method, headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
     catch (e) { throw new Error('NETWORK'); }
     var j = await r.json().catch(function () { return {}; });
     if (!r.ok) throw new Error(j.error || 'HTTP_' + r.status);
     return j;
   }
-  function onErr(e) { var c = e.message; if (c === 'NO_KEY') { $('err').textContent = 'ألصق مفتاحك أولاً (يبدأ بـ sk_live_).'; $('err').hidden = false; } else if (c === 'NETWORK') { $('err').textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت.'; $('err').hidden = false; } else fail(c); }
+  function onErr(e) { var c = e.message; if (c === 'NO_KEY') { $('err').textContent = 'ألصق مفتاحك أولاً (يبدأ بـ sk_test_ أو sk_live_).'; $('err').hidden = false; } else if (c === 'NETWORK') { $('err').textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت.'; $('err').hidden = false; } else fail(c); }
   function show(inv) {
-    var T = { pending: ['⏳ بانتظار الدفع', 'ادفع ' + inv.pay_amount + ' USDT بالضبط على ' + (inv.network_name || inv.network) + '. تتحدث الحالة هنا تلقائياً.'],
-      paid: ['✅ مدفوعة', 'وصل التحويل وتأكد. العمولة المخصومة: ' + inv.fee + ' USDT.'], expired: ['⌛ منتهية', 'انتهت المهلة قبل الدفع.'] }[inv.status] || [inv.status, ''];
+    var T = { pending: ['⏳ بانتظار الدفع' + (inv.test ? ' (تجريبية)' : ''), inv.test ? 'فاتورة تجريبية: اضغط «محاكاة الدفع» بدل التحويل.' : 'ادفع ' + inv.pay_amount + ' USDT بالضبط على ' + (inv.network_name || inv.network) + '. تتحدث الحالة هنا تلقائياً.'],
+      paid: ['✅ مدفوعة', inv.test ? 'دفع تجريبي: لم يُحوَّل مال ولم يُخصم شيء. إن أضفت رابط إشعار، وصل خادمَك إشعار invoice.paid.' : 'وصل التحويل وتأكد. العمولة المخصومة: ' + inv.fee + ' USDT.'], expired: ['⌛ منتهية', 'انتهت المهلة قبل الدفع.'] }[inv.status] || [inv.status, ''];
     $('st').textContent = T[0]; $('sub').textContent = T[1];
-    $('pay').href = inv.pay_url; $('pay').hidden = inv.status !== 'pending';
+    $('pay').href = inv.pay_url; $('pay').hidden = inv.status !== 'pending'; $('simbtn').hidden = !(inv.test && inv.status === 'pending'); cur = inv;
     $('out').textContent = JSON.stringify({ invoice: inv }, null, 2); $('res').hidden = false;
   }
   $('go').onclick = async function () {
@@ -95,6 +96,10 @@ a{color:var(--ac)}
       }, 8000);
     } catch (e) { onErr(e); }
     $('go').disabled = false;
+  };
+  $('simbtn').onclick = async function () {
+    $('err').hidden = true;
+    try { show((await call('POST', '/v1/invoices/' + cur.id + '/simulate', { status: 'paid' })).invoice); clearInterval(timer); } catch (e) { onErr(e); }
   };
   $('bal').onclick = async function () {
     $('err').hidden = true;

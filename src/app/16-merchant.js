@@ -12,7 +12,8 @@
     BAD_NETWORK: 'اختر شبكة الشحن',
     TRY_AGAIN: 'حاول مرة أخرى',
     NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت وحاول مجدداً',
-    NOT_FOUND: 'بوابة الدفع غير مفعّلة على الخادم بعد'
+    NOT_FOUND: 'بوابة الدفع غير مفعّلة على الخادم بعد',
+    NO_WEBHOOK_URL: 'أضف رابط إشعار الدفع أولاً من «تعديل البيانات»'
   };
   function mcErr(e) { var c = e && e.message; return MC_ERRORS[c] || p2pErr(e); }
   async function payApi(action, params) {
@@ -43,6 +44,9 @@
     $('mc-top').disabled = !(d.topup_networks || []).length;
     $('mc-key-state').textContent = m.key_hint ? 'مفتاحك الحالي ينتهي بـ ' + m.key_hint + '. إنشاء مفتاح جديد يوقف القديم فوراً.' : 'لم تنشئ مفتاحاً بعد. تحتاجه ليتصل خادمك بالبوابة.';
     $('mc-key-new').textContent = m.key_hint ? 'إنشاء مفتاح جديد' : 'إنشاء مفتاح API';
+    $('mc-tkey-state').textContent = m.test_key_hint ? 'مفتاحك التجريبي ينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع» ولا تخصم من رصيدك.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.';
+    $('mc-tkey-new').textContent = m.test_key_hint ? 'إنشاء مفتاح تجريبي جديد' : 'إنشاء مفتاح تجريبي';
+    $('mc-hooktest').hidden = !m.webhook_url;
     $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابط إشعار. خادمك يستعلم عن الفاتورة بنفسه.';
     var box = $('mc-inv'); box.textContent = '';
     var list = (d.invoices || []).filter(function (x) { return x.kind === 'payment'; });
@@ -50,7 +54,7 @@
     list.slice(0, 10).forEach(function (x) {
       var r = el('div', 'display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px');
       var a = el('div', 'display:flex;flex-direction:column;min-width:0');
-      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' USDT'));
+      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' USDT' + (x.test ? ' · تجريبية' : '')));
       a.appendChild(el('span', 'font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (x.order_id || x.id) + ' · ' + (x.network_name || x.network)));
       r.appendChild(a);
       r.appendChild(el('span', 'font-size:12px;font-weight:700;white-space:nowrap;color:' + (x.status === 'paid' ? 'var(--ac)' : 'var(--mu)'), MC_ST[x.status] || x.status));
@@ -88,6 +92,16 @@
     var r = await payApi('pay.key');
     $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
     MC.data.merchant.key_hint = r.api_key.slice(-4); $('mc-key-state').textContent = 'مفتاحك الجديد جاهز. المفتاح القديم توقف.'; $('mc-key-new').textContent = 'إنشاء مفتاح جديد';
+  });
+  $('mc-tkey-new').onclick = mcDo($('mc-tkey-new'), async function () {
+    var r = await payApi('pay.key', { test: true });
+    $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
+    MC.data.merchant.test_key_hint = r.api_key.slice(-4); mcRender(); $('mc-key-box').hidden = false;
+  });
+  $('mc-hooktest').onclick = mcDo($('mc-hooktest'), async function () {
+    var r = await payApi('pay.hooktest');
+    if (r.ok) toast('وصل الإشعار، وردّ خادمك بـ ' + r.status);
+    else toast(r.status ? 'خادمك ردّ بـ ' + r.status + '. يجب أن يرد بـ 200' : 'تعذّر الوصول إلى رابطك خلال 8 ثوانٍ', true);
   });
   $('mc-key-copy').onclick = function () { copyText($('mc-key').textContent); };
   $('mc-secret-copy').onclick = function () { copyText(MC.data.merchant.webhook_secret); };

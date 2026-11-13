@@ -822,11 +822,17 @@
         <button type="button" class="btn btn-ghost" id="mc-key-copy">نسخ المفتاح</button>
       </div>
       <button type="button" class="btn btn-ghost" id="mc-key-new">إنشاء مفتاح API</button>
+      <div style="border-top:1px solid var(--div);padding-top:10px;display:flex;flex-direction:column;gap:8px">
+        <b style="font-size:14px">مفتاح تجريبي</b>
+        <span class="muted" style="font-size:12px;line-height:1.7" id="mc-tkey-state">للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.</span>
+        <button type="button" class="btn btn-ghost" id="mc-tkey-new">إنشاء مفتاح تجريبي</button>
+      </div>
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:8px">
       <b>إشعار الدفع</b>
       <span class="muted ltr" style="font-size:12px;word-break:break-all;text-align:right" id="mc-hook-view"></span>
       <div class="row" style="gap:8px"><button type="button" class="btn btn-ghost" id="mc-secret-copy" style="flex:1">نسخ سر الإشعار</button><button type="button" class="btn btn-ghost" id="mc-edit" style="flex:1">تعديل البيانات</button></div>
+      <button type="button" class="btn btn-ghost" id="mc-hooktest">إرسال إشعار تجريبي</button>
     </div>
     <div class="card" style="display:flex;flex-direction:column;gap:6px">
       <b>آخر الفواتير</b>

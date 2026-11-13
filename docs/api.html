@@ -73,7 +73,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
   <p>طلب واحد ينشئ فاتورة. العميل يدفع إلى محفظتك مباشرة، وخادمك يعرف فوراً أن الدفع تم.</p>
 </div></header>
 <nav><div class="wrap">
-  <a href="#start">ابدأ</a><a href="try.html">جرّب الآن</a><a href="#example">مثال كامل</a><a href="#webhook">إشعار الدفع</a><a href="#ref">المرجع</a><a href="#errors">الأخطاء</a><a href="#fees">الرسوم</a>
+  <a href="#start">ابدأ</a><a href="#test">الوضع التجريبي</a><a href="try.html">جرّب الآن</a><a href="#example">مثال كامل</a><a href="#webhook">إشعار الدفع</a><a href="#ref">المرجع</a><a href="#errors">الأخطاء</a><a href="#fees">الرسوم</a>
 </div></nav>
 
 <main class="wrap">
@@ -92,7 +92,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
     <div class="step"><i>1</i><div>
       <h3>احصل على مفتاح API</h3>
       <p>ثبّت <a href="./">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
-      <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك.</p>
+      <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك. للتجربة بدون مال أنشئ <a href="#test">مفتاحاً تجريبياً</a>.</p>
     </div></div>
 
     <div class="step"><i>2</i><div>
@@ -207,6 +207,25 @@ if invoice['status'] == 'paid':
     </div></div>
 
     <div class="warn"><b>لا تضع المفتاح في المتصفح أو تطبيق الموبايل.</b> كل الطلبات أعلاه تُرسل من خادمك فقط. من يحصل على المفتاح يستطيع إنشاء فواتير باسمك.</div>
+  </section>
+
+  <section class="card" id="test">
+    <h2>الوضع التجريبي</h2>
+    <p>جرّب الربط كاملاً بدون مال حقيقي. أنشئ <b>مفتاحاً تجريبياً</b> من نفس شاشة بوابة الدفع في التطبيق، يبدأ بـ <code>sk_test_</code>، واستخدمه مكان المفتاح الحقيقي في كل الطلبات أعلاه.</p>
+    <ul>
+      <li>الفواتير التجريبية لا تُراقَب على الشبكة ولا تخصم من رصيدك، وفيها <code>"test": true</code>.</li>
+      <li>صفحة الدفع تعرض زر <b>«محاكاة الدفع»</b> بدل العنوان.</li>
+      <li>المفتاحان منفصلان: كل مفتاح يرى فواتير وضعه فقط.</li>
+    </ul>
+    <h3>محاكاة الدفع من خادمك</h3>
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6/simulate \
+  -H "Authorization: Bearer sk_test_XXXXXXXX" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"paid"}'</code></pre></div>
+    <p><code>status</code> إما <code>paid</code> (الافتراضي) أو <code>expired</code>. عند <code>paid</code> يصلك إشعار <code>invoice.paid</code> فوراً، كما في الدفع الحقيقي.</p>
+    <div class="cb"><div class="cbh"><span>Node.js</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="js">// في معالج الإشعار: لا تسلّم طلباً حقيقياً عن دفعة تجريبية
+if (invoice.test) return res.sendStatus(200);</code></pre></div>
+    <p>ولاختبار رابط الإشعار وحده: زر <b>«إرسال إشعار تجريبي»</b> في التطبيق يرسل إشعاراً موقّعاً بـ <code>"event": "test"</code> ويعرض لك رد خادمك.</p>
   </section>
 
   <section class="card" id="example">
@@ -343,6 +362,9 @@ def sarra_hook():
     <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl "https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices?status=paid&amp;limit=20" \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
+    <div class="ep"><span>/v1/invoices/{id}/simulate</span><b>POST</b></div>
+    <p>محاكاة دفع أو انتهاء فاتورة تجريبية. بالمفتاح التجريبي فقط. <a href="#test">التفاصيل</a>.</p>
+
     <div class="ep"><span>/v1/balance</span><b class="g">GET</b></div>
     <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة.</p>
     <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/balance \
@@ -364,7 +386,9 @@ def sarra_hook():
       <tr><td><code>BAD_ORDER_ID</code></td><td>400</td><td><code>order_id</code> فيه رموز غير مسموحة أو أطول من 64.</td></tr>
       <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة. انتظر انتهاء بعضها.</td></tr>
       <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحد 300 فاتورة في الساعة.</td></tr>
-      <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك.</td></tr>
+      <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك، أو تخص الوضع الآخر (تجريبي/حقيقي).</td></tr>
+      <tr><td><code>TEST_KEY_REQUIRED</code></td><td>403</td><td>المحاكاة تعمل بالمفتاح التجريبي فقط.</td></tr>
+      <tr><td><code>NOT_PENDING</code></td><td>400</td><td>لا تُحاكى إلا فاتورة بانتظار الدفع.</td></tr>
     </table></div>
   </section>
 

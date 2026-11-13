@@ -17,7 +17,10 @@ async def handler(route):
   if a=='pay.save':
     st['m']={'name':p['name'],'tron_addr':m['address'],'evm_addr':p.get('evm_addr'),'webhook_url':p.get('webhook_url'),'webhook_secret':'whsec_'+'1'*48,'key_hint':(st['m'] or {}).get('key_hint'),'credit':'1','active':True}
     return await route.fulfill(json={'merchant':st['m'],**INFO})
-  if a=='pay.key': k='sk_live_'+'9'*44+'beef'; st['m']['key_hint']='beef'; return await route.fulfill(json={'api_key':k})
+  if a=='pay.key':
+    if p.get('test'): st['m']['test_key_hint']='cafe'; return await route.fulfill(json={'api_key':'sk_test_'+'8'*44+'cafe'})
+    k='sk_live_'+'9'*44+'beef'; st['m']['key_hint']='beef'; return await route.fulfill(json={'api_key':k})
+  if a=='pay.hooktest': return await route.fulfill(json=st.pop('hook',{'ok':True,'status':200}))
   if a=='pay.topup': return await route.fulfill(json={'invoice':{'id':'inv_'+'d'*20,'pay_url':'https://skfk86.github.io/sarra-wallet/pay.html?i=inv_'+'d'*20,'pay_amount':p['amount']+'.000777'}})
   return await route.fulfill(status=400,json={'error':'BAD_ACTION'})
 async def main():
@@ -70,6 +73,12 @@ async def main():
     st['fail']='BAD_WEBHOOK_URL'; await pg.click('#mc-save'); await pg.wait_for_timeout(1000)
     assert 'https' in await pg.inner_text('#mc-err') and await pg.locator('#mc-form').is_visible(); step('خطأ من الخادم يظهر بالعربية في مكانه')
     await pg.click('#mc-cancel'); await pg.wait_for_timeout(300); assert await pg.locator('#mc-dash').is_visible()
+    await pg.click('#mc-tkey-new'); await pg.wait_for_timeout(1200)
+    k=await pg.inner_text('#mc-key'); assert k.startswith('sk_test_') and await pg.locator('#mc-key-box').is_visible() and 'cafe' in await pg.inner_text('#mc-tkey-state') and 'beef' in await pg.inner_text('#mc-key-state'), k
+    assert [c for c in st['calls'] if c[0]=='pay.key'][-1][1]=={'test':True}; step('مفتاح تجريبي: منفصل عن الحقيقي، ويظهر مرة واحدة')
+    assert await pg.locator('#mc-hooktest').is_visible()
+    await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '200' in await pg.inner_text('#toast'), await pg.inner_text('#toast')
+    st['hook']={'ok':False,'status':500}; await pg.wait_for_timeout(2500); await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '500' in await pg.inner_text('#toast'); step('إشعار تجريبي: يعرض رد خادم التاجر (نجاح أو فشل)')
     await pg.click('#mc-docs'); assert 'api.html' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
     print('أخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()

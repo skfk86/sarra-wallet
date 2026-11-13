@@ -106,11 +106,11 @@ export function hookBackoffMin(attempts: number): number | null {
 
 export function randHex(bytes: number): string { const a = new Uint8Array(bytes); crypto.getRandomValues(a); return [...a].map((x) => x.toString(16).padStart(2, '0')).join(''); }
 export const newInvoiceId = () => 'inv_' + randHex(10);
-export const newApiKey = () => 'sk_live_' + randHex(24);
+export const newApiKey = (test = false) => (test ? 'sk_test_' : 'sk_live_') + randHex(24);
 export const newHookSecret = () => 'whsec_' + randHex(24);
 export const randTail = () => 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % TAIL_MAX);
 
-export type InvoiceRow = { id: string; kind: string; network: string; address: string; amount: string | number; exact: string | number; fee: string | number; order_id: string | null; description: string | null; status: string; tx: string | null; paid_at: string | null; expires_at: string; created_at: string };
+export type InvoiceRow = { id: string; kind: string; network: string; address: string; amount: string | number; exact: string | number; fee: string | number; order_id: string | null; description: string | null; status: string; tx: string | null; paid_at: string | null; expires_at: string; created_at: string; test?: boolean };
 // شكل الفاتورة في الـ API (للتاجر) وفي صفحة الدفع (للعميل)
 export function invoiceView(r: InvoiceRow, payBase: string, now: number, forMerchant = true) {
   const late = r.status === 'pending' && now > Date.parse(r.expires_at);
@@ -118,7 +118,7 @@ export function invoiceView(r: InvoiceRow, payBase: string, now: number, forMerc
     id: r.id, status: late ? 'expired' : r.status, network: r.network, network_name: NETS[r.network]?.name || r.network, currency: 'USDT',
     amount: fmtUnits(r.amount), pay_amount: fmtUnits(r.exact), address: r.address,
     description: r.description, tx: r.tx, paid_at: r.paid_at, expires_at: r.expires_at, created_at: r.created_at,
-    pay_url: payBase + '?i=' + r.id
+    pay_url: payBase + '?i=' + r.id, test: !!r.test
   };
   if (forMerchant) { v.order_id = r.order_id; v.fee = fmtUnits(r.fee); v.kind = r.kind; }
   return v;
