@@ -42,8 +42,8 @@ jobs:
         if: inputs.fn == 'pay-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          TOPUP_TRON: ${{ vars.SARRA_FEE_ADDRESS }}
-          TOPUP_EVM: ${{ vars.SARRA_EVM_FEE_ADDRESS }}
+          TOPUP_TRON: ${{ vars.SARRA_FEE_ADDRESS || secrets.SARRA_FEE_ADDRESS }}
+          TOPUP_EVM: ${{ vars.SARRA_EVM_FEE_ADDRESS || secrets.SARRA_EVM_FEE_ADDRESS }}
         run: |
           : > /tmp/pay.env
           echo "$TOPUP_TRON" | grep -Eq '^T[1-9A-HJ-NP-Za-km-z]{33}$' && echo "PAY_TOPUP_TRON=$TOPUP_TRON" >> /tmp/pay.env || echo "::warning::SARRA_FEE_ADDRESS ليس عنوان TRON: شحن الرصيد على TRON غير متاح"
