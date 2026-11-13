@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>جرّب بوابة دفع صُرّة</title>
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--ac:#0B8A63;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--bad:#c0392b}
+@media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--bad:#ff6b6b}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,'Noto Sans Arabic','Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--tx);line-height:1.8}
+.wrap{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:16px;margin-top:12px}
+label{display:block;font-weight:700;font-size:14px;margin-top:10px}
+input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);margin-top:4px}
+input[dir=ltr]{text-align:left}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:var(--ac);color:#fff;cursor:pointer;text-decoration:none;display:inline-block;margin-top:12px}
+button.sec{background:none;color:var(--ac);border:1px solid var(--ac)}
+button:disabled{opacity:.5}
+.warn{background:color-mix(in srgb,#e7b54a 14%,var(--card));border-inline-start:4px solid #e7b54a;border-radius:10px;padding:8px 12px;font-size:14px}
+pre{background:#0d1a16;color:#d7f5e9;border-radius:12px;padding:12px;overflow-x:auto;direction:ltr;text-align:left;font-size:12.5px;line-height:1.6;margin:10px 0 0;font-family:ui-monospace,Menlo,Consolas,monospace}
+.err{color:var(--bad);font-weight:700;margin-top:10px}
+.st{font-weight:800;font-size:18px;margin:0}
+.mu{color:var(--mu);font-size:13.5px}
+a{color:var(--ac)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body><div class="wrap">
+  <a href="api.html">→ التوثيق</a>
+  <h1>جرّب البوابة من المتصفح</h1>
+  <p class="mu" style="margin:0">أنشئ فاتورة حقيقية بمفتاحك وتابع حالتها، بدون كتابة كود.</p>
+
+  <div class="card">
+    <div class="warn"><b>للتجربة فقط.</b> المفتاح يُستخدم من هذه الصفحة مباشرة ولا يُحفظ ولا يُرسل إلا إلى خادم صُرّة. في متجرك الحقيقي يبقى المفتاح في الخادم، لا في صفحة ويب.</div>
+    <label for="key">مفتاح الـ API</label>
+    <input id="key" type="password" dir="ltr" placeholder="sk_live_…" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <div><label for="amount">المبلغ (USDT)</label><input id="amount" dir="ltr" inputmode="decimal" value="1"></div>
+      <div><label for="network">الشبكة</label><select id="network"><option value="bsc">BNB Chain</option><option value="tron">TRON</option><option value="polygon">Polygon</option><option value="eth">Ethereum</option></select></div>
+    </div>
+    <label for="desc">الوصف (اختياري)</label>
+    <input id="desc" value="فاتورة تجريبية" maxlength="140">
+    <button id="go" type="button">أنشئ فاتورة</button>
+    <button id="bal" type="button" class="sec">رصيدي</button>
+    <div class="err" id="err" hidden></div>
+    <pre id="balout" hidden></pre>
+  </div>
+
+  <div class="card" id="res" hidden>
+    <p class="st" id="st"></p>
+    <p class="mu" id="sub" style="margin:2px 0 0"></p>
+    <a class="btn" id="pay" target="_blank" rel="noopener">افتح صفحة الدفع</a>
+    <p class="mu" style="margin:10px 0 0">رد الخادم:</p>
+    <pre id="out"></pre>
+  </div>
+</div>
+<script>
+(function () {
+  var API = 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay';
+  var $ = function (i) { return document.getElementById(i); }, timer = null;
+  var ERR = { UNAUTHORIZED: 'المفتاح غير صحيح أو استُبدل بمفتاح جديد.', INSUFFICIENT_CREDIT: 'الرصيد لا يكفي لعمولة هذه الفاتورة. اشحنه من التطبيق.',
+    BAD_AMOUNT: 'صيغة المبلغ غير صحيحة (مثال: 1 أو 2.50).', AMOUNT_TOO_SMALL: 'أقل مبلغ 1 USDT.', AMOUNT_TOO_LARGE: 'المبلغ أكبر من الحد.',
+    NETWORK_NOT_CONFIGURED: 'لا يوجد عنوان استلام لهذه الشبكة في حسابك.', TOO_MANY_PENDING: 'عندك فواتير معلّقة كثيرة.', RATE_LIMITED: 'طلبات كثيرة، انتظر قليلاً.' };
+  function fail(code) { $('err').textContent = (ERR[code] || 'تعذّر الطلب') + ' (' + code + ')'; $('err').hidden = false; }
+  async function call(method, path, body) {
+    var key = $('key').value.trim();
+    if (!/^sk_live_\w+$/.test(key)) throw new Error('NO_KEY');
+    var r; try { r = await fetch(API + path, { method: method, headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
+    catch (e) { throw new Error('NETWORK'); }
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(j.error || 'HTTP_' + r.status);
+    return j;
+  }
+  function onErr(e) { var c = e.message; if (c === 'NO_KEY') { $('err').textContent = 'ألصق مفتاحك أولاً (يبدأ بـ sk_live_).'; $('err').hidden = false; } else if (c === 'NETWORK') { $('err').textContent = 'تعذّر الاتصال بالخادم. تحقق من الإنترنت.'; $('err').hidden = false; } else fail(c); }
+  function show(inv) {
+    var T = { pending: ['⏳ بانتظار الدفع', 'ادفع ' + inv.pay_amount + ' USDT بالضبط على ' + (inv.network_name || inv.network) + '. تتحدث الحالة هنا تلقائياً.'],
+      paid: ['✅ مدفوعة', 'وصل التحويل وتأكد. العمولة المخصومة: ' + inv.fee + ' USDT.'], expired: ['⌛ منتهية', 'انتهت المهلة قبل الدفع.'] }[inv.status] || [inv.status, ''];
+    $('st').textContent = T[0]; $('sub').textContent = T[1];
+    $('pay').href = inv.pay_url; $('pay').hidden = inv.status !== 'pending';
+    $('out').textContent = JSON.stringify({ invoice: inv }, null, 2); $('res').hidden = false;
+  }
+  $('go').onclick = async function () {
+    $('err').hidden = true; $('go').disabled = true; clearInterval(timer);
+    try {
+      var inv = (await call('POST', '/v1/invoices', { amount: $('amount').value.trim(), network: $('network').value, description: $('desc').value.trim() || undefined })).invoice;
+      show(inv); $('res').scrollIntoView({ behavior: 'smooth' });
+      timer = setInterval(async function () {
+        try { var cur = (await call('GET', '/v1/invoices/' + inv.id)).invoice; show(cur); if (cur.status === 'paid') clearInterval(timer); } catch (e) {}
+      }, 8000);
+    } catch (e) { onErr(e); }
+    $('go').disabled = false;
+  };
+  $('bal').onclick = async function () {
+    $('err').hidden = true;
+    try { $('balout').textContent = JSON.stringify(await call('GET', '/v1/balance'), null, 2); $('balout').hidden = false; } catch (e) { onErr(e); }
+  };
+})();
+</script>
+</body></html>
