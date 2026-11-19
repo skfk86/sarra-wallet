@@ -51,11 +51,17 @@ jobs:
           if [ -s /tmp/pay.env ]; then supabase secrets set --env-file /tmp/pay.env --project-ref osdojhpsfbcqguoctbpk --yes; echo "✓ عناوين شحن الرصيد: $(cut -d= -f1 /tmp/pay.env | tr '\n' ' ')"; else echo "::error::لا يوجد أي عنوان لشحن الرصيد"; fi
           # الترحيلات قبل نشر الدالة: الدالة الجديدة تعتمد على أعمدتها
           for m in 020_pay 021_pay_test 022_pay_v2 023_pay_perf; do
-            python3 -c "import json,sys;print(json.dumps({'query':open('supabase/migrations/'+sys.argv[1]+'.sql').read()}))" $m > /tmp/q.json
-            code=$(curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
-              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json)
+            # سجل الترحيلات: كل ترحيل يُطبَّق مرة واحدة فقط (إعادة تشغيل ترحيل قديم قد تعيد تعريفات قديمة أو تفشل)
+            q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
+              curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+            q "create table if not exists public.sarra_migrations (name text primary key, applied_at timestamptz not null default now()); alter table public.sarra_migrations enable row level security;" >/dev/null
+            q "select count(*)::int n from public.sarra_migrations where name = '$m'" >/dev/null
+            if grep -Eq '"n": ?1[^0-9]' /tmp/r.txt; then echo "migration $m: مطبّق سابقاً، تخطّي"; continue; fi
+            code=$(q "$(cat supabase/migrations/$m.sql)")
             echo "migration $m HTTP $code"; head -c 600 /tmp/r.txt; echo
             [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق الترحيل $m"; exit 1; }
+            q "insert into public.sarra_migrations(name) values ('$m') on conflict do nothing" >/dev/null
           done
           supabase functions deploy pay --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes
           sleep 75
@@ -76,11 +82,17 @@ jobs:
           else echo "::warning::السر FCM_SERVICE_ACCOUNT غير موجود في GitHub، أضفه من لوحة Supabase يدوياً"; fi
           for f in push-watch p2p support; do supabase functions deploy $f --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes; done
           for m in 018_push 019_vault; do
-            python3 -c "import json,sys;print(json.dumps({'query':open('supabase/migrations/'+sys.argv[1]+'.sql').read()}))" $m > /tmp/q.json
-            code=$(curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
-              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json)
+            # سجل الترحيلات: كل ترحيل يُطبَّق مرة واحدة فقط (إعادة تشغيل ترحيل قديم قد تعيد تعريفات قديمة أو تفشل)
+            q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
+              curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+            q "create table if not exists public.sarra_migrations (name text primary key, applied_at timestamptz not null default now()); alter table public.sarra_migrations enable row level security;" >/dev/null
+            q "select count(*)::int n from public.sarra_migrations where name = '$m'" >/dev/null
+            if grep -Eq '"n": ?1[^0-9]' /tmp/r.txt; then echo "migration $m: مطبّق سابقاً، تخطّي"; continue; fi
+            code=$(q "$(cat supabase/migrations/$m.sql)")
             echo "migration $m HTTP $code"; head -c 600 /tmp/r.txt; echo
             [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق الترحيل $m"; exit 1; }
+            q "insert into public.sarra_migrations(name) values ('$m') on conflict do nothing" >/dev/null
           done
           sleep 75
           echo "--- آخر تشغيل للماسح (من جدول cron) ---"

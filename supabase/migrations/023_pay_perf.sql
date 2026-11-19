@@ -7,3 +7,7 @@ alter table public.pay_merchants alter column credit set default 0;
 -- من لم يشحن قط يُزال عنه الرصيد الترحيبي (ومن شحن لا يُمس رصيده)
 update public.pay_merchants m set credit = least(credit, 0)
  where not exists (select 1 from public.pay_invoices i where i.merchant_id = m.id and i.kind = 'topup' and i.status = 'paid');
+
+-- القيمة الافتراضية لشبكة P2P تطابق الواقع (BEP20 فقط منذ 016). الخادم يحدد الشبكة صراحة دائماً، فهذا تنظيف فقط
+alter table public.offers alter column network set default 'BEP20';
+alter table public.orders alter column network set default 'BEP20';

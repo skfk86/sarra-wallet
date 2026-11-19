@@ -46,6 +46,8 @@ async function handle(action: string, p: Record<string, any>, me: string) {
     await db.from('support_tickets').delete().eq('address', me);
     await db.from('push_tokens').delete().eq('address', me);
     await db.from('user_vault').delete().eq('address', me); // لا إشعارات بعد حذف البيانات
+    // بوابة الدفع: يُزال اسم المتجر ورابط الإشعار وتتوقف المفاتيح. الفواتير تبقى (سجل مالي) مرتبطة بالعنوان فقط
+    await db.from('pay_merchants').update({ name: 'محذوف', webhook_url: null, key_hash: null, key_hint: null, test_key_hash: null, test_key_hint: null, active: false }).eq('address', me);
     await audit(me, 'account_delete');
     return { ok: true };
   }
