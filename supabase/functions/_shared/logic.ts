@@ -52,6 +52,14 @@ export function parseSignedMessage(message: string, now: number, maxSkewMs = 300
 
 // ===== قواعد انتقال الحالة =====
 // role: 'buyer' | 'seller' | 'admin'
+// محاولة دفع سابقة انقطعت ولا نعرف نتيجتها: قد يكون OxaPay أرسل المال فعلاً.
+// لا يُسمح للمشرف بإعادة التحرير/الإرجاع إلا بتأكيد صريح أنه راجع سجل Payouts ولم يجد الدفعة.
+export function payoutRetryBlocked(order: { status: string; payout_error?: string | null }, action: string, confirmedUnpaid: unknown): boolean {
+  if (action !== 'admin_release' && action !== 'admin_refund') return false;
+  if (order.status !== 'release_failed' && order.status !== 'refund_failed') return false;
+  return /^UNKNOWN_RESULT/.test(order.payout_error || '') && confirmedUnpaid !== true;
+}
+
 export function transitionFor(order: Order, role: string, action: string, now: number): Transition {
   const st = order.status;
   const late = order.pay_deadline ? now > Date.parse(order.pay_deadline) : false;

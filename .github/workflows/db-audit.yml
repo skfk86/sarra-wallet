@@ -1,0 +1,41 @@
+name: Database security audit (read-only)
+# فحص قراءة فقط لصلاحيات قاعدة البيانات (البند P0-1 في تقرير التدقيق). لا يعدّل أي شيء ولا يطبع أي بيانات مستخدمين.
+on: workflow_dispatch
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: osdojhpsfbcqguoctbpk
+    steps:
+      - uses: actions/checkout@v4
+      - name: RLS, policies and function privileges
+        run: |
+          q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
+                curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $T" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          echo "== 1) الجداول وحالة RLS (يجب أن تكون rls=true لكل جدول)"
+          q "select c.relname as table, c.relrowsecurity as rls from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p') order by 1" | tee /tmp/rls.json | jq -r '.[] | "\(if .rls then "  ok " else "  ✗✗ " end) \(.table)  rls=\(.rls)"'
+          echo; echo "== 2) سياسات RLS الموجودة (المتوقع: لا شيء يسمح لـ anon/authenticated)"
+          q "select tablename, policyname, roles::text, cmd, coalesce(qual,'') as using_expr, coalesce(with_check,'') as check_expr from pg_policies where schemaname='public' order by 1,2" | jq -r 'if length==0 then "  (لا توجد سياسات)" else .[] | "  \(.tablename) · \(.policyname) · roles=\(.roles) · \(.cmd) · using=\(.using_expr) · check=\(.check_expr)" end'
+          echo; echo "== 3) دوال public القابلة للتنفيذ بالمفتاح العام anon"
+          q "select p.proname as fn, p.prosecdef as security_definer from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and has_function_privilege('anon', p.oid, 'EXECUTE') order by 1" | jq -r 'if length==0 then "  (لا شيء)" else .[] | "  \(if .security_definer then "⚠ definer" else "  invoker" end)  \(.fn)" end'
+          echo; echo "== 4) جداول تخزين الملفات (storage buckets) العامة"
+          q "select id, public from storage.buckets order by 1" | jq -r 'if type=="array" then (if length==0 then "  (لا شيء)" else .[] | "  \(.id) public=\(.public)" end) else . end'
+          BAD=$(jq -r '[.[] | select(.rls==false) | .table] | join(", ")' /tmp/rls.json)
+          echo; if [ -n "$BAD" ]; then echo "::error::جداول بلا RLS (مكشوفة للمفتاح العام): $BAD"; else echo "✓ كل الجداول عليها RLS"; fi
+      - name: Real test with the public (anon) key
+        run: |
+          # نجرّب ما يستطيعه أي شخص استخرج المفتاح العام من التطبيق. نطبع عدد الصفوف فقط، لا محتواها.
+          ANON=$(curl -sS "https://api.supabase.com/v1/projects/$REF/api-keys" -H "Authorization: Bearer $T" | jq -r '.[] | select(.name=="anon") | .api_key' | head -1)
+          [ -n "$ANON" ] || { echo "::error::تعذّر جلب المفتاح العام"; exit 1; }
+          echo "== قراءة كل جدول بالمفتاح العام (المتوقع: 0 صفوف أو رفض)"
+          for t in $(jq -r '.[].table' /tmp/rls.json); do
+            code=$(curl -s -o /tmp/r.json -w '%{http_code}' "https://$REF.supabase.co/rest/v1/$t?select=*&limit=3" -H "apikey: $ANON" -H "Authorization: Bearer $ANON")
+            n=$(jq 'if type=="array" then length else "-" end' /tmp/r.json 2>/dev/null || echo "-")
+            if [ "$n" != "0" ] && [ "$n" != "-" ]; then echo "  ✗✗ $t → HTTP $code · صفوف مقروءة: $n"; echo "::error::الجدول $t يُقرأ بالمفتاح العام"; else echo "  ok $t → HTTP $code · صفوف: $n"; fi
+          done
+          echo; echo "== محاولة تعديل بالمفتاح العام (على صف غير موجود، فلا تغيير حتى لو نجحت)"
+          for t in orders profiles offers; do
+            code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X PATCH "https://$REF.supabase.co/rest/v1/$t?id=eq.00000000-0000-0000-0000-000000000000" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'Content-Type: application/json' -H 'Prefer: return=minimal' --data '{}')
+            echo "  $t PATCH → HTTP $code  (204 مع RLS = لا صفوف مسموحة، وهذا متوقع؛ المهم نتيجة القراءة أعلاه)"
+          done

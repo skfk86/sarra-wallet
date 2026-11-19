@@ -462,11 +462,11 @@
     var EVM_REJECT = /insufficient funds|underpriced|below minimum|tip cap|fee too low|max fee per gas less than|nonce too low|nonce too high|execution reverted|CALL_EXCEPTION|exceeds allowance|exceeds balance/i;
     function rawOf(e) { return e ? String(e.shortMessage || e.message || '') + ' ' + String(e.info && e.info.error && e.info.error.message || '') : ''; }
     async function evmCall(c, fn) {
-      var last, seen = [];
+      var last, named, seen = [];
       for (var i = 0; i < c.rpcs.length; i++) {
         try { return await fn(evmProvider(c, c.rpcs[i])); }
         catch (e) {
-          last = e;
+          last = e; if (/^[A-Z_]+$/.test((e && e.message) || '')) named = e; // سبب معروف من خادم يُقدَّم على انقطاع خادم آخر
           // نحتفظ بسبب فشل كل خادم (للتشخيص)، باسم النطاق فقط
           var host = ''; try { host = new URL(c.rpcs[i]).hostname.split('.').slice(-2, -1)[0]; } catch (x) {}
           seen.push(host + ': ' + String((e && (e.shortMessage || e.code || e.message)) || '?').slice(0, 40));
@@ -477,7 +477,7 @@
           if (EVM_REJECT.test(rawOf(e))) { var rj = new Error('EVM_REJECTED'); rj.raw = rawOf(e); throw rj; }
         }
       }
-      if (last && /^[A-Z_]+$/.test(last.message || '')) throw last;
+      if (named) throw named;
       var ne = new Error('EVM_NETWORK'); ne.raw = seen.join(' | '); throw ne;
     }
 
@@ -520,6 +520,21 @@
         approvalHex: q.approval ? tronHex(tw, q.approval) : '', pinHex: opts.lifiTron ? tronHex(tw, opts.lifiTron) : '',
         evmDest: q.toNet !== 'tron' ? session.evm.address : '' });
     }
+    // بث معاملة موقّعة. «already known» = بُثّت من قبل (نجاح). «nonce too low» لا تعني نجاحاً:
+    // قد يكون الخادم أعطى رقم تسلسل قديماً، فنتأكد أن معاملتنا نفسها (بنفس الـ hash) موجودة، وإلا نرفض
+    async function evmBroadcast(c, signed, hash) {
+      await evmCall(c, function (p) { return p.broadcastTransaction(signed).catch(async function (e) {
+        // ethers v6 يحوّل «nonce too low» إلى code=NONCE_EXPIRED برسالة «nonce has already been used»
+        var m = String(e && (e.message || e.shortMessage)) + ' ' + String(e && e.code) + ' ' + rawOf(e);
+        if (/already known|ALREADY_EXISTS/i.test(m)) return null;
+        if (/nonce too low|NONCE_EXPIRED|nonce has already been used/i.test(m)) {
+          var mine = await p.getTransaction(hash).catch(function () { return null; });
+          if (mine) return null;
+          throw new Error('NONCE_STALE');
+        }
+        throw e;
+      }); });
+    }
     // توقيع وبث معاملة EVM عامة (موافقة أو جسر) وانتظار تأكيدها
     async function evmExec(c, tx, waitHard) {
       var ethers = E(), from = session.evm.address;
@@ -531,8 +546,7 @@
         return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
       });
       var hash = ethers.Transaction.from(signed).hash;
-      await evmCall(c, function (p) { return p.broadcastTransaction(signed).catch(function (e) {
-        if (/already known|nonce too low|ALREADY_EXISTS/i.test(String(e && (e.message || e.shortMessage)))) return null; throw e; }); });
+      await evmBroadcast(c, signed, hash);
       for (var i = 0; i < (waitHard ? 30 : 13); i++) {
         await new Promise(function (r) { setTimeout(r, 3000); });
         try { var rc = await evmCall(c, function (p) { return p.getTransactionReceipt(hash); });
@@ -674,6 +688,21 @@
           trx: formatAmount(trxSun, TRX_DECIMALS),
           usdt: formatAmount(usdtUnits, USDT_DECIMALS)
         };
+      },
+
+      // هل المستلم عقد ذكي؟ الإرسال إلى عقد (خصوصاً عقد العملة نفسها) يضيع غالباً بلا رجعة.
+      // يعيد 'token' إن كان عنوان عقد عملة معروفة، و'contract' لأي عقد آخر، وnull لمحفظة عادية أو إن تعذّر الفحص.
+      recipientRisk: async function (netKey, to) {
+        var t = String(to || '').toLowerCase();
+        if (netKey === 'tron') {
+          if (t === String(net.usdt).toLowerCase()) return 'token';
+          var ct = await readRetry(function (k) { return client(null, k).trx.getContract(to); }).catch(function () { return null; });
+          return ct && (ct.bytecode || ct.contract_address) ? 'contract' : null;
+        }
+        var c = EVM_CHAINS[netKey]; if (!c) return null;
+        if (c.tokens.some(function (x) { return String(x.addr).toLowerCase() === t; })) return 'token';
+        var code = await evmCall(c, function (p) { return p.getCode(to); }).catch(function () { return null; });
+        return code && code !== '0x' ? 'contract' : null;
       },
 
       // تقدير رسوم الإرسال على TRON قبل التأكيد (بـ TRX). USDT لعنوان لم يملك USDT قط يستهلك ضعف الطاقة تقريباً.
@@ -919,11 +948,7 @@
           return new ethers.Wallet(session.evm.privateKey).signTransaction(t);
         });
         var hash = ethers.Transaction.from(signed).hash;
-        await evmCall(c, function (p) { return p.broadcastTransaction(signed).catch(function (e) {
-          // إن كانت المعاملة بُثّت من قبل فهذا نجاح
-          if (/already known|nonce too low|ALREADY_EXISTS/i.test(String(e && (e.message || e.shortMessage)))) return null;
-          throw e;
-        }); });
+        await evmBroadcast(c, signed, hash);
         // انتظار التأكيد حتى ~40 ثانية
         var status = 'PENDING';
         for (var i = 0; i < 13; i++) {
@@ -1119,6 +1144,7 @@
     QUOTE_EXPIRED: 'انتهت صلاحية السعر. اطلب سعراً جديداً',
     ROUTE_MISMATCH: 'رفضنا هذا المسار لأن بيانات المعاملة لا تطابق ما طلبته. لم يُرسل أي مبلغ. اطلب سعراً جديداً',
     INSUFFICIENT_NATIVE: 'الرصيد غير كافٍ للمبلغ مع رسوم الشبكة',
+    NONCE_STALE: 'لم تُرسل المعاملة: الشبكة ردّت برقم تسلسل قديم. لم يُخصم شيء، حاول مرة أخرى بعد لحظات',
     LOW_GAS: 'تحتاج عملة الشبكة (BNB أو ETH أو POL) في محفظتك لدفع رسوم الإرسال على هذه الشبكة',
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
     EVM_REJECTED: 'رفضت الشبكة المعاملة. اطلب سعراً جديداً وحاول مجدداً',

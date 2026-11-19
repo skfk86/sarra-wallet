@@ -239,8 +239,8 @@
     if (kind === 'danger') b.style.cssText = 'color:var(--err)';
     b.onclick = fn; $('ord-actions').appendChild(b); return b;
   }
-  async function doAction(act, confirmText, needAuth) {
-    var run = function () { refreshOrder('order.action', { action: act, reason: state.p2p.reason || '' }); };
+  async function doAction(act, confirmText, needAuth, extra) {
+    var run = function () { refreshOrder('order.action', Object.assign({ action: act, reason: state.p2p.reason || '' }, extra || {})); };
     if (confirmText && !(await askConfirm(confirmText))) return;
     if (needAuth) authorize('تأكيد العملية', run); else run();
   }
@@ -316,8 +316,14 @@
       // فشل سابق مجهول النتيجة: قد يكون OxaPay أرسل المال فعلاً، فإعادة المحاولة قد تدفع مرتين
       var unk = /^UNKNOWN_RESULT/.test(o.payout_error || ''), warnTxt = unk ? '⚠️ المحاولة السابقة انقطعت ولا نعرف نتيجتها. افتح لوحة OxaPay ← Payouts وتأكد أنه لا توجد دفعة لهذا الطلب قبل المتابعة، وإلا سيُدفع المبلغ مرتين. ' : '';
       if (o.payout_error) kv(dl, 'خطأ الإرسال', o.payout_error);
-      if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { doAction('admin_release', warnTxt + 'تحرير USDT للمشتري؟', true); });
-      if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { doAction('admin_refund', warnTxt + 'إرجاع USDT للبائع؟', true); });
+      // نتيجة مجهولة: تأكيد ثانٍ صريح يُرسل للخادم (الخادم يرفض بدونه)
+      var adminDo = async function (act, q) {
+        if (unk && !(await askConfirm('هل فتحت OxaPay ← Payouts وتأكدت بنفسك أنه لا توجد أي دفعة بالوصف «Sarra P2P … ' + o.id + '»؟ إن لم تتأكد فاضغط إلغاء.'))) return;
+        doAction(act, warnTxt + q, true, unk ? { confirmed_unpaid: true } : null);
+      };
+      if (s === 'releasing' || s === 'refunding') kv(dl, 'تنبيه', 'الصفقة عالقة في منتصف الدفع منذ أكثر من 10 دقائق. راجع OxaPay ← Payouts: إن وُجدت الدفعة فلا تفعل شيئاً وأبلغ المطوّر لتحديث الحالة.');
+      if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { adminDo('admin_release', 'تحرير USDT للمشتري؟'); });
+      if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { adminDo('admin_refund', s === 'funded' ? 'المشتري لم يضغط «حوّلت» بعد، لكنه قد يكون حوّل فعلاً. راسله أولاً. إرجاع USDT للبائع؟' : 'إرجاع USDT للبائع؟'); });
       if (o.dispute_reason) kv(dl, 'سبب النزاع', o.dispute_reason);
     }
 

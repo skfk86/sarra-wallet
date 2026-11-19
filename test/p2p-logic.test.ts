@@ -281,4 +281,15 @@ t('ملخص أرباح العمولة: اليوم و7 و30 يوماً والكل
   assert.equal(e.all.commission, '1.5'); assert.equal(e.all.trades, 3); assert.equal(e.all.volume, '350'); assert.equal(e.all.net_fees, '1.55');
 });
 
+
+t('لا إعادة دفع لنتيجة مجهولة بلا تأكيد صريح من المشرف', () => {
+  const unk = { status: 'release_failed', payout_error: 'UNKNOWN_RESULT: timeout' };
+  assert.equal(L.payoutRetryBlocked(unk, 'admin_release', undefined), true);
+  assert.equal(L.payoutRetryBlocked(unk, 'admin_release', 'yes'), true);
+  assert.equal(L.payoutRetryBlocked(unk, 'admin_release', true), false);
+  assert.equal(L.payoutRetryBlocked({ status: 'refund_failed', payout_error: 'UNKNOWN_RESULT: x' }, 'admin_refund', undefined), true);
+  assert.equal(L.payoutRetryBlocked({ status: 'release_failed', payout_error: 'OXAPAY: insufficient balance' }, 'admin_release', undefined), false, 'رفض صريح = لم يُدفع شيء');
+  assert.equal(L.payoutRetryBlocked({ status: 'disputed', payout_error: null }, 'admin_release', undefined), false);
+  assert.equal(L.payoutRetryBlocked(unk, 'release', undefined), false);
+});
 console.log(`\n${pass} اختبارات P2P نجحت`);

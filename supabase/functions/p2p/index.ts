@@ -65,14 +65,28 @@ const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent
 async function settle(order: Record<string, any>, kind: 'release' | 'refund', actor: string) {
   const net = order.network || 'TRC20';
   const amount = kind === 'release' ? L.buyerReceives(order.amount_usdt, order.fee_usdt) : L.refundAmount(order.amount_usdt, netFeeOf(net));
-  let to = '';
+  const busy = kind === 'release' ? 'releasing' : 'refunding';
+  const done = kind === 'release' ? 'released' : 'refunded';
+  const failed = kind === 'release' ? 'release_failed' : 'refund_failed';
+  let to = '', r: any;
+  // 1) الدفع وحده داخل try: أي خطأ هنا يعني أن الدفع لم يتأكد
   try {
     to = L.payoutTarget(order, kind);
-    const r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`, net);
-    const done = kind === 'release' ? 'released' : 'refunded';
-    await db.from('orders').update({ status: done, payout_track_id: r?.track_id ?? null, payout_error: null })
-      .eq('id', order.id).eq('status', kind === 'release' ? 'releasing' : 'refunding');
-    await audit(order.id, actor, kind + '_payout', { to, amount, track_id: r?.track_id });
+    r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`, net);
+  } catch (e) {
+    // رفض صريح من OxaPay = لم يُرسل شيء. انقطاع/مهلة = النتيجة مجهولة، فننبّه المشرف قبل أي إعادة محاولة
+    const m = String((e as Error).message);
+    const err = (m.startsWith('OXAPAY:') ? '' : 'UNKNOWN_RESULT: ') + m;
+    await db.from('orders').update({ status: failed, payout_error: err.slice(0, 300) }).eq('id', order.id).eq('status', busy);
+    await audit(order.id, actor, kind + '_failed', { error: m });
+    return failed;
+  }
+  // 2) الدفع نجح: لا شيء بعد هذا السطر يجوز أن يحوّل الصفقة إلى «فشل» (وإلا قد يُعاد الدفع)
+  const { error: upErr } = await db.from('orders').update({ status: done, payout_track_id: r?.track_id ?? null, payout_error: null })
+    .eq('id', order.id).eq('status', busy);
+  await audit(order.id, actor, kind + '_payout', { to, amount, track_id: r?.track_id, ...(upErr ? { status_update_error: upErr.message } : {}) }).catch(() => {});
+  if (upErr) { console.error('settle: paid but status update failed', order.id, upErr.message); return busy; } // تظهر للمشرف كصفقة عالقة
+  try {
     if (kind === 'release') {
       for (const a of [order.buyer, order.seller]) {
         const { data: p } = await db.from('profiles').select('trades_completed').eq('address', a).single();
@@ -81,16 +95,8 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
     } else {
       await db.rpc('p2p_unreserve_order', { p_order: order.id });
     }
-    return done;
-  } catch (e) {
-    const failed = kind === 'release' ? 'release_failed' : 'refund_failed';
-    // رفض صريح من OxaPay = لم يُرسل شيء. انقطاع/مهلة = النتيجة مجهولة، فننبّه المشرف قبل أي إعادة محاولة
-    const m = String((e as Error).message);
-    const err = (m.startsWith('OXAPAY:') ? '' : 'UNKNOWN_RESULT: ') + m;
-    await db.from('orders').update({ status: failed, payout_error: err.slice(0, 300) }).eq('id', order.id);
-    await audit(order.id, actor, kind + '_failed', { error: String(e) });
-    return failed;
-  }
+  } catch (e) { console.error('settle: post-payout bookkeeping failed', order.id, String(e)); }
+  return done;
 }
 
 async function bumpCancel(addr: string) {
@@ -433,6 +439,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     }
 
     if (action === 'order.action') {
+      if (role === 'admin' && L.payoutRetryBlocked(o as any, String(p.action), p.confirmed_unpaid)) throw new Error('PAYOUT_UNKNOWN_CONFIRM');
       const tr = L.transitionFor(o as L.Order, role, String(p.action), Date.now());
       if (p.action === 'cancel') await limit(me, 'order_cancel');
       const patch: Record<string, any> = { status: tr.to };
@@ -441,7 +448,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       if (role === 'admin') patch.resolved_by = me;
       const { data: locked } = await db.from('orders').update(patch).eq('id', o.id).in('status', tr.from).select().maybeSingle();
       if (!locked) throw new Error('INVALID_STATE');
-      await audit(o.id, me, 'action_' + p.action, { from: o.status, to: tr.to });
+      await audit(o.id, me, 'action_' + p.action, { from: o.status, to: tr.to, ...(p.confirmed_unpaid === true ? { confirmed_unpaid: true, prev_error: o.payout_error } : {}) });
       if (tr.to === 'cancelled') {
         await db.rpc('p2p_unreserve_order', { p_order: o.id });
       }
@@ -505,7 +512,10 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
 
   if (action === 'admin.queue') {
     if (!ADMINS.includes(me)) throw new Error('NOT_ALLOWED');
-    const { data } = await db.from('orders').select('*').in('status', ['disputed', 'release_failed', 'refund_failed']).order('updated_at').limit(50);
+    const { data: q1 } = await db.from('orders').select('*').in('status', ['disputed', 'release_failed', 'refund_failed']).order('updated_at').limit(50);
+    // صفقات عالقة في منتصف الدفع أكثر من 10 دقائق (الدفع ربما تم ولم تُحدَّث الحالة): تحتاج مراجعة يدوية في OxaPay
+    const { data: q2 } = await db.from('orders').select('*').in('status', ['releasing', 'refunding']).lt('updated_at', new Date(Date.now() - 600000).toISOString()).order('updated_at').limit(50);
+    const data = [...(q2 || []), ...(q1 || [])];
     const profs = await profilesMap((data || []).flatMap((o) => [o.buyer, o.seller]));
     return { orders: (data || []).map((o) => ({ ...o, buyer_profile: profs[o.buyer], seller_profile: profs[o.seller] })) };
   }

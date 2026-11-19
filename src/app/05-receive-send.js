@@ -226,6 +226,18 @@
     var s = String(v || '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[\s\-()]/g, '').replace(/^00/, '+').replace(/^\+?249/, '0');
     return /^0\d{9}$/.test(s) ? s : null;
   }
+  // تحذير قبل التأكيد إن كان المستلم عقداً ذكياً (أشهر سبب لضياع الأموال: الإرسال إلى عنوان عقد العملة نفسه)
+  async function checkRecipient(netKey, to) {
+    state.recipRisk = null; $('c-risk').hidden = true;
+    if (!core.recipientRisk) return;
+    var r = await Promise.race([core.recipientRisk(netKey, to), new Promise(function (ok) { setTimeout(function () { ok(null); }, 5000); })]).catch(function () { return null; });
+    state.recipRisk = r;
+    if (!r) return;
+    $('c-risk-t').textContent = r === 'token'
+      ? '⚠️ هذا عنوان عقد العملة نفسها، وليس محفظة. المبلغ المرسل إليه يضيع نهائياً في الغالب. تأكد من عنوان المستلم.'
+      : '⚠️ هذا العنوان عقد ذكي وليس محفظة عادية. إن لم تكن متأكداً أن العقد يقبل هذه العملة فقد يضيع المبلغ. تأكد من المستلم قبل الإرسال.';
+    $('c-risk').hidden = false;
+  }
   $('review').onclick = async function () {
     $('send-err').hidden = true;
     if (navigator.onLine === false) return sendError('لا يوجد اتصال بالإنترنت. تحقق من الاتصال ثم حاول');
@@ -257,6 +269,7 @@
       $('c-net').textContent = n.name + ' (' + n.short + ')';
       $('c-fee').textContent = 'تُدفع بعملة ' + n.native + ' من رصيدك' + (n.key === 'bsc' || n.key === 'polygon' ? ' (عادة أقل من $0.05)' : '');
       $('c-cheaper').hidden = true; $('c-cheaper-go').hidden = true;
+      if (!evia) { var eb2 = $('review'); eb2.disabled = true; await checkRecipient(state.sendNet, to); eb2.disabled = false; } else { state.recipRisk = null; $('c-risk').hidden = true; }
       $('sheet').classList.add('show');
       return;
     }
@@ -278,6 +291,7 @@
     if (have != null && units > have) return sendError(state.coin === 'USDT' ? WalletCore.errorText(new Error('INSUFFICIENT_USDT')) : 'رصيد TRX غير كافٍ');
     if (state.coin === 'USDT' && state.balances && state.balances.trxUnits < 5000000n) return sendError(WalletCore.errorText(new Error('LOW_TRX_FOR_FEES')));
     var rbtn = $('review'); rbtn.disabled = true; rbtn.textContent = 'جارٍ حساب الرسوم…';
+    if (!via) await checkRecipient('tron', to); else { state.recipRisk = null; $('c-risk').hidden = true; }
     var est = await Promise.race([core.estimateTronFee ? core.estimateTronFee(to, state.coin) : null, new Promise(function (r) { setTimeout(function () { r(null); }, 6000); })]).catch(function () { return null; });
     rbtn.disabled = false; rbtn.textContent = 'مراجعة الإرسال';
     if (est && state.balances) {
@@ -301,7 +315,9 @@
     $('amt').value = a; $('to').value = ''; updUsd(); $('to').focus(); toast('اكتب عنوان المستلم على BNB Chain أو معرّف صُرّة');
   };
   // كل إرسال يحتاج تأكيد الهوية: البصمة إن كانت مفعّلة، وإلا رمز القفل
-  $('confirm-send').onclick = function () {
+  $('confirm-send').onclick = async function () {
+    if (state.recipRisk) $('sheet').classList.remove('show');
+    if (state.recipRisk && !(await askConfirm(state.recipRisk === 'token' ? 'العنوان هو عقد العملة نفسها، والمبلغ سيضيع غالباً. هل أنت متأكد تماماً أنك تريد الإرسال إليه؟' : 'المستلم عقد ذكي وليس محفظة. هل أنت متأكد أنه يقبل هذه العملة؟'))) return;
     $('sheet').classList.remove('show');
     var askPin = function () { openPin('verify', function () { doSend(); }); };
     if (bioEnabled()) bioVerify('تأكيد الإرسال').then(doSend).catch(askPin);

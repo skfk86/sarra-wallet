@@ -13,6 +13,7 @@ def chain_of(url):
   if 'polygon' in url: return 'polygon'
   return 'eth'
 APPROVED=set()
+NONCE={'stale':False}
 def H(n): return hex(n)
 async def rpc(route):
   url=route.request.url; c=chain_of(url); body=json.loads(route.request.post_data)
@@ -29,6 +30,10 @@ async def rpc(route):
     elif m=='eth_getBlockByNumber': res={'number':'0x1','hash':'0x'+'ab'*32,'parentHash':'0x'+'00'*32,'timestamp':'0x1','gasLimit':'0x1c9c380','gasUsed':'0x0','miner':'0x'+'00'*20,'extraData':'0x','difficulty':'0x0','nonce':'0x0000000000000000','transactions':[],**({} if c=='bsc' else {'baseFeePerGas':H(2*10**9)})}
     elif m=='eth_estimateGas': res=H(60000)
     elif m=='eth_blockNumber': res='0x10'
+    elif m=='eth_sendRawTransaction' and NONCE['stale']:
+      out.append({'jsonrpc':'2.0','id':r['id'],'error':{'code':-32000,'message':'nonce too low'}}); continue
+    elif m=='eth_getTransactionByHash': res=None
+    elif m=='eth_getCode': res='0x6080604052' if p[0].lower()=='0x'+'c0'*20 else '0x'
     elif m=='eth_sendRawTransaction':
       sent.append((c,p[0])); res=await PG[0].evaluate('r=>ethers.Transaction.from(r).hash', p[0])
       # الموافقة بالمبلغ نفسه تُرى بعد بثّها، وتُستهلك بالمعاملة التالية
@@ -162,6 +167,35 @@ async def main():
     assert tx['cid']==137 and int(tx['tip'])>=30*10**9 and int(tx['max'])>int(tx['tip']), tx
     print('✓ Polygon: الإرسال ينجح دون محطة الغاز الخارجية، بإكرامية', int(tx['tip'])//10**9, 'gwei')
     await pg.wait_for_timeout(2500)
+    # «nonce too low» ومعاملتنا غير موجودة على الشبكة: لا يُعرض نجاح كاذب
+    await pg.goto('file://'+S+'/index.html'); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
+    await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(1500)
+    await pg.click('#send-nets [data-net=bsc]'); await pg.click('#coin-seg [data-coin=USDT]')
+    await pg.fill('#to', TO); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(400)
+    NONCE['stale']=True; await pg.click('#confirm-send'); await pin('123456')
+    for _ in range(40):
+      if 'تسلسل' in await pg.inner_text('#send-err') or await pg.locator('#s-success').is_visible(): break
+      await pg.wait_for_timeout(300)
+    NONCE['stale']=False
+    assert not await pg.locator('#s-success').is_visible() and 'تسلسل' in await pg.inner_text('#send-err'), await pg.inner_text('#send-err')
+    print('✓ «nonce too low» بلا معاملة فعلية على الشبكة: خطأ واضح بدل نجاح كاذب')
+    # الإرسال إلى عقد العملة نفسها أو إلى عقد ذكي: تحذير أحمر وتأكيد إضافي، ولا يُرسل شيء عند الإلغاء
+    for addr,word in [('0x55d398326f99059fF775485246999027B3197955','عقد العملة'),('0x'+'c0'*20,'عقد ذكي')]:
+      await pg.click('#cancel-send') if await pg.locator('#sheet.show').count() else None
+      await pg.fill('#to', addr); await pg.fill('#amt','1'); await pg.click('#review')
+      for _ in range(30):
+        if await pg.locator('#sheet.show').count(): break
+        await pg.wait_for_timeout(200)
+      assert await pg.locator('#c-risk').is_visible() and word in await pg.inner_text('#c-risk-t'), (addr, await pg.inner_text('#send-err'))
+      n0=len(sent); await pg.click('#confirm-send'); await pg.wait_for_timeout(300)
+      assert await pg.locator('#ask-sheet.show').count(); await pg.click('#ask-no'); await pg.wait_for_timeout(800)
+      assert len(sent)==n0
+    await pg.fill('#to', TO); await pg.click('#review')
+    for _ in range(30):
+      if await pg.locator('#sheet.show').count(): break
+      await pg.wait_for_timeout(200)
+    assert await pg.locator('#c-risk').is_hidden(); await pg.click('#cancel-send')
+    print('✓ المستلم عقد ذكي أو عقد العملة نفسها: تحذير أحمر وتأكيد إضافي، والمحفظة العادية بلا تحذير')
     await pg.goto('file://'+S+'/index.html'); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(1500)
     await pg.click('#send-nets [data-net=eth]'); await pg.wait_for_timeout(300)

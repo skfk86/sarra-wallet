@@ -10,7 +10,7 @@
     NO_PROFILE: 'اختر اسمك في السوق أولاً', BANNED: 'هذا الحساب موقوف في السوق',
     OFFER_UNAVAILABLE: 'الإعلان لم يعد متاحاً', NETWORK_NOT_SUPPORTED: 'تداول P2P متاح على شبكة BNB Smart Chain فقط', OWN_OFFER: 'لا يمكنك الشراء من إعلانك',
     AMOUNT_UNAVAILABLE: 'الكمية خارج حدود الإعلان أو غير متوفرة', TOO_MANY_OPEN: 'لديك 3 طلبات مفتوحة. أكملها أولاً',
-    ESCROW_UNAVAILABLE: 'خدمة الضمان غير متاحة الآن. حاول لاحقاً', INVALID_STATE: 'حالة الطلب تغيّرت. حدّث الصفحة',
+    ESCROW_UNAVAILABLE: 'خدمة الضمان غير متاحة الآن. حاول لاحقاً', INVALID_STATE: 'حالة الطلب تغيّرت. حدّث الصفحة', PAYOUT_UNKNOWN_CONFIRM: 'المحاولة السابقة مجهولة النتيجة: راجع سجل Payouts في OxaPay أولاً، ثم أكّد أنه لا توجد دفعة',
     PAY_WINDOW_OPEN: 'لا يمكن الإلغاء قبل انتهاء مهلة الدفع', NOT_ALLOWED: 'غير مسموح', NOT_FOUND: 'الطلب غير موجود',
     EXPIRED_REQUEST: 'وقت هاتفك غير مضبوط. فعّل الوقت التلقائي من الإعدادات', BAD_SIGNATURE: 'تعذّر التحقق من المحفظة',
     MIN_TOO_LOW: 'أقل صفقة 10 USDT', MAX_LT_MIN: 'أكبر صفقة يجب أن تكون أكبر من الأقل', AMOUNT_LT_MIN: 'الكمية المعروضة أقل من أقل صفقة',
