@@ -150,8 +150,15 @@
   }
 
   // تحويل "12.5" إلى وحدات صحيحة بدون أخطاء الأرقام العشرية
+  // تطبيع المبلغ: الأرقام العربية والفاصلة العشرية «٫». الفاصلة «,» أو «،» تُقبل فقط فاصلاً للآلاف بشكل صحيح (1,000.5)،
+  // لأن «1,5» قد يقصد بها 1.5 فتصبح 15 — أي مبلغ مضاعفاً عشر مرات. الحالات الملتبسة تُرفض
+  function normAmount(v) {
+    var s = String(v).trim().replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x660); }).replace(/[۰-۹]/g, function (d) { return String(d.charCodeAt(0) - 0x6F0); }).replace(/٫/g, '.').replace(/\s/g, '').replace(/،/g, ',');
+    if (s.indexOf(',') >= 0) { if (!/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) throw new Error('INVALID_AMOUNT'); s = s.replace(/,/g, ''); }
+    return s;
+  }
   function toUnits(amountStr, decimals) {
-    var s = String(amountStr).trim().replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x660); }).replace(/٫/g, '.').replace(/[,،\s]/g, '');
+    var s = normAmount(amountStr);
     if (!/^\d+(\.\d+)?$/.test(s)) throw new Error('INVALID_AMOUNT');
     var parts = s.split('.');
     var frac = (parts[1] || '');
@@ -164,7 +171,7 @@
   // نفس toUnits لكن تقصّ الخانات الزائدة (تقريب للأسفل دائماً) فلا يتجاوز المبلغ المرسَل ما كتبه المستخدم أو رصيده.
   // إن صار المبلغ صفراً بعد القص يُرفض برسالة "المبلغ صغير جداً".
   function toUnitsFloor(amountStr, decimals) {
-    var s = String(amountStr).trim().replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 0x660); }).replace(/٫/g, '.').replace(/[,،\s]/g, '');
+    var s = normAmount(amountStr);
     if (!/^\d+(\.\d+)?$/.test(s)) throw new Error('INVALID_AMOUNT');
     var parts = s.split('.');
     var frac = (parts[1] || '').slice(0, decimals);
@@ -1153,7 +1160,7 @@
     EVM_NETWORK: 'تعذّر الاتصال بالشبكة. تحقق من الإنترنت وحاول مجدداً',
     EVM_REJECTED: 'رفضت الشبكة المعاملة. اطلب سعراً جديداً وحاول مجدداً',
     BAD_NETWORK: 'شبكة غير مدعومة', BAD_TOKEN: 'عملة غير مدعومة على هذه الشبكة',
-    INVALID_AMOUNT: 'المبلغ غير صحيح',
+    INVALID_AMOUNT: 'المبلغ غير صحيح. للكسور استخدم النقطة، مثل 1.5',
     AMOUNT_TOO_SMALL: 'المبلغ صغير جداً لهذه العملة. اكتب مبلغاً أكبر',
     TOO_MANY_DECIMALS: 'عدد الخانات العشرية أكبر من المسموح لهذه العملة. اكتب رقماً أقل خانات',
     DEVICE_KEY_LOST: 'تعذّر الوصول لمفتاح الحماية المحفوظ في هاتفك (يحدث بعد إعادة ضبط الهاتف أو نقل البيانات). احذف المحفظة من الأمان واستعدها بكلماتك الـ 12، فأموالك آمنة على الشبكة',

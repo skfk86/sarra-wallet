@@ -41,6 +41,11 @@ await t('قراءة عنوان WETH من SunSwap بكل الصيغ', () => {
   assert.equal(W.normalizeAddress(tw, 'garbage'), '');
 });
 
+await t('المبلغ بفاصلة ملتبسة يُرفض (1,5 ليست 15)، وفاصل الآلاف الصحيح يُقبل', () => {
+  assert.throws(() => W.toUnits('1,5', 6), /INVALID_AMOUNT/); assert.throws(() => W.toUnits('2،5', 6), /INVALID_AMOUNT/); assert.throws(() => W.toUnits('10,00', 6), /INVALID_AMOUNT/);
+  assert.equal(W.toUnits('1,000', 6), 1000000000n); assert.equal(W.toUnits('12,345.5', 6), 12345500000n); assert.equal(W.toUnits('١٫٥', 6), 1500000n); assert.equal(W.toUnits('۲.۵', 6), 2500000n);
+  assert.throws(() => W.toUnitsFloor('3,5', 6), /INVALID_AMOUNT/);
+});
 await t('toUnitsFloor تقصّ الخانات الزائدة ولا تقرّب للأعلى أبداً', () => {
   assert.equal(W.toUnitsFloor('1.0000009', 6), 1000000n);
   assert.equal(W.toUnitsFloor('0.1234569999', 6), 123456n);
