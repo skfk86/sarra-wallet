@@ -175,9 +175,9 @@
   };
   async function admBan(banned) {
     var a = $('adm-ban-addr').value.trim();
-    if (!core.isValidAddress(a)) return toast('عنوان المحفظة غير صحيح', true);
-    if (banned && !(await askConfirm('حظر هذه المحفظة من السوق؟ ستتوقف كل إعلاناتها.'))) return;
-    try { await p2p('admin.ban', { address: a, banned: banned }); toast(banned ? 'تم الحظر' : 'تم رفع الحظر'); $('adm-ban-addr').value = ''; }
+    if (!core.isValidAddress(a) && !/^0x[0-9a-fA-F]{40}$/.test(a)) return toast('اكتب عنوان TRON (يبدأ بـ T) أو عنوان 0x', true);
+    if (banned && !(await askConfirm('حظر هذه المحفظة؟ تتوقف إعلاناتها في السوق، ولا تستطيع فتح صفقات، ويتوقف متجرها في بوابة الدفع.'))) return;
+    try { var r = await p2p('admin.ban', { address: a, banned: banned }); toast((banned ? 'تم حظر ' : 'رُفع الحظر عن ') + (r && r.address ? r.address.slice(0, 6) + '…' + r.address.slice(-4) : 'المحفظة')); $('adm-ban-addr').value = ''; }
     catch (e) { toast(p2pErr(e), true); }
   }
   $('adm-ban').onclick = function () { admBan(true); };

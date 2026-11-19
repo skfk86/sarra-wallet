@@ -238,6 +238,8 @@ async def main():
     await pg.fill('#adm-ban-addr','bad'); await pg.click('#adm-ban'); await pg.wait_for_timeout(300); assert not st['banned']; step('رفض عنوان حظر غير صالح')
     await pg.fill('#adm-ban-addr',BUYER2[:3]+'B'*31); await pg.click('#adm-ban'); await pg.click('#ask-yes'); await pg.wait_for_timeout(800)
     assert st['banned'] and st['banned'][0][1]==True; step('حظر محفظة بعد التأكيد')
+    await pg.fill('#adm-ban-addr','0x'+'ab'*20); await pg.click('#adm-ban'); await pg.click('#ask-yes'); await pg.wait_for_timeout(800)
+    assert st['banned'][-1]==('0x'+'ab'*20,True); step('الحظر بعنوان 0x أيضاً')
     await pg.click('#s-p2p-admin [data-back]'); await pg.wait_for_timeout(800)
     assert '2,800' in await pg.inner_text('#p2p-rate-val'); step('السعر الجديد يظهر في السوق')
     assert st['signed']>8; step(f'كل الطلبات موقّعة بالمحفظة ({st["signed"]} طلب)')

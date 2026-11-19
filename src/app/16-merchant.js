@@ -4,6 +4,7 @@
   var MC = { data: null, busy: false };
   var MC_ERRORS = {
     BAD_NAME: 'اكتب اسم المتجر (من حرفين إلى 40 حرفاً)',
+    BANNED: 'هذا الحساب موقوف. تواصل مع الدعم', MERCHANT_DISABLED: 'متجرك موقوف. تواصل مع الدعم',
     BAD_WEBHOOK_URL: 'رابط الإشعار يجب أن يبدأ بـ https:// وأن يكون لموقع عام',
     BAD_AMOUNT: 'اكتب مبلغاً صحيحاً، بخانتين عشريتين كحد أقصى',
     AMOUNT_TOO_SMALL: 'أقل مبلغ للشحن 1 USDT',

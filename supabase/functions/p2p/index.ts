@@ -557,13 +557,24 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { ok: true };
   }
   if (action === 'admin.ban') {
-    const addr = String(p.address || '').trim();
+    // يقبل عنوان TRON أو عنوان 0x (BNB/Ethereum/Polygon) المرتبط بالمحفظة نفسها
+    let addr = String(p.address || '').trim();
+    if (/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+      const { data: byEvm } = await db.from('profiles').select('address').ilike('evm_address', addr).maybeSingle();
+      if (!byEvm) throw new Error('NOT_FOUND');
+      addr = byEvm.address;
+    }
     if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr) || ADMINS.includes(addr)) throw new Error('BAD_ADDRESS');
     const banned = p.banned !== false;
-    await db.from('profiles').upsert({ address: addr, nickname: L.defaultNickname(addr), banned }, { onConflict: 'address' });
+    // لا نمسح اسم المستخدم المستعار عند الحظر: تحديث إن وُجد الملف، وإنشاء إن لم يوجد
+    const { data: ex } = await db.from('profiles').select('address').eq('address', addr).maybeSingle();
+    if (ex) await db.from('profiles').update({ banned }).eq('address', addr);
+    else await db.from('profiles').insert({ address: addr, nickname: L.defaultNickname(addr), banned });
     if (banned) await db.from('offers').update({ active: false }).eq('seller', addr);
-    await audit(null, me, banned ? 'ban' : 'unban', { address: addr });
-    return { ok: true };
+    // الحظر يشمل بوابة الدفع: تتوقف مفاتيح متجره، ويعود المتجر عند رفع الحظر
+    await db.from('pay_merchants').update({ active: !banned }).eq('address', addr);
+    await audit(null, me, banned ? 'ban' : 'unban', { address: addr, input: String(p.address || '').trim().slice(0, 64) });
+    return { ok: true, address: addr };
   }
   if (action === 'admin.stats') {
     const count = async (q: any) => (await q).count || 0;

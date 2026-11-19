@@ -42,14 +42,14 @@ export function createApp(d: Deps) {
     try { const j = JSON.parse(t || '{}'); return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch { return {}; }
   }
   const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': reqId, ...extra } });
-  const STATUS: Record<string, number> = { PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
+  const STATUS: Record<string, number> = { BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
   // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
   const MSG: Record<string, string> = {
     UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.',
     BAD_AMOUNT: 'Amount must be a string like "10" or "10.50".', AMOUNT_TOO_SMALL: 'Minimum amount is 1.', AMOUNT_TOO_LARGE: 'Maximum amount is 100000.',
     BAD_NETWORK: 'Unsupported network. Use bsc, tron, polygon or eth.', BAD_CURRENCY: 'Unsupported currency for this network.', NETWORK_NOT_CONFIGURED: 'No receiving address for this network in your account.',
     BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
-    TOO_MANY_PENDING: 'Too many pending invoices.', PAYLOAD_TOO_LARGE: 'Request body is too large (max 16 KB).', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
+    TOO_MANY_PENDING: 'Too many pending invoices.', PAYLOAD_TOO_LARGE: 'Request body is too large (max 16 KB).', BANNED: 'This account is suspended.', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
     NOT_TEST_INVOICE: 'Only test invoices can be simulated.', BAD_STATUS: 'status must be paid or expired.', MERCHANT_DISABLED: 'Merchant account is disabled.', SERVER_ERROR: 'Internal error. Retry later.', TRY_AGAIN: 'Temporary conflict. Retry.'
   };
   const fail = (code: string) => {
@@ -337,6 +337,8 @@ export function createApp(d: Deps) {
         if (!String(s.action).startsWith('pay.')) throw new Error('BAD_ACTION');
         const { error } = await db.from('used_nonces').insert({ nonce: s.nonce }); if (error) throw new Error('REPLAY');
         await hit(s.address, 'req', L.LIMITS.req[0], L.LIMITS.req[1]);
+        const { data: pf } = await db.from('profiles').select('banned').eq('address', s.address).maybeSingle();
+        if (pf?.banned) throw new Error('BANNED');
         return json(await merchantAction(s.action, s.params as Record<string, unknown>, s.address));
       }
       // ما بعده يحتاج مفتاح API

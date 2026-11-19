@@ -7,7 +7,7 @@ import { TRANSFER, topicOf } from '../supabase/functions/push-watch/logic.ts';
 
 type Row = Record<string, any>;
 function fakeDb() {
-  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [] };
+  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [], profiles: [] };
   const hits: Record<string, number> = {}; let hitLimit = Infinity;
   const DEF: Record<string, () => Row> = {
     pay_merchants: () => ({ id: 'm' + (T.pay_merchants.length + 1), key_hash: null, key_hint: null, test_key_hash: null, test_key_hint: null, webhook_url: null, credit: 1000000, active: true, tron_addr: null, evm_addr: null }),
@@ -122,7 +122,7 @@ await t('التاجر: طلب بتوقيع خاطئ أو فعل غير مسمو�
   assert.equal((await call(signed('offers.list'))).j.error, 'BAD_ACTION');
   assert.equal((await call(new Request('https://x/pay/v1/merchant', { method: 'POST', body: '{}' }))).status, 401);
 });
-await t('التاجر: تفعيل الحساب برصيد تجريبي 1 USDT، وعنوان TRON = محفظته', async () => {
+await t('التاجر: تفعيل الحساب (الرصيد هنا 1 USDT من بيانات الاختبار)، وعنوان TRON = محفظته', async () => {
   let r = await call(signed('pay.me')); assert.equal(r.j.merchant, null); assert.deepEqual(r.j.topup_networks, ['bsc', 'polygon', 'eth']);
   assert.equal((await call(signed('pay.save', { name: 'x' }))).j.error, 'BAD_NAME');
   assert.equal((await call(signed('pay.save', { name: 'متجر النيل', webhook_url: 'http://a.com/h' }))).j.error, 'BAD_WEBHOOK_URL');
@@ -431,5 +431,12 @@ await t('سباق: فواتير متزامنة كثيرة لا تتجاوز رص
   const ok = rs.filter((r) => r.status === 200).length, pend = db.T.pay_invoices.filter((x) => x.status === 'pending' && !x.test);
   assert.ok(ok <= 5, 'نجح ' + ok); assert.equal(pend.length, ok); assert.ok(pend.reduce((a, x) => a + Number(x.fee), 0) <= 100000);
   assert.ok(rs.filter((r) => r.status !== 200).every((r) => r.j.error === 'INSUFFICIENT_CREDIT'));
+});
+await t('الحظر: المحفظة المحظورة لا تدير متجرها، ومتجرها الموقوف لا تعمل مفاتيحه', async () => {
+  db.T.profiles.push({ address: ME, banned: true });
+  const r = await call(signed('pay.me')); assert.equal(r.status, 403); assert.equal(r.j.error, 'BANNED');
+  db.T.profiles.length = 0; db.T.pay_merchants[0].active = false;
+  assert.equal((await api('GET', '/v1/balance', KEY)).j.error, 'MERCHANT_DISABLED');
+  db.T.pay_merchants[0].active = true; assert.equal((await api('GET', '/v1/balance', KEY)).status, 200);
 });
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
