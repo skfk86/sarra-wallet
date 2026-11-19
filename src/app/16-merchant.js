@@ -1,6 +1,6 @@
   // ===== بوابة الدفع للتجار: إدارة حساب التاجر (الطلبات موقّعة بالمحفظة، مثل P2P) =====
   var PAY_URL = CFG.payUrl || (P2P_URL ? P2P_URL.replace(/\/p2p\/?$/, '/pay') : '');
-  var PAY_DOCS = CFG.payDocs || 'https://skfk86.github.io/sarra-wallet/api.html';
+  var PAY_DOCS = CFG.payDocs || 'https://docs.sarrapay.com/';
   var MC = { data: null, busy: false };
   var MC_ERRORS = {
     BAD_NAME: 'اكتب اسم المتجر (من حرفين إلى 40 حرفاً)',

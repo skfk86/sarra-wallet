@@ -8,7 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <meta property="og:title" content="بوابة دفع صُرّة — API للمطوّرين">
 <meta property="og:description" content="اقبل USDT في متجرك. المبلغ يصل مباشرة إلى محفظتك.">
-<meta property="og:image" content="https://skfk86.github.io/sarra-wallet/og.png">
+<meta property="og:image" content="https://sarrapay.com/og.png">
 <style>
 :root{--ac:#0B8A63;--tx:#14171c;--mu:#5d6673;--bg:#f4f7f6;--card:#fff;--ln:#e3e8e6;--soft:#eaf5f1}
 @media(prefers-color-scheme:dark){:root{--ac:#22c497;--tx:#E6EAF0;--mu:#9aa5b1;--bg:#0B0F14;--card:#121821;--ln:#222b36;--soft:#10231d}}
@@ -68,7 +68,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
 </head>
 <body>
 <header><div class="wrap">
-  <a href="./">→ صُرّة</a>
+  <a href="https://sarrapay.com/">→ صُرّة</a>
   <h1>اقبل USDT في متجرك</h1>
   <p>طلب واحد ينشئ فاتورة. العميل يدفع إلى محفظتك مباشرة، وخادمك يعرف فوراً أن الدفع تم.</p>
 </div></header>
@@ -91,18 +91,18 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
     <h2>ابدأ في 3 خطوات</h2>
     <div class="step"><i>1</i><div>
       <h3>احصل على مفتاح API</h3>
-      <p>ثبّت <a href="./">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
+      <p>ثبّت <a href="https://sarrapay.com/">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
       <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك. للتجربة بدون مال أنشئ <a href="#test">مفتاحاً تجريبياً</a>.</p>
     </div></div>
 
     <div class="step"><i>2</i><div>
       <h3>أنشئ فاتورة</h3>
       <p>اختر لغتك:</p>
-      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices \
+      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl -X POST https://api.sarrapay.com/v1/invoices \
   -H "Authorization: Bearer sk_live_XXXXXXXX" \
   -H "Content-Type: application/json" \
   -d '{"amount":"10","network":"bsc","order_id":"ORDER-1001","description":"طلب رقم 1001"}'</code></pre></div><div class="tp" data-l="js"><pre><code data-lang="js">// Node.js 18+ (بدون مكتبات)
-const res = await fetch('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices', {
+const res = await fetch('https://api.sarrapay.com/v1/invoices', {
   method: 'POST',
   headers: {
     Authorization: 'Bearer ' + process.env.SARRA_KEY,
@@ -119,7 +119,7 @@ const data = await res.json();
 if (!res.ok) throw new Error(data.error);
 
 console.log(data.invoice.pay_url); // وجّه العميل إلى هذا الرابط</code></pre></div><div class="tp" data-l="php"><pre><code data-lang="php">&lt;?php
-$ch = curl_init('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices');
+$ch = curl_init('https://api.sarrapay.com/v1/invoices');
 curl_setopt_array($ch, [
   CURLOPT_POST =&gt; true,
   CURLOPT_RETURNTRANSFER =&gt; true,
@@ -140,7 +140,7 @@ if (isset($data['error'])) exit('خطأ: ' . $data['error']);
 header('Location: ' . $data['invoice']['pay_url']); // وجّه العميل إلى صفحة الدفع</code></pre></div><div class="tp" data-l="py"><pre><code data-lang="py">import os, requests
 
 res = requests.post(
-    'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices',
+    'https://api.sarrapay.com/v1/invoices',
     headers={'Authorization': 'Bearer ' + os.environ['SARRA_KEY']},
     json={
         'amount': '10',            # المبلغ بالـ USDT (نص)
@@ -167,7 +167,7 @@ print(data['invoice']['pay_url'])  # وجّه العميل إلى هذا الر�
     "fee": "0.05",
     "order_id": "ORDER-1001",
     "expires_at": "2026-11-12T14:30:00.000Z",
-    "pay_url": "https://skfk86.github.io/sarra-wallet/pay.html?i=inv_3f9a1c0b7e2d4a8815c6"
+    "pay_url": "https://pay.sarrapay.com/?i=inv_3f9a1c0b7e2d4a8815c6"
   }
 }</code></pre></div>
       <p>الحقل المهم هو <code>pay_url</code>: افتحه للعميل. هذه صفحة دفع جاهزة فيها المبلغ والعنوان ورمز QR.</p>
@@ -176,8 +176,8 @@ print(data['invoice']['pay_url'])  # وجّه العميل إلى هذا الر�
     <div class="step"><i>3</i><div>
       <h3>اعرف أن الدفع تم</h3>
       <p>أبسط طريقة: اسأل عن الفاتورة كل بضع ثوانٍ حتى تصبح <code>paid</code>.</p>
-      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
-  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div><div class="tp" data-l="js"><pre><code data-lang="js">const res = await fetch('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' + invoiceId, {
+      <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="bash">cURL</button><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="bash"><pre><code data-lang="bash">curl https://api.sarrapay.com/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
+  -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div><div class="tp" data-l="js"><pre><code data-lang="js">const res = await fetch('https://api.sarrapay.com/v1/invoices/' + invoiceId, {
   headers: { Authorization: 'Bearer ' + process.env.SARRA_KEY }
 });
 const { invoice } = await res.json();
@@ -185,7 +185,7 @@ const { invoice } = await res.json();
 if (invoice.status === 'paid') {
   // سلّم الطلب
 }</code></pre></div><div class="tp" data-l="php"><pre><code data-lang="php">&lt;?php
-$ch = curl_init('https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' . $invoiceId);
+$ch = curl_init('https://api.sarrapay.com/v1/invoices/' . $invoiceId);
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER =&gt; true,
   CURLOPT_HTTPHEADER =&gt; ['Authorization: Bearer ' . getenv('SARRA_KEY')],
@@ -195,7 +195,7 @@ $invoice = json_decode(curl_exec($ch), true)['invoice'];
 if ($invoice['status'] === 'paid') {
   // سلّم الطلب
 }</code></pre></div><div class="tp" data-l="py"><pre><code data-lang="py">res = requests.get(
-    'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/' + invoice_id,
+    'https://api.sarrapay.com/v1/invoices/' + invoice_id,
     headers={'Authorization': 'Bearer ' + os.environ['SARRA_KEY']},
 )
 invoice = res.json()['invoice']
@@ -218,7 +218,7 @@ if invoice['status'] == 'paid':
       <li>المفتاحان منفصلان: كل مفتاح يرى فواتير وضعه فقط.</li>
     </ul>
     <h3>محاكاة الدفع من خادمك</h3>
-    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl -X POST https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6/simulate \
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl -X POST https://api.sarrapay.com/v1/invoices/inv_3f9a1c0b7e2d4a8815c6/simulate \
   -H "Authorization: Bearer sk_test_XXXXXXXX" \
   -H "Content-Type: application/json" \
   -d '{"status":"paid"}'</code></pre></div>
@@ -338,7 +338,7 @@ def sarra_hook():
   <section class="card" id="ref">
     <h2>مرجع الـ API</h2>
     <p>العنوان الأساسي:</p>
-    <div class="cb"><pre><code>https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay</code></pre></div>
+    <div class="cb"><pre><code>https://api.sarrapay.com</code></pre></div>
     <p>كل طلب يحمل الترويسة <code>Authorization: Bearer sk_live_…</code> والردود كلها JSON.</p>
 
     <div class="ep"><span>/v1/invoices</span><b>POST</b></div>
@@ -354,12 +354,12 @@ def sarra_hook():
 
     <div class="ep"><span>/v1/invoices/{id}</span><b class="g">GET</b></div>
     <p>فاتورة واحدة بحالتها الحالية. الرد بنفس شكل رد الإنشاء، ومعه <code>tx</code> و<code>paid_at</code> بعد الدفع.</p>
-    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://api.sarrapay.com/v1/invoices/inv_3f9a1c0b7e2d4a8815c6 \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
     <div class="ep"><span>/v1/invoices</span><b class="g">GET</b></div>
     <p>آخر الفواتير، الأحدث أولاً. اختياري: <code>status</code> للتصفية و<code>limit</code> حتى 100.</p>
-    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl "https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/invoices?status=paid&amp;limit=20" \
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl "https://api.sarrapay.com/v1/invoices?status=paid&amp;limit=20" \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
     <div class="ep"><span>/v1/invoices/{id}/simulate</span><b>POST</b></div>
@@ -367,7 +367,7 @@ def sarra_hook():
 
     <div class="ep"><span>/v1/balance</span><b class="g">GET</b></div>
     <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة.</p>
-    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/v1/balance \
+    <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://api.sarrapay.com/v1/balance \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
     <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "credit": "0.98", "currency": "USDT", "fee_pct": 0.5, "fee_min": "0.02" }</code></pre></div>
   </section>
@@ -410,7 +410,7 @@ def sarra_hook():
     <p>أنشئ مفتاحاً جديداً من التطبيق، فيتوقف القديم فوراً.</p>
   </section>
 </main>
-<footer><div class="wrap"><a href="./">صُرّة</a> · <a href="privacy.html">الخصوصية</a> · <a href="terms.html">الشروط</a></div></footer>
+<footer><div class="wrap"><a href="https://sarrapay.com/">صُرّة</a> · <a href="https://sarrapay.com/privacy.html">الخصوصية</a> · <a href="https://sarrapay.com/terms.html">الشروط</a></div></footer>
 <script>
 (function () {
   // ملوّن كود صغير بلا مكتبات

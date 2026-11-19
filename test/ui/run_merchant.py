@@ -79,7 +79,7 @@ async def main():
     assert await pg.locator('#mc-hooktest').is_visible()
     await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '200' in await pg.inner_text('#toast'), await pg.inner_text('#toast')
     st['hook']={'ok':False,'status':500}; await pg.wait_for_timeout(2500); await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '500' in await pg.inner_text('#toast'); step('إشعار تجريبي: يعرض رد خادم التاجر (نجاح أو فشل)')
-    await pg.click('#mc-docs'); assert 'api.html' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
+    await pg.click('#mc-docs'); assert 'docs.sarrapay.com' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
     print('أخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()
 asyncio.run(main())

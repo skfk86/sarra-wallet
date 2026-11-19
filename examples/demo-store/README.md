@@ -37,4 +37,4 @@ SARRA_KEY=sk_live_xxxxxxxx node server.js
 - لا تضع `SARRA_KEY` في كود الواجهة أو في تطبيق الموبايل أبداً.
 - سلّم المنتج داخل `markPaid` فقط، وهي مكتوبة بحيث لا تسلّم مرتين.
 
-التوثيق الكامل: <https://skfk86.github.io/sarra-wallet/api.html>
+التوثيق الكامل: <https://docs.sarrapay.com>
