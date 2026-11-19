@@ -804,46 +804,61 @@
   </div>
 
   <div id="mc-dash" hidden style="display:flex;flex-direction:column;gap:12px">
-    <div class="card" style="display:flex;flex-direction:column;gap:10px">
-      <div class="row" style="justify-content:space-between"><div style="display:flex;flex-direction:column"><span class="muted" style="font-size:12px">رصيد العمولات</span><b class="ltr" style="font-size:24px;text-align:right"><span id="mc-credit">0</span> USDT</b></div><b id="mc-shop" style="font-size:14px"></b></div>
-      <span class="muted" style="font-size:12px;line-height:1.7" id="mc-fee"></span>
-      <div class="row" style="gap:8px">
-        <div class="field" style="flex:1;min-width:0"><input id="mc-top-amt" class="ltr" inputmode="decimal" placeholder="مبلغ الشحن" autocomplete="off"></div>
-        <select id="mc-top-net" aria-label="شبكة الشحن" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--s1);color:var(--tx);font:inherit;padding:0 8px;max-width:42%"></select>
-      </div>
-      <button type="button" class="btn btn-primary" id="mc-top">شحن الرصيد</button>
+    <div class="card mcs" id="mc-start" style="display:flex;flex-direction:column;gap:6px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 8 2a6 6 0 0 0 3.6-1.2 1 1 0 0 1 1.4.8v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a8 8 0 0 0-4 1"/></svg></span><b>خطوات البدء</b></div>
+      <div id="mc-steps" style="display:flex;flex-direction:column"></div>
     </div>
-    <div class="card" style="display:flex;flex-direction:column;gap:10px">
-      <b>مفتاح API</b>
-      <span class="muted" style="font-size:13px" id="mc-key-state"></span>
+    <div class="card mcs" style="display:flex;flex-direction:column;gap:8px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><b>أين تصل أموالك</b></div>
+      <span class="mcd">مبيعاتك لا تمر علينا: يدفع العميل مباشرة إلى عناوين محفظتك هذه.</span>
+      <div id="mc-addrs" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="card mcs" style="display:flex;flex-direction:column;gap:10px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><b>رصيد رسوم البوابة</b></div>
+      <div class="row" style="justify-content:space-between;align-items:flex-end"><b class="ltr" style="font-size:26px"><span id="mc-credit">0</span> USDT</b><b id="mc-shop" class="mc-pill"></b></div>
+      <span class="mcd">هذا ليس رصيد مبيعاتك. هو رصيد مسبق تُخصم منه عمولة البوابة عند كل فاتورة مدفوعة، فاشحنه قبل أن ينفد وإلا يتوقف إنشاء الفواتير.</span>
+      <span class="mcd" id="mc-fee"></span>
+      <div class="row" style="gap:8px">
+        <div class="field" style="flex:1;min-width:0"><input id="mc-top-amt" class="ltr" inputmode="decimal" placeholder="المبلغ (USDT)" autocomplete="off"></div>
+        <select id="mc-top-net" aria-label="شبكة الشحن" class="mc-sel"></select>
+      </div>
+      <button type="button" class="btn btn-primary mcb" id="mc-top"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>شحن رصيد الرسوم</span></button>
+      <span class="mcd" style="font-size:11.5px">تُفتح صفحة دفع بالمبلغ الدقيق. ادفع من أي محفظة، ويُضاف الرصيد تلقائياً بعد تأكيد الشبكة.</span>
+    </div>
+    <div class="card mcs" style="display:flex;flex-direction:column;gap:10px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><b>مفاتيح API</b></div>
+      <span class="mcd">خادمك يستخدم المفتاح لإنشاء الفواتير. ضعه في خادمك فقط، لا في التطبيق أو الموقع.</span>
+      <div class="mck"><div class="mck-h"><b>المفتاح الحقيقي</b><span class="mc-tag live">sk_live_</span></div>
+        <span class="mcd" id="mc-key-state"></span>
+        <button type="button" class="btn btn-ghost mcb" id="mc-key-new">إنشاء مفتاح API</button></div>
+      <div class="mck"><div class="mck-h"><b>المفتاح التجريبي</b><span class="mc-tag test">sk_test_</span></div>
+        <span class="mcd" id="mc-tkey-state">للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.</span>
+        <button type="button" class="btn btn-ghost mcb" id="mc-tkey-new">إنشاء مفتاح تجريبي</button></div>
       <div id="mc-key-box" hidden style="display:flex;flex-direction:column;gap:8px">
+        <b style="font-size:13px" id="mc-key-kind">مفتاحك الجديد</b>
         <code class="ltr" id="mc-key" style="font-size:12px;word-break:break-all;background:var(--s2);border-radius:10px;padding:10px;text-align:left"></code>
         <span style="font-size:12px;line-height:1.7;color:var(--err)">انسخه الآن واحفظه في خادمك. لن يظهر مرة أخرى، ولا تشاركه مع أحد.</span>
-        <button type="button" class="btn btn-ghost" id="mc-key-copy">نسخ المفتاح</button>
-      </div>
-      <button type="button" class="btn btn-ghost" id="mc-key-new">إنشاء مفتاح API</button>
-      <div style="border-top:1px solid var(--div);padding-top:10px;display:flex;flex-direction:column;gap:8px">
-        <b style="font-size:14px">مفتاح تجريبي</b>
-        <span class="muted" style="font-size:12px;line-height:1.7" id="mc-tkey-state">للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.</span>
-        <button type="button" class="btn btn-ghost" id="mc-tkey-new">إنشاء مفتاح تجريبي</button>
+        <button type="button" class="btn btn-ghost mcb" id="mc-key-copy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>نسخ المفتاح</span></button>
       </div>
     </div>
-    <div class="card" style="display:flex;flex-direction:column;gap:8px">
-      <b>إشعار الدفع</b>
-      <span class="muted ltr" style="font-size:12px;word-break:break-all;text-align:right" id="mc-hook-view"></span>
-      <div class="row" style="gap:8px"><button type="button" class="btn btn-ghost" id="mc-secret-copy" style="flex:1">نسخ سر الإشعار</button><button type="button" class="btn btn-ghost" id="mc-edit" style="flex:1">تعديل البيانات</button></div>
-      <button type="button" class="btn btn-ghost" id="mc-hooktest">إرسال إشعار تجريبي</button>
+    <div class="card mcs" style="display:flex;flex-direction:column;gap:8px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><b>إشعار الدفع (Webhook)</b></div>
+      <span class="mcd">عند دفع الفاتورة أو انتهائها أو إلغائها نرسل طلباً إلى هذا الرابط في خادمك، فيعرف بالنتيجة فوراً.</span>
+      <span class="ltr mc-url" id="mc-hook-view"></span>
+      <span class="mcd" style="font-size:11.5px">«سر الإشعار» يستخدمه خادمك للتأكد أن الطلب منّا فعلاً (توقيع HMAC). الطريقة في التوثيق.</span>
+      <div class="row" style="gap:8px"><button type="button" class="btn btn-ghost mcb" id="mc-secret-copy" style="flex:1"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span>نسخ السر</span></button><button type="button" class="btn btn-ghost mcb" id="mc-edit" style="flex:1"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>تعديل</span></button></div>
+      <button type="button" class="btn btn-ghost mcb" id="mc-hooktest"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg><span>إرسال إشعار تجريبي</span></button>
     </div>
-    <div class="card" style="display:flex;flex-direction:column;gap:6px">
-      <b>آخر الفواتير</b>
+    <div class="card mcs" style="display:flex;flex-direction:column;gap:4px">
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M8 16h5"/></svg></span><b>آخر الفواتير</b></div>
       <div id="mc-inv" style="display:flex;flex-direction:column"></div>
     </div>
-    <div class="card" id="mc-hooks-card" style="display:flex;flex-direction:column;gap:6px" hidden>
-      <div class="row" style="justify-content:space-between;align-items:center"><b>سجل الإشعارات</b><button type="button" class="btn btn-ghost" id="mc-hooks-load" style="width:auto;height:34px;padding:0 12px;font-size:13px">تحديث</button></div>
-      <span class="muted" style="font-size:12px;line-height:1.7">كل محاولة إرسال إلى خادمك، وما ردّ به. اضغط «إعادة» لإرسال الإشعار مرة أخرى.</span>
+    <div class="card mcs" id="mc-hooks-card" style="display:flex;flex-direction:column;gap:4px" hidden>
+      <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><b>سجل الإشعارات</b><button type="button" class="btn btn-ghost mc-mini" id="mc-hooks-load" aria-label="تحديث"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span>تحديث</span></button></div>
+      <span class="mcd">كل محاولة إرسال إلى خادمك وما ردّ به. خادمك يجب أن يرد بـ 200. اضغط «إعادة» لإرسال الإشعار مرة أخرى.</span>
       <div id="mc-hooks" style="display:flex;flex-direction:column"></div>
     </div>
-    <button type="button" class="btn btn-ghost" id="mc-docs">طريقة الربط للمطوّرين</button>
+    <button type="button" class="btn btn-ghost mcb" id="mc-docs"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg><span>طريقة الربط للمطوّرين</span></button>
   </div>
 </section>
 

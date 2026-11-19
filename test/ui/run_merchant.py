@@ -56,6 +56,8 @@ async def main():
     assert await pg.locator('#mc-dash').is_visible() and await pg.inner_text('#mc-shop')=='متجر النيل' and await pg.inner_text('#mc-credit')=='1'; step('التفعيل: تظهر لوحة التاجر برصيد تجريبي 1 USDT')
     assert '0.5%' in await pg.inner_text('#mc-fee') and 'لم تنشئ مفتاحاً' in await pg.inner_text('#mc-key-state') and not await pg.locator('#mc-key-box').is_visible(); step('العمولة معروضة، ولا مفتاح بعد')
     await no_overflow('لوحة التاجر')
+    assert await pg.locator('#mc-start').is_visible() and await pg.locator('#mc-steps .mc-step.done').count()==3; step('خطوات البدء: تظهر مع ما اكتمل منها')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/mc-new.png')
     await pg.click('#mc-key-new'); await pg.wait_for_timeout(1200)
     k=await pg.inner_text('#mc-key'); assert k.startswith('sk_live_') and k.endswith('beef') and await pg.locator('#mc-key-box').is_visible() and 'لن يظهر مرة أخرى' in await pg.inner_text('#mc-key-box'); step('مفتاح API: يظهر مرة واحدة مع تحذير الحفظ')
     await no_overflow('المفتاح ظاهر')
@@ -86,6 +88,8 @@ async def main():
     n=len([c for c in st['calls'] if c[0]=='pay.resend']); await pg.locator('#mc-hooks button').first.click(); await pg.wait_for_timeout(1200)
     rs=[c for c in st['calls'] if c[0]=='pay.resend']; assert len(rs)==n+1 and rs[-1][1]=={'id':'inv_'+'a'*20} and '200' in await pg.inner_text('#toast'), rs
     step('سجل الإشعارات: يعرض الحدث ورد خادم التاجر، وزر «إعادة» يعيد إرسال إشعار الفاتورة')
+    if len(sys.argv)>2:
+      await pg.evaluate('window.scrollTo(0,0)'); await pg.screenshot(path=sys.argv[2]+'/mc-dash.png',full_page=True)
     await pg.click('#mc-docs'); assert 'docs.sarrapay.com' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
     print('أخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()

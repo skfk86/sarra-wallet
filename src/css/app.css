@@ -423,3 +423,26 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .pr-bt{font-size:12px;line-height:1.8;background:var(--s2);border-radius:12px;padding:10px 12px;color:var(--tx2)}.pr-bt.up{background:rgba(22,163,122,.1);color:var(--up)}.pr-bt.dn{background:rgba(229,72,77,.1);color:var(--dn)}
 .offline-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:#B42330;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:1.6;padding:calc(6px + env(safe-area-inset-top)) 16px 6px}
 .upd-card{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 12px;padding:12px 14px;border:1px solid var(--ac);border-radius:14px;background:color-mix(in srgb,var(--ac) 10%,transparent);color:var(--tx);font:inherit;font-size:14px;text-align:start;cursor:pointer}.upd-card span{color:var(--mu);font-size:12px;flex:1}.upd-card em{font-style:normal;font-weight:700;color:var(--ac)}
+
+/* بوابة التجار */
+.mch{display:flex;align-items:center;gap:10px}.mch b{flex:1;font-size:15px}
+.mci{width:34px;height:34px;border-radius:10px;background:var(--ok-bg);color:var(--ac);display:grid;place-items:center;flex:none}.mci svg.i{width:18px;height:18px}
+.mcd{font-size:12.5px;line-height:1.75;color:var(--mu)}
+.mcb{display:flex;align-items:center;justify-content:center;gap:8px}.mcb svg.i{width:18px;height:18px}
+.mc-mini{width:auto;height:32px;padding:0 10px;font-size:12.5px;display:flex;align-items:center;gap:5px}
+.mc-pill{font-size:12px;padding:5px 10px;border-radius:999px;background:var(--s2);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc-sel{height:48px;border-radius:12px;border:1px solid var(--line);background:var(--s1);color:var(--tx);font:inherit;font-size:13px;padding:0 8px;width:46%;flex:none}
+.mck{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.mck-h{display:flex;justify-content:space-between;align-items:center}.mck-h b{font-size:14px}
+.mc-tag{font:600 11px/1 ui-monospace,monospace;padding:4px 7px;border-radius:6px;direction:ltr}
+.mc-tag.live{background:var(--ok-bg);color:var(--ac)}.mc-tag.test{background:var(--warn-bg);color:var(--warn)}
+.mc-url{font-size:12.5px;word-break:break-all;text-align:left;background:var(--s2);border-radius:10px;padding:8px 10px}
+.mc-st{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.mc-st.paid{background:var(--ok-bg);color:var(--ac)}.mc-st.pending{background:var(--warn-bg);color:var(--warn)}.mc-st.expired,.mc-st.cancelled{background:var(--s2);color:var(--mu)}.mc-st.bad{background:var(--err-bg);color:var(--err)}
+.mc-step{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px}.mc-step+.mc-step{border-top:1px solid var(--div)}
+.mc-step i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;border:1.5px solid var(--line);color:var(--mu);font:700 11px/1 sans-serif;font-style:normal}
+.mc-step.done i{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}.mc-step.done span{color:var(--mu)}
+.mc-step i svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.mc-addr{display:flex;align-items:center;gap:8px;background:var(--s2);border-radius:10px;padding:8px 10px;font-size:12px}
+.mc-addr b{flex:none;font-size:12px}.mc-addr code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left}
+.mc-addr button{flex:none;border:0;background:none;color:var(--ac);padding:4px;cursor:pointer;display:grid}

@@ -35,31 +35,67 @@
   }
   var MC_ST = { pending: 'بانتظار الدفع', paid: 'مدفوعة', expired: 'منتهية', cancelled: 'ملغاة' };
   var MC_EV = { 'invoice.paid': 'دفع', 'invoice.expired': 'انتهاء', 'invoice.cancelled': 'إلغاء' };
+  var MC_IC = { ok: '<path d="M20 6 9 17l-5-5"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>' };
+  function mcSvg(k, st) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="' + (st || 'width:13px;height:13px') + '">' + MC_IC[k] + '</svg>'; }
+  function mcPill(cls, ic, txt) { var p = el('span', ''); p.className = 'mc-st ' + cls; p.innerHTML = mcSvg(ic, 'width:12px;height:12px;stroke-width:2.6'); p.appendChild(document.createTextNode(txt)); return p; }
+  // خطوات البدء: تختفي كلها عند اكتمالها
+  function mcSteps(m, d) {
+    var paid = (d.invoices || []).some(function (x) { return x.kind === 'payment' && x.status === 'paid' && !x.test; });
+    var steps = [
+      [true, 'تفعيل المتجر باسم «' + m.name + '»'],
+      [!!m.test_key_hint, 'أنشئ مفتاحاً تجريبياً وجرّب الربط بدون مال'],
+      [!!m.webhook_url, 'أضف رابط إشعار الدفع لخادمك (اختياري، ومُستحسن)'],
+      [Number(m.credit) > 0, 'اشحن رصيد رسوم البوابة'],
+      [!!m.key_hint, 'أنشئ المفتاح الحقيقي وضعه في خادمك'],
+      [paid, 'استقبل أول دفعة حقيقية']
+    ];
+    var box = $('mc-steps'); box.textContent = '';
+    steps.forEach(function (x, i) {
+      var r = el('div', ''); r.className = 'mc-step' + (x[0] ? ' done' : '');
+      var c = el('i', ''); if (x[0]) c.innerHTML = '<svg viewBox="0 0 24 24">' + MC_IC.ok + '</svg>'; else c.textContent = String(i + 1);
+      r.appendChild(c); r.appendChild(el('span', '', x[1])); box.appendChild(r);
+    });
+    $('mc-start').hidden = steps.every(function (x) { return x[0]; });
+  }
+  function mcAddrs(m) {
+    var box = $('mc-addrs'); box.textContent = '';
+    [['TRON', m.tron_addr], ['BNB · Ethereum · Polygon', m.evm_addr]].forEach(function (a) {
+      if (!a[1]) return;
+      var r = el('div', ''); r.className = 'mc-addr';
+      r.appendChild(el('b', '', a[0])); r.appendChild(el('code', '', a[1]));
+      var b = el('button', ''); b.type = 'button'; b.setAttribute('aria-label', 'نسخ العنوان'); b.innerHTML = mcSvg('copy', 'width:16px;height:16px');
+      b.onclick = function () { copyText(a[1]); }; r.appendChild(b); box.appendChild(r);
+    });
+  }
   function mcRender() {
     var d = MC.data, m = d && d.merchant;
     if (!m) return mcForm();
-    $('mc-credit').textContent = niceNum(m.credit, 2); $('mc-shop').textContent = m.name;
-    $('mc-fee').textContent = 'نخصم ' + d.fee_pct + '% عن كل فاتورة مدفوعة (بحد أدنى ' + d.fee_min + ' USDT). الفواتير غير المدفوعة مجانية.';
+    $('mc-credit').textContent = niceNum(m.credit, 2); $('mc-shop').textContent = m.name; mcSteps(m, d); mcAddrs(m);
+    $('mc-fee').textContent = 'العمولة ' + d.fee_pct + '% من كل فاتورة مدفوعة، وأقلها ' + d.fee_min + ' USDT. الفواتير التي لم تُدفع والتجريبية مجانية.';
     var sel = $('mc-top-net'); sel.textContent = '';
-    (d.topup_networks || []).forEach(function (k) { var o = el('option', '', (d.networks && d.networks[k]) || k); o.value = k; sel.appendChild(o); });
+    (d.topup_networks || []).forEach(function (k) { var o = el('option', '', ({ tron: 'TRON', bsc: 'BNB Chain', polygon: 'Polygon', eth: 'Ethereum' })[k] || (d.networks && d.networks[k]) || k); o.value = k; sel.appendChild(o); });
     if (sel.querySelector('option[value=bsc]')) sel.value = 'bsc';
     $('mc-top').disabled = !(d.topup_networks || []).length;
-    $('mc-key-state').textContent = m.key_hint ? 'مفتاحك الحالي ينتهي بـ ' + m.key_hint + '. إنشاء مفتاح جديد يوقف القديم فوراً.' : 'لم تنشئ مفتاحاً بعد. تحتاجه ليتصل خادمك بالبوابة.';
+    $('mc-key-state').textContent = m.key_hint ? 'مفعّل، وينتهي بـ ' + m.key_hint + '. إنشاء مفتاح جديد يوقف القديم فوراً.' : 'لم تنشئ مفتاحاً بعد. تحتاجه لاستقبال دفعات حقيقية.';
     $('mc-key-new').textContent = m.key_hint ? 'إنشاء مفتاح جديد' : 'إنشاء مفتاح API';
-    $('mc-tkey-state').textContent = m.test_key_hint ? 'مفتاحك التجريبي ينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع» ولا تخصم من رصيدك.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.';
+    $('mc-tkey-state').textContent = m.test_key_hint ? 'مفعّل، وينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع» ولا تخصم من رصيدك.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.';
     $('mc-tkey-new').textContent = m.test_key_hint ? 'إنشاء مفتاح تجريبي جديد' : 'إنشاء مفتاح تجريبي';
-    $('mc-hooktest').hidden = !m.webhook_url;
-    $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابط إشعار. خادمك يستعلم عن الفاتورة بنفسه.';
+    $('mc-hooktest').hidden = !m.webhook_url; $('mc-secret-copy').hidden = !m.webhook_url;
+    $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابطاً. بدونه يجب أن يسأل خادمك عن حالة الفاتورة بنفسه.';
     var box = $('mc-inv'); box.textContent = '';
     var list = (d.invoices || []).filter(function (x) { return x.kind === 'payment'; });
     if (!list.length) box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لا فواتير بعد. أنشئ أول فاتورة من خادمك عبر الـ API.'));
     list.slice(0, 10).forEach(function (x) {
-      var r = el('div', 'display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px');
-      var a = el('div', 'display:flex;flex-direction:column;min-width:0');
-      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' ' + (x.currency || 'USDT') + (x.test ? ' · تجريبية' : '')));
-      a.appendChild(el('span', 'font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (x.order_id || x.id) + ' · ' + (x.network_name || x.network)));
+      var r = el('div', 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px');
+      var a = el('div', 'display:flex;flex-direction:column;min-width:0;gap:2px');
+      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' ' + (x.currency || 'USDT')));
+      var when = x.paid_at || x.created_at;
+      a.appendChild(el('span', 'font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (x.order_id || x.id) + ' · ' + (x.network_name || x.network) + (when ? ' · ' + new Date(when).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' }) : '')));
       r.appendChild(a);
-      r.appendChild(el('span', 'font-size:12px;font-weight:700;white-space:nowrap;color:' + (x.status === 'paid' ? 'var(--ac)' : 'var(--mu)'), MC_ST[x.status] || x.status));
+      var right = el('div', 'display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none');
+      right.appendChild(mcPill(x.status, x.status === 'paid' ? 'ok' : x.status === 'pending' ? 'clock' : 'x', MC_ST[x.status] || x.status));
+      if (x.test) { var t = el('span', '', 'تجريبية'); t.className = 'mc-tag test'; right.appendChild(t); }
+      r.appendChild(right);
       box.appendChild(r);
     });
     $('mc-hooks-card').hidden = !m.webhook_url;
@@ -75,7 +111,7 @@
     MC.hooks.slice(0, 15).forEach(function (h) {
       var r = el('div', 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--div);font-size:13px');
       var a = el('div', 'display:flex;flex-direction:column;min-width:0');
-      a.appendChild(el('b', '', (h.ok ? '✓ ' : '✗ ') + (MC_EV[h.event] || h.event) + ' · ' + (h.status ? 'HTTP ' + h.status : 'تعذّر الوصول')));
+      var hb = el('div', 'display:flex;align-items:center;gap:6px;flex-wrap:wrap'); hb.appendChild(mcPill(h.ok ? 'paid' : 'bad', h.ok ? 'ok' : 'x', h.status ? 'HTTP ' + h.status : 'تعذّر الوصول')); hb.appendChild(el('b', 'font-size:13px', 'حدث ' + (MC_EV[h.event] || h.event))); a.appendChild(hb);
       a.appendChild(el('span', 'font-size:11.5px;color:var(--mu);direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', h.invoice_id + ' · ' + new Date(h.at).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' })));
       r.appendChild(a);
       var b = el('button', 'flex:none;width:auto;height:32px;padding:0 12px;font-size:12.5px', 'إعادة'); b.type = 'button'; b.className = 'btn btn-ghost';
@@ -115,13 +151,13 @@
   $('mc-edit').onclick = mcForm;
   $('mc-key-new').onclick = mcDo($('mc-key-new'), async function () {
     var r = await payApi('pay.key');
-    $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
-    MC.data.merchant.key_hint = r.api_key.slice(-4); $('mc-key-state').textContent = 'مفتاحك الجديد جاهز. المفتاح القديم توقف.'; $('mc-key-new').textContent = 'إنشاء مفتاح جديد';
+    $('mc-key-kind').textContent = 'مفتاحك الحقيقي الجديد'; $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
+    MC.data.merchant.key_hint = r.api_key.slice(-4); $('mc-key-state').textContent = 'مفتاحك الجديد جاهز، وأي مفتاح قديم توقف.'; mcSteps(MC.data.merchant, MC.data); $('mc-key-new').textContent = 'إنشاء مفتاح جديد';
   });
   $('mc-tkey-new').onclick = mcDo($('mc-tkey-new'), async function () {
     var r = await payApi('pay.key', { test: true });
     $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
-    MC.data.merchant.test_key_hint = r.api_key.slice(-4); mcRender(); $('mc-key-box').hidden = false;
+    MC.data.merchant.test_key_hint = r.api_key.slice(-4); mcRender(); $('mc-key-kind').textContent = 'مفتاحك التجريبي الجديد'; $('mc-key-box').hidden = false;
   });
   $('mc-hooks-load').onclick = function () { MC.hooks = null; mcLoadHooks(); };
   $('mc-hooktest').onclick = mcDo($('mc-hooktest'), async function () {
