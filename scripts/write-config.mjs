@@ -19,6 +19,8 @@ const config = {
   lifiSwapFee: Number(process.env.SARRA_LIFI_SWAP_FEE ?? '0.008') || 0,
   lifiIntegrator: process.env.SARRA_LIFI_INTEGRATOR || 'surra-sd',
   bridgeMax: Number(process.env.SARRA_BRIDGE_MAX || 2000),
+  // عقد LI.FI على TRON (اختياري): إن وُضع، تُرفض أي معاملة نقل من TRON تستدعي عقداً غيره
+  lifiTron: /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test((process.env.SARRA_LIFI_TRON || '').trim()) ? process.env.SARRA_LIFI_TRON.trim() : '',
   // خادم سوق P2P (Supabase Edge Function)
   p2pUrl: process.env.SARRA_P2P_URL || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/p2p',
   // قراءات عامة خفيفة عبر قاعدة البيانات (لا تُحسب ضمن حد Edge Functions). المفتاح عام بطبيعته (publishable)

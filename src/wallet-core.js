@@ -775,6 +775,10 @@
       // توقيع طلب لخادم P2P: يثبت ملكية المحفظة بدون إرسال المفتاح الخاص
       signRequest: async function (action, params) {
         if (!session) throw new Error('LOCKED');
+        // ربط عنوان 0x بالمحفظة: نثبت للخادم أننا نملكه بتوقيع مفتاحه، فلا يستطيع أحد ادعاء عنوان غيره
+        if (params && params.evm && session.evm && E() && String(params.evm).toLowerCase() === session.evm.address.toLowerCase()) {
+          params = Object.assign({}, params, { evm_proof: await new (E().Wallet)(session.evm.privateKey).signMessage('sarra-link:' + session.address + ':' + session.evm.address.toLowerCase()) });
+        }
         var nonce = Array.prototype.map.call(randomBytes(16), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
         var message = JSON.stringify({ action: action, params: params || {}, address: session.address, ts: Date.now(), nonce: nonce });
         var tw = client(session.privateKey);

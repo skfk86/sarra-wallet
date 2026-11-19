@@ -51,6 +51,7 @@ jobs:
           SARRA_LIFI_FEE: ${{ vars.SARRA_LIFI_FEE || '0.005' }}
           SARRA_LIFI_SWAP_FEE: ${{ vars.SARRA_LIFI_SWAP_FEE || '0.008' }}
           SARRA_LIFI_INTEGRATOR: ${{ vars.SARRA_LIFI_INTEGRATOR || 'surra-sd' }}
+          SARRA_LIFI_TRON: ${{ vars.SARRA_LIFI_TRON || '' }}
         run: npm run config
 
       - name: Add Android platform

@@ -4,12 +4,20 @@
 // - كل تغيير حالة ذرّي: UPDATE مشروط بالحالة الحالية، فلا يمكن التحرير مرتين
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { TronWeb } from 'npm:tronweb@6.0.4';
+import { verifyMessage } from 'npm:ethers@6.13.4';
 import * as L from '../_shared/logic.ts';
 
 // نزيل المسافات والحروف المخفية التي تلتصق عند نسخ المفاتيح من الجوال (مثل U+200B)
 const env = (k: string, d = '') => (Deno.env.get(k) ?? d).replace(/[\s\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '');
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
+// عنوان 0x لا يُقبل إلا بتوقيع مفتاحه نفسه (إثبات ملكية)، وإلا يستطيع أحد ربط عنوان غيره بحسابه
+function provenEvm(p: Record<string, unknown>, me: string): string | null {
+  if (!L.isEvmAddr(p.evm)) return null;
+  const evm = String(p.evm).toLowerCase();
+  try { if (verifyMessage('sarra-link:' + me + ':' + evm, String(p.evm_proof || '')).toLowerCase() === evm) return String(p.evm); } catch { /* توقيع غير صالح */ }
+  return null; // بلا إثبات: نتجاهل العنوان ولا نحفظه (النسخ القديمة من التطبيق تُكمل بلا ربط)
+}
 const ADMINS = env('ADMIN_ADDRESSES').split(',').map((s) => s.trim()).filter(Boolean);
 const FEE_BPS = Number(env('P2P_FEE_BPS', '50'));
 const MIN_TRADE = Number(env('P2P_MIN_USDT', '10'));
@@ -216,9 +224,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
 
   if (action === 'me') {
     // تسجيل عنوان 0x للمحفظة (لاستلام التحويلات بالمعرّف أو الرقم على BNB/Ethereum/Polygon)
-    if (L.isEvmAddr(p.evm) && profile.evm_address !== p.evm) {
-      await db.from('profiles').update({ evm_address: String(p.evm) }).eq('address', me);
-      profile.evm_address = String(p.evm);
+    if (L.isEvmAddr(p.evm) && String(profile.evm_address || '').toLowerCase() !== String(p.evm).toLowerCase()) {
+      const ev = provenEvm(p, me);
+      if (ev) { await db.from('profiles').update({ evm_address: ev }).eq('address', me); profile.evm_address = ev; }
     }
     const rate = await getRate();
     const pub = { ...profile, bankak_account: L.maskAccount(profile.bankak_account), completion: L.completionRate(profile.trades_completed, profile.cancels) };
@@ -244,7 +252,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const token = String(p.token || '');
     if (!/^[\w:\-]{20,4096}$/.test(token)) throw new Error('BAD_TOKEN');
     await limit(me, 'push');
-    const evm = L.isEvmAddr(p.evm) ? String(p.evm).toLowerCase() : (profile.evm_address ? String(profile.evm_address).toLowerCase() : null);
+    // إشعارات 0x فقط لعنوان مثبت الملكية (المحفوظ في الملف، أو عنوان جديد بتوقيعه)
+    const evm = L.isEvmAddr(p.evm) && String(p.evm).toLowerCase() !== String(profile.evm_address || '').toLowerCase() ? (provenEvm(p, me) || String(profile.evm_address || '') || '').toLowerCase() || null : (profile.evm_address ? String(profile.evm_address).toLowerCase() : null);
     await db.from('push_tokens').upsert({ token, address: me, evm, updated_at: new Date().toISOString() });
     return { ok: true };
   }
@@ -274,7 +283,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (profile.id_doc_path) await db.storage.from('kyc').remove([profile.id_doc_path]);
     await db.from('profiles').update({
       verify_status: 'pending', full_name: v.full_name, phone: v.phone, bankak_account: v.bankak_account, id_doc_path: path, verify_note: null,
-      phone_link_pref: p.phone_link !== false, ...(L.isEvmAddr(p.evm) ? { evm_address: String(p.evm) } : {}),
+      phone_link_pref: p.phone_link !== false, ...(L.isEvmAddr(p.evm) && String(p.evm).toLowerCase() !== String(profile.evm_address || '').toLowerCase() && provenEvm(p, me) ? { evm_address: provenEvm(p, me) } : {}),
       prev_kyc: changing ? { full_name: profile.full_name, phone: profile.phone, bankak_account: profile.bankak_account, verified_at: profile.verified_at } : null
     }).eq('address', me);
     if (changing) await db.from('offers').update({ active: false }).eq('seller', me).eq('active', true);
@@ -291,7 +300,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       const { data: taken } = await db.from('profiles').select('address').eq('phone', profile.phone).eq('phone_link', true).neq('address', me).limit(1).maybeSingle();
       if (taken) throw new Error('PHONE_TAKEN');
     }
-    await db.from('profiles').update({ phone_link: on, ...(on && L.isEvmAddr(p.evm) ? { evm_address: String(p.evm) } : {}) }).eq('address', me);
+    await db.from('profiles').update({ phone_link: on, ...(on && L.isEvmAddr(p.evm) && String(p.evm).toLowerCase() !== String(profile.evm_address || '').toLowerCase() && provenEvm(p, me) ? { evm_address: provenEvm(p, me) } : {}) }).eq('address', me);
     await audit(null, me, on ? 'phone_link_on' : 'phone_link_off');
     return { ok: true, phone_link: on };
   }

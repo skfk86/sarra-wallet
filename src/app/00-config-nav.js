@@ -26,7 +26,7 @@
   function cacheGet(k, ttl, field) { var c = lsJson(k, null); return c && Date.now() - c.at < ttl ? c[field] : null; }
   function cachePut(k, field, v) { var o = { at: Date.now() }; o[field] = v; lsPut(k, o); }
 
-  var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiSwapFee: CFG.lifiSwapFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax });
+  var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiSwapFee: CFG.lifiSwapFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax, lifiTron: CFG.lifiTron || '' });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
   if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
