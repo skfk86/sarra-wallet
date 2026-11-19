@@ -12,7 +12,7 @@ export type Deps = {
   rpc: (net: string, method: string, params: unknown[]) => Promise<any>; // JSON-RPC للشبكة
   fetch: typeof fetch;                                                 // لإرسال إشعارات التجار
   now: () => number;
-  cfg: { feeBps: number; feeMin: bigint; topup: Record<string, string>; payPage: string };
+  cfg: { feeBps: number; feeMin: bigint; topup: Record<string, string>; payPage: string; ipLimit?: number };
 };
 
 export function createApp(d: Deps) {
@@ -20,15 +20,36 @@ export function createApp(d: Deps) {
   const MAX_PENDING = 200, LATE_GRACE_MIN = 20;
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Expose-Headers': 'x-request-id, retry-after' };
   let reqId = '';
+  // ===== طبقة الحماية الأولى (في الذاكرة، بدون قاعدة بيانات): حد لكل IP، وحجم الطلب =====
+  const IP_MAX = d.cfg.ipLimit ?? 120, IP_WIN = 60000, BAD_KEY_MAX = 20, BAD_KEY_WIN = 600000, MAX_BODY = 16384, TEST_TTL_MS = 3 * 60000;
+  const mem = new Map<string, { n: number; t: number }>();
+  function memHit(k: string, max: number, win: number, add = 1) {
+    const now = d.now(); let e = mem.get(k);
+    if (!e || now - e.t > win) { e = { n: 0, t: now }; mem.set(k, e); }
+    e.n += add;
+    if (mem.size > 20000) for (const [kk, v] of mem) if (now - v.t > BAD_KEY_WIN) mem.delete(kk); // تنظيف حتى لا تكبر الذاكرة
+    return e.n <= max;
+  }
+  // عنوان العميل: Netlify ثم بوابة Supabase يضيفان الرأس. بدونه (طلب داخلي) لا يُطبَّق حد الـ IP
+  function clientIp(req: Request) {
+    const h = req.headers, x = h.get('x-nf-client-connection-ip') || h.get('cf-connecting-ip') || (h.get('x-forwarded-for') || '').split(',')[0] || h.get('x-real-ip') || '';
+    return x.trim().slice(0, 64);
+  }
+  let ip = '';
+  async function readJson(req: Request): Promise<Record<string, any>> {
+    const t = await req.text().catch(() => '');
+    if (t.length > MAX_BODY) throw new Error('PAYLOAD_TOO_LARGE');
+    try { const j = JSON.parse(t || '{}'); return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch { return {}; }
+  }
   const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': reqId, ...extra } });
-  const STATUS: Record<string, number> = { TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
+  const STATUS: Record<string, number> = { PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
   // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
   const MSG: Record<string, string> = {
     UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.',
     BAD_AMOUNT: 'Amount must be a string like "10" or "10.50".', AMOUNT_TOO_SMALL: 'Minimum amount is 1.', AMOUNT_TOO_LARGE: 'Maximum amount is 100000.',
     BAD_NETWORK: 'Unsupported network. Use bsc, tron, polygon or eth.', BAD_CURRENCY: 'Unsupported currency for this network.', NETWORK_NOT_CONFIGURED: 'No receiving address for this network in your account.',
     BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
-    TOO_MANY_PENDING: 'Too many pending invoices.', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
+    TOO_MANY_PENDING: 'Too many pending invoices.', PAYLOAD_TOO_LARGE: 'Request body is too large (max 16 KB).', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
     NOT_TEST_INVOICE: 'Only test invoices can be simulated.', BAD_STATUS: 'status must be paid or expired.', MERCHANT_DISABLED: 'Merchant account is disabled.', SERVER_ERROR: 'Internal error. Retry later.', TRY_AGAIN: 'Temporary conflict. Retry.'
   };
   const fail = (code: string) => {
@@ -46,10 +67,16 @@ export function createApp(d: Deps) {
   // المفتاح يحدد الوضع: sk_live_ فواتير حقيقية، sk_test_ فواتير تجريبية. لا يرى أحدهما فواتير الآخر
   async function merchantByKey(req: Request): Promise<{ me: Merchant; test: boolean }> {
     const h = req.headers.get('authorization') || '', key = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
-    const m = /^sk_(live|test)_[0-9a-f]{48}$/.exec(key); if (!m) throw new Error('UNAUTHORIZED');
+    // من يجرّب مفاتيح خاطئة كثيرة يُحظر 10 دقائق (في الذاكرة ثم في قاعدة البيانات عبر كل النسخ)
+    if (ip && !memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN, 0)) throw new Error('RATE_LIMITED');
+    const badKey = async () => {
+      if (ip) { memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN); await hit('ip:' + ip, 'pay_badkey', BAD_KEY_MAX, 600); }
+      throw new Error('UNAUTHORIZED');
+    };
+    const m = /^sk_(live|test)_[0-9a-f]{48}$/.exec(key); if (!m) return await badKey();
     const test = m[1] === 'test';
     const { data } = await db.from('pay_merchants').select('*').eq(test ? 'test_key_hash' : 'key_hash', await P.sha256Hex(key)).maybeSingle();
-    if (!data) throw new Error('UNAUTHORIZED');
+    if (!data) return await badKey();
     if (!data.active) throw new Error('MERCHANT_DISABLED');
     return { me: data as Merchant, test };
   }
@@ -204,10 +231,24 @@ export function createApp(d: Deps) {
     }));
     return ok;
   }
+  // الفواتير التجريبية لا تبقى: تُحذف هي وسجل إشعاراتها بعد 3 دقائق من وصولها لحالتها النهائية
+  async function purgeTest() {
+    const cut = new Date(d.now() - TEST_TTL_MS).toISOString(), ids: string[] = [];
+    for (const [st, col] of [['paid', 'paid_at'], ['cancelled', 'cancelled_at'], ['expired', 'expires_at']] as const) {
+      const { data } = await db.from('pay_invoices').select('id').eq('test', true).eq('status', st).lt(col, cut).limit(500);
+      (data || []).forEach((r: { id: string }) => ids.push(r.id));
+    }
+    if (!ids.length) return 0;
+    await db.from('pay_hook_log').delete().in('invoice_id', ids);
+    await db.from('pay_invoices').delete().eq('test', true).in('id', ids);
+    return ids.length;
+  }
   async function cron() {
     // انتهاء المهلة (بعد فترة سماح للدفع المتأخر): فواتير الدفع ترسل invoice.expired، وفواتير الشحن لا ترسل شيئاً
     const cut = new Date(d.now() - LATE_GRACE_MIN * 60000).toISOString(), nowIso = new Date(d.now()).toISOString();
-    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').lt('expires_at', cut);
+    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', false).lt('expires_at', cut);
+    // التجريبية لا تُدفع فعلياً، فلا فترة سماح لها
+    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', true).lt('expires_at', nowIso);
     await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').eq('kind', 'topup').lt('expires_at', cut);
     await db.from('pay_hook_log').delete().lt('at', new Date(d.now() - 30 * 86400000).toISOString());
     const { data: pend } = await db.from('pay_invoices').select('id,network,match_hex,exact,currency').eq('status', 'pending').eq('test', false).limit(5000); // التجريبية لا تُراقَب
@@ -218,7 +259,8 @@ export function createApp(d: Deps) {
       try { report[net] = await scanNet(net, (pend || []).filter((p) => p.network === net), lastOf['pay:' + net] ?? null); }
       catch (e) { report[net] = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
     }));
-    return { ok: true, pending: (pend || []).length, hooks_sent: await deliverHooks(), report };
+    const hooks_sent = await deliverHooks();
+    return { ok: true, pending: (pend || []).length, hooks_sent, test_deleted: await purgeTest(), report };
   }
 
   // ===== محاكاة الدفع للفواتير التجريبية فقط (لا مال ولا شبكة) =====
@@ -253,7 +295,10 @@ export function createApp(d: Deps) {
     reqId = 'req_' + P.randHex(8);
     if (req.method === 'OPTIONS') return new Response('ok', { headers: { ...cors, 'X-Request-Id': reqId } });
     const path = new URL(req.url).pathname.replace(/^.*?\/pay(?=\/|$)/, '').replace(/\/+$/, '') || '/';
+    ip = clientIp(req);
     try {
+      if (ip && !memHit('ip:' + ip, IP_MAX, IP_WIN)) throw new Error('RATE_LIMITED');
+      const len = Number(req.headers.get('content-length') || 0); if (len > MAX_BODY) throw new Error('PAYLOAD_TOO_LARGE');
       if (path === '/cron' && req.method === 'POST') {
         const { data: cfg } = await db.from('push_cfg').select('v').eq('k', 'cron_secret').maybeSingle();
         if (!cfg || req.headers.get('x-cron') !== cfg.v) return new Response('forbidden', { status: 403 });
@@ -266,12 +311,12 @@ export function createApp(d: Deps) {
         return json({ invoice: { ...P.invoiceView(data, PAY_PAGE, d.now(), false), kind: data.kind, merchant: data.kind === 'topup' ? 'شحن رصيد بوابة صُرّة' : (data.pay_merchants as { name: string } | null)?.name || '' } });
       }
       if ((m = path.match(/^\/v1\/public\/(inv_[0-9a-f]{20})\/simulate$/)) && req.method === 'POST') { // زر «محاكاة الدفع» في صفحة الدفع
-        await hit('pub:' + m[1], 'pay_sim', 5, 3600);
+        await hit('pub:' + m[1], 'pay_sim', 5, 3600); if (ip) await hit('ip:' + ip, 'pay_sim_ip', 30, 3600);
         const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).maybeSingle();
         return json({ invoice: P.invoiceView(await simulate(data, 'paid'), PAY_PAGE, d.now(), false) });
       }
       if (path === '/v1/merchant' && req.method === 'POST') {
-        const { message, signature } = await req.json().catch(() => ({}));
+        const { message, signature } = await readJson(req);
         if (typeof message !== 'string' || typeof signature !== 'string') throw new Error('UNAUTHORIZED');
         const s = L.parseSignedMessage(message, d.now());
         if (await d.verify(message, signature) !== s.address) throw new Error('BAD_SIGNATURE');
@@ -283,16 +328,17 @@ export function createApp(d: Deps) {
       // ما بعده يحتاج مفتاح API
       if (path === '/v1/invoices' && req.method === 'POST') {
         const { me, test } = await merchantByKey(req);
-        return json({ invoice: P.invoiceView(await createInvoice(me, await req.json().catch(() => ({})), 'payment', test), PAY_PAGE, d.now()) });
+        return json({ invoice: P.invoiceView(await createInvoice(me, await readJson(req), 'payment', test), PAY_PAGE, d.now()) });
       }
       if ((m = path.match(/^\/v1\/invoices\/(inv_[0-9a-f]{20})\/simulate$/)) && req.method === 'POST') {
         const { me, test } = await merchantByKey(req); if (!test) throw new Error('TEST_KEY_REQUIRED');
-        const body = await req.json().catch(() => ({}));
+        await hit('pay:' + me.id, 'pay_sim_api', 120, 3600);
+        const body = await readJson(req);
         const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).eq('merchant_id', me.id).eq('test', true).maybeSingle();
         return json({ invoice: P.invoiceView(await simulate(data, String(body.status || 'paid')), PAY_PAGE, d.now()) });
       }
       if ((m = path.match(/^\/v1\/invoices\/(inv_[0-9a-f]{20})\/cancel$/)) && req.method === 'POST') {
-        const { me, test } = await merchantByKey(req);
+        const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_cancel', 300, 3600);
         const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).eq('merchant_id', me.id).eq('test', test).maybeSingle();
         return json({ invoice: P.invoiceView(await cancelInvoice(data), PAY_PAGE, d.now()) });
       }
@@ -311,7 +357,7 @@ export function createApp(d: Deps) {
         return json({ invoices: (data || []).map((r) => P.invoiceView(r, PAY_PAGE, d.now())) });
       }
       if (path === '/v1/balance' && req.method === 'GET') {
-        const { me, test } = await merchantByKey(req);
+        const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
         return json({ test, credit: P.fmtUnits(me.credit), currency: 'USDT', fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN) });
       }
       return fail('NOT_FOUND');

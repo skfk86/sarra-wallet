@@ -3,7 +3,7 @@
   "info": {
     "title": "Sarra Pay API",
     "version": "1.0.0",
-    "description": "Non-custodial USDT/USDC payment gateway. Customers pay directly to the merchant wallet; Sarra detects the on-chain transfer and notifies your server. Docs: https://docs.sarrapay.com/"
+    "description": "Non-custodial USDT/USDC payment gateway. Customers pay directly to the merchant wallet; Sarra detects the on-chain transfer and notifies your server. Docs: https://docs.sarrapay.com/ Rate limits: 120 req/min per IP, 300 invoices/hour per account; 20 invalid keys from one IP block it for 10 minutes. Test (sk_test_) invoices are permanently deleted 3 minutes after reaching a final state."
   },
   "servers": [
     {
@@ -308,6 +308,16 @@
           },
           "429": {
             "description": "RATE_LIMITED (see Retry-After)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE (body > 16 KB)",
             "content": {
               "application/json": {
                 "schema": {

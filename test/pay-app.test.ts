@@ -354,4 +354,35 @@ await t('v2: كل رد يحمل X-Request-Id، والأخطاء فيها رسا�
   db.setHitLimit(0); const r2 = await app.handle(new Request('https://x/functions/v1/pay/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify({ amount: '1', network: 'bsc', order_id: 'RL' + Date.now() }) }));
   db.setHitLimit(Infinity); assert.equal(r2.status, 429); assert.equal(r2.headers.get('retry-after'), '60');
 });
+await t('الحماية: حد لكل IP (120 طلب/دقيقة)، وحظر من يجرّب مفاتيح خاطئة، ورفض الطلبات الكبيرة', async () => {
+  const at = (ip: string, path: string, init: RequestInit = {}) => app.handle(new Request('https://x/functions/v1/pay' + path, { ...init, headers: { 'x-forwarded-for': ip + ', 10.0.0.1', ...(init.headers || {}) } }));
+  clock.t += 3600000;
+  let last = 0; for (let i = 0; i < 121; i++) last = (await at('1.1.1.1', '/v1/public/inv_' + 'e'.repeat(20))).status;
+  assert.equal(last, 429); assert.equal((await at('2.2.2.2', '/v1/public/inv_' + 'e'.repeat(20))).status, 404); // IP آخر لا يتأثر
+  clock.t += 61000; assert.equal((await at('1.1.1.1', '/v1/public/inv_' + 'e'.repeat(20))).status, 404); // ينتهي الحظر بعد دقيقة
+  const bad = 'sk_live_' + '0'.repeat(48); let st: number[] = [];
+  for (let i = 0; i < 21; i++) st.push((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + bad } })).status);
+  assert.equal(st.filter((x) => x === 401).length, 20); assert.equal(st[20], 429);
+  assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + KEY } })).status, 429); // حتى المفتاح الصحيح من نفس الـ IP، حتى ينتهي الحظر
+  clock.t += 601000; assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + KEY } })).status, 200);
+  const big = await at('4.4.4.4', '/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify({ amount: '1', network: 'bsc', description: 'x'.repeat(20000) }) });
+  assert.equal(big.status, 413); assert.equal((await big.json()).error, 'PAYLOAD_TOO_LARGE');
+  assert.equal((await api('POST', '/v1/invoices', KEY, ['not', 'object'])).j.error, 'BAD_NETWORK'); // جسم غير كائن يُعامل كفارغ
+});
+await t('المحاكاة: الفواتير التجريبية وسجل إشعاراتها تُحذف بعد 3 دقائق من انتهائها، والحقيقية تبقى', async () => {
+  const TK = (await call(signed('pay.key', { test: true }))).j.api_key;
+  const a = (await api('POST', '/v1/invoices', TK, { amount: '3', network: 'bsc', metadata: { secret: 'x' } })).j.invoice;
+  const b = (await api('POST', '/v1/invoices', TK, { amount: '4', network: 'bsc' })).j.invoice;
+  const c = (await api('POST', '/v1/invoices', TK, { amount: '5', network: 'bsc', expires_min: 10 })).j.invoice;
+  assert.equal((await api('POST', '/v1/invoices/' + a.id + '/simulate', TK)).j.invoice.status, 'paid');
+  assert.equal((await api('POST', '/v1/invoices/' + b.id + '/cancel', TK)).j.invoice.status, 'cancelled');
+  const real = db.T.pay_invoices.filter((x) => !x.test).length;
+  assert.ok(db.T.pay_hook_log.some((h) => h.invoice_id === a.id));
+  await tick(2); assert.ok(db.T.pay_invoices.some((x) => x.id === a.id), 'قبل 3 دقائق تبقى');
+  await tick(2); assert.ok(!db.T.pay_invoices.some((x) => x.id === a.id || x.id === b.id)); assert.ok(!db.T.pay_hook_log.some((h) => h.invoice_id === a.id || h.invoice_id === b.id));
+  assert.ok(db.T.pay_invoices.some((x) => x.id === c.id), 'المعلّقة تبقى حتى تنتهي');
+  await tick(8); assert.equal(db.T.pay_invoices.find((x) => x.id === c.id)!.status, 'expired'); // التجريبية تنتهي بلا فترة سماح
+  await tick(4); assert.ok(!db.T.pay_invoices.some((x) => x.id === c.id));
+  assert.equal(db.T.pay_invoices.filter((x) => !x.test).length, real); assert.ok(!db.T.pay_invoices.some((x) => x.test && x.status !== 'pending'));
+});
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
