@@ -80,4 +80,20 @@ await t('عرض الفاتورة: منتهية بعد وقتها، وصفحة ا
   assert.equal(P.invoiceView(r, 'x', Date.parse('2026-01-01T00:31:00Z')).status, 'expired');
   const pub = P.invoiceView(r, 'x', 0, false); assert.ok(!('fee' in pub) && !('order_id' in pub));
 });
+await t('v2: رابط الرجوع https فقط، وmetadata كائن مسطح محدود، وأسماء الأحداث', () => {
+  assert.equal(P.safeReturnUrl('https://shop.com/ok?x=1'), 'https://shop.com/ok?x=1');
+  for (const v of ['http://shop.com', 'javascript:alert(1)', 'https://u:p@shop.com', '', 5, 'x'.repeat(600)]) assert.equal(P.safeReturnUrl(v), null, String(v));
+  assert.equal(P.parseMetadata(undefined), null); assert.equal(P.parseMetadata({}), null);
+  assert.deepEqual(P.parseMetadata({ a: 1, b: 'x', c: true }), { a: 1, b: 'x', c: true });
+  for (const v of [[], 'x', { a: null }, { a: {} }, { a: NaN }, { 'a/b': 1 }, Object.fromEntries(Array.from({ length: 21 }, (_, i) => ['k' + i, 1]))]) assert.throws(() => P.parseMetadata(v), /BAD_METADATA/);
+  assert.equal(P.hookEventOf('paid'), 'invoice.paid'); assert.equal(P.hookEventOf('cancelled'), 'invoice.cancelled'); assert.equal(P.hookEventOf('pending'), null);
+  assert.equal(P.tokenOf('tron', 'USDC'), null); assert.equal(P.tokenOf('bsc', 'USDC')!.dec, 18);
+});
+await t('v2: المطابقة لكل عملة بعقدها فقط', () => {
+  const to = 'ab'.repeat(20), U = P.NETS.bsc.tokens.USDC, pend = [{ id: 'a', match_hex: to, exact: 5000001n, currency: 'USDC' }, { id: 'b', match_hex: to, exact: 5000001n, currency: 'USDT' }];
+  const log = (token: string) => ({ address: token, topics: [TRANSFER, topicOf('11'.repeat(20)), topicOf(to)], data: '0x' + (5000001n * 10n ** 12n).toString(16), transactionHash: '0x' + token.slice(2, 8), logIndex: '0x0' });
+  assert.deepEqual(P.matchLogs('bsc', [log(U.token)], pend, 'USDC').map((h) => h.id), ['a']);
+  assert.deepEqual(P.matchLogs('bsc', [log(U.token)], pend, 'USDT').map((h) => h.id), [], 'سجل USDC لا يسدد فاتورة USDT');
+  assert.deepEqual(P.matchLogs('bsc', [log(P.NETS.bsc.token)], pend).map((h) => h.id), ['b']);
+});
 console.log(pass + ' اختبارات بوابة الدفع نجحت');

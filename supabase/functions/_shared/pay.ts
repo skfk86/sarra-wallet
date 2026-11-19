@@ -6,12 +6,20 @@
 import { TRANSFER, addrOfTopic, tronToHex20 } from '../push-watch/logic.ts';
 
 // كل المبالغ الداخلية بوحدة micro-USDT (6 خانات) مهما كانت خانات التوكن على الشبكة
-export const NETS: Record<string, { name: string; token: string; dec: number; conf: number; cap: number; kind: 'tron' | 'evm' }> = {
-  tron: { name: 'TRON (TRC20)', token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6, conf: 3, cap: 200, kind: 'tron' },
-  bsc: { name: 'BNB Chain (BEP20)', token: '0x55d398326f99059ff775485246999027b3197955', dec: 18, conf: 5, cap: 400, kind: 'evm' },
-  polygon: { name: 'Polygon', token: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', dec: 6, conf: 20, cap: 300, kind: 'evm' },
-  eth: { name: 'Ethereum (ERC20)', token: '0xdac17f958d2ee523a2206206994597c13d831ec7', dec: 6, conf: 3, cap: 60, kind: 'evm' }
+// tokens: العملات المقبولة على كل شبكة (عقود رسمية فقط). token/dec = USDT للتوافق مع الكود القديم
+type Tok = { token: string; dec: number };
+export const NETS: Record<string, { name: string; token: string; dec: number; conf: number; cap: number; kind: 'tron' | 'evm'; tokens: Record<string, Tok> }> = {
+  tron: { name: 'TRON (TRC20)', token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6, conf: 3, cap: 200, kind: 'tron',
+    tokens: { USDT: { token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6 } } }, // USDC على TRON أوقفته Circle
+  bsc: { name: 'BNB Chain (BEP20)', token: '0x55d398326f99059ff775485246999027b3197955', dec: 18, conf: 5, cap: 400, kind: 'evm',
+    tokens: { USDT: { token: '0x55d398326f99059ff775485246999027b3197955', dec: 18 }, USDC: { token: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', dec: 18 } } },
+  polygon: { name: 'Polygon', token: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', dec: 6, conf: 20, cap: 300, kind: 'evm',
+    tokens: { USDT: { token: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', dec: 6 }, USDC: { token: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', dec: 6 } } },
+  eth: { name: 'Ethereum (ERC20)', token: '0xdac17f958d2ee523a2206206994597c13d831ec7', dec: 6, conf: 3, cap: 60, kind: 'evm',
+    tokens: { USDT: { token: '0xdac17f958d2ee523a2206206994597c13d831ec7', dec: 6 }, USDC: { token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', dec: 6 } } }
 };
+export const CURRENCIES = ['USDT', 'USDC'];
+export function tokenOf(net: string, cur: string): Tok | null { return NETS[net]?.tokens[cur] || null; }
 export const MIN_UNITS = 1_000_000n;          // أقل فاتورة: 1 USDT
 export const MAX_UNITS = 100_000_000_000n;    // أكبر فاتورة: 100,000 USDT
 export const TAIL_MAX = 9999;                 // الكسر الفريد: حتى 0.009999 USDT
@@ -55,11 +63,12 @@ export function matchHex(net: string, addr: unknown): string | null {
   return isEvmAddr(addr) ? addr.slice(2).toLowerCase() : null;
 }
 
-export type Pending = { id: string; match_hex: string; exact: string | number | bigint };
+export type Pending = { id: string; match_hex: string; exact: string | number | bigint; currency?: string };
 export type Hit = { id: string; tx: string; key: string; from: string };
 // يطابق سجلات Transfer مع الفواتير المعلّقة على شبكة واحدة. كل فاتورة تُطابَق مرة واحدة، وكل تحويل يسدد فاتورة واحدة
-export function matchLogs(net: string, logs: any[], pending: Pending[]): Hit[] {
-  const n = NETS[net]; if (!n) return [];
+export function matchLogs(net: string, logs: any[], pending: Pending[], currency = 'USDT'): Hit[] {
+  const n = tokenOf(net, currency); if (!n) return [];
+  pending = pending.filter((p) => (p.currency || 'USDT') === currency); // فاتورة USDC لا يسددها تحويل USDT بنفس المبلغ
   const norm = (a: string) => { a = String(a || '').toLowerCase(); return a.length === 44 && a.startsWith('0x41') ? '0x' + a.slice(4) : a; };
   const idx = new Map<string, string>(); // "hex:units" → invoice id
   for (const p of pending) idx.set(p.match_hex + ':' + BigInt(p.exact).toString(), p.id);
@@ -75,6 +84,32 @@ export function matchLogs(net: string, logs: any[], pending: Pending[]): Hit[] {
     out.push({ id, tx, key, from: addrOfTopic(l.topics[1]) });
   }
   return out;
+}
+
+// ===== حقول اختيارية من التاجر =====
+// رابط الرجوع بعد الدفع: https فقط، بلا بيانات دخول، حتى 500 حرف
+export function safeReturnUrl(v: unknown): string | null {
+  if (typeof v !== 'string' || !v.trim() || v.length > 500) return null;
+  let u: URL; try { u = new URL(v.trim()); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password) return null;
+  return u.toString();
+}
+// بيانات التاجر الخاصة: كائن JSON مسطح حتى 20 مفتاحاً، قيمه نصوص أو أرقام أو منطقية، وحجمه حتى 2000 حرف
+export function parseMetadata(v: unknown): Record<string, string | number | boolean> | null {
+  if (v == null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new Error('BAD_METADATA');
+  const e = Object.entries(v as Record<string, unknown>);
+  if (e.length > 20) throw new Error('BAD_METADATA');
+  for (const [k, x] of e) {
+    if (!/^[\w.\-]{1,40}$/.test(k)) throw new Error('BAD_METADATA');
+    if (!(typeof x === 'string' && x.length <= 500) && !(typeof x === 'number' && Number.isFinite(x)) && typeof x !== 'boolean') throw new Error('BAD_METADATA');
+  }
+  if (JSON.stringify(v).length > 2000) throw new Error('BAD_METADATA');
+  return e.length ? (v as Record<string, string | number | boolean>) : null;
+}
+// اسم حدث الإشعار حسب الحالة النهائية للفاتورة
+export function hookEventOf(status: string): string | null {
+  return ({ paid: 'invoice.paid', expired: 'invoice.expired', cancelled: 'invoice.cancelled' } as Record<string, string>)[status] || null;
 }
 
 // ===== رابط الإشعار (Webhook) =====
@@ -110,16 +145,16 @@ export const newApiKey = (test = false) => (test ? 'sk_test_' : 'sk_live_') + ra
 export const newHookSecret = () => 'whsec_' + randHex(24);
 export const randTail = () => 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % TAIL_MAX);
 
-export type InvoiceRow = { id: string; kind: string; network: string; address: string; amount: string | number; exact: string | number; fee: string | number; order_id: string | null; description: string | null; status: string; tx: string | null; paid_at: string | null; expires_at: string; created_at: string; test?: boolean };
+export type InvoiceRow = { id: string; kind: string; network: string; address: string; amount: string | number; exact: string | number; fee: string | number; order_id: string | null; description: string | null; status: string; tx: string | null; paid_at: string | null; expires_at: string; created_at: string; test?: boolean; currency?: string; metadata?: Record<string, unknown> | null; success_url?: string | null };
 // شكل الفاتورة في الـ API (للتاجر) وفي صفحة الدفع (للعميل)
 export function invoiceView(r: InvoiceRow, payBase: string, now: number, forMerchant = true) {
   const late = r.status === 'pending' && now > Date.parse(r.expires_at);
   const v: Record<string, unknown> = {
-    id: r.id, status: late ? 'expired' : r.status, network: r.network, network_name: NETS[r.network]?.name || r.network, currency: 'USDT',
+    id: r.id, status: late ? 'expired' : r.status, network: r.network, network_name: NETS[r.network]?.name || r.network, currency: r.currency || 'USDT',
     amount: fmtUnits(r.amount), pay_amount: fmtUnits(r.exact), address: r.address,
     description: r.description, tx: r.tx, paid_at: r.paid_at, expires_at: r.expires_at, created_at: r.created_at,
-    pay_url: payBase + '?i=' + r.id, test: !!r.test
+    pay_url: payBase + '?i=' + r.id, test: !!r.test, success_url: r.success_url || null
   };
-  if (forMerchant) { v.order_id = r.order_id; v.fee = fmtUnits(r.fee); v.kind = r.kind; }
+  if (forMerchant) { v.order_id = r.order_id; v.fee = fmtUnits(r.fee); v.kind = r.kind; v.metadata = r.metadata || null; }
   return v;
 }

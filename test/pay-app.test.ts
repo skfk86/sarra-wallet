@@ -7,18 +7,19 @@ import { TRANSFER, topicOf } from '../supabase/functions/push-watch/logic.ts';
 
 type Row = Record<string, any>;
 function fakeDb() {
-  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [] };
+  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [] };
   const hits: Record<string, number> = {}; let hitLimit = Infinity;
   const DEF: Record<string, () => Row> = {
     pay_merchants: () => ({ id: 'm' + (T.pay_merchants.length + 1), key_hash: null, key_hint: null, test_key_hash: null, test_key_hint: null, webhook_url: null, credit: 1000000, active: true, tron_addr: null, evm_addr: null }),
-    pay_invoices: () => ({ test: false, kind: 'payment', fee: 0, order_id: null, description: null, status: 'pending', tx: null, tx_key: null, payer: null, paid_at: null, hook_state: 'none', hook_attempts: 0, hook_next: null, created_at: new Date(clock.t).toISOString() })
+    pay_hook_log: () => ({ id: T.pay_hook_log.length + 1, at: new Date(clock.t).toISOString() + String(T.pay_hook_log.length).padStart(4, '0') }),
+    pay_invoices: () => ({ currency: 'USDT', metadata: null, success_url: null, hook_event: null, cancelled_at: null, test: false, kind: 'payment', fee: 0, order_id: null, description: null, status: 'pending', tx: null, tx_key: null, payer: null, paid_at: null, hook_state: 'none', hook_attempts: 0, hook_next: null, created_at: new Date(clock.t).toISOString() })
   };
   // قيود التفرّد كما في 020_pay.sql
   const violates = (t: string, rows: Row[], r: Row) => {
     const others = rows.filter((x) => x !== r);
     if (t === 'pay_invoices') return others.some((x) => x.id === r.id
-      || (r.status === 'pending' && x.status === 'pending' && !r.test && !x.test && x.network === r.network && x.match_hex === r.match_hex && String(x.exact) === String(r.exact))
-      || (r.order_id != null && r.status !== 'expired' && x.status !== 'expired' && x.merchant_id === r.merchant_id && !!x.test === !!r.test && x.order_id === r.order_id)
+      || (r.status === 'pending' && x.status === 'pending' && !r.test && !x.test && x.network === r.network && (x.currency || 'USDT') === (r.currency || 'USDT') && x.match_hex === r.match_hex && String(x.exact) === String(r.exact))
+      || (r.order_id != null && !['expired', 'cancelled'].includes(r.status) && !['expired', 'cancelled'].includes(x.status) && x.merchant_id === r.merchant_id && !!x.test === !!r.test && x.order_id === r.order_id)
       || (r.tx_key != null && x.network === r.network && x.tx_key === r.tx_key));
     if (t === 'pay_merchants') return others.some((x) => x.address === r.address || (r.key_hash && x.key_hash === r.key_hash) || (r.test_key_hash && x.test_key_hash === r.test_key_hash));
     if (t === 'used_nonces') return others.some((x) => x.nonce === r.nonce);
@@ -34,6 +35,7 @@ function fakeDb() {
     upsert(v: any) { this.op = 'upsert'; this.val = v; return this; }
     delete() { this.op = 'delete'; return this; }
     eq(k: string, v: any) { this.f.push((r) => r[k] === v); return this; }
+    in(k: string, v: any[]) { this.f.push((r) => v.includes(r[k])); return this; }
     neq(k: string, v: any) { this.f.push((r) => r[k] !== v); return this; }
     lt(k: string, v: any) { this.f.push((r) => r[k] < v); return this; }
     lte(k: string, v: any) { this.f.push((r) => r[k] != null && r[k] <= v); return this; }
@@ -76,7 +78,7 @@ function fakeDb() {
       if (fn === 'pay_settle') { // نفس منطق الدالة في 020_pay.sql
         const r = T.pay_invoices.find((x) => x.id === a.p_id && x.status === 'pending'); if (!r) return { data: false, error: null };
         if (T.pay_invoices.some((x) => x !== r && x.network === r.network && x.tx_key === a.p_key)) return { data: null, error: { code: '23505' } };
-        Object.assign(r, { status: 'paid', tx: a.p_tx, tx_key: a.p_key, payer: a.p_payer, paid_at: new Date(clock.t).toISOString(), hook_state: r.kind === 'payment' ? 'pending' : 'none', hook_next: new Date(clock.t).toISOString() });
+        Object.assign(r, { status: 'paid', tx: a.p_tx, tx_key: a.p_key, payer: a.p_payer, paid_at: new Date(clock.t).toISOString(), hook_state: r.kind === 'payment' ? 'pending' : 'none', hook_event: 'invoice.paid', hook_attempts: 0, hook_next: new Date(clock.t).toISOString() });
         const m = T.pay_merchants.find((x) => x.id === r.merchant_id)!; m.credit = Number(m.credit) + (r.kind === 'topup' ? Number(r.exact) : -Number(r.fee));
         return { data: true, error: null };
       }
@@ -287,5 +289,69 @@ await t('حساب موقوف، وحد الطلبات، وحد الفواتير �
 });
 await t('مسار غير معروف: 404، وطلب OPTIONS للمتصفح مسموح', async () => {
   assert.equal((await api('GET', '/v1/nope')).status, 404); assert.equal((await app.handle(new Request('https://x/pay/v1/invoices', { method: 'OPTIONS' }))).status, 200);
+});
+await t('v2: USDC فاتورة منفصلة، لا يسددها تحويل USDT بنفس المبلغ، ويسددها عقد USDC الرسمي فقط', async () => {
+  db.T.pay_merchants[0].credit = 50000000; db.T.pay_merchants[0].active = true; db.setHitLimit(Infinity);
+  db.T.pay_invoices = db.T.pay_invoices.filter((x) => !/^f\d+$/.test(x.id)); // فواتير الاختبار السابق (حد المعلّقة)
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '5', network: 'tron', currency: 'USDC' })).j.error, 'BAD_CURRENCY');
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '5', network: 'bsc', currency: 'DAI' })).j.error, 'BAD_CURRENCY');
+  const ur = await api('POST', '/v1/invoices', KEY, { amount: '7', network: 'polygon', currency: 'usdc' }); const u = ur.j.invoice; assert.ok(u, JSON.stringify(ur.j));
+  assert.equal(u.currency, 'USDC');
+  pay('polygon', EVM, units(u.pay_amount)); // نفس المبلغ لكن بعقد USDT
+  await tick(); assert.equal((await api('GET', '/v1/invoices/' + u.id, KEY)).j.invoice.status, 'pending');
+  pay('polygon', EVM, units(u.pay_amount), { address: P.NETS.polygon.tokens.USDC.token });
+  await tick(); const v = (await api('GET', '/v1/invoices/' + u.id, KEY)).j.invoice; assert.equal(v.status, 'paid'); assert.equal(v.currency, 'USDC');
+  assert.equal(JSON.parse(hooks[hooks.length - 1].body).invoice.currency, 'USDC');
+});
+await t('v2: metadata ورابط الرجوع: يُحفظان، ويعودان في الإشعار، والبيانات لا تظهر في الصفحة العامة', async () => {
+  for (const [b, e] of [[{ metadata: [1] }, 'BAD_METADATA'], [{ metadata: { a: { b: 1 } } }, 'BAD_METADATA'], [{ metadata: { 'a b': 1 } }, 'BAD_METADATA'], [{ metadata: { x: 'y'.repeat(2100) } }, 'BAD_METADATA'], [{ success_url: 'http://shop.com/ok' }, 'BAD_SUCCESS_URL'], [{ success_url: 'javascript:alert(1)' }, 'BAD_SUCCESS_URL']] as const)
+    assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '3', network: 'bsc', ...b })).j.error, e, JSON.stringify(b));
+  const r = await api('POST', '/v1/invoices', KEY, { amount: '3', network: 'bsc', metadata: { customer: 42, plan: 'pro', gift: false }, success_url: 'https://shop.example.com/thanks?o=1' });
+  const inv = r.j.invoice; assert.deepEqual(inv.metadata, { customer: 42, plan: 'pro', gift: false }); assert.equal(inv.success_url, 'https://shop.example.com/thanks?o=1');
+  const pub = (await api('GET', '/v1/public/' + inv.id)).j.invoice; assert.equal(pub.success_url, inv.success_url); assert.ok(!('metadata' in pub));
+  pay('bsc', EVM, units(inv.pay_amount)); await tick();
+  const ev = JSON.parse(hooks[hooks.length - 1].body); assert.equal(ev.event, 'invoice.paid'); assert.deepEqual(ev.invoice.metadata, inv.metadata);
+});
+await t('v2: الإلغاء يرسل invoice.cancelled، وتحويل لاحق لا يسددها، ورقم الطلب يعود متاحاً', async () => {
+  const a = (await api('POST', '/v1/invoices', KEY, { amount: '4', network: 'bsc', order_id: 'ORD-CX' })).j.invoice;
+  const n0 = hooks.length, c = await api('POST', '/v1/invoices/' + a.id + '/cancel', KEY);
+  assert.equal(c.j.invoice.status, 'cancelled'); assert.equal(hooks.length, n0 + 1); assert.equal(JSON.parse(hooks[n0].body).event, 'invoice.cancelled');
+  assert.equal((await api('POST', '/v1/invoices/' + a.id + '/cancel', KEY)).j.error, 'NOT_PENDING');
+  pay('bsc', EVM, units(a.pay_amount)); await tick(); assert.equal((await api('GET', '/v1/invoices/' + a.id, KEY)).j.invoice.status, 'cancelled');
+  const b = (await api('POST', '/v1/invoices', KEY, { amount: '4', network: 'bsc', order_id: 'ORD-CX' })).j.invoice; assert.notEqual(b.id, a.id);
+  assert.deepEqual((await api('GET', '/v1/invoices?status=cancelled', KEY)).j.invoices.map((x: Row) => x.id), [a.id]);
+  assert.equal((await api('POST', '/v1/invoices/inv_' + '0'.repeat(20) + '/cancel', KEY)).status, 404);
+});
+await t('v2: انتهاء المهلة يرسل invoice.expired مرة واحدة (بعد فترة السماح)، وفواتير الشحن لا ترسل شيئاً', async () => {
+  const e = (await api('POST', '/v1/invoices', KEY, { amount: '2', network: 'tron', expires_min: 10 })).j.invoice;
+  const tp = (await call(signed('pay.topup', { amount: '5', network: 'bsc' }))).j.invoice;
+  const n0 = hooks.length, ours = () => hooks.slice(n0).map((h) => JSON.parse(h.body)).filter((x) => x.invoice.id === e.id || x.invoice.id === tp.id);
+  await tick(15); assert.equal(ours().length, 0, 'داخل فترة السماح لا إشعار');
+  await tick(20); assert.deepEqual(ours().map((x) => [x.event, x.invoice.id]), [['invoice.expired', e.id]]);
+  await tick(50); assert.equal(db.T.pay_invoices.find((x) => x.id === tp.id)!.status, 'expired'); // الشحن: 60 دقيقة + السماح
+  assert.equal(ours().length, 1, 'لا يتكرر، والشحن بلا إشعار');
+});
+await t('v2: سجل الإشعارات وإعادة الإرسال من التطبيق', async () => {
+  const log = (await call(signed('pay.hooks'))).j.hooks; assert.ok(log.length >= 3); assert.ok(log.every((x: Row) => 'event' in x && 'status' in x && 'ok' in x));
+  assert.ok(new Set(log.map((x: Row) => x.event)).has('invoice.cancelled'));
+  const paidId = db.T.pay_invoices.find((x) => x.status === 'paid' && x.kind === 'payment' && !x.test)!.id;
+  const n0 = hooks.length; const r = (await call(signed('pay.resend', { id: paidId }))).j;
+  assert.deepEqual(r, { ok: true, status: 200 }); assert.equal(JSON.parse(hooks[n0].body).event, 'invoice.paid');
+  const pend = (await api('POST', '/v1/invoices', KEY, { amount: '2', network: 'bsc' })).j.invoice;
+  assert.equal((await call(signed('pay.resend', { id: pend.id }))).j.error, 'NOT_FINAL');
+  assert.equal((await call(signed('pay.resend', { id: 'inv_' + 'f'.repeat(20) }))).j.error, 'NOT_FOUND');
+});
+await t('v2: الرصيد يغطي كل الفواتير المعلّقة (لا رصيد سالب)', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  db.T.pay_merchants[0].credit = 50000; // 0.05: يكفي عمولتين بحد أدنى 0.02
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc' })).status, 200);
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc' })).status, 200);
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc' })).j.error, 'INSUFFICIENT_CREDIT');
+});
+await t('v2: كل رد يحمل X-Request-Id، والأخطاء فيها رسالة وrequest_id، و429 فيه Retry-After', async () => {
+  const r = await app.handle(new Request('https://x/functions/v1/pay/v1/balance')); const j = await r.json();
+  assert.match(r.headers.get('x-request-id')!, /^req_[0-9a-f]{16}$/); assert.equal(j.request_id, r.headers.get('x-request-id')); assert.equal(j.message, 'Missing or invalid API key.');
+  db.setHitLimit(0); const r2 = await app.handle(new Request('https://x/functions/v1/pay/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify({ amount: '1', network: 'bsc', order_id: 'RL' + Date.now() }) }));
+  db.setHitLimit(Infinity); assert.equal(r2.status, 429); assert.equal(r2.headers.get('retry-after'), '60');
 });
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');

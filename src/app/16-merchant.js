@@ -13,7 +13,8 @@
     TRY_AGAIN: 'حاول مرة أخرى',
     NETWORK: 'تعذّر الاتصال. تحقق من الإنترنت وحاول مجدداً',
     NOT_FOUND: 'بوابة الدفع غير مفعّلة على الخادم بعد',
-    NO_WEBHOOK_URL: 'أضف رابط إشعار الدفع أولاً من «تعديل البيانات»'
+    NO_WEBHOOK_URL: 'أضف رابط إشعار الدفع أولاً من «تعديل البيانات»',
+    NOT_FINAL: 'الفاتورة ما زالت بانتظار الدفع، فلا إشعار لها بعد'
   };
   function mcErr(e) { var c = e && e.message; return MC_ERRORS[c] || p2pErr(e); }
   async function payApi(action, params) {
@@ -32,7 +33,8 @@
     $('mc-name').value = m ? m.name : ''; $('mc-hook').value = m && m.webhook_url ? m.webhook_url : '';
     $('mc-save').textContent = m ? 'حفظ التعديلات' : 'تفعيل بوابة الدفع'; $('mc-cancel').hidden = !m; mcShowErr(''); mcView('form');
   }
-  var MC_ST = { pending: 'بانتظار الدفع', paid: 'مدفوعة', expired: 'منتهية' };
+  var MC_ST = { pending: 'بانتظار الدفع', paid: 'مدفوعة', expired: 'منتهية', cancelled: 'ملغاة' };
+  var MC_EV = { 'invoice.paid': 'دفع', 'invoice.expired': 'انتهاء', 'invoice.cancelled': 'إلغاء' };
   function mcRender() {
     var d = MC.data, m = d && d.merchant;
     if (!m) return mcForm();
@@ -54,13 +56,36 @@
     list.slice(0, 10).forEach(function (x) {
       var r = el('div', 'display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px');
       var a = el('div', 'display:flex;flex-direction:column;min-width:0');
-      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' USDT' + (x.test ? ' · تجريبية' : '')));
+      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' ' + (x.currency || 'USDT') + (x.test ? ' · تجريبية' : '')));
       a.appendChild(el('span', 'font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (x.order_id || x.id) + ' · ' + (x.network_name || x.network)));
       r.appendChild(a);
       r.appendChild(el('span', 'font-size:12px;font-weight:700;white-space:nowrap;color:' + (x.status === 'paid' ? 'var(--ac)' : 'var(--mu)'), MC_ST[x.status] || x.status));
       box.appendChild(r);
     });
+    $('mc-hooks-card').hidden = !m.webhook_url;
     mcView('dash');
+    if (m.webhook_url && !MC.hooks) mcLoadHooks();
+  }
+  // سجل الإشعارات: آخر 30 محاولة، مع إعادة إرسال لكل فاتورة
+  async function mcLoadHooks() {
+    var box = $('mc-hooks');
+    try { MC.hooks = (await payApi('pay.hooks')).hooks || []; } catch (e) { box.textContent = ''; box.appendChild(el('span', 'font-size:13px;color:var(--danger)', mcErr(e))); return; }
+    box.textContent = '';
+    if (!MC.hooks.length) { box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لم يُرسل أي إشعار بعد.')); return; }
+    MC.hooks.slice(0, 15).forEach(function (h) {
+      var r = el('div', 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--div);font-size:13px');
+      var a = el('div', 'display:flex;flex-direction:column;min-width:0');
+      a.appendChild(el('b', '', (h.ok ? '✓ ' : '✗ ') + (MC_EV[h.event] || h.event) + ' · ' + (h.status ? 'HTTP ' + h.status : 'تعذّر الوصول')));
+      a.appendChild(el('span', 'font-size:11.5px;color:var(--mu);direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', h.invoice_id + ' · ' + new Date(h.at).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' })));
+      r.appendChild(a);
+      var b = el('button', 'flex:none;width:auto;height:32px;padding:0 12px;font-size:12.5px', 'إعادة'); b.type = 'button'; b.className = 'btn btn-ghost';
+      b.onclick = mcDo(b, async function () {
+        var x = await payApi('pay.resend', { id: h.invoice_id });
+        toast(x.ok ? 'أُعيد الإرسال، وردّ خادمك بـ ' + x.status : (x.status ? 'خادمك ردّ بـ ' + x.status : 'تعذّر الوصول إلى رابطك'), !x.ok);
+        MC.hooks = null; mcLoadHooks();
+      });
+      r.appendChild(b); box.appendChild(r);
+    });
   }
   async function openMerchant() {
     show('merchant'); $('mc-key-box').hidden = true; $('mc-key').textContent = '';
@@ -98,6 +123,7 @@
     $('mc-key').textContent = r.api_key; $('mc-key-box').hidden = false;
     MC.data.merchant.test_key_hint = r.api_key.slice(-4); mcRender(); $('mc-key-box').hidden = false;
   });
+  $('mc-hooks-load').onclick = function () { MC.hooks = null; mcLoadHooks(); };
   $('mc-hooktest').onclick = mcDo($('mc-hooktest'), async function () {
     var r = await payApi('pay.hooktest');
     if (r.ok) toast('وصل الإشعار، وردّ خادمك بـ ' + r.status);

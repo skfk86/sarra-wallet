@@ -18,10 +18,23 @@ export type Deps = {
 export function createApp(d: Deps) {
   const db = d.db, FEE_BPS = d.cfg.feeBps, FEE_MIN = d.cfg.feeMin, TOPUP = d.cfg.topup, PAY_PAGE = d.cfg.payPage;
   const MAX_PENDING = 200, LATE_GRACE_MIN = 20;
-  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
-  const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Expose-Headers': 'x-request-id, retry-after' };
+  let reqId = '';
+  const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': reqId, ...extra } });
   const STATUS: Record<string, number> = { TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
-  const fail = (code: string) => json({ error: code }, code.startsWith('RATE_LIMITED') ? 429 : STATUS[code] || 400);
+  // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
+  const MSG: Record<string, string> = {
+    UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.',
+    BAD_AMOUNT: 'Amount must be a string like "10" or "10.50".', AMOUNT_TOO_SMALL: 'Minimum amount is 1.', AMOUNT_TOO_LARGE: 'Maximum amount is 100000.',
+    BAD_NETWORK: 'Unsupported network. Use bsc, tron, polygon or eth.', BAD_CURRENCY: 'Unsupported currency for this network.', NETWORK_NOT_CONFIGURED: 'No receiving address for this network in your account.',
+    BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
+    TOO_MANY_PENDING: 'Too many pending invoices.', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
+    NOT_TEST_INVOICE: 'Only test invoices can be simulated.', BAD_STATUS: 'status must be paid or expired.', MERCHANT_DISABLED: 'Merchant account is disabled.', SERVER_ERROR: 'Internal error. Retry later.', TRY_AGAIN: 'Temporary conflict. Retry.'
+  };
+  const fail = (code: string) => {
+    const st = code.startsWith('RATE_LIMITED') ? 429 : STATUS[code] || 400;
+    return json({ error: code, message: MSG[code] || code, request_id: reqId }, st, st === 429 ? { 'Retry-After': '60' } : {});
+  };
 
   type Merchant = { id: string; address: string; name: string; tron_addr: string | null; evm_addr: string | null; key_hint: string | null; test_key_hint?: string | null; webhook_url: string | null; webhook_secret: string; credit: string | number; active: boolean };
 
@@ -44,6 +57,11 @@ export function createApp(d: Deps) {
   // ===== إنشاء فاتورة (دفع لتاجر، أو شحن رصيد إلى عنواننا) =====
   async function createInvoice(m: Merchant, p: Record<string, unknown>, kind: 'payment' | 'topup', test = false) {
     const net = String(p.network || ''), N = P.NETS[net]; if (!N) throw new Error('BAD_NETWORK');
+    const currency = kind === 'topup' ? 'USDT' : String(p.currency || 'USDT').toUpperCase();
+    if (!P.tokenOf(net, currency)) throw new Error('BAD_CURRENCY');
+    const metadata = P.parseMetadata(p.metadata);
+    const success_url = p.success_url == null || p.success_url === '' ? null : P.safeReturnUrl(p.success_url);
+    if (p.success_url && !success_url) throw new Error('BAD_SUCCESS_URL');
     const address = kind === 'topup' ? TOPUP[N.kind] : (N.kind === 'tron' ? m.tron_addr : m.evm_addr);
     const mh = P.matchHex(net, address); if (!address || !mh) throw new Error('NETWORK_NOT_CONFIGURED');
     const amount = P.parseAmount(p.amount);
@@ -53,14 +71,16 @@ export function createApp(d: Deps) {
     if (order_id && !/^[\w.:\-]{1,64}$/.test(order_id)) throw new Error('BAD_ORDER_ID');
     const description = p.description == null ? null : String(p.description).slice(0, 140);
     const mins = Math.min(120, Math.max(10, Number(p.expires_min) || 30));
-    const existing = async () => order_id ? (await db.from('pay_invoices').select('*').eq('merchant_id', m.id).eq('test', test).eq('order_id', order_id).neq('status', 'expired').maybeSingle()).data : null;
+    const existing = async () => order_id ? (await db.from('pay_invoices').select('*').eq('merchant_id', m.id).eq('test', test).eq('order_id', order_id).in('status', ['pending', 'paid']).maybeSingle()).data : null;
     const dup = await existing(); if (dup) return dup; // إعادة إرسال الطلب نفسه لا تنشئ فاتورة ثانية
     await hit('pay:' + m.id, test ? 'pay_inv_test' : 'pay_inv', 300, 3600);
-    const { count } = await db.from('pay_invoices').select('id', { count: 'exact', head: true }).eq('merchant_id', m.id).eq('test', test).eq('status', 'pending');
-    if ((count || 0) >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
+    const { data: open } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', test).eq('status', 'pending').limit(MAX_PENDING + 1);
+    if ((open || []).length >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
+    // الرصيد يجب أن يغطي عمولات الفواتير المعلّقة كلها، لا الفاتورة الجديدة وحدها (وإلا قد يصبح سالباً)
+    if (kind === 'payment' && !test && BigInt(m.credit) < fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n)) throw new Error('INSUFFICIENT_CREDIT');
     for (let i = 0; i < 6; i++) {
       const row = { id: P.newInvoiceId(), merchant_id: m.id, kind, network: net, address, match_hex: mh, amount: amount.toString(), exact: P.exactUnits(amount, P.randTail()).toString(),
-        fee: fee.toString(), order_id, description, test, expires_at: new Date(d.now() + mins * 60000).toISOString() };
+        fee: fee.toString(), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
       const { data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle();
       if (data) return data;
       if (error?.code !== '23505') throw new Error('SERVER_ERROR');
@@ -108,6 +128,22 @@ export function createApp(d: Deps) {
         description: 'إشعار تجريبي', tx: '0xtest', paid_at: now, expires_at: now, created_at: now, pay_url: PAY_PAGE + '?i=inv_' + '0'.repeat(20), test: true, order_id: 'TEST', fee: '0', kind: 'payment' };
       return await sendHook(url, cur.webhook_secret, { event: 'test', invoice: sample });
     }
+    if (action === 'pay.hooks') { // آخر محاولات الإشعار
+      const { data } = await db.from('pay_hook_log').select('invoice_id,event,status,ok,at').eq('merchant_id', cur.id).order('at', { ascending: false }).limit(30);
+      return { hooks: data || [] };
+    }
+    if (action === 'pay.resend') { // إعادة إرسال إشعار فاتورة منتهية الحالة (مدفوعة/منتهية/ملغاة)
+      await hit(me, 'pay_resend', 30, 86400);
+      const id = String(p.id || ''); if (!/^inv_[0-9a-f]{20}$/.test(id)) throw new Error('NOT_FOUND');
+      const { data: r } = await db.from('pay_invoices').select('*').eq('id', id).eq('merchant_id', cur.id).eq('kind', 'payment').maybeSingle();
+      if (!r) throw new Error('NOT_FOUND');
+      const ev = P.hookEventOf(r.status); if (!ev) throw new Error('NOT_FINAL');
+      if (!P.safeWebhookUrl(cur.webhook_url)) throw new Error('NO_WEBHOOK_URL');
+      await db.from('pay_invoices').update({ hook_state: 'pending', hook_event: ev, hook_next: new Date(d.now()).toISOString(), hook_attempts: 0 }).eq('id', id);
+      await deliverHooks(id);
+      const { data: last } = await db.from('pay_hook_log').select('status,ok').eq('invoice_id', id).order('at', { ascending: false }).limit(1);
+      return { ok: !!last?.[0]?.ok, status: last?.[0]?.status ?? 0 };
+    }
     if (action === 'pay.topup') return { invoice: P.invoiceView(await createInvoice(cur, { amount: p.amount, network: p.network, expires_min: 60 }, 'topup'), PAY_PAGE, d.now()) };
     throw new Error('BAD_ACTION');
   }
@@ -123,14 +159,19 @@ export function createApp(d: Deps) {
       // أول دورة بعد الخمول: نرجع بضع دقائق لنغطي ما بين إنشاء الفاتورة وتشغيل الماسح
       const rg: [number, number] | null = cursor == null ? [head - N.cap + 1, head] : blockRange(cursor, head, N.cap, N.cap * 30);
       if (!rg) break;
-      const hexes = [...new Set(pending.map((p) => p.match_hex))], logs: unknown[] = [];
-      const base = { fromBlock: hx(rg[0]), toBlock: hx(rg[1]), address: N.token };
-      // TRON: استعلام لكل عنوان (فلتر «أو» غير مضمون في خادمها)؛ البقية على دفعات
-      const groups = N.kind === 'tron' ? hexes.slice(0, 40).map((h) => [h]) : Array.from({ length: Math.ceil(hexes.length / 50) }, (_, i) => hexes.slice(i * 50, i * 50 + 50));
-      for (const g of groups) logs.push(...(await d.rpc(net, 'eth_getLogs', [{ ...base, topics: [TRANSFER, null, g.length === 1 ? topicOf(g[0]) : g.map(topicOf)] }]) || []));
-      for (const h of P.matchLogs(net, logs as any[], pending)) {
-        const { data } = await db.rpc('pay_settle', { p_id: h.id, p_tx: h.tx, p_key: h.key, p_payer: h.from });
-        if (data) settled++;
+      // كل عملة لها عقدها: نستعلم سجلات كل عقد على حدة، ونطابق فواتير تلك العملة فقط
+      for (const cur of [...new Set(pending.map((p) => p.currency || 'USDT'))]) {
+        const tk = P.tokenOf(net, cur); if (!tk) continue;
+        const pc = pending.filter((p) => (p.currency || 'USDT') === cur);
+        const hexes = [...new Set(pc.map((p) => p.match_hex))], logs: unknown[] = [];
+        const base = { fromBlock: hx(rg[0]), toBlock: hx(rg[1]), address: tk.token };
+        // TRON: استعلام لكل عنوان (فلتر «أو» غير مضمون في خادمها)؛ البقية على دفعات
+        const groups = N.kind === 'tron' ? hexes.slice(0, 40).map((h) => [h]) : Array.from({ length: Math.ceil(hexes.length / 50) }, (_, i) => hexes.slice(i * 50, i * 50 + 50));
+        for (const g of groups) logs.push(...(await d.rpc(net, 'eth_getLogs', [{ ...base, topics: [TRANSFER, null, g.length === 1 ? topicOf(g[0]) : g.map(topicOf)] }]) || []));
+        for (const h of P.matchLogs(net, logs as any[], pc, cur)) {
+          const { data } = await db.rpc('pay_settle', { p_id: h.id, p_tx: h.tx, p_key: h.key, p_payer: h.from });
+          if (data) settled++;
+        }
       }
       cursor = rg[1]; scanned += rg[1] - rg[0] + 1;
       await db.from('push_state').upsert({ chain: sk, last_block: cursor, updated_at: new Date(d.now()).toISOString() });
@@ -154,7 +195,9 @@ export function createApp(d: Deps) {
     await Promise.all((data || []).map(async (r) => {
       const m = r.pay_merchants as { webhook_url: string | null; webhook_secret: string } | null, url = m && P.safeWebhookUrl(m.webhook_url);
       if (!m || !url) { await db.from('pay_invoices').update({ hook_state: 'none' }).eq('id', r.id); return; }
-      const good = (await sendHook(url, m.webhook_secret, { event: 'invoice.paid', invoice: P.invoiceView(r, PAY_PAGE, d.now()) })).ok; // الفشل يُعاد لاحقاً
+      const event = r.hook_event || P.hookEventOf(r.status) || 'invoice.paid';
+      const res = await sendHook(url, m.webhook_secret, { event, invoice: P.invoiceView(r, PAY_PAGE, d.now()) }), good = res.ok; // الفشل يُعاد لاحقاً
+      await db.from('pay_hook_log').insert({ merchant_id: r.merchant_id, invoice_id: r.id, event, status: res.status, ok: good });
       if (good) { ok++; await db.from('pay_invoices').update({ hook_state: 'done', hook_attempts: r.hook_attempts + 1 }).eq('id', r.id); return; }
       const n = r.hook_attempts + 1, wait = P.hookBackoffMin(n);
       await db.from('pay_invoices').update(wait == null ? { hook_state: 'failed', hook_attempts: n } : { hook_attempts: n, hook_next: new Date(d.now() + wait * 60000).toISOString() }).eq('id', r.id);
@@ -162,8 +205,12 @@ export function createApp(d: Deps) {
     return ok;
   }
   async function cron() {
-    await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').lt('expires_at', new Date(d.now() - LATE_GRACE_MIN * 60000).toISOString());
-    const { data: pend } = await db.from('pay_invoices').select('id,network,match_hex,exact').eq('status', 'pending').eq('test', false).limit(5000); // التجريبية لا تُراقَب
+    // انتهاء المهلة (بعد فترة سماح للدفع المتأخر): فواتير الدفع ترسل invoice.expired، وفواتير الشحن لا ترسل شيئاً
+    const cut = new Date(d.now() - LATE_GRACE_MIN * 60000).toISOString(), nowIso = new Date(d.now()).toISOString();
+    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').lt('expires_at', cut);
+    await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').eq('kind', 'topup').lt('expires_at', cut);
+    await db.from('pay_hook_log').delete().lt('at', new Date(d.now() - 30 * 86400000).toISOString());
+    const { data: pend } = await db.from('pay_invoices').select('id,network,match_hex,exact,currency').eq('status', 'pending').eq('test', false).limit(5000); // التجريبية لا تُراقَب
     const { data: st } = await db.from('push_state').select('chain,last_block').like('chain', 'pay:%');
     const lastOf = Object.fromEntries((st || []).map((s) => [s.chain, Number(s.last_block)]));
     const report: Record<string, unknown> = {};
@@ -182,16 +229,29 @@ export function createApp(d: Deps) {
     if (status !== 'paid' && status !== 'expired') throw new Error('BAD_STATUS');
     const now = new Date(d.now()).toISOString();
     const upd = status === 'paid'
-      ? { status: 'paid', tx: '0xtest' + P.newInvoiceId().slice(4), payer: 'test', paid_at: now, hook_state: 'pending', hook_next: now }
-      : { status: 'expired', expires_at: now };
+      ? { status: 'paid', tx: '0xtest' + P.newInvoiceId().slice(4), payer: 'test', paid_at: now, hook_state: 'pending', hook_event: 'invoice.paid', hook_next: now, hook_attempts: 0 }
+      : { status: 'expired', expires_at: now, hook_state: 'pending', hook_event: 'invoice.expired', hook_next: now, hook_attempts: 0 };
     const { data } = await db.from('pay_invoices').update(upd).eq('id', row.id).eq('status', 'pending').eq('test', true).select('*').maybeSingle();
     if (!data) throw new Error('NOT_PENDING');
-    if (status === 'paid') await deliverHooks(row.id); // الإشعار فوراً، والفشل يُعاد كالمعتاد
+    await deliverHooks(row.id); // الإشعار فوراً، والفشل يُعاد كالمعتاد
+    return (await db.from('pay_invoices').select('*').eq('id', row.id).maybeSingle()).data;
+  }
+
+  // إلغاء فاتورة معلّقة (العميل تراجع مثلاً). تحويل يصل بعدها لا يسددها، ويصل إلى محفظة التاجر كأي تحويل
+  async function cancelInvoice(row: Record<string, any> | null) {
+    if (!row) throw new Error('NOT_FOUND');
+    if (row.status !== 'pending') throw new Error('NOT_PENDING');
+    const now = new Date(d.now()).toISOString();
+    const { data } = await db.from('pay_invoices').update({ status: 'cancelled', cancelled_at: now, hook_state: row.kind === 'payment' ? 'pending' : 'none', hook_event: 'invoice.cancelled', hook_next: now, hook_attempts: 0 })
+      .eq('id', row.id).eq('status', 'pending').select('*').maybeSingle();
+    if (!data) throw new Error('NOT_PENDING');
+    await deliverHooks(row.id);
     return (await db.from('pay_invoices').select('*').eq('id', row.id).maybeSingle()).data;
   }
 
   async function handle(req: Request): Promise<Response> {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+    reqId = 'req_' + P.randHex(8);
+    if (req.method === 'OPTIONS') return new Response('ok', { headers: { ...cors, 'X-Request-Id': reqId } });
     const path = new URL(req.url).pathname.replace(/^.*?\/pay(?=\/|$)/, '').replace(/\/+$/, '') || '/';
     try {
       if (path === '/cron' && req.method === 'POST') {
@@ -231,6 +291,11 @@ export function createApp(d: Deps) {
         const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).eq('merchant_id', me.id).eq('test', true).maybeSingle();
         return json({ invoice: P.invoiceView(await simulate(data, String(body.status || 'paid')), PAY_PAGE, d.now()) });
       }
+      if ((m = path.match(/^\/v1\/invoices\/(inv_[0-9a-f]{20})\/cancel$/)) && req.method === 'POST') {
+        const { me, test } = await merchantByKey(req);
+        const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).eq('merchant_id', me.id).eq('test', test).maybeSingle();
+        return json({ invoice: P.invoiceView(await cancelInvoice(data), PAY_PAGE, d.now()) });
+      }
       if ((m = path.match(/^\/v1\/invoices\/(inv_[0-9a-f]{20})$/)) && req.method === 'GET') {
         const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
         const { data } = await db.from('pay_invoices').select('*').eq('id', m[1]).eq('merchant_id', me.id).eq('test', test).maybeSingle();
@@ -241,7 +306,7 @@ export function createApp(d: Deps) {
         const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
         const q = new URL(req.url).searchParams, lim = Math.min(100, Math.max(1, Number(q.get('limit')) || 20)), st = q.get('status');
         let sel = db.from('pay_invoices').select('*').eq('merchant_id', me.id).eq('kind', 'payment').eq('test', test).order('created_at', { ascending: false }).limit(lim);
-        if (st && ['pending', 'paid', 'expired'].includes(st)) sel = sel.eq('status', st);
+        if (st && ['pending', 'paid', 'expired', 'cancelled'].includes(st)) sel = sel.eq('status', st);
         const { data } = await sel;
         return json({ invoices: (data || []).map((r) => P.invoiceView(r, PAY_PAGE, d.now())) });
       }

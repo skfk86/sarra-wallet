@@ -20,6 +20,8 @@ async def handler(route):
   if a=='pay.key':
     if p.get('test'): st['m']['test_key_hint']='cafe'; return await route.fulfill(json={'api_key':'sk_test_'+'8'*44+'cafe'})
     k='sk_live_'+'9'*44+'beef'; st['m']['key_hint']='beef'; return await route.fulfill(json={'api_key':k})
+  if a=='pay.hooks': return await route.fulfill(json={'hooks':[{'invoice_id':'inv_'+'a'*20,'event':'invoice.paid','status':500,'ok':False,'at':'2026-11-19T10:00:00Z'},{'invoice_id':'inv_'+'b'*20,'event':'invoice.cancelled','status':200,'ok':True,'at':'2026-11-19T09:00:00Z'}]})
+  if a=='pay.resend': return await route.fulfill(json={'ok':True,'status':200})
   if a=='pay.hooktest': return await route.fulfill(json=st.pop('hook',{'ok':True,'status':200}))
   if a=='pay.topup': return await route.fulfill(json={'invoice':{'id':'inv_'+'d'*20,'pay_url':'https://skfk86.github.io/sarra-wallet/pay.html?i=inv_'+'d'*20,'pay_amount':p['amount']+'.000777'}})
   return await route.fulfill(status=400,json={'error':'BAD_ACTION'})
@@ -79,6 +81,11 @@ async def main():
     assert await pg.locator('#mc-hooktest').is_visible()
     await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '200' in await pg.inner_text('#toast'), await pg.inner_text('#toast')
     st['hook']={'ok':False,'status':500}; await pg.wait_for_timeout(2500); await pg.click('#mc-hooktest'); await pg.wait_for_timeout(1200); assert '500' in await pg.inner_text('#toast'); step('إشعار تجريبي: يعرض رد خادم التاجر (نجاح أو فشل)')
+    await pg.wait_for_timeout(800)
+    hk=await pg.inner_text('#mc-hooks'); assert await pg.locator('#mc-hooks-card').is_visible() and 'HTTP 500' in hk and 'إلغاء' in hk, hk
+    n=len([c for c in st['calls'] if c[0]=='pay.resend']); await pg.locator('#mc-hooks button').first.click(); await pg.wait_for_timeout(1200)
+    rs=[c for c in st['calls'] if c[0]=='pay.resend']; assert len(rs)==n+1 and rs[-1][1]=={'id':'inv_'+'a'*20} and '200' in await pg.inner_text('#toast'), rs
+    step('سجل الإشعارات: يعرض الحدث ورد خادم التاجر، وزر «إعادة» يعيد إرسال إشعار الفاتورة')
     await pg.click('#mc-docs'); assert 'docs.sarrapay.com' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
     print('أخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()
