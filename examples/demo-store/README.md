@@ -22,6 +22,7 @@ SARRA_KEY=sk_live_xxxxxxxx node server.js
 | `SARRA_KEY` | إلزامي. مفتاح الـ API. |
 | `SARRA_WEBHOOK_SECRET` | سر الإشعار `whsec_…`. بدونه يُرفض أي إشعار، ويعتمد المتجر على الاستعلام. |
 | `SARRA_NETWORK` | `bsc` (الافتراضي) أو `tron` أو `polygon` أو `eth`. |
+| `PUBLIC_URL` | رابط متجرك العام بـ https (اختياري). بعد الدفع يرجع العميل تلقائياً إلى صفحة طلبه. |
 | `PORT` | المنفذ. الافتراضي 3000. |
 
 ## كيف يعرف المتجر أن الدفع تم؟

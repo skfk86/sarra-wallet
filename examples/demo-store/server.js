@@ -12,6 +12,7 @@ const KEY = process.env.SARRA_KEY;                        // مفتاح الـ A
 const HOOK_SECRET = process.env.SARRA_WEBHOOK_SECRET;     // سر الإشعار whsec_… (اختياري للتجربة المحلية)
 const NETWORK = process.env.SARRA_NETWORK || 'bsc';
 const PORT = process.env.PORT || 3000;
+const PUBLIC_URL = process.env.PUBLIC_URL || '';              // رابط متجرك العام بـ https (اختياري): يرجع إليه العميل بعد الدفع
 if (!KEY) { console.error('ضع مفتاحك أولاً:  SARRA_KEY=sk_live_xxx node server.js'); process.exit(1); }
 
 const PRODUCTS = [
@@ -37,7 +38,9 @@ async function sarra(method, path, body) {
 async function createOrder(product) {
   const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
   const { invoice } = await sarra('POST', '/v1/invoices', {
-    amount: product.price, network: NETWORK, order_id: orderId, description: product.name
+    amount: product.price, network: NETWORK, order_id: orderId, description: product.name,
+    metadata: { product: product.id },                                      // يعود إليك كما هو في الإشعار
+    ...(PUBLIC_URL.startsWith('https://') ? { success_url: PUBLIC_URL + '/order/' + orderId } : {})
   });
   orders.set(orderId, { product, status: 'pending', invoice });
   return orderId;
@@ -76,8 +79,8 @@ const home = () => page('متجر تجريبي', `<h1>متجر تجريبي</h1>
 
 const orderPage = (id, o) => page('طلب ' + id, o.status === 'paid'
   ? `<div class="big">✅</div><h1>تم الدفع، شكراً لك</h1><p>${esc(o.product.name)}</p><p><small>رقم الطلب ${id}</small></p><a class="btn" href="/">رجوع للمتجر</a>`
-  : o.status === 'expired'
-  ? `<div class="big">⌛</div><h1>انتهت مهلة الدفع</h1><a class="btn" href="/">اطلب من جديد</a>`
+  : o.status === 'expired' || o.status === 'cancelled'
+  ? `<div class="big">⌛</div><h1>${o.status === 'expired' ? 'انتهت مهلة الدفع' : 'أُلغي الطلب'}</h1><a class="btn" href="/">اطلب من جديد</a>`
   : `<h1>${esc(o.product.name)}</h1><p>المبلغ: <b>${o.product.price} USDT</b></p><p><small>رقم الطلب ${id}</small></p>
      <p><a class="btn" href="${esc(o.invoice.pay_url)}" target="_blank" rel="noopener">ادفع الآن</a></p>
      <p><small>بعد الدفع تتحدث هذه الصفحة تلقائياً.</small></p>
@@ -118,7 +121,9 @@ http.createServer(async (req, res) => {
       const raw = await readBody(req);
       if (!HOOK_SECRET || !validSignature(req.headers['x-sarra-signature'], raw)) return send(res, 400, 'bad signature', 'text/plain');
       const { event, invoice } = JSON.parse(raw);
+      if (invoice.test && KEY.startsWith('sk_live_')) return send(res, 200, 'ignored', 'text/plain'); // لا تسلّم طلباً حقيقياً عن دفعة تجريبية
       if (event === 'invoice.paid') markPaid(invoice.order_id, invoice);
+      else if (event === 'invoice.expired' || event === 'invoice.cancelled') { const o = orders.get(invoice.order_id); if (o && o.status === 'pending') o.status = invoice.status; }
       return send(res, 200, 'ok', 'text/plain');
     }
 
