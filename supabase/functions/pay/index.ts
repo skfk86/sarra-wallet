@@ -37,8 +37,24 @@ async function rpc(net: string, method: string, params: unknown[]) {
   throw last;
 }
 
+// إشعارات التجار: نرفض أي اسم نطاق يشير إلى عنوان داخلي أو خاص (حماية SSRF عبر DNS)
+function privateIp(ip: string) {
+  const v = ip.toLowerCase();
+  if (v.includes(':')) return v === '::1' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80') || v.startsWith('::ffff:') || v === '::';
+  const [a, b] = v.split('.').map(Number);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
+async function safeHookFetch(url: string | URL | Request, init?: RequestInit) {
+  const host = new URL(String(url instanceof Request ? url.url : url)).hostname;
+  try {
+    const ips = [...await Deno.resolveDns(host, 'A').catch(() => [] as string[]), ...await Deno.resolveDns(host, 'AAAA').catch(() => [] as string[])];
+    if (ips.some(privateIp)) throw new Error('BLOCKED_PRIVATE_HOST');
+  } catch (e) { if (String((e as Error).message) === 'BLOCKED_PRIVATE_HOST') throw e; }
+  return fetch(url, init);
+}
+
 const app = createApp({
-  db, rpc, fetch, now: () => Date.now(),
+  db, rpc, fetch: safeHookFetch, now: () => Date.now(),
   verify: async (message, signature) => await tw.trx.verifyMessageV2(message, signature),
   cfg: { feeBps: FEE_BPS, feeMin: FEE_MIN, topup: TOPUP, payPage: PAY_PAGE }
 });

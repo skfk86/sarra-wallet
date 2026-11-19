@@ -9,7 +9,7 @@ import { TRANSFER, addrOfTopic, tronToHex20 } from '../push-watch/logic.ts';
 // tokens: العملات المقبولة على كل شبكة (عقود رسمية فقط). token/dec = USDT للتوافق مع الكود القديم
 type Tok = { token: string; dec: number };
 export const NETS: Record<string, { name: string; token: string; dec: number; conf: number; cap: number; kind: 'tron' | 'evm'; tokens: Record<string, Tok> }> = {
-  tron: { name: 'TRON (TRC20)', token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6, conf: 3, cap: 200, kind: 'tron',
+  tron: { name: 'TRON (TRC20)', token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6, conf: 19, cap: 200, kind: 'tron',
     tokens: { USDT: { token: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6 } } }, // USDC على TRON أوقفته Circle
   bsc: { name: 'BNB Chain (BEP20)', token: '0x55d398326f99059ff775485246999027b3197955', dec: 18, conf: 5, cap: 400, kind: 'evm',
     tokens: { USDT: { token: '0x55d398326f99059ff775485246999027b3197955', dec: 18 }, USDC: { token: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', dec: 18 } } },
@@ -19,7 +19,9 @@ export const NETS: Record<string, { name: string; token: string; dec: number; co
     tokens: { USDT: { token: '0xdac17f958d2ee523a2206206994597c13d831ec7', dec: 6 }, USDC: { token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', dec: 6 } } }
 };
 export const CURRENCIES = ['USDT', 'USDC'];
-export function tokenOf(net: string, cur: string): Tok | null { return NETS[net]?.tokens[cur] || null; }
+// بحث آمن: أسماء مثل __proto__ أو toString لا تُعتبر شبكة أو عملة
+export const hasNet = (net: unknown): net is string => typeof net === 'string' && Object.prototype.hasOwnProperty.call(NETS, net);
+export function tokenOf(net: string, cur: string): Tok | null { return hasNet(net) && Object.prototype.hasOwnProperty.call(NETS[net].tokens, cur) ? NETS[net].tokens[cur] : null; }
 export const MIN_UNITS = 1_000_000n;          // أقل فاتورة: 1 USDT
 export const MAX_UNITS = 100_000_000_000n;    // أكبر فاتورة: 100,000 USDT
 export const TAIL_MAX = 9999;                 // الكسر الفريد: حتى 0.009999 USDT
@@ -58,7 +60,7 @@ export function feeUnits(amount: bigint, bps: number, minUnits: bigint): bigint 
 export function isEvmAddr(a: unknown): a is string { return typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a); }
 // مفتاح المطابقة: 20 بايت hex صغيرة لأي عنوان (TRON أو EVM)، أو null إن كان العنوان لا يخص الشبكة
 export function matchHex(net: string, addr: unknown): string | null {
-  const n = NETS[net]; if (!n || typeof addr !== 'string') return null;
+  const n = hasNet(net) ? NETS[net] : null; if (!n || typeof addr !== 'string') return null;
   if (n.kind === 'tron') return tronToHex20(addr);
   return isEvmAddr(addr) ? addr.slice(2).toLowerCase() : null;
 }

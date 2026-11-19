@@ -385,4 +385,42 @@ await t('المحاكاة: الفواتير التجريبية وسجل إشعا
   await tick(4); assert.ok(!db.T.pay_invoices.some((x) => x.id === c.id));
   assert.equal(db.T.pay_invoices.filter((x) => !x.test).length, real); assert.ok(!db.T.pay_invoices.some((x) => x.test && x.status !== 'pending'));
 });
+await t('هجوم: مبالغ وحقول غريبة تُرفض، ولا رصيد سالب أو فاتورة بمبلغ صفري', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  db.T.pay_merchants[0].credit = 100000000;
+  const bad = ['-1', '0', '0.001', '1e3', '10.', '0x10', '100000.01', '9999999', 'NaN', 'Infinity', '', null, 1e21, true, [], {}, '1 0', '١٠'];
+  for (const a of bad) { const r = await api('POST', '/v1/invoices', KEY, { amount: a, network: 'bsc' }); assert.equal(r.status, 400, 'amount ' + JSON.stringify(a)); assert.match(r.j.error, /^(BAD_AMOUNT|AMOUNT_TOO_SMALL|AMOUNT_TOO_LARGE)$/); }
+  for (const n of ['BSC', 'bsc ', 'solana', '__proto__', 'constructor', 'toString']) assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: n })).j.error, 'BAD_NETWORK', n);
+  for (const c of ['usdt ', 'BTC', 'USDC']) { const r = await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'tron', currency: c }); assert.equal(r.status, 400, c); }
+  for (const o of ['a b', 'x'.repeat(65), '<script>', "1' or '1'='1"]) assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc', order_id: o })).j.error, 'BAD_ORDER_ID', o);
+  for (const m of [[1], 'x', { a: { b: 1 } }, Object.fromEntries(Array.from({ length: 21 }, (_, i) => ['k' + i, 1]))]) assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc', metadata: m })).j.error, 'BAD_METADATA');
+  for (const u of ['http://shop.example/x', 'javascript:alert(1)', 'https://u:p@shop.example/']) assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc', success_url: u })).j.error, 'BAD_SUCCESS_URL', u);
+});
+await t('هجوم: 30 فاتورة متزامنة بنفس المبلغ تأخذ مبالغ دقيقة مختلفة، وتحويل واحد يسدد فاتورة واحدة فقط', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  const rs = await Promise.all(Array.from({ length: 30 }, () => api('POST', '/v1/invoices', KEY, { amount: '7', network: 'bsc' })));
+  const ok = rs.filter((r) => r.status === 200).map((r) => r.j.invoice); assert.ok(ok.length >= 28, 'معظمها ينجح: ' + ok.length);
+  assert.equal(new Set(ok.map((x) => x.pay_amount)).size, ok.length, 'كل مبلغ فريد');
+  const target = ok[3], before = db.T.pay_merchants[0].credit;
+  pay('bsc', target.address, units(target.pay_amount)); pay('bsc', target.address, units(target.pay_amount), { transactionHash: '0xdup' });
+  pay('bsc', target.address, units(target.pay_amount) - 1n); // أقل بوحدة: لا يطابق
+  await tick(); await tick();
+  const paid = db.T.pay_invoices.filter((x) => ok.some((o) => o.id === x.id) && x.status === 'paid');
+  assert.equal(paid.length, 1); assert.equal(paid[0].id, target.id);
+  assert.equal(db.T.pay_merchants[0].credit, before - Number(units(target.fee)), 'العمولة تُخصم مرة واحدة');
+});
+await t('هجوم: تزوير التوقيع أو انتحال عنوان آخر أو إعادة طلب موقّع قديم', async () => {
+  assert.equal((await call(signed('pay.me', {}, ME, 'sig:TOTHER'))).status, 401);
+  const old = signed('pay.me'); const body = await old.text();
+  assert.equal((await call(new Request('https://x/pay/v1/merchant', { method: 'POST', body }))).status, 200);
+  assert.equal((await call(new Request('https://x/pay/v1/merchant', { method: 'POST', body }))).j.error, 'REPLAY');
+  const stale = JSON.parse(body); const m = JSON.parse(stale.message); m.ts = clock.t - 3600000; m.nonce = 'ab'.repeat(12); stale.message = JSON.stringify(m);
+  assert.equal((await call(new Request('https://x/pay/v1/merchant', { method: 'POST', body: JSON.stringify(stale) }))).j.error, 'EXPIRED_REQUEST');
+  // مفتاح تاجر لا يرى أو يلغي فواتير تاجر آخر
+  const other = (await call(signed('pay.save', { name: 'آخر', webhook_url: null }, 'T' + 'Q'.repeat(33)))).j;
+  const okInv = db.T.pay_invoices.find((x) => x.merchant_id === db.T.pay_merchants[0].id && x.status === 'pending' && !x.test)!;
+  const OK2 = (await call(signed('pay.key', {}, 'T' + 'Q'.repeat(33)))).j.api_key; assert.ok(other.merchant && OK2);
+  assert.equal((await api('GET', '/v1/invoices/' + okInv.id, OK2)).status, 404);
+  assert.equal((await api('POST', '/v1/invoices/' + okInv.id + '/cancel', OK2)).status, 404);
+});
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');

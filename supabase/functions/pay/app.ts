@@ -83,7 +83,7 @@ export function createApp(d: Deps) {
 
   // ===== إنشاء فاتورة (دفع لتاجر، أو شحن رصيد إلى عنواننا) =====
   async function createInvoice(m: Merchant, p: Record<string, unknown>, kind: 'payment' | 'topup', test = false) {
-    const net = String(p.network || ''), N = P.NETS[net]; if (!N) throw new Error('BAD_NETWORK');
+    const net = String(p.network || ''); if (!P.hasNet(net)) throw new Error('BAD_NETWORK'); const N = P.NETS[net];
     const currency = kind === 'topup' ? 'USDT' : String(p.currency || 'USDT').toUpperCase();
     if (!P.tokenOf(net, currency)) throw new Error('BAD_CURRENCY');
     const metadata = P.parseMetadata(p.metadata);
