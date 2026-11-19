@@ -1,0 +1,5 @@
+# موقع صُرّة على Netlify: sarrapay.com والنطاقات الفرعية (api, pay, docs, dashboard)
+# لا بناء: الصفحات جاهزة في docs/، وقواعد التوجيه في docs/_redirects
+[build]
+  publish = "docs"
+  command = "echo static"

@@ -1,0 +1,13 @@
+# النطاقات الفرعية لصُرّة (قواعد Netlify، الأولى المطابقة تُطبَّق)
+https://www.sarrapay.com/*        https://sarrapay.com/:splat                                      301!
+# api: وسيط إلى خادم بوابة الدفع (الطريقة والترويسات والجسم تمر كما هي)
+https://api.sarrapay.com/         https://docs.sarrapay.com/                                       302!
+https://api.sarrapay.com/*        https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay/:splat  200!
+# pay: صفحة الدفع (?i=inv_… أو الرابط القصير /inv_…)
+https://pay.sarrapay.com/         /pay.html                                                        200!
+https://pay.sarrapay.com/inv_*    /pay.html                                                        200!
+# docs: التوثيق وصفحة التجربة
+https://docs.sarrapay.com/        /api.html                                                        200!
+https://docs.sarrapay.com/try     /try.html                                                        200!
+# dashboard: لوحة التاجر داخل التطبيق حالياً
+https://dashboard.sarrapay.com/*  https://sarrapay.com/#merchant                                   302!
