@@ -18,7 +18,7 @@ h1{font-size:22px;margin:4px 0}
 label{display:block;font-weight:700;font-size:14px;margin-top:10px}
 input,select{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);margin-top:4px}
 input[dir=ltr]{text-align:left}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 button,.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:var(--ac);color:#fff;cursor:pointer;text-decoration:none;display:inline-block;margin-top:12px}
 button.sec{background:none;color:var(--ac);border:1px solid var(--ac)}
 button:disabled{opacity:.5}
@@ -53,8 +53,9 @@ a{color:var(--ac)}
     <label for="key">مفتاح الـ API</label>
     <input id="key" type="password" dir="ltr" placeholder="sk_test_… أو sk_live_…" autocomplete="off" spellcheck="false">
     <div class="row">
-      <div><label for="amount">المبلغ (USDT)</label><input id="amount" dir="ltr" inputmode="decimal" value="1"></div>
+      <div><label for="amount">المبلغ</label><input id="amount" dir="ltr" inputmode="decimal" value="1"></div>
       <div><label for="network">الشبكة</label><select id="network"><option value="bsc">BNB Chain</option><option value="tron">TRON</option><option value="polygon">Polygon</option><option value="eth">Ethereum</option></select></div>
+      <div><label for="currency">العملة</label><select id="currency"><option value="USDT">USDT</option><option value="USDC">USDC</option></select></div>
     </div>
     <label for="desc">الوصف (اختياري)</label>
     <input id="desc" value="فاتورة تجريبية" maxlength="140">
@@ -110,7 +111,7 @@ a{color:var(--ac)}
   $('go').onclick = async function () {
     $('err').hidden = true; $('go').disabled = true; clearInterval(timer);
     try {
-      var inv = (await call('POST', '/v1/invoices', { amount: $('amount').value.trim(), network: $('network').value, description: $('desc').value.trim() || undefined })).invoice;
+      var inv = (await call('POST', '/v1/invoices', { amount: $('amount').value.trim(), network: $('network').value, currency: $('currency').value, description: $('desc').value.trim() || undefined })).invoice;
       show(inv); $('res').scrollIntoView({ behavior: 'smooth' });
       timer = setInterval(async function () {
         try { var cur = (await call('GET', '/v1/invoices/' + inv.id)).invoice; show(cur); if (cur.status === 'paid') clearInterval(timer); } catch (e) {}
@@ -126,6 +127,9 @@ a{color:var(--ac)}
     $('err').hidden = true;
     try { $('balout').textContent = JSON.stringify(await call('GET', '/v1/balance'), null, 2); $('balout').hidden = false; } catch (e) { onErr(e); }
   };
+  // USDC غير متاحة على TRON
+  function syncCur() { var tr = $('network').value === 'tron', c = $('currency'); c.querySelector('[value=USDC]').disabled = tr; if (tr) c.value = 'USDT'; }
+  $('network').addEventListener('change', syncCur); syncCur();
 })();
 </script>
 </body></html>
