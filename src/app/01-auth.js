@@ -13,22 +13,47 @@
   // الكلمات لا تُكتب في الشاشة إطلاقاً قبل الضغط على "إظهار"
   function renderWords(m, revealed) {
     fillWords($('words'), m, revealed);
-    $('reveal').hidden = !!revealed;
+    $('reveal').hidden = !!revealed; $('words-hide').hidden = !revealed;
     if (!revealed) { $('agree').checked = false; $('backup-next').disabled = true; }
   }
   $('reveal').onclick = function () { renderWords(state.mnemonic, true); };
+  $('words-hide').onclick = function () { var c = $('agree').checked; renderWords(state.mnemonic, false); $('agree').checked = c; $('backup-next').disabled = !c; };
   $('agree').onchange = function () { $('backup-next').disabled = !this.checked; };
   $('backup-next').onclick = function () { openPin('create'); };
 
+  // معاينة الكلمات أثناء الكتابة: العدد، وتمييز الكلمات غير الموجودة في قائمة BIP39
+  function mnWords() { return String($('mn-in').value).toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').filter(Boolean); }
+  function mnKnown(w) { try { var l = window.ethers && ethers.wordlists && ethers.wordlists.en; return !l || l.getWordIndex(w) >= 0; } catch (e) { return true; } }
+  function mnPreview() {
+    var ws = mnWords(), n = ws.length, goal = n > 12 ? 24 : 12, bad = 0, ol = $('mn-chips');
+    ol.textContent = '';
+    ws.slice(0, 24).forEach(function (w, i) {
+      var li = document.createElement('li'), ok = mnKnown(w); if (!ok) { li.className = 'bad'; bad++; }
+      var a = document.createElement('span'); a.textContent = i + 1;
+      var b = document.createElement('span'); b.className = 'mono'; b.textContent = w;
+      li.appendChild(a); li.appendChild(b); ol.appendChild(li);
+    });
+    ol.hidden = !n; $('mn-clear').hidden = !n; $('import-err').hidden = true;
+    var c = $('mn-count');
+    c.textContent = bad ? (bad === 1 ? 'كلمة واحدة غير معروفة' : bad + ' كلمات غير معروفة') : n + ' / ' + goal;
+    c.className = 'sd-count' + (bad || n > 24 ? ' bad' : (n === 12 || n === 24) ? ' ok' : '');
+  }
+  $('mn-in').addEventListener('input', mnPreview);
+  $('mn-clear').onclick = function () { $('mn-in').value = ''; mnPreview(); $('mn-in').focus(); };
+  $('mn-paste').onclick = async function () {
+    try { var t = await navigator.clipboard.readText(); if (t) { $('mn-in').value = t.trim(); mnPreview(); } }
+    catch (e) { toast('اضغط مطوّلاً في الخانة واختر «لصق»', true); }
+  };
   $('import-next').onclick = function () {
     var m = $('mn-in').value;
     if (!core.validateMnemonic(m)) {
-      $('import-err').textContent = 'الكلمات غير صحيحة. تأكد من الترتيب والإملاء.';
+      var n = mnWords().length;
+      $('import-err').textContent = (n !== 12 && n !== 24) ? 'عدد الكلمات ' + n + '. يجب أن تكون 12 أو 24 كلمة.' : $('mn-chips').querySelector('.bad') ? 'صحّح الكلمات المعلّمة بالأحمر، فهي ليست من كلمات الاسترجاع.' : 'كلمة منها أو ترتيبها غير صحيح. راجعها كلمة كلمة كما كتبتها على الورقة.';
       $('import-err').hidden = false;
       return;
     }
     state.mnemonic = m;
-    $('mn-in').value = '';
+    $('mn-in').value = ''; mnPreview();
     openPin('create');
   };
 
