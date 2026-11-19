@@ -70,7 +70,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'METHOD' }, 405);
   try {
-    const { message, signature } = await req.json();
+    if (Number(req.headers.get('content-length') || 0) > 65536) throw new Error('PAYLOAD_TOO_LARGE');
+    const raw = await req.text(); if (raw.length > 65536) throw new Error('PAYLOAD_TOO_LARGE');
+    const { message, signature } = JSON.parse(raw);
     if (typeof message !== 'string' || typeof signature !== 'string') return json({ error: 'UNAUTHORIZED' }, 401);
     const m = JSON.parse(message);
     if (!m || !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(m.address) || typeof m.action !== 'string') return json({ error: 'BAD_MESSAGE' }, 400);

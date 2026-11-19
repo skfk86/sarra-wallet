@@ -76,7 +76,9 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return fail('METHOD', 405);
   try {
     if (!KEY && !MORALIS && !NODEREAL) return fail('NOT_CONFIGURED', 503);
-    const { message, signature } = await req.json();
+    if (Number(req.headers.get('content-length') || 0) > 65536) throw new Error('PAYLOAD_TOO_LARGE');
+    const raw = await req.text(); if (raw.length > 65536) throw new Error('PAYLOAD_TOO_LARGE');
+    const { message, signature } = JSON.parse(raw);
     if (typeof message !== 'string' || typeof signature !== 'string') return fail('UNAUTHORIZED', 401);
     const m = parseSignedMessage(message, Date.now());
     if (m.action !== 'history.evm') return fail('BAD_ACTION');
