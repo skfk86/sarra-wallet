@@ -23,12 +23,16 @@ async function audit(order_id: string | null, event: string, detail: unknown = n
   await db.from('audit_log').insert({ order_id, actor: 'oxapay', event, detail });
 }
 
+let badWin = 0, badN = 0;
 Deno.serve(async (req) => {
+  if (Number(req.headers.get('content-length') || 0) > 65536) return new Response('too large', { status: 413 });
   if (req.method !== 'POST') return new Response('method', { status: 405 });
   const raw = await req.text();
   const given = (req.headers.get('HMAC') || req.headers.get('hmac') || '').toLowerCase();
   if (!MERCHANT_KEY || !given || !safeEqual(given, await hmacHex(MERCHANT_KEY, raw))) {
-    await audit(null, 'webhook_bad_hmac');
+    // لا نسجّل كل محاولة مزوّرة (حتى لا يُغرق أحد سجل التدقيق بطلبات عشوائية): 20 في الدقيقة كحد أقصى
+    const now = Date.now(); if (now - badWin > 60000) { badWin = now; badN = 0; }
+    if (++badN <= 20) await audit(null, 'webhook_bad_hmac');
     return new Response('bad signature', { status: 401 });
   }
   let body: Record<string, any> = {};

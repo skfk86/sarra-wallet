@@ -10,7 +10,7 @@ on:
       fn:
         description: 'الدالة'
         type: choice
-        options: [p2p, history, push-watch, support, pay, push-setup, pay-setup]
+        options: [p2p, oxapay-webhook, history, push-watch, support, pay, push-setup, pay-setup]
         default: p2p
 
 permissions:
