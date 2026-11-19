@@ -78,7 +78,7 @@
     $('mc-top').disabled = !(d.topup_networks || []).length;
     $('mc-key-state').textContent = m.key_hint ? 'مفعّل، وينتهي بـ ' + m.key_hint + '. إنشاء مفتاح جديد يوقف القديم فوراً.' : 'لم تنشئ مفتاحاً بعد. تحتاجه لاستقبال دفعات حقيقية.';
     $('mc-key-new').textContent = m.key_hint ? 'إنشاء مفتاح جديد' : 'إنشاء مفتاح API';
-    $('mc-tkey-state').textContent = m.test_key_hint ? 'مفعّل، وينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع» ولا تخصم من رصيدك.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، ولا تخصم من رصيدك.';
+    $('mc-tkey-state').textContent = m.test_key_hint ? 'مفعّل، وينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.';
     $('mc-tkey-new').textContent = m.test_key_hint ? 'إنشاء مفتاح تجريبي جديد' : 'إنشاء مفتاح تجريبي';
     $('mc-hooktest').hidden = !m.webhook_url; $('mc-secret-copy').hidden = !m.webhook_url;
     $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابطاً. بدونه يجب أن يسأل خادمك عن حالة الفاتورة بنفسه.';
