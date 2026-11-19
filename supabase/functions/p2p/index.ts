@@ -601,8 +601,11 @@ async function markFunded(o: Record<string, any>) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return fail('METHOD', 405);
+  // أكبر طلب مشروع: إيصال أو صورة هوية (2 MB) بترميز base64. ما فوق 5 MB يُرفض قبل قراءته
+  if (Number(req.headers.get('content-length') || 0) > 5_242_880) return fail('PAYLOAD_TOO_LARGE', 413);
   try {
-    const body = await req.json();
+    const raw = await req.text(); if (raw.length > 5_242_880) return fail('PAYLOAD_TOO_LARGE', 413);
+    const body = JSON.parse(raw);
     // قراءة عامة
     if (body && body.action === 'offers.list') return json(await handle('offers.list', { side: body.side }, null));
     // طلب موقّع
