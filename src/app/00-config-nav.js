@@ -1,3 +1,15 @@
+  // ===== مهلة افتراضية لكل طلب شبكة (30 ثانية) =====
+  // على إنترنت ضعيف قد يعلق الطلب بلا نهاية فيبقى مؤشر التحميل للأبد. الطلبات التي لها مهلتها الخاصة لا تتأثر
+  (function () {
+    var f0 = window.fetch; if (!f0 || f0.__sarraTimeout || typeof AbortController === 'undefined') return;
+    var f = function (input, init) {
+      if (init && init.signal) return f0.call(this, input, init);
+      var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 30000);
+      var o = Object.assign({}, init || {}, { signal: ctl.signal });
+      return f0.call(this, input, o).then(function (r) { clearTimeout(t); return r; }, function (e) { clearTimeout(t); throw e; });
+    };
+    f.__sarraTimeout = true; window.fetch = f;
+  })();
 
   // ===== الإعدادات =====
   // غيّر إلى 'mainnet' عند الإطلاق فقط، بعد الاختبار الكامل على شبكة nile
