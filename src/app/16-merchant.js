@@ -125,10 +125,12 @@
   }
   async function openMerchant() {
     show('merchant'); $('mc-key-box').hidden = true; $('mc-key').textContent = '';
-    if (!PAY_URL) { $('mc-load').textContent = 'بوابة الدفع غير متاحة في هذه النسخة.'; return mcView('load'); }
-    if (MC.data) mcRender(); else { $('mc-load').textContent = 'جارٍ التحميل…'; mcView('load'); }
+    // أثناء التحميل: هيكل البطاقات بدل نص «جارٍ التحميل»، وعند الخطأ رسالة واضحة مكانه
+    var msg = function (t) { $('mc-load-t').textContent = t || ''; $('mc-load-t').hidden = !t; $('mc-skel').hidden = !!t; $('mc-load').setAttribute('aria-busy', t ? 'false' : 'true'); };
+    if (!PAY_URL) { msg('بوابة الدفع غير متاحة في هذه النسخة.'); return mcView('load'); }
+    if (MC.data) mcRender(); else { msg(''); mcView('load'); }
     try { MC.data = await payApi('pay.me'); mcRender(); }
-    catch (e) { if (!MC.data) { $('mc-load').textContent = mcErr(e); mcView('load'); } }
+    catch (e) { if (!MC.data) { msg(mcErr(e)); mcView('load'); } }
   }
   // يمنع النقر المتكرر ويعرض الخطأ في مكانه
   function mcDo(btn, fn) {

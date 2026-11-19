@@ -476,3 +476,8 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .sd-tool{display:flex;align-items:center;gap:5px;border:0;border-radius:9px;background:var(--s2);color:var(--tx2);font:inherit;font-size:12.5px;font-weight:600;padding:6px 10px;cursor:pointer}
 .sd-tool svg.i{width:15px;height:15px}
 .sd-chips li{height:36px}.sd-chips li.bad{border-color:var(--err);background:var(--err-bg)}.sd-chips li.bad span.mono{color:var(--err)}
+
+/* هياكل التحميل */
+i.skeleton{display:block;font-style:normal}
+.mc-skc{display:flex;flex-direction:column;gap:10px}
+.tr-row.tr-skel{pointer-events:none}

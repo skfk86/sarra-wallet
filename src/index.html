@@ -811,7 +811,10 @@
 <section class="screen" id="s-merchant" aria-label="بوابة الدفع للتجار">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button><h1 style="font-size:20px">بوابة الدفع للتجار</h1></div>
   <p class="muted" style="font-size:14px;line-height:1.8;margin:0">اقبل USDT في متجرك أو تطبيقك عبر API. المبلغ يصل مباشرة إلى محفظتك هذه.</p>
-  <p class="muted" id="mc-load" style="font-size:14px">جارٍ التحميل…</p>
+<div id="mc-load" aria-busy="true" style="display:flex;flex-direction:column;gap:12px">
+    <p class="muted" id="mc-load-t" style="font-size:14px;margin:0" hidden></p>
+    <div id="mc-skel" style="display:flex;flex-direction:column;gap:12px"><div class="card mc-skc"><div class="row" style="gap:10px;align-items:center"><i class="skeleton" style="width:34px;height:34px;border-radius:10px"></i><i class="skeleton" style="height:14px;width:40%"></i></div><i class="skeleton" style="height:26px;width:55%"></i><i class="skeleton" style="height:11px;width:90%"></i><i class="skeleton" style="height:11px;width:70%"></i></div><div class="card mc-skc"><div class="row" style="gap:10px;align-items:center"><i class="skeleton" style="width:34px;height:34px;border-radius:10px"></i><i class="skeleton" style="height:14px;width:40%"></i></div><i class="skeleton" style="height:26px;width:55%"></i><i class="skeleton" style="height:11px;width:90%"></i><i class="skeleton" style="height:11px;width:70%"></i></div><div class="card mc-skc"><div class="row" style="gap:10px;align-items:center"><i class="skeleton" style="width:34px;height:34px;border-radius:10px"></i><i class="skeleton" style="height:14px;width:40%"></i></div><i class="skeleton" style="height:26px;width:55%"></i><i class="skeleton" style="height:11px;width:90%"></i><i class="skeleton" style="height:11px;width:70%"></i></div></div>
+  </div>
 
   <div id="mc-form" hidden style="display:flex;flex-direction:column;gap:12px">
     <label style="font-size:13px" class="muted" for="mc-name">اسم المتجر (يظهر لعملائك في صفحة الدفع)</label>

@@ -38,7 +38,7 @@
     } catch (e) {
       $('tr-live').classList.add('off'); // احتياط: أسعار CoinGecko المحمّلة مسبقاً
       cs.forEach(function (c) { var p = priceOf(c); if (p && p.usd != null && !TR.tick[c.sym]) TR.tick[c.sym] = { p: p.usd, chg: p.chg }; });
-    }
+    } finally { TR.tickTried = true; }
   }
   function trPrice(sym) { var t = TR.tick[sym]; if (t && t.p) return t.p; var c = trCoin(sym), p = c && priceOf(c); return p && p.usd != null ? p.usd : null; }
 
@@ -88,6 +88,11 @@
     else if (TR.sort === 'loss') list.sort(function (a, b) { return (chg(a) == null ? 999 : chg(a)) - (chg(b) == null ? 999 : chg(b)); });
     else list.sort(function (a, b) { var ta = TR.tick[a.sym], tb = TR.tick[b.sym]; return ((tb && tb.vol) || 0) - ((ta && ta.vol) || 0); });
     var box = $('tr-list'); box.textContent = '';
+    // قبل وصول أول أسعار: صفوف هيكلية بدل قائمة كلها «—»
+    if (!TR.tickTried && TR.sort !== 'mine' && !q) {
+      for (var k = 0; k < 7; k++) { var sk = el('div'); sk.className = 'tr-row tr-skel'; sk.innerHTML = '<div class="tr-c"><i class="skeleton" style="width:32px;height:32px;border-radius:50%"></i><div style="display:flex;flex-direction:column;gap:6px"><i class="skeleton" style="width:70px;height:13px"></i><i class="skeleton" style="width:46px;height:10px"></i></div></div><i class="skeleton" style="width:70px;height:13px"></i><i class="skeleton" style="width:58px;height:26px;border-radius:8px"></i>'; box.appendChild(sk); }
+      return;
+    }
     if (!list.length) { box.appendChild(el('div', null, TR.sort === 'mine' ? 'لا تملك عملات للتداول بعد. اختر عملة واضغط «شراء».' : 'لا توجد نتائج')).className = 'tr-empty'; return; }
     list.forEach(function (c) {
       var t = TR.tick[c.sym], r = el('button'); r.type = 'button'; r.className = 'tr-row'; r.dataset.sym = c.sym;

@@ -102,8 +102,7 @@ async def main():
     assert '••••' in await pg.inner_text('#bal-usdt') and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-hidden.png')
     await pg.click('#toggle-bal'); await pg.wait_for_timeout(200); print('✓ شارة الشبكات بالشعارات، وإخفاء الرصيد مع تبديل الأيقونة')
-    row=await pg.inner_text('#assets [data-asset=USDT]'); assert '151' in row and '$1.00' in row and '+0.01%' in row, row; print('✓ USDT: مجموع كل الشبكات 151 مع السعر والتغير اليومي')
-    assert '-1.20%' in await pg.inner_text('#assets [data-asset=BNB]') and await pg.locator('#assets [data-asset=BNB] .chg.dn').count()==1; print('✓ التغير السالب بالأحمر')
+    row=await pg.inner_text('#assets [data-asset=USDT]'); assert '151' in row and '$1.00' in row and '%' not in row, row; print('✓ USDT: مجموع كل الشبكات 151 مع السعر، بلا نسبة تغير مزدحمة')
     tot=await pg.inner_text('#bal-usdt'); assert tot=='$172.75', tot; print('✓ إجمالي الأصول بالدولار: '+tot)
     await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(300)
     t=await pg.inner_text('#cs-nets'); assert 'TRON' in t and 'BNB Chain' in t and 'Ethereum' in t and 'Polygon' in t and '25.5' in t, t; print('✓ تفاصيل العملة: الرصيد على كل شبكة')

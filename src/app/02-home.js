@@ -157,7 +157,7 @@
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
-      var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); var ce = NETWORK === 'mainnet' && r.p ? chgEl(r.p.chg) : null; if (ce) { sub.appendChild(document.createTextNode(' ')); sub.appendChild(ce); }
+      var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); // نسبة التغير لا تظهر في القائمة: الرسم البياني في صفحة العملة يعرضها، والقائمة تبقى هادئة
       mid.appendChild(sub); row.appendChild(mid);
       var sp = state.spark && state.spark[c.cg]; if (sp) row.appendChild(sparkSvg(sp));
       var end = el('div'); end.className = 'cr-end';
@@ -178,7 +178,7 @@
     var t = coinTotal(c), p = priceOf(c);
     $('cs-logo').removeAttribute('data-fb'); $('cs-logo').dataset.sym = c.sym; $('cs-logo').src = coinImg(c); $('cs-name').textContent = c.name === c.sym ? c.sym : c.name + ' · ' + c.sym;
     var cp = $('cs-price'); cp.textContent = '';
-    if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd) + (p.chg != null ? '  ' + (p.chg >= 0 ? '+' : '') + p.chg.toFixed(2) + '%' : '')); pb.style.direction = 'ltr'; cp.appendChild(pb); cp.appendChild(document.createTextNode(' خلال 24 ساعة')); }
+    if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd)); pb.style.direction = 'ltr'; cp.appendChild(pb); }
     if (c.nets.length > 1) cp.appendChild(document.createTextNode(' · على ' + c.nets.length + ' شبكات'));
     $('cs-total').textContent = state.hidden ? '••••' : (t == null ? '—' : fmt(t, 6)) + ' ' + c.sym;
     $('cs-usd').textContent = !state.hidden && t != null && p && NETWORK === 'mainnet' ? '≈ ' + usd(t * p.usd) : '';
