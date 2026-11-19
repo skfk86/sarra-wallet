@@ -6,17 +6,17 @@
 <title>صُرّة — محفظة USDT سودانية | التنزيل الرسمي</title>
 <meta name="description" content="صُرّة: محفظة USDT غير احتجازية. أرسل واستلم على TRON وBNB Chain وEthereum وPolygon، وبِع واشترِ بالجنيه عبر بنكك مع ضمان. التنزيل الرسمي لأندرويد.">
 <meta name="theme-color" content="#0b6b50">
-<link rel="canonical" href="https://skfk86.github.io/sarra-wallet/">
+<link rel="canonical" href="https://sarrapay.com/">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <!-- معاينة الرابط عند مشاركته في فيسبوك وواتساب وتيليجرام -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="صُرّة">
 <meta property="og:locale" content="ar_AR">
-<meta property="og:url" content="https://skfk86.github.io/sarra-wallet/">
+<meta property="og:url" content="https://sarrapay.com/">
 <meta property="og:title" content="صُرّة — محفظة USDT سودانية">
 <meta property="og:description" content="أرسل واستلم USDT، وبِع واشترِ بالجنيه عبر بنكك مع ضمان. مفاتيحك على هاتفك فقط. حمّلها مجاناً من الموقع الرسمي.">
-<meta property="og:image" content="https://skfk86.github.io/sarra-wallet/og.png">
+<meta property="og:image" content="https://sarrapay.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -157,9 +157,9 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:20px 0 44px}
     <details><summary>كيف أتواصل مع الدعم؟</summary><p>من داخل التطبيق: القائمة ← الدعم الفني. افتح تذكرة واكتب مشكلتك، وسنرد عليك هناك.</p></details>
   </section>
 
-  <section class="card">
+  <section class="card" id="merchant">
     <h2>عندك متجر أو تطبيق؟</h2>
-    <p style="margin:0">اقبل مدفوعات USDT من عملائك عبر <b>بوابة دفع صُرّة</b>. المبلغ يصل مباشرة إلى محفظتك، ويتأكد نظامك من الدفع تلقائياً. <a href="api.html">طريقة الربط للمطوّرين</a></p>
+    <p style="margin:0">اقبل مدفوعات USDT من عملائك عبر <b>بوابة دفع صُرّة</b>. المبلغ يصل مباشرة إلى محفظتك، ويتأكد نظامك من الدفع تلقائياً. <a href="https://docs.sarrapay.com/">طريقة الربط للمطوّرين</a></p>
   </section>
 
   <section class="card cta2">
@@ -173,7 +173,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:20px 0 44px}
 </main>
 
 <footer><div class="wrap">
-  <a href="privacy.html">سياسة الخصوصية</a> · <a href="terms.html">شروط الاستخدام</a> · <a href="delete-account.html">حذف الحساب والبيانات</a> · <a href="api.html">بوابة الدفع للتجار</a>
+  <a href="privacy.html">سياسة الخصوصية</a> · <a href="terms.html">شروط الاستخدام</a> · <a href="delete-account.html">حذف الحساب والبيانات</a> · <a href="https://docs.sarrapay.com/">بوابة الدفع للتجار</a>
   <div style="margin-top:8px">© 2026 صُرّة</div>
 </div></footer>
 
@@ -183,7 +183,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:20px 0 44px}
   // متصفح فيسبوك/إنستغرام الداخلي لا ينزّل ملفات APK غالباً: نعرض طريقة الفتح في Chrome
   if (/FBAN|FBAV|FB_IAB|Instagram|Messenger/i.test(ua)) {
     $('inapp').hidden = false;
-    $('open-chrome').href = 'intent://skfk86.github.io/sarra-wallet/#Intent;scheme=https;package=com.android.chrome;end';
+    $('open-chrome').href = 'intent://sarrapay.com/#Intent;scheme=https;package=com.android.chrome;end';
   } else if (!/Android/i.test(ua)) { $('not-android').hidden = false; }
   // رقم آخر إصدار وتاريخه وحجمه وبصمته من GitHub Releases (إن تعذّر، تبقى الصفحة والزر صالحين)
   fetch('https://api.github.com/repos/skfk86/sarra-wallet/releases/latest').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {

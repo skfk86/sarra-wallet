@@ -20,5 +20,5 @@
 تحتفظ Google بمفتاح التطبيق النهائي، ويصبح مفتاحك "مفتاح رفع" فقط، يمكن استبداله عبر دعم Google Play إن ضاع.
 
 ## Google Play
-- سياسة الخصوصية: `https://skfk86.github.io/sarra-wallet/privacy.html`
+- سياسة الخصوصية: `https://sarrapay.com/privacy.html`
 - App content ← Financial features ← Cryptocurrency wallet (غير احتجازية)، والتوزيع: السودان.

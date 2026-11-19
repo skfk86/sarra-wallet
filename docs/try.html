@@ -63,7 +63,12 @@ a{color:var(--ac)}
 </div>
 <script>
 (function () {
-  var API = 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay';
+  // الدومين أولاً، ورابط Supabase المباشر احتياطاً إن تعذّر الوصول (انقطاع DNS مثلاً)
+  var BASES = ['https://api.sarrapay.com', 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay'];
+  async function apiFetch(path, opt) {
+    var last; for (var i = 0; i < BASES.length; i++) { try { return await fetch(BASES[i] + path, opt); } catch (e) { last = e; } }
+    throw last;
+  }
   var $ = function (i) { return document.getElementById(i); }, timer = null, cur = null;
   var ERR = { UNAUTHORIZED: 'المفتاح غير صحيح أو استُبدل بمفتاح جديد.', INSUFFICIENT_CREDIT: 'الرصيد لا يكفي لعمولة هذه الفاتورة. اشحنه من التطبيق.',
     BAD_AMOUNT: 'صيغة المبلغ غير صحيحة (مثال: 1 أو 2.50).', AMOUNT_TOO_SMALL: 'أقل مبلغ 1 USDT.', AMOUNT_TOO_LARGE: 'المبلغ أكبر من الحد.',
@@ -72,7 +77,7 @@ a{color:var(--ac)}
   async function call(method, path, body) {
     var key = $('key').value.trim();
     if (!/^sk_(live|test)_\w+$/.test(key)) throw new Error('NO_KEY');
-    var r; try { r = await fetch(API + path, { method: method, headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
+    var r; try { r = await apiFetch(path, { method: method, headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); }
     catch (e) { throw new Error('NETWORK'); }
     var j = await r.json().catch(function () { return {}; });
     if (!r.ok) throw new Error(j.error || 'HTTP_' + r.status);

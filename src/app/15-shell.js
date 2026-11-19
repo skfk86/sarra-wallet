@@ -73,7 +73,7 @@
   var APP_VERSION = CFG.version || '';
 
   // ===== التحديثات (للنسخة الموزّعة خارج Google Play): مرة يومياً نسأل GitHub عن آخر إصدار منشور =====
-  var UPDATE_PAGE = CFG.updatePage || 'https://skfk86.github.io/sarra-wallet/';
+  var UPDATE_PAGE = CFG.updatePage || 'https://sarrapay.com/';
   async function checkUpdate() {
     if (CFG.channel === 'play' || !APP_VERSION || navigator.onLine === false) return;
     var c = lsJson('sarra.upd', null), tag = c && Date.now() - c.at < 86400000 ? c.tag : null;

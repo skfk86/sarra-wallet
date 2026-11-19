@@ -7,7 +7,7 @@
 const http = require('http');
 const crypto = require('crypto');
 
-const API = process.env.SARRA_API || 'https://osdojhpsfbcqguoctbpk.supabase.co/functions/v1/pay';
+const API = process.env.SARRA_API || 'https://api.sarrapay.com';
 const KEY = process.env.SARRA_KEY;                        // مفتاح الـ API (سري: يبقى في الخادم فقط)
 const HOOK_SECRET = process.env.SARRA_WEBHOOK_SECRET;     // سر الإشعار whsec_… (اختياري للتجربة المحلية)
 const NETWORK = process.env.SARRA_NETWORK || 'bsc';
