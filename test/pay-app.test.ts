@@ -363,8 +363,9 @@ await t('الحماية: حد لكل IP (120 طلب/دقيقة)، وحظر من 
   const bad = 'sk_live_' + '0'.repeat(48); let st: number[] = [];
   for (let i = 0; i < 21; i++) st.push((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + bad } })).status);
   assert.equal(st.filter((x) => x === 401).length, 20); assert.equal(st[20], 429);
-  assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + KEY } })).status, 429); // حتى المفتاح الصحيح من نفس الـ IP، حتى ينتهي الحظر
-  clock.t += 601000; assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + KEY } })).status, 200);
+  assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + bad } })).status, 429); // المحاولات الخاطئة محظورة
+  assert.equal((await at('3.3.3.3', '/v1/balance', { headers: { authorization: 'Bearer ' + KEY } })).status, 200); // والمفتاح الصحيح لا يُحظر (لا يمكن حظر تاجر بانتحال عنوانه)
+  assert.equal((await at('3.3.3.9', '/v1/balance', { headers: { authorization: 'Bearer ' + bad } })).status, 401); // IP آخر غير محظور
   const big = await at('4.4.4.4', '/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify({ amount: '1', network: 'bsc', description: 'x'.repeat(20000) }) });
   assert.equal(big.status, 413); assert.equal((await big.json()).error, 'PAYLOAD_TOO_LARGE');
   assert.equal((await api('POST', '/v1/invoices', KEY, ['not', 'object'])).j.error, 'BAD_NETWORK'); // جسم غير كائن يُعامل كفارغ

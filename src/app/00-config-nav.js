@@ -80,6 +80,8 @@
     if (name !== 'reveal') $('words2').textContent = ''; // لا تبقى الكلمات في الشاشة بعد مغادرتها
     if (name !== 'backup' && name !== 'pin') state.mnemonic = null; // لا تبقى الكلمات في الذاكرة خارج شاشات الإنشاء
     $('s-' + name).classList.add('active');
+    // شاشات الكلمات والاستيراد: لا تصوير للشاشة ولا معاينة في التطبيقات الأخيرة (أندرويد)
+    try { var DK = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.DeviceKey; if (DK && DK.secure) DK.secure({ on: name === 'backup' || name === 'reveal' || name === 'import' }).catch(function () {}); } catch (e) {}
     if (push !== false) state.stack.push(name);
     window.scrollTo(0, 0);
     var tabbed = TAB_SCREENS.indexOf(name) >= 0;

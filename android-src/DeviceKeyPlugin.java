@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
+import android.view.WindowManager;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -77,5 +78,16 @@ public class DeviceKeyPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("DEVICE_KEY_ERROR");
         }
+    }
+
+    /** منع تصوير الشاشة وظهورها في قائمة التطبيقات الأخيرة أثناء عرض كلمات الاسترجاع */
+    @PluginMethod
+    public void secure(PluginCall call) {
+        final boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        getActivity().runOnUiThread(() -> {
+            if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+            call.resolve();
+        });
     }
 }

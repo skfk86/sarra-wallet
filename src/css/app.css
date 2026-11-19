@@ -281,7 +281,7 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .net-stack .logos img{width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s1);margin-inline-start:-5px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .net-stack .logos img:last-child{margin-inline-start:0}
 .rc-more{font-size:12px;font-weight:700;color:var(--mu);background:var(--s2);border-radius:999px;padding:3px 8px}
-.linkbtn{background:none;border:0;padding:8px 2px;margin:-8px 0;white-space:nowrap;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
+.linkbtn{background:none;border:0;padding:10px 4px;margin:-10px 0;min-height:40px;white-space:nowrap;font:inherit;font-size:12px;font-weight:700;color:var(--ac);text-decoration:underline;cursor:pointer}
 #swap-evm[hidden]{display:none!important}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
 .seg.scroll{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.seg.scroll::-webkit-scrollbar{display:none}.seg.scroll>button{flex:0 0 auto;min-width:84px;padding:0 12px}

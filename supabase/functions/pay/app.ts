@@ -68,9 +68,12 @@ export function createApp(d: Deps) {
   async function merchantByKey(req: Request): Promise<{ me: Merchant; test: boolean }> {
     const h = req.headers.get('authorization') || '', key = h.startsWith('Bearer ') ? h.slice(7).trim() : '';
     // من يجرّب مفاتيح خاطئة كثيرة يُحظر 10 دقائق (في الذاكرة ثم في قاعدة البيانات عبر كل النسخ)
-    if (ip && !memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN, 0)) throw new Error('RATE_LIMITED');
+    // المفتاح الصحيح لا يُحظر أبداً (حتى لا يستطيع أحد حظر تاجر بانتحال عنوانه)؛ الحظر يطال المحاولات الخاطئة فقط
     const badKey = async () => {
-      if (ip) { memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN); await hit('ip:' + ip, 'pay_badkey', BAD_KEY_MAX, 600); }
+      if (ip) {
+        if (!memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN)) throw new Error('RATE_LIMITED');
+        await hit('ip:' + ip, 'pay_badkey', BAD_KEY_MAX, 600);
+      }
       throw new Error('UNAUTHORIZED');
     };
     const m = /^sk_(live|test)_[0-9a-f]{48}$/.exec(key); if (!m) return await badKey();
