@@ -318,6 +318,8 @@ export function createApp(d: Deps) {
       }
       let m: RegExpMatchArray | null;
       if ((m = path.match(/^\/v1\/public\/(inv_[0-9a-f]{20})$/)) && req.method === 'GET') {
+        // الحد في الذاكرة لا يكفي وحده (الخادم يعمل بنسخ كثيرة)، فالصفحة العامة لها حد في قاعدة البيانات أيضاً
+        if (ip) await hit('ip:' + ip, 'pay_pub', 300, 60);
         const { data } = await db.from('pay_invoices').select('*, pay_merchants(name)').eq('id', m[1]).maybeSingle();
         if (!data) throw new Error('NOT_FOUND');
         return json({ invoice: { ...P.invoiceView(data, PAY_PAGE, d.now(), false), kind: data.kind, merchant: data.kind === 'topup' ? 'شحن رصيد بوابة صُرّة' : (data.pay_merchants as { name: string } | null)?.name || '' } });
