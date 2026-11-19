@@ -138,6 +138,8 @@
     return w;
   }
   function priceOf(c) { if (c.stable) return { usd: 1, chg: state.prices && state.prices[c.sym] ? state.prices[c.sym].chg : null }; return state.prices && state.prices[c.sym] || null; }
+  // سعر الوحدة: العملات الرخيصة جداً (PEPE مثلاً) تُعرض بأرقامها المهمة بدل «<$0.01»
+  function unitUsd(n) { n = Number(n); if (!(n > 0) || n >= 0.01) return usd(n); var d = Math.min(12, Math.ceil(-Math.log10(n)) + 2); return '$' + n.toFixed(d).replace(/0+$/, ''); }
   function usd(n) { n = Number(n); if (n > 0 && n < 0.01) return '<$0.01'; return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   // ≈ القيمة بالدولار لمبلغ من عملة (لا شيء إن لم يتوفر السعر)
   function usdOf(amount, sym) { var c = COINS.filter(function (x) { return x.sym === sym; })[0], p = c && priceOf(c), n = Number(String(amount || '').replace(/,/g, '')); return p && p.usd != null && isFinite(n) && n > 0 ? n * p.usd : null; }
@@ -157,7 +159,7 @@
       var cl = el('span'); cl.className = 'cl'; var im = el('img'); im.dataset.sym = c.sym; im.src = coinImg(c); im.alt = ''; cl.appendChild(im);
       row.appendChild(cl);
       var mid = el('div'); mid.className = 'cr-mid'; mid.appendChild(el('b', null, c.sym));
-      var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? usd(r.p.usd) : c.name); // نسبة التغير لا تظهر في القائمة: الرسم البياني في صفحة العملة يعرضها، والقائمة تبقى هادئة
+      var sub = el('span', 'direction:ltr;unicode-bidi:isolate;text-align:right', r.p && NETWORK === 'mainnet' ? unitUsd(r.p.usd) : c.name); // نسبة التغير لا تظهر في القائمة: الرسم البياني في صفحة العملة يعرضها، والقائمة تبقى هادئة
       mid.appendChild(sub); row.appendChild(mid);
       var sp = state.spark && state.spark[c.cg]; if (sp) row.appendChild(sparkSvg(sp));
       var end = el('div'); end.className = 'cr-end';
@@ -178,7 +180,7 @@
     var t = coinTotal(c), p = priceOf(c);
     $('cs-logo').removeAttribute('data-fb'); $('cs-logo').dataset.sym = c.sym; $('cs-logo').src = coinImg(c); $('cs-name').textContent = c.name === c.sym ? c.sym : c.name + ' · ' + c.sym;
     var cp = $('cs-price'); cp.textContent = '';
-    if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, usd(p.usd)); pb.style.direction = 'ltr'; cp.appendChild(pb); }
+    if (p && NETWORK === 'mainnet') { var pb = el('bdi', null, unitUsd(p.usd)); pb.style.direction = 'ltr'; cp.appendChild(pb); }
     if (c.nets.length > 1) cp.appendChild(document.createTextNode(' · على ' + c.nets.length + ' شبكات'));
     $('cs-total').textContent = state.hidden ? '••••' : (t == null ? '—' : fmt(t, 6)) + ' ' + c.sym;
     $('cs-usd').textContent = !state.hidden && t != null && p && NETWORK === 'mainnet' ? '≈ ' + usd(t * p.usd) : '';
