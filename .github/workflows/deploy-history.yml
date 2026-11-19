@@ -30,8 +30,12 @@ jobs:
           T: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           if [ -z "$T" ]; then echo "::error::أضف SUPABASE_ACCESS_TOKEN في أسرار المستودع أولاً"; exit 1; fi
-      - uses: supabase/setup-cli@v1
-        with: { version: latest }
+      # تثبيت Supabase CLI من npm بدل setup-cli: سؤال GitHub عن «أحدث إصدار» يفشل أحياناً بـ rate limit
+      - name: Install Supabase CLI
+        run: |
+          for i in 1 2 3; do npm install --no-save --no-audit --no-fund supabase@^2 && break; echo "محاولة $i فشلت، إعادة بعد 15 ثانية"; sleep 15; done
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+          ./node_modules/.bin/supabase --version
       - name: Deploy
         if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup'
         env:
