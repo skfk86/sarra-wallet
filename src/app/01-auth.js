@@ -41,7 +41,8 @@
   $('mn-in').addEventListener('input', mnPreview);
   $('mn-clear').onclick = function () { $('mn-in').value = ''; mnPreview(); $('mn-in').focus(); };
   $('mn-paste').onclick = async function () {
-    try { var t = await navigator.clipboard.readText(); if (t) { $('mn-in').value = t.trim(); mnPreview(); } }
+    // داخل التطبيق: الحافظة الأصلية لأندرويد (navigator.clipboard لا يعمل في WebView)
+    try { var t = P.Clipboard ? (await P.Clipboard.read()).value : await navigator.clipboard.readText(); if (t) { $('mn-in').value = String(t).trim(); mnPreview(); } else toast('الحافظة فارغة', true); }
     catch (e) { toast('اضغط مطوّلاً في الخانة واختر «لصق»', true); }
   };
   $('import-next').onclick = function () {
