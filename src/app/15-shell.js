@@ -101,7 +101,7 @@
       var m = b.dataset.menu;
       if (m === 'security') return resetTo('security');
       if (m === 'coins') { openCoinsHelp(); return; }
-      if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; var pc = function (x) { return (Math.round((Number(x) || 0) * 10000) / 100) + '%'; }; $('about-evmfee').textContent = pc(CFG.lifiSwapFee != null ? CFG.lifiSwapFee : CFG.lifiFee); $('about-brfee').textContent = pc(CFG.lifiFee); $('about-ver').textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION + ' · ' + netName() : netName(); show('about'); }
+      if (m === 'about') { $('about-swapfee').textContent = core.feeEnabled() ? core.feeRateText() : '0%'; var pc = function (x) { return (Math.round((Number(x) || 0) * 10000) / 100) + '%'; }; $('about-evmfee').textContent = pc(CFG.lifiSwapFee != null ? CFG.lifiSwapFee : CFG.lifiFee); $('about-brfee').textContent = pc(CFG.lifiFee); var av = $('about-ver'); av.textContent = APP_VERSION ? 'الإصدار ' + APP_VERSION : ''; var nb = document.createElement('bdi'); nb.dir = 'ltr'; nb.style.display = 'block'; nb.textContent = netName(); av.appendChild(nb); show('about'); }
       if (m === 'apps') { renderApps(); show('apps'); }
       if (m === 'merchant') openMerchant();
       if (m === 'account') openAccount();

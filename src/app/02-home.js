@@ -168,7 +168,7 @@
       box.appendChild(row);
     });
     if (zeros > 3 && rows.length - zeros > 0) {
-      var tg = el('button', null, state.showZero ? 'إخفاء العملات بلا رصيد' : 'عرض ' + zeros + ' عملات أخرى بلا رصيد'); tg.type = 'button'; tg.className = 'zero-tg'; tg.id = 'zero-tg';
+      var tg = el('button', null, state.showZero ? 'إخفاء العملات بلا رصيد' : 'عرض ' + (zeros === 1 ? 'عملة أخرى' : zeros === 2 ? 'عملتين أخريين' : zeros <= 10 ? zeros + ' عملات أخرى' : zeros + ' عملة أخرى') + ' بلا رصيد'); tg.type = 'button'; tg.className = 'zero-tg'; tg.id = 'zero-tg';
       tg.onclick = function () { state.showZero = !state.showZero; renderAssets(); };
       box.appendChild(tg);
     }
