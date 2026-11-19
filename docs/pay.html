@@ -33,6 +33,20 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
 .big .ic{font-size:54px;line-height:1}
 .big h2{margin:10px 0 4px;font-size:22px}
 .big p{margin:0;color:var(--mu)}
+.ok .chk{width:76px;height:76px;display:block;margin:0 auto}
+.ok .chk circle{fill:#e8f6ee;stroke:#1f9d55;stroke-width:4;stroke-dasharray:227;stroke-dashoffset:227;animation:dr .6s ease-out forwards}
+.ok .chk path{fill:none;stroke:#1f9d55;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:dr .35s .5s ease-out forwards}
+@keyframes dr{to{stroke-dashoffset:0}}
+.ok .pamt{font-size:30px;font-weight:800;margin:6px 0 14px;color:#1f9d55}
+.rcpt{text-align:start;border:1px dashed rgba(127,127,127,.35);border-radius:12px;padding:6px 12px;margin:0 auto 12px;max-width:360px}
+.rcpt div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;font-size:14px}
+.rcpt div+div{border-top:1px solid rgba(127,127,127,.15)}
+.rcpt span{color:var(--mu)}.rcpt b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rcpt a{color:inherit}.cpy{font:inherit;font-size:12px;border:0;background:rgba(127,127,127,.15);border-radius:6px;padding:2px 8px;cursor:pointer;color:inherit}
+.cd{max-width:360px;margin:10px auto 0;font-size:13px;color:var(--mu)}
+.cd i{display:block;height:4px;border-radius:4px;background:#1f9d55;margin-bottom:6px;width:100%;transition:width 1s linear}
+@media (prefers-reduced-motion:reduce){.ok .chk *{animation:none;stroke-dashoffset:0}}
+
 .foot{text-align:center;color:var(--mu);font-size:12.5px;padding:6px 0 20px}
 .foot a{color:var(--ac)}
 .test{background:#fde7c2;color:#6b4300;border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:12px;text-align:center}
@@ -74,7 +88,20 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
       <div class="lbl" style="text-align:center">تتحدث هذه الصفحة تلقائياً بعد تأكيد التحويل على الشبكة.</div></div>
   </div>
 
-  <div class="card big" id="v-paid" hidden><div class="ic">✅</div><h2>تم الدفع</h2><p><span id="paid-amt" style="direction:ltr;display:inline-block"></span> <span class="cur">USDT</span></p><p id="paid-tx" style="font-size:12px;word-break:break-all;direction:ltr;margin-top:8px"></p><p style="margin-top:10px" id="paid-note">يمكنك الرجوع إلى المتجر الآن.</p><a class="ret" id="ret-paid" hidden></a><div class="cd" id="ret-cd" hidden></div></div>
+  <div class="card big ok" id="v-paid" hidden>
+    <svg class="chk" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="36"/><path d="M24 41l11 11 21-23"/></svg>
+    <h2>تم الدفع بنجاح</h2>
+    <div class="pamt" dir="ltr"><span id="paid-amt"></span> <span class="cur">USDT</span></div>
+    <div class="rcpt">
+      <div><span>المتجر</span><b id="paid-m"></b></div>
+      <div><span>الشبكة</span><b id="paid-net"></b></div>
+      <div><span>الوقت</span><b id="paid-at"></b></div>
+      <div id="paid-txrow"><span>رقم العملية</span><b><a id="paid-tx" target="_blank" rel="noopener" dir="ltr"></a> <button type="button" class="cpy" id="paid-cpy">نسخ</button></b></div>
+    </div>
+    <p id="paid-note">وصل المبلغ إلى المتجر. يمكنك إغلاق هذه الصفحة.</p>
+    <a class="ret" id="ret-paid" hidden></a>
+    <div class="cd" id="ret-cd" hidden><i id="ret-bar"></i><span id="ret-txt"></span></div>
+  </div>
   <div class="card big" id="v-exp" hidden><div class="ic">⌛</div><h2>انتهت مهلة الفاتورة</h2><p>لا ترسل أي مبلغ الآن. ارجع إلى المتجر واطلب فاتورة جديدة.</p><p style="margin-top:8px;font-size:13px">إن كنت أرسلت المبلغ قبل قليل، انتظر دقائق وستتحدث الصفحة.</p><a class="ret" id="ret-exp" hidden></a></div>
   <div class="card big" id="v-cxl" hidden><div class="ic">✖️</div><h2>أُلغيت الفاتورة</h2><p>ألغى المتجر هذه الفاتورة. لا ترسل أي مبلغ.</p><a class="ret" id="ret-cxl" hidden></a></div>
   <div class="card big" id="v-err" hidden><div class="ic">⚠️</div><h2 id="err-t">الفاتورة غير موجودة</h2><p id="err-d">تأكد من الرابط، أو اطلب رابطاً جديداً من المتجر.</p></div>
@@ -118,14 +145,21 @@ button{font:inherit;border:0;border-radius:10px;padding:8px 14px;background:var(
     $('test').hidden = !inv.test; $('real').hidden = !!inv.test; $('simc').hidden = !inv.test;
     if (inv.test) { $('samt').textContent = inv.pay_amount; $('snet').textContent = inv.network_name; }
     if (inv.status === 'paid') {
-      $('paid-amt').textContent = inv.pay_amount; $('paid-tx').textContent = inv.tx || '';
+      $('paid-amt').textContent = inv.pay_amount;
+      $('paid-m').textContent = inv.merchant || '—'; $('paid-net').textContent = inv.network_name || '';
+      $('paid-at').textContent = inv.paid_at ? new Date(inv.paid_at).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+      var tx = inv.tx || '', EXP = { bsc: 'https://bscscan.com/tx/', polygon: 'https://polygonscan.com/tx/', eth: 'https://etherscan.io/tx/', tron: 'https://tronscan.org/#/transaction/' };
+      $('paid-txrow').hidden = !tx || inv.test;
+      if (tx) { $('paid-tx').textContent = tx.slice(0, 8) + '…' + tx.slice(-6); var ex = EXP[inv.network]; if (ex) $('paid-tx').href = ex + tx;
+        $('paid-cpy').onclick = function () { try { navigator.clipboard.writeText(tx); this.textContent = 'تم'; } catch (e) {} }; }
       var u = setRet('ret-paid', 'paid');
       $('paid-note').hidden = !!u;
-      if (u && !redirTimer) { // رجوع تلقائي بعد 6 ثوانٍ، مع إمكانية الضغط فوراً
+      if (u && !redirTimer) { // رجوع تلقائي بعد 6 ثوانٍ مع شريط تقدّم، ويمكن الضغط فوراً
         var left = 6; $('ret-cd').hidden = false;
-        var step = function () { $('ret-cd').textContent = 'ستعود إلى المتجر تلقائياً خلال ' + left + ' ثوانٍ'; if (left-- <= 0) { clearInterval(redirTimer); location.href = u; } };
+        var step = function () { $('ret-txt').textContent = 'ستعود إلى المتجر تلقائياً خلال ' + left + ' ثوانٍ'; $('ret-bar').style.width = (left / 6 * 100) + '%'; if (left-- <= 0) { clearInterval(redirTimer); location.href = u; } };
         step(); redirTimer = setInterval(step, 1000);
       }
+      if (navigator.vibrate) try { navigator.vibrate(60); } catch (e) {}
       return view('paid');
     }
     if (inv.status === 'expired') { setRet('ret-exp', 'expired'); return view('exp'); }
