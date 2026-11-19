@@ -112,7 +112,16 @@ export function createApp(d: Deps) {
       const row = { id: P.newInvoiceId(), merchant_id: m.id, kind, network: net, address, match_hex: mh, amount: amount.toString(), exact: P.exactUnits(amount, P.randTail()).toString(),
         fee: fee.toString(), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
       const { data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle();
-      if (data) return data;
+      if (data) {
+        // فحص ثانٍ بعد الإدراج يغلق سباق الطلبات المتزامنة: إن تجاوزت العمولات المعلّقة الرصيد نحذف فاتورتنا
+        if (kind === 'payment' && !test) {
+          const { data: cur } = await db.from('pay_merchants').select('credit').eq('id', m.id).maybeSingle();
+          const { data: all } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', false).eq('status', 'pending').limit(MAX_PENDING + 50);
+          const owed = (all || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n);
+          if (cur && BigInt(cur.credit) < owed) { await db.from('pay_invoices').delete().eq('id', data.id).eq('status', 'pending'); throw new Error('INSUFFICIENT_CREDIT'); }
+        }
+        return data;
+      }
       if (error?.code !== '23505') throw new Error('SERVER_ERROR');
       const d2 = await existing(); if (d2) return d2; // سباق على رقم الطلب نفسه
       // وإلا فالمبلغ الفريد مستخدم لفاتورة أخرى على العنوان نفسه: نجرّب كسراً آخر

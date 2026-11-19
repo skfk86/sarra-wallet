@@ -424,4 +424,12 @@ await t('هجوم: تزوير التوقيع أو انتحال عنوان آخر
   assert.equal((await api('GET', '/v1/invoices/' + okInv.id, OK2)).status, 404);
   assert.equal((await api('POST', '/v1/invoices/' + okInv.id + '/cancel', OK2)).status, 404);
 });
+await t('سباق: فواتير متزامنة كثيرة لا تتجاوز رصيد الرسوم', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  db.T.pay_merchants[0].credit = 100000; // 0.1 = خمس عمولات بحد أدنى 0.02
+  const rs = await Promise.all(Array.from({ length: 12 }, () => api('POST', '/v1/invoices', KEY, { amount: '1', network: 'bsc' })));
+  const ok = rs.filter((r) => r.status === 200).length, pend = db.T.pay_invoices.filter((x) => x.status === 'pending' && !x.test);
+  assert.ok(ok <= 5, 'نجح ' + ok); assert.equal(pend.length, ok); assert.ok(pend.reduce((a, x) => a + Number(x.fee), 0) <= 100000);
+  assert.ok(rs.filter((r) => r.status !== 200).every((r) => r.j.error === 'INSUFFICIENT_CREDIT'));
+});
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
