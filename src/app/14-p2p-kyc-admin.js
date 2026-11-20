@@ -99,7 +99,7 @@
   var STATUS = {
     awaiting_deposit: ['بانتظار إيداع البائع في الضمان', 'warn'], funded: ['محجوز في الضمان · حوّل المبلغ عبر بنكك', 'ok'],
     paid: ['المشتري أكّد الدفع · بانتظار تأكيد البائع', 'warn'], releasing: ['جارٍ إرسال USDT للمشتري…', 'warn'],
-    released: ['اكتملت الصفقة ✓', 'ok'], release_failed: ['تأخر الإرسال · المشرف يتابع', 'err'],
+    released: ['اكتملت الصفقة', 'ok'], release_failed: ['تأخر الإرسال · المشرف يتابع', 'err'],
     cancelled: ['أُلغي الطلب', 'warn'], refunding: ['جارٍ إرجاع USDT للبائع…', 'warn'], refunded: ['أُعيد USDT للبائع', 'warn'],
     refund_failed: ['تأخر الإرجاع · المشرف يتابع', 'err'], disputed: ['نزاع مفتوح · المشرف يراجع الأدلة', 'err']
   };
@@ -244,8 +244,25 @@
     } catch (e) { toast(p2pErr(e), true); if (action && action !== 'order.get') refreshOrder('order.get'); }
   }
   function kv(dl, k, v, ltr) { var d = el('div'); d.appendChild(el('dt', null, k)); var dd = el('dd', ltr ? 'direction:ltr' : null, v); d.appendChild(dd); dl.appendChild(d); }
-  function actionBtn(label, kind, fn) {
+  // أيقونات خطية حقيقية (SVG بنمط Lucide) بدل الرموز التعبيرية: حادة على كل الشاشات وتتبع لون السمة
+  var OI = {
+    lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    hourglass: '<path d="M6 2h12M6 22h12"/><path d="M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4"/>',
+    scale: '<path d="M12 3v18M7 21h10M5 7h14"/><path d="m5 7-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z"/>',
+    check: '<path d="m5 12 5 5L20 7"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    alert: '<path d="M12 3 2 21h20z"/><path d="M12 10v4M12 17.5v.5"/>',
+    send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+    clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+    receipt: '<path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+    bank: '<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/>'
+  };
+  function oIcon(name, size) { var sp = document.createElement('span'); sp.className = 'oic'; sp.innerHTML = '<svg class="i" viewBox="0 0 24 24"' + (size ? ' style="width:' + size + 'px;height:' + size + 'px"' : '') + '>' + (OI[name] || OI.alert) + '</svg>'; return sp; }
+  function actionBtn(label, kind, fn, icon) {
     var b = el('button', null, label); b.type = 'button';
+    if (icon) { b.insertBefore(oIcon(icon, 18), b.firstChild); b.style.display = 'flex'; b.style.alignItems = 'center'; b.style.justifyContent = 'center'; b.style.gap = '8px'; }
     b.className = 'btn ' + (kind === 'primary' ? 'btn-primary' : 'btn-ghost');
     if (kind === 'danger') b.style.cssText = 'color:var(--err)';
     b.onclick = fn; $('ord-actions').appendChild(b); return b;
@@ -264,7 +281,7 @@
     $('ord-sub').textContent = role === 'admin' ? (o.buyer_profile || {}).nickname + ' ← ' + (o.seller_profile || {}).nickname : 'مع ' + ((other || {}).nickname || '—');
     $('ord-status').textContent = st[0];
     // بطاقة الحالة: ماذا حدث، وماذا بعد، لكل طرف (بدل سطر حالة صغير)
-    var H = heroOf(o, role); $('ord-hero').className = 'ord-hero ' + st[1]; $('ord-hero-i').textContent = H[0]; $('ord-hero-d').textContent = H[1];
+    var H = heroOf(o, role); $('ord-hero').className = 'ord-hero ' + st[1]; $('ord-hero-i').textContent = ''; $('ord-hero-i').appendChild(oIcon(H[0], 22)); $('ord-hero-d').textContent = H[1];
     var won = o.status === 'released' && role === 'buyer';
     $('ord-win').hidden = !won;
     if (won) { $('ord-win-amt').textContent = '+' + fmt(o.buyer_receives, 6) + ' USDT'; $('ord-win-s').textContent = 'على ' + netLabel(o.network) + ' · مقابل ' + fmt(o.total_sdg) + ' ج.س'; }
@@ -335,8 +352,8 @@
       actionBtn('تحقق من الإيداع', 'ghost', function () { refreshOrder('order.refresh'); });
     }
     var rc = o.receipts || 0;
-    if (role === 'buyer' && ['funded', 'paid', 'disputed'].indexOf(s) >= 0 && rc < 3) actionBtn(rc ? '📎 رفع إيصال آخر (' + rc + '/3)' : '📎 رفع إيصال تحويل بنكك', s === 'funded' ? 'ghost' : 'primary', pickReceipt);
-    if ((role === 'seller' || role === 'admin') && rc) actionBtn('🧾 عرض إيصال الدفع (' + rc + ')', 'ghost', showReceipts);
+    if (role === 'buyer' && ['funded', 'paid', 'disputed'].indexOf(s) >= 0 && rc < 3) actionBtn(rc ? 'رفع إيصال آخر (' + rc + '/3)' : 'رفع إيصال تحويل بنكك', s === 'funded' ? 'ghost' : 'primary', pickReceipt, 'clip');
+    if ((role === 'seller' || role === 'admin') && rc) actionBtn('عرض إيصال الدفع (' + rc + ')', 'ghost', showReceipts, 'receipt');
     if (role === 'buyer' && s === 'funded') actionBtn('حوّلت المبلغ عبر بنكك', 'primary', function () { doAction('mark_paid', 'هل حوّلت ' + fmt(o.total_sdg) + ' ج.س فعلاً إلى حساب البائع؟ الادعاء الكاذب يؤدي لحظر حسابك.'); });
     if (role === 'seller' && (s === 'funded' || s === 'paid')) actionBtn('استلمت المبلغ · حرّر USDT', 'primary', function () { doAction('release', 'تأكد أن ' + fmt(o.total_sdg) + ' ج.س وصلت فعلاً إلى حسابك في بنكك. لا يمكن التراجع بعد التحرير.', true); });
     if ((role === 'buyer' || role === 'seller') && s === 'paid') actionBtn('فتح نزاع', 'danger', async function () {
@@ -391,7 +408,7 @@
     $('ord-cc-av').textContent = $('oc-av').textContent = initial(oname);
     $('ord-cc-name').textContent = 'محادثة ' + otherRole + (role === 'admin' ? '' : ' · ' + oname);
     var last = msgs[msgs.length - 1];
-    $('ord-cc-last').textContent = last ? (last.sender === meAddr ? 'أنت: ' : '') + last.body : 'لا رسائل بعد · ابدأ المحادثة';
+    $('ord-cc-last').textContent = last ? (last.sender === meAddr ? 'أنت: ' : '') + last.body.replace(/^📎\s*/, '') : 'لا رسائل بعد · ابدأ المحادثة';
     $('ord-cc-n').hidden = !unread; $('ord-cc-n').textContent = unread > 9 ? '9+' : String(unread); $('ord-unread').hidden = !unread;
     // رأس شاشة المحادثة
     $('oc-name').textContent = oname;
@@ -412,7 +429,8 @@
       var who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
       var b = el('div'); b.className = 'bub ' + (sys ? 'sys' : mine ? 'me' : 'them');
       if (!mine && !sys && (role === 'admin' || who === 'المشرف')) b.appendChild(el('span', null, who)).className = 'who';
-      b.appendChild(document.createTextNode(m.body));
+      if (sys) { b.appendChild(oIcon('receipt', 15)); b.appendChild(document.createTextNode(m.body.replace(/^📎\s*/, ''))); }
+      else b.appendChild(document.createTextNode(m.body));
       var tm = hm(m.created_at); if (tm) b.appendChild(el('time', null, tm));
       chat.appendChild(b);
     });
@@ -433,16 +451,16 @@
   function heroOf(o, role) {
     var b = role === 'buyer', sl = role === 'seller', amt = fmt(o.total_sdg) + ' ج.س';
     switch (o.status) {
-      case 'awaiting_deposit': return ['⏳', b ? 'ينتظر البائع إيداع USDT في الضمان. لا تحوّل أي مبلغ الآن؛ سيظهر حساب بنكك هنا بعد الحجز.' : sl ? 'أودع USDT في الضمان من الزر أدناه لتبدأ الصفقة. المشتري لن يحوّل قبل ذلك.' : 'بانتظار إيداع البائع.'];
-      case 'funded': return ['🔒', b ? 'USDT محجوزة لك بأمان في الضمان. حوّل ' + amt + ' إلى الحساب أدناه، ارفع الإيصال، ثم اضغط «حوّلت المبلغ».' : sl ? 'عملتك في الضمان. انتظر تحويل المشتري، ولا تحرّر قبل أن ترى المبلغ في تطبيق بنكك.' : 'محجوز في الضمان.'];
-      case 'paid': return ['🕒', b ? 'أبلغنا البائع بتحويلك. سيتأكد من وصول المبلغ في بنكك ثم يحرّر USDT، وغالباً خلال دقائق. إن تأخر طويلاً أو لم يرد فافتح نزاعاً.' : sl ? 'المشتري يقول إنه حوّل ' + amt + '. افتح تطبيق بنكك وتأكد من وصول المبلغ فعلاً، ثم حرّر.' : 'المشتري أكّد الدفع.'];
-      case 'disputed': return ['⚖️', 'المشرف يراجع المحادثة والإيصالات. USDT محجوزة في الضمان ولن تُحرَّر لأي طرف قبل القرار. أضف أي دليل في المحادثة' + (o.dispute_reason ? '. سبب النزاع: «' + o.dispute_reason + '»' : '') + '.'];
-      case 'releasing': return ['⏳', 'جارٍ إرسال USDT إلى المشتري. يستغرق عادة أقل من دقيقة.'];
-      case 'released': return ['✓', b ? 'تمت الصفقة بنجاح، ووصلت USDT إلى محفظتك.' : sl ? 'تمت الصفقة بنجاح. أُرسلت USDT للمشتري.' : 'اكتملت.'];
-      case 'refunding': return ['↩', 'جارٍ إعادة USDT إلى البائع.'];
-      case 'refunded': return ['↩', sl ? 'أُعيدت USDT إلى محفظتك (بعد خصم رسوم الشبكة).' : 'أُعيدت USDT إلى البائع وأُغلق الطلب.'];
-      case 'cancelled': return ['✕', 'أُلغي الطلب ولم يُحجز أو يُحوَّل شيء.'];
-      default: return ['!', 'تأخر الإرسال، والمشرف يتابع الطلب. أموالك محفوظة في الضمان.'];
+      case 'awaiting_deposit': return ['hourglass', b ? 'ينتظر البائع إيداع USDT في الضمان. لا تحوّل أي مبلغ الآن؛ سيظهر حساب بنكك هنا بعد الحجز.' : sl ? 'أودع USDT في الضمان من الزر أدناه لتبدأ الصفقة. المشتري لن يحوّل قبل ذلك.' : 'بانتظار إيداع البائع.'];
+      case 'funded': return ['lock', b ? 'USDT محجوزة لك بأمان في الضمان. حوّل ' + amt + ' إلى الحساب أدناه، ارفع الإيصال، ثم اضغط «حوّلت المبلغ».' : sl ? 'عملتك في الضمان. انتظر تحويل المشتري، ولا تحرّر قبل أن ترى المبلغ في تطبيق بنكك.' : 'محجوز في الضمان.'];
+      case 'paid': return ['clock', b ? 'أبلغنا البائع بتحويلك. سيتأكد من وصول المبلغ في بنكك ثم يحرّر USDT، وغالباً خلال دقائق. إن تأخر طويلاً أو لم يرد فافتح نزاعاً.' : sl ? 'المشتري يقول إنه حوّل ' + amt + '. افتح تطبيق بنكك وتأكد من وصول المبلغ فعلاً، ثم حرّر.' : 'المشتري أكّد الدفع.'];
+      case 'disputed': return ['scale', 'المشرف يراجع المحادثة والإيصالات. USDT محجوزة في الضمان ولن تُحرَّر لأي طرف قبل القرار. أضف أي دليل في المحادثة' + (o.dispute_reason ? '. سبب النزاع: «' + o.dispute_reason + '»' : '') + '.'];
+      case 'releasing': return ['hourglass', 'جارٍ إرسال USDT إلى المشتري. يستغرق عادة أقل من دقيقة.'];
+      case 'released': return ['check', b ? 'تمت الصفقة بنجاح، ووصلت USDT إلى محفظتك.' : sl ? 'تمت الصفقة بنجاح. أُرسلت USDT للمشتري.' : 'اكتملت.'];
+      case 'refunding': return ['undo', 'جارٍ إعادة USDT إلى البائع.'];
+      case 'refunded': return ['undo', sl ? 'أُعيدت USDT إلى محفظتك (بعد خصم رسوم الشبكة).' : 'أُعيدت USDT إلى البائع وأُغلق الطلب.'];
+      case 'cancelled': return ['x', 'أُلغي الطلب ولم يُحجز أو يُحوَّل شيء.'];
+      default: return ['alert', 'تأخر الإرسال، والمشرف يتابع الطلب. أموالك محفوظة في الضمان.'];
     }
   }
   $('ord-win-go').onclick = function () { resetTo('home'); };

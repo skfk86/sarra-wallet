@@ -594,15 +594,15 @@
     <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div>
     <button type="button" class="icon-btn chat-btn" id="ord-chat-open" aria-label="المحادثة"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><i class="dot" id="ord-unread" hidden></i></button></div>
   <div class="steps3" id="ord-steps" aria-hidden="true"><span>1 الضمان</span><span>2 الدفع</span><span>3 الاستلام</span></div>
-  <div class="ord-hero" id="ord-hero" role="status"><div class="oh-i" id="ord-hero-i" aria-hidden="true">⏳</div><div class="oh-t"><b id="ord-status"></b><span id="ord-hero-d"></span></div></div>
+  <div class="ord-hero" id="ord-hero" role="status"><div class="oh-i" id="ord-hero-i" aria-hidden="true"></div><div class="oh-t"><b id="ord-status"></b><span id="ord-hero-d"></span></div></div>
   <div class="card ord-win" id="ord-win" hidden><span class="muted" style="font-size:13px">وصلت إلى محفظتك</span><b class="w-amt" id="ord-win-amt"></b><span class="muted" style="font-size:12px" id="ord-win-s"></span><button type="button" class="btn btn-primary" id="ord-win-go" style="width:100%;margin-top:6px">عرض المحفظة</button></div>
   <div class="card" id="ord-timer" hidden style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px"><span class="muted" style="font-size:13px" id="ord-timer-lbl">الوقت المتبقي للدفع</span><b class="ltr" id="ord-timer-val" style="font-size:22px;font-variant-numeric:tabular-nums">--:--</b></div>
   <dl class="kv card" style="padding:4px 16px" id="ord-kv"></dl>
   <div class="card" id="ord-bank" hidden style="display:flex;flex-direction:column;gap:8px">
-    <span class="muted">حوّل المبلغ إلى حساب بنكك التالي فقط:</span>
-    <div class="row between"><span>المبلغ</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bamt"></b><button type="button" class="chip" id="ord-copy-amt" style="height:32px">نسخ</button></span></div>
+    <span class="row" style="gap:8px;font-weight:700"><svg class="i" viewBox="0 0 24 24" style="color:var(--ac)"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></svg>حوّل إلى هذا الحساب في بنكك فقط</span>
+    <div class="row between"><span>المبلغ</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bamt"></b><button type="button" class="chip" id="ord-copy-amt" style="height:32px;gap:5px"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>نسخ</button></span></div>
     <div class="row between"><span>الاسم</span><span class="row" style="gap:6px"><b id="ord-bname"></b><span class="vbadge">موثّق</span></span></div>
-    <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px">نسخ</button></span></div>
+    <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px;gap:5px"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>نسخ</button></span></div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px" id="ord-actions"></div>
   <button type="button" class="chat-card" id="ord-chat-card"><span class="cc-av" id="ord-cc-av">؟</span><span class="cc-t"><b id="ord-cc-name">المحادثة</b><small id="ord-cc-last">لا رسائل بعد</small></span><span class="cc-n" id="ord-cc-n" hidden></span><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -615,7 +615,7 @@
     <div class="grow" style="display:flex;flex-direction:column;min-width:0"><b id="oc-name" style="font-size:16px">—</b><small class="muted" id="oc-meta" style="font-size:12px"></small></div>
   </div>
   <button type="button" class="chat-order" id="oc-order"><span><b id="oc-o-t"></b><small id="oc-o-s"></small></span><span class="chip" style="height:30px">تفاصيل الطلب</span></button>
-  <div class="chat-safe">🛡️ لا تحرّر USDT قبل أن ترى المبلغ في تطبيق بنكك. لا تتواصل خارج التطبيق ولا تشارك رموز أو كلمات محفظتك.</div>
+  <div class="chat-safe"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span>لا تحرّر USDT قبل أن ترى المبلغ في تطبيق بنكك. لا تتواصل خارج التطبيق ولا تشارك رموز أو كلمات محفظتك.</span></div>
   <div class="chat-list" id="ord-chat"></div>
   <div class="chat-input" id="ord-msg-row">
     <button type="button" class="icon-btn flat" id="oc-attach" aria-label="رفع إيصال" hidden><svg class="i" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>

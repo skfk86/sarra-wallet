@@ -528,3 +528,18 @@ i.skeleton{display:block;font-style:normal}
 .chat-order b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-order small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-order .chip{flex:0 0 auto;white-space:nowrap;padding:0 12px}
+
+.oic{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.ord-hero .oh-i .i{width:22px;height:22px;stroke-width:2}
+.ord-hero.ok .oh-i{color:var(--on-ac);background:var(--ac)}
+.ord-hero.warn .oh-i{color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-bd)}
+.ord-hero.err .oh-i{color:var(--err);background:var(--err-bg);border:1px solid var(--err-bd)}
+.ord-hero.ok{background:var(--ok-bg);border-color:var(--ok-bd)}
+.ord-hero.warn{background:var(--warn-bg);border-color:var(--warn-bd)}
+.ord-hero.err{background:var(--err-bg);border-color:var(--err-bd)}
+.ord-hero .oh-t span{color:var(--tx2)}
+.chat-safe{display:flex;gap:8px;align-items:flex-start}
+.chat-safe .i{flex:0 0 18px;width:18px;height:18px;margin-top:1px}
+.bub.sys{flex-direction:row;align-items:center;justify-content:center;gap:6px}
+.bub.sys .oic{color:var(--ac)}
+#ord-chat-card>.i{color:var(--mu)}
