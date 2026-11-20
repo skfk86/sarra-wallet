@@ -31,7 +31,7 @@ async def lifi(route):
       'feeCosts':[],'gasCosts':[{'amountUSD':'0.03','amount':'50000000000000'}],'executionDuration':10},
       'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress'],'fromChainId':int(q['fromChain']),'toChainId':int(q['toChain']),'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}},
       'transactionRequest':{'to':DIA,'data':'0xdeadbeef'+'00'*12+q['toAddress'][2:].lower(),'value':'0x0','gasLimit':'0x30d40','chainId':56}})
-  if u.path.endswith('/status'): return await route.fulfill(json={'status':'DONE','substatus':'COMPLETED'})
+  if u.path.endswith('/status'): return await route.fulfill(json={'status':'FAILED'} if q.get('txHash','').endswith('dead'*4) else {'status':'DONE','substatus':'COMPLETED'})
   await route.fulfill(status=404, json={})
 async def main():
   async with async_playwright() as pw:
@@ -128,6 +128,11 @@ async def main():
       await pg.emulate_media(color_scheme='dark'); await pg.evaluate("document.documentElement.removeAttribute('data-theme')")
       await pg.click('.tab[data-tab=trade]'); await pg.wait_for_timeout(600); await pg.screenshot(path=SHOTS+'/trade-dark.png')
       await pg.click('#tr-list .tr-row[data-sym=BTC]'); await pg.wait_for_timeout(1500); await pg.screenshot(path=SHOTS+'/pair-dark.png', full_page=True)
+    # صفقة علقت «قيد التنفيذ» (أُغلق التطبيق) ثم فشلت على الشبكة: تُصحَّح عند فتح السوق ولا تبقى في المركز
+    await pg.evaluate("(()=>{const k=Object.keys(localStorage).find(k=>k.startsWith('sarra.tr.'));const l=JSON.parse(localStorage.getItem(k));l.unshift({id:'0x'+'1'.repeat(48)+'dead'.repeat(4),sym:'ETH',side:'buy',qty:'1',usdt:'3.5',price:3.5,net:'bsc',time:Date.now()-3600000,status:'PENDING'});localStorage.setItem(k,JSON.stringify(l))})()")
+    await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(300); await pg.click('.tab[data-tab=trade]'); await pg.wait_for_timeout(2500)
+    st=await pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('sarra.tr.'))))")
+    eth=[t for t in st if t['sym']=='ETH'][0]; assert eth['status']=='FAILED', eth; print('✓ صفقة عالقة «قيد التنفيذ» تُحدَّث تلقائياً إلى «فاشلة» ولا تُحسب في المركز')
     assert not errs, errs
     print('✓ لا أخطاء JavaScript')
     await b.close()

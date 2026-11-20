@@ -51,6 +51,24 @@
     vaultSoon();
   }
   function trPos(sym) { return SarraLogic.position(trAll(), sym); } // logic/records.js
+  // صفقات بقيت «قيد التنفيذ» (أُغلق التطبيق قبل تأكيدها): نسأل عن نتيجتها مرة عند فتح السوق،
+  // وإلا تبقى محسوبة في المركز والأرباح للأبد حتى لو فشلت وعاد المبلغ
+  var trRechecking = false;
+  async function trRecheck() {
+    if (trRechecking || !core.bridgeStatus) return; trRechecking = true;
+    try {
+      var stuck = trAll().filter(function (t) { return t.status === 'PENDING' && /^0x[0-9a-fA-F]{64}$/.test(t.id) && t.net && t.net !== 'tron' && Date.now() - t.time > 60000; }).slice(0, 5);
+      var changed = false;
+      for (var i = 0; i < stuck.length; i++) {
+        var t = stuck[i], st = await core.bridgeStatus(t.id, t.net, t.net).catch(function () { return null; });
+        var ns = st && st.status === 'DONE' ? 'SUCCESS' : st && (st.status === 'FAILED' || st.status === 'REFUNDED') ? 'FAILED' : null;
+        if (!ns) continue;
+        t.status = ns; trSave(t); changed = true;
+        var lr = lhAll().filter(function (x) { return x.id === t.id; })[0]; if (lr) { lr.status = ns; lhAdd(lr); }
+      }
+      if (changed) renderTrade();
+    } finally { trRechecking = false; }
+  }
   function trPortfolio() {
     var val = 0, un = 0, re = 0, any = false, n = 0, wait = false;
     trCoins().forEach(function (c) {
@@ -63,7 +81,7 @@
 
   // ===== شاشة السوق =====
   function loadTrade() {
-    renderTrade();
+    renderTrade(); trRecheck();
     trTickers().then(renderTrade);
     clearInterval(TR.timer);
     TR.timer = setInterval(function () {
