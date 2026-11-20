@@ -448,6 +448,8 @@
     var tb = $('toggle-bal'); tb.classList.toggle('off', v); tb.setAttribute('aria-pressed', v ? 'true' : 'false'); tb.setAttribute('aria-label', v ? 'إظهار الرصيد' : 'إخفاء الرصيد');
     try { localStorage.setItem('sarra.hide', v ? '1' : '0'); } catch (e) {}
     renderBalances();
+    // الشاشة المفتوحة تُعاد رسمها فوراً بالوضع الجديد (التداول، الزوج، السجل)، لا عند التحديث التالي
+    try { var cur = state.stack[state.stack.length - 1]; if (cur === 'trade') renderTrade(); else if (cur === 'pair') trRenderPos(); else if (cur === 'history') applyFilter(); } catch (e) {}
     $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };

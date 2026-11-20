@@ -268,6 +268,21 @@ async def main():
     assert await pg.locator('#txd-again').is_visible() and await pg.locator('#txd-share').is_visible()
     await pg.click('#txd-again'); await pg.wait_for_timeout(500)
     assert await pg.locator('#s-send').is_visible() and (await pg.input_value('#to')).startswith('0x'), await pg.input_value('#to'); print('✓ «إرسال مرة أخرى» يفتح الإرسال بنفس المستلم والشبكة والعملة')
+    # ===== وضع إخفاء الرصيد في كل الشاشات =====
+    import re as _re
+    leak=lambda t: _re.findall(r'(?:\$\s?\d[\d,]*\.\d+|\b\d[\d,]*\.?\d*\s?(?:USDT|USDC|BNB|TRX|ETH|POL|BTC)\b)', t)
+    for _ in range(3):
+      if await pg.locator('.tab[data-tab="home"]').is_visible(): break
+      await pg.locator('.screen.active [data-back]').first.click(); await pg.wait_for_timeout(400)
+    await pg.click('.tab[data-tab="home"]'); await pg.wait_for_timeout(600)
+    if await pg.get_attribute('#toggle-bal','aria-pressed')!='true': await pg.click('#toggle-bal'); await pg.wait_for_timeout(300)
+    hv=await pg.inner_text('.hero-card')+await pg.inner_text('#assets'); hl=[x for x in leak(hv) if not _re.match(r'^\$\s?(1\.00|600\.00|0\.25|2,?500\.00|0\.50|66,?000\.00|60,?000\.00)$',x)]
+    assert not hl, hl
+    await pg.click('.tab[data-tab="history"]'); await pg.wait_for_timeout(1200)
+    hh=await pg.inner_text('#history-full')+await pg.inner_text('#hist-sum'); assert not leak(hh), leak(hh)
+    await pg.click('#history-full button.tx'); await pg.wait_for_timeout(500); td=await pg.inner_text('#txd-amt')+await pg.inner_text('#txd-kv'); await pg.click('#txd-close')
+    assert not leak(td), leak(td)
+    print('✓ وضع الإخفاء: لا مبالغ في بطاقة الرصيد والعملات والسجل وملخصه ونافذة التفاصيل')
     assert not errs, errs
     await b.close()
 if __name__=="__main__": asyncio.run(main())

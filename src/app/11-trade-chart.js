@@ -173,8 +173,8 @@
     if (t.status === 'PENDING') d.appendChild(el('small', null, 'قيد التنفيذ…')).className = 'pend';
     if (t.status === 'FAILED') d.appendChild(el('small', 'color:var(--err)', 'لم تكتمل'));
     r.appendChild(d);
-    var e = el('div', 'flex:0 0 auto;align-items:flex-end'), am = el('span', null, (t.side === 'buy' ? '+' : '−') + niceNum(t.qty, 8) + ' ' + t.sym); am.className = 'am'; e.appendChild(am);
-    e.appendChild(el('small', 'direction:ltr', (t.side === 'buy' ? '−' : '+') + fUsd(Number(t.usdt)).replace('$', '') + ' USDT')); r.appendChild(e);
+    var e = el('div', 'flex:0 0 auto;align-items:flex-end'), am = el('span', null, state.hidden ? '•••• ' + t.sym : (t.side === 'buy' ? '+' : '−') + niceNum(t.qty, 8) + ' ' + t.sym); am.className = 'am'; e.appendChild(am);
+    e.appendChild(el('small', 'direction:ltr', state.hidden ? '•••• USDT' : (t.side === 'buy' ? '−' : '+') + fUsd(Number(t.usdt)).replace('$', '') + ' USDT')); r.appendChild(e);
     r.onclick = function () { openTrade(t); };
     return r;
   }
@@ -183,15 +183,15 @@
     var sd = $('td-side'); sd.textContent = buy ? 'شراء' : 'بيع'; sd.className = 'sd ' + (buy ? 'b' : 's');
     $('td-title').textContent = t.sym + '/USDT';
     var st = $('td-st'); st.textContent = t.status === 'SUCCESS' ? '✓ مكتملة' : t.status === 'FAILED' ? 'لم تكتمل' : 'قيد التنفيذ'; st.style.color = t.status === 'SUCCESS' ? 'var(--up)' : t.status === 'FAILED' ? 'var(--err)' : 'var(--warn)';
-    $('td-big-l').textContent = buy ? 'الكمية المشتراة' : 'الكمية المباعة'; $('td-qty').textContent = niceNum(t.qty, 8) + ' ' + t.sym;
+    $('td-big-l').textContent = buy ? 'الكمية المشتراة' : 'الكمية المباعة'; var Hd = function (x) { return state.hidden ? '••••' : x; }; $('td-qty').textContent = Hd(niceNum(t.qty, 8)) + ' ' + t.sym;
     var row = function (k, v, cls) { var d = el('div'); d.appendChild(el('dt', null, k)); var dd = el('dd', null, v); dd.className = 'ltr ' + (cls || ''); d.appendChild(dd); kv.appendChild(d); };
     row('سعر التنفيذ', fp(t.price) + ' USDT');
-    row(buy ? 'المبلغ المدفوع' : 'المبلغ المستلم', niceNum(t.usdt, 6) + ' USDT');
-    if (t.fee) row('عمولة صُرّة', niceNum(t.fee, 6) + ' ' + (t.feeCoin || (buy ? 'USDT' : t.sym)));
+    row(buy ? 'المبلغ المدفوع' : 'المبلغ المستلم', Hd(niceNum(t.usdt, 6)) + ' USDT');
+    if (t.fee) row('عمولة صُرّة', Hd(niceNum(t.fee, 6)) + ' ' + (t.feeCoin || (buy ? 'USDT' : t.sym)));
     row('الشبكة', netOf(t.net).name);
     row('الوقت', new Date(t.time).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
-    if (buy && p && t.status !== 'FAILED') { var u = (p - t.price) * Number(t.qty); row('السعر الآن', fp(p)); row('الربح/الخسارة منذ الشراء', fUsd(u, true) + ' (' + pctTxt((p / t.price - 1) * 100) + ')', plCls(u)); }
-    if (!buy && p && t.status !== 'FAILED') { var m = (t.price - p) * Number(t.qty); row('السعر الآن', fp(p)); row(m >= 0 ? 'وفّرت بالبيع' : 'فاتك منذ البيع', fUsd(Math.abs(m)), m >= 0 ? 'pl-up' : 'pl-dn'); }
+    if (buy && p && t.status !== 'FAILED') { var u = (p - t.price) * Number(t.qty); row('السعر الآن', fp(p)); row('الربح/الخسارة منذ الشراء', Hd(fUsd(u, true)) + ' (' + pctTxt((p / t.price - 1) * 100) + ')', plCls(u)); }
+    if (!buy && p && t.status !== 'FAILED') { var m = (t.price - p) * Number(t.qty); row('السعر الآن', fp(p)); row(m >= 0 ? 'وفّرت بالبيع' : 'فاتك منذ البيع', Hd(fUsd(Math.abs(m))), m >= 0 ? 'pl-up' : 'pl-dn'); }
     if (t.id && /^0x|^[0-9a-f]{64}$/i.test(t.id)) row('رقم المعاملة', t.id.slice(0, 10) + '…' + t.id.slice(-6));
     $('td-link').hidden = !t.url; $('td-link').onclick = function () { window.open(t.url, '_blank'); };
     $('td-pair').hidden = state.stack[state.stack.length - 1] === 'pair' && TR.sym === t.sym;
@@ -251,7 +251,7 @@
       b.onclick = function () { TR.net = k; TR.oq = null; odRender(); }; box.appendChild(b); });
     var pay = odPay(), v = balOn(pay, TR.net);
     $('od-in-l').textContent = TR.side === 'buy' ? 'تدفع (USDT)' : 'تبيع (' + c.sym + ')'; $('od-unit').textContent = pay;
-    $('od-avail').textContent = state.hidden ? '••••' : v == null ? '—' : niceNum(v, 8) + ' ' + pay;
+    $('od-avail').textContent = v == null ? '—' : niceNum(v, 8) + ' ' + pay; // شاشات التنفيذ تعرض المتاح دائماً (كالإرسال والتبديل): لا يُنفَّذ أمر دون معرفته
     $('od-q').hidden = !TR.oq; $('od-err').hidden = true;
     // لا يوجد ما تدفعه على هذه الشبكة: نشرح السبب ونقترح الحل بدل أن يبقى «0» بلا تفسير
     var hint = '', hgo = null;

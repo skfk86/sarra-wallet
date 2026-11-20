@@ -71,7 +71,7 @@
   function mcRender() {
     var d = MC.data, m = d && d.merchant;
     if (!m) return mcForm();
-    $('mc-credit').textContent = niceNum(m.credit, 2); $('mc-shop').textContent = m.name; mcSteps(m, d); mcAddrs(m);
+    $('mc-credit').textContent = state.hidden ? '••••' : niceNum(m.credit, 2); $('mc-shop').textContent = m.name; mcSteps(m, d); mcAddrs(m);
     $('mc-fee').textContent = 'العمولة ' + d.fee_pct + '% من كل فاتورة مدفوعة، وأقلها ' + d.fee_min + ' USDT. الفواتير التي لم تُدفع والتجريبية مجانية.';
     var sel = $('mc-top-net'); sel.textContent = '';
     (d.topup_networks || []).forEach(function (k) { var o = el('option', '', ({ tron: 'TRON', bsc: 'BNB Chain', polygon: 'Polygon', eth: 'Ethereum' })[k] || (d.networks && d.networks[k]) || k); o.value = k; sel.appendChild(o); });
@@ -89,7 +89,7 @@
     list.slice(0, 10).forEach(function (x) {
       var r = el('div', 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px');
       var a = el('div', 'display:flex;flex-direction:column;min-width:0;gap:2px');
-      a.appendChild(el('b', 'direction:ltr;text-align:right', niceNum(x.amount, 2) + ' ' + (x.currency || 'USDT')));
+      a.appendChild(el('b', 'direction:ltr;text-align:right', (state.hidden ? '••••' : niceNum(x.amount, 2)) + ' ' + (x.currency || 'USDT')));
       var when = x.paid_at || x.created_at;
       a.appendChild(el('span', 'font-size:12px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap', (x.order_id || x.id) + ' · ' + (x.network_name || x.network) + (when ? ' · ' + new Date(when).toLocaleString('ar', { dateStyle: 'short', timeStyle: 'short' }) : '')));
       r.appendChild(a);
