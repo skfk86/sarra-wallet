@@ -24,8 +24,16 @@ async function rpc(chain: string, method: string, params: unknown[]) {
   const c = CHAINS[chain]; let last: unknown;
   for (const u of c.rpcs) {
     try {
-      const r = await fetch(u, { method: 'POST', headers: { 'content-type': 'application/json', ...(c.headers || {}) }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(12000) });
-      const j = await r.json(); if (j.error) throw new Error(j.error.message || 'RPC'); return j.result;
+      const call = async (m: string, pr: unknown[]) => {
+        const r = await fetch(u, { method: 'POST', headers: { 'content-type': 'application/json', ...(c.headers || {}) }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: m, params: pr }), signal: AbortSignal.timeout(12000) });
+        const j = await r.json(); if (j.error) throw new Error(j.error.message || 'RPC'); return j.result;
+      };
+      // خادم متأخر عن نهاية النطاق يعيد سجلات ناقصة بلا خطأ، فتضيع إشعارات: نتخطاه إلى غيره
+      if (method === 'eth_getLogs') {
+        const to = parseInt(String((params[0] as { toBlock?: string })?.toBlock || '0'), 16);
+        if (to && parseInt(await call('eth_blockNumber', []), 16) < to) throw new Error('RPC_BEHIND');
+      }
+      return await call(method, params);
     } catch (e) { last = e; }
   }
   throw last;

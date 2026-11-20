@@ -282,7 +282,8 @@ function isFromSarra(signatureHeader, rawBody, secret) {
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(m[2]));
 }
 
-// مثال مع Express: خذ النص الخام للطلب، لا الكائن بعد تحليله
+// مثال مع Express: خذ النص الخام للطلب، لا الكائن بعد تحليله.
+// إن كان عندك app.use(express.json()) عام، ضع هذا المسار قبله، وإلا يصل الجسم محلَّلاً ويفشل التحقق
 app.post('/sarra-hook', express.raw({ type: 'application/json' }), (req, res) =&gt; {
   const raw = req.body.toString();
   const ok = isFromSarra(req.get('X-Sarra-Signature'), raw, process.env.SARRA_WEBHOOK_SECRET);
