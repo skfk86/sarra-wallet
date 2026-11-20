@@ -283,6 +283,8 @@ export function createApp(d: Deps) {
     await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', true).lt('expires_at', nowIso);
     await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').eq('kind', 'topup').lt('expires_at', cut);
     await db.from('pay_hook_log').delete().lt('at', new Date(d.now() - 30 * 86400000).toISOString());
+    // تنظيف سجلات حدود الطلبات والـ nonce القديمة: الصفحة العامة تضيف سجلاً مع كل تحديث، فلا ننتظر خادم P2P لينظّفها
+    if (new Date(d.now()).getUTCMinutes() % 10 === 0) await db.rpc('p2p_cleanup').then(() => {}, () => {});
     const hooks_sent = await deliverHooks();
     return { ok: true, pending: (pend || []).length, hooks_sent, test_deleted: await purgeTest(), report };
   }
