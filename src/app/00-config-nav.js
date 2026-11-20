@@ -4,6 +4,8 @@
     var raw = $(id).value.trim(); if (!raw) return '';
     try { return WalletCore.normAmount(raw); } catch (e) { if (err) err(WalletCore.errorText(e)); return null; }
   }
+  // قيمة رقمية للعرض فقط (تفعيل الأزرار، المعادل بالدولار) بنفس قواعد readAmt، فـ«1,000» لا تُعطّل الزر
+  function amtNum(id) { var raw = $(id).value.trim(); if (!raw) return 0; try { return Number(WalletCore.normAmount(raw)) || 0; } catch (e) { return 0; } }
   // ===== مهلة افتراضية لكل طلب شبكة (30 ثانية) =====
   // على إنترنت ضعيف قد يعلق الطلب بلا نهاية فيبقى مؤشر التحميل للأبد. الطلبات التي لها مهلتها الخاصة لا تتأثر
   (function () {

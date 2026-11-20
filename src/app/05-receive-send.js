@@ -106,7 +106,7 @@
       b.onclick = function () { $('to').value = a; $('send-err').hidden = true; }; box.appendChild(b); });
   }
   function updUsd() {
-    var c = COINS.filter(function (x) { return x.sym === state.coin; })[0], pr = c && priceOf(c), v = Number($('amt').value);
+    var c = COINS.filter(function (x) { return x.sym === state.coin; })[0], pr = c && priceOf(c), v = amtNum('amt');
     $('amt-usd').textContent = pr && pr.usd && v > 0 ? '≈ $' + fmt(v * pr.usd, 2) : '';
   }
   $('amt').addEventListener('input', updUsd);

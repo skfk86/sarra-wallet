@@ -368,7 +368,7 @@
     document.querySelectorAll('[data-unit]').forEach(function (b) { b.classList.toggle('on', b.dataset.unit === u); });
     $('buy-amt').hidden = u !== 'usdt'; $('buy-sdg').hidden = u !== 'sdg';
     $('buy-unit-l').textContent = u === 'usdt' ? 'USDT' : 'ج.س';
-    var o = state.p2p.offer, v = Number($('buy-amt').value) || 0;
+    var o = state.p2p.offer, v = amtNum('buy-amt');
     if (u === 'sdg' && o) $('buy-sdg').value = v ? String(Math.round(v * o.price_sdg * 100) / 100) : '';
     calcBuy();
   }

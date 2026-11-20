@@ -89,6 +89,7 @@ async def main():
     await pg.click('#od-nets [data-net=polygon]'); await pg.wait_for_timeout(200)
     h=await pg.inner_text('#od-hint'); assert 'رصيدك من USDT عليها 0' in h and await pg.locator('#od-hint-go').is_visible(), h; print('✓ لا USDT على الشبكة: يظهر السبب وزر نقل USDT إليها')
     await pg.click('#od-nets [data-net=bsc]'); await pg.wait_for_timeout(200); assert await pg.is_hidden('#od-hint')
+    await pg.fill('#od-amt','1,000'); assert not await pg.is_disabled('#od-go'); print('✓ «1,000» بالفاصلة لا تُعطّل زر عرض السعر')
     await pg.fill('#od-amt','100'); await pg.click('#od-go'); await pg.wait_for_timeout(300)
     assert 'غير كافٍ' in await pg.inner_text('#od-err'); print('✓ رفض مبلغ أكبر من الرصيد')
     await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(800)

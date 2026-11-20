@@ -203,7 +203,9 @@
     var A = analyze(kl, hk), s = A.score == null ? 0 : A.score;
     var lab = s >= 3 ? ['إيجابي', 'buy'] : s <= -3 ? ['سلبي', 'sell'] : ['محايد', ''];
     // الثقة: توافق المؤشرات مع الإطار الأعلى وقوة الاتجاه
-    var conf = Math.abs(s) >= 6 && A.agree !== false && (A.adx || 0) >= 20 ? 'عالية' : Math.abs(s) >= 3 && A.agree !== false ? 'متوسطة' : 'منخفضة';
+    // ونتيجة الاختبار التاريخي: قراءة صدقت أقل من 45% من المرات على هذه العملة لا تُوصف بثقة متوسطة أو عالية
+    var bs = s >= 3 ? A.bt.buy : s <= -3 ? A.bt.sell : null, bwr = bs && bs.n >= 5 ? bs.w / bs.n * 100 : null;
+    var conf = bwr != null && bwr < 45 ? 'منخفضة' : Math.abs(s) >= 6 && A.agree !== false && (A.adx || 0) >= 20 && (bwr == null || bwr >= 55) ? 'عالية' : Math.abs(s) >= 3 && A.agree !== false ? 'متوسطة' : 'منخفضة';
     var sg = $('pr-sig'); sg.textContent = lab[0]; sg.className = 'pr-sig ' + lab[1];
     $('pr-gauge-dot').style.left = ((s + 10) / 20 * 100).toFixed(1) + '%';
     $('pr-conf').textContent = 'الثقة: ' + conf + (A.agree === true ? ' · يتوافق مع الإطار الأعلى' : A.agree === false ? ' · يعاكس الإطار الأعلى ⚠️' : '');

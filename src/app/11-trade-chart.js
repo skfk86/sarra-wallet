@@ -141,6 +141,8 @@
       if (v.net) TR.net = v.net;
       odOpen('sell'); if (v.net && trNets(c).indexOf(v.net) >= 0) { TR.net = v.net; odRender(); }
       var have = balOn(c.sym, TR.net), q = Math.min(v.q, have == null ? v.q : have) * Number(b.dataset.qs) / 100;
+      // بيع عملة الشبكة نفسها (BNB/ETH/POL): نُبقي رسوم الشبكة وإلا فشلت المعاملة لنقص الوقود
+      if (have != null && c.sym === netOf(TR.net).native) q = Math.max(0, Math.min(q, have - REG.gasKeep(TR.net)));
       $('od-amt').value = String(Math.floor(q * 1e8) / 1e8); TR.oq = null; odRender();
     };
   });
@@ -243,7 +245,7 @@
     }
     $('od-hint').hidden = !hint; $('od-hint-t').textContent = hint;
     var hg = $('od-hint-go'); hg.hidden = !hgo; if (hgo) { var hf = hgo.f; hg.textContent = hgo.t; hg.onclick = function () { $('od-sheet').classList.remove('show'); BR.from = hf; BR.to = TR.net; BR.coin = 'USDT'; show('bridge'); }; }
-    var go = $('od-go'); go.classList.toggle('sell', TR.side === 'sell'); go.disabled = !(Number($('od-amt').value) > 0);
+    var go = $('od-go'); go.classList.toggle('sell', TR.side === 'sell'); go.disabled = !(amtNum('od-amt') > 0);
     go.textContent = TR.oq ? (TR.side === 'buy' ? 'تأكيد شراء ' : 'تأكيد بيع ') + c.sym : 'عرض السعر';
   }
   function odErr(m) { var e = $('od-err'); e.textContent = m; e.hidden = !m; }
@@ -267,6 +269,7 @@
     var c = trCoin(TR.sym), pay = odPay(), amt = readAmt('od-amt', odErr), v = balOn(pay, TR.net); if (amt === null) return;
     if (!(Number(amt) > 0)) return odErr('أدخل المبلغ');
     if (v != null && Number(amt) > v) return odErr('الرصيد غير كافٍ على ' + netOf(TR.net).name);
+    if (v != null && pay === netOf(TR.net).native && Number(amt) > v - REG.gasKeep(TR.net)) return odErr('اترك قليلاً من ' + pay + ' لرسوم الشبكة: الحد الأقصى ' + niceNum(Math.max(0, v - REG.gasKeep(TR.net)), 6) + ' ' + pay);
     var usdIn = TR.side === 'buy' ? Number(amt) : (trPrice(c.sym) || 0) * Number(amt);
     if (usdIn && usdIn < 1) return odErr('أقل صفقة 1 دولار: المبالغ الأصغر ترفضها خدمات التبديل لأن رسوم الشبكة تقارب المبلغ نفسه');
     var n = netOf(TR.net);
