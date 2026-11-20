@@ -85,7 +85,7 @@ jobs:
             supabase secrets set --env-file /tmp/fcm.env --project-ref osdojhpsfbcqguoctbpk --yes; rm -f /tmp/fcm.env; echo "✓ FCM_SERVICE_ACCOUNT أُضيف لدوال Supabase"
           else echo "::warning::السر FCM_SERVICE_ACCOUNT غير موجود في GitHub، أضفه من لوحة Supabase يدوياً"; fi
           for f in push-watch p2p support; do supabase functions deploy $f --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes; done
-          for m in 018_push 019_vault; do
+          for m in 018_push 019_vault 024_p2p_reserve_lock; do
             # سجل الترحيلات: كل ترحيل يُطبَّق مرة واحدة فقط (إعادة تشغيل ترحيل قديم قد تعيد تعريفات قديمة أو تفشل)
             q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
               curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
