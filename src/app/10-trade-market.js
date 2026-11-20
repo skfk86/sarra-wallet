@@ -201,7 +201,7 @@
     var kl = TR.kl, sym = TR.sym, tf = TR.tf; if (!kl || kl.length < 80) { $('pr-ana').hidden = true; return; } $('pr-ana').hidden = false;
     var hk = await loadHigherTf(); if (TR.sym !== sym || TR.tf !== tf || TR.kl !== kl) return;
     var A = analyze(kl, hk), s = A.score == null ? 0 : A.score;
-    var lab = s >= 3 ? ['شراء', 'buy'] : s <= -3 ? ['بيع', 'sell'] : ['محايد', ''];
+    var lab = s >= 3 ? ['إيجابي', 'buy'] : s <= -3 ? ['سلبي', 'sell'] : ['محايد', ''];
     // الثقة: توافق المؤشرات مع الإطار الأعلى وقوة الاتجاه
     var conf = Math.abs(s) >= 6 && A.agree !== false && (A.adx || 0) >= 20 ? 'عالية' : Math.abs(s) >= 3 && A.agree !== false ? 'متوسطة' : 'منخفضة';
     var sg = $('pr-sig'); sg.textContent = lab[0]; sg.className = 'pr-sig ' + lab[1];
@@ -211,10 +211,10 @@
     var side = s >= 3 ? A.bt.buy : s <= -3 ? A.bt.sell : null, btEl = $('pr-bt');
     if (side && side.n >= 5) {
       var wr = side.w / side.n * 100, avg = side.ret / side.n * 100;
-      btEl.textContent = '📊 على ' + sym + ' بهذا الإطار، صدقت إشارات ' + (s > 0 ? 'الشراء' : 'البيع') + ' المماثلة ' + wr.toFixed(0) + '% من المرات (' + side.w + ' من ' + side.n + ') بعد ' + A.bt.H + ' شموع، بمتوسط ' + (avg >= 0 ? '+' : '') + avg.toFixed(2) + '% بعد الرسوم.';
+      btEl.textContent = '📊 على ' + sym + ' بهذا الإطار، صدقت القراءات ' + (s > 0 ? 'الإيجابية' : 'السلبية') + ' المماثلة ' + wr.toFixed(0) + '% من المرات (' + side.w + ' من ' + side.n + ') بعد ' + A.bt.H + ' شموع، بمتوسط ' + (avg >= 0 ? '+' : '') + avg.toFixed(2) + '% بعد الرسوم.';
       btEl.className = 'pr-bt ' + (wr >= 55 ? 'up' : wr < 45 ? 'dn' : '');
     } else if (side) { btEl.textContent = '📊 إشارات قليلة مماثلة في الماضي القريب، فلا يمكن قياس دقتها بعد.'; btEl.className = 'pr-bt'; }
-    else { var tb = A.bt.buy, ts = A.bt.sell; btEl.textContent = '📊 لا إشارة واضحة الآن. تاريخياً على هذا الإطار: الشراء صدق ' + (tb.n ? (tb.w / tb.n * 100).toFixed(0) + '%' : '—') + ' والبيع ' + (ts.n ? (ts.w / ts.n * 100).toFixed(0) + '%' : '—') + ' من المرات.'; btEl.className = 'pr-bt'; }
+    else { var tb = A.bt.buy, ts = A.bt.sell; btEl.textContent = '📊 لا قراءة واضحة الآن. تاريخياً على هذا الإطار: القراءة الإيجابية صدقت ' + (tb.n ? (tb.w / tb.n * 100).toFixed(0) + '%' : '—') + ' والسلبية ' + (ts.n ? (ts.w / ts.n * 100).toFixed(0) + '%' : '—') + ' من المرات.'; btEl.className = 'pr-bt'; }
     var box = $('pr-ind'); box.textContent = '';
     var add = function (t, v, cls, sub) { var d = el('div'); d.appendChild(el('span', null, t)); var b = el('b', null, v); if (cls) b.className = cls; d.appendChild(b); if (sub) d.appendChild(el('small', 'font-size:11px;color:var(--mu);direction:ltr;text-align:right', sub)); box.appendChild(d); };
     add('الاتجاه', A.trend, A.trend === 'صاعد' ? 'up' : A.trend === 'هابط' ? 'dn' : '');
@@ -229,6 +229,6 @@
     add('أقرب مقاومة', fp(A.res), 'dn', '+' + ((A.res - A.p) / A.p * 100).toFixed(1) + '% من السعر');
     // مستويات مقترحة للمعلومة: وقف خسارة تحت الدعم بمسافة ATR، والهدف عند المقاومة
     var stop = Math.min(A.sup, A.p) - A.atrPct / 100 * A.p, rr = (A.res - A.p) / Math.max(A.p - stop, 1e-12);
-    add('وقف خسارة مقترح', fp(stop), 'dn', '−' + ((A.p - stop) / A.p * 100).toFixed(1) + '% من السعر');
+    add('مستوى وقف محسوب (ATR)', fp(stop), 'dn', '−' + ((A.p - stop) / A.p * 100).toFixed(1) + '% من السعر');
     add('العائد/المخاطرة', rr > 0 ? '1 : ' + rr.toFixed(1) + (rr >= 2 ? ' · جيد' : rr < 1 ? ' · ضعيف' : '') : '—', rr >= 2 ? 'up' : rr < 1 ? 'dn' : '');
   }

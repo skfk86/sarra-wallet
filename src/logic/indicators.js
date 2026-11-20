@@ -84,15 +84,17 @@
     return { buy: b, sell: s, H: H };
   }
   function analyze(kl, hkl) {
-    var I = indicators(kl), L = kl.length - 1, p = I.c[L], sc = scoreAt(I, L);
-    var atr = 0, n = Math.min(14, L); for (var i = L - n + 1; i <= L; i++) atr += Math.max(kl[i].h - kl[i].l, Math.abs(kl[i].h - kl[i - 1].c), Math.abs(kl[i].l - kl[i - 1].c)); atr /= n;
+    // آخر شمعة من Binance ما زالت مفتوحة (حجمها ناقص وإغلاقها يتغير كل ثانية)، فالإشارة والمؤشرات تُحسب على آخر شمعة مغلقة،
+    // والسعر الحالي يبقى من الشمعة المفتوحة. وإلا تتقلب الإشارة باستمرار ويبدو الحجم «ضعيفاً» دائماً في بداية كل شمعة
+    var I = indicators(kl), N = kl.length - 1, L = N > 60 ? N - 1 : N, p = I.c[N], sc = scoreAt(I, L);
+    var atr = 0, n = Math.min(14, N); for (var i = N - n + 1; i <= N; i++) atr += Math.max(kl[i].h - kl[i].l, Math.abs(kl[i].h - kl[i - 1].c), Math.abs(kl[i].l - kl[i - 1].c)); atr /= n;
     var hs = null; // اتجاه الإطار الأعلى يؤكد أو يعاكس
-    if (hkl && hkl.length > 60) { var HI = indicators(hkl), HL = hkl.length - 1; hs = scoreAt(HI, HL); }
+    if (hkl && hkl.length > 61) { var HI = indicators(hkl), HL = hkl.length - 2; hs = scoreAt(HI, HL); }
     var total = sc == null ? null : Math.max(-10, Math.min(10, sc + (hs == null ? 0 : hs > 2 ? 1.5 : hs < -2 ? -1.5 : 0)));
-    var lv = levels(kl, p), bt = backtest(I, 10, 4);
+    var lv = levels(kl, p), bt = backtest(I, 10, 3); // نفس عتبة الإشارة المعروضة (3)، وإلا تُقاس دقة قاعدة غير التي نعرضها
     var agree = hs == null ? null : (total > 0) === (hs > 0);
     return { p: p, I: I, L: L, score: total, raw: sc, hs: hs, agree: agree, rsi: I.r[L], adx: I.adx[L], hist: I.hist[L], atrPct: atr / p * 100, sup: lv.sup, res: lv.res, bt: bt,
-      bb: I.sd[L] ? (p - (I.s20[L] - 2 * I.sd[L])) / (4 * I.sd[L]) : null, vol: I.v20[L] ? I.v[L] / I.v20[L] : null,
+      bb: I.sd[L] ? (I.c[L] - (I.s20[L] - 2 * I.sd[L])) / (4 * I.sd[L]) : null, vol: I.v20[L] ? I.v[L] / I.v20[L] : null,
       trend: I.e50[L] == null ? 'جانبي' : (I.adx[L] || 0) < 20 ? 'جانبي (بلا اتجاه واضح)' : I.e20[L] > I.e50[L] ? 'صاعد' : 'هابط' };
   }
   var api = { sma: sma, ema: ema, rsi: rsi, levels: levels, rsiSeries: rsiSeries, adxSeries: adxSeries, indicators: indicators, scoreAt: scoreAt, backtest: backtest, analyze: analyze };

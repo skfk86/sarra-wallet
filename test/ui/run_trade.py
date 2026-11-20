@@ -64,7 +64,7 @@ async def main():
     assert px[0]>200 and px[1]>200, px; print('✓ رُسمت شموع صاعدة وهابطة', px)
     o=await pg.inner_text('#pr-ohlc'); assert 'O' in o and 'C' in o; print('✓ قراءة OHLC')
     await pg.wait_for_timeout(500)
-    assert await pg.is_hidden('#pr-ind') and (await pg.inner_text('#pr-sig')) in ('شراء','بيع','محايد'); print('✓ الإشارة مختصرة: شراء/بيع/محايد، والتفاصيل مخفية')
+    assert await pg.is_hidden('#pr-ind') and (await pg.inner_text('#pr-sig')) in ('إيجابي','سلبي','محايد'); print('✓ الإشارة مختصرة: شراء/بيع/محايد، والتفاصيل مخفية')
     await pg.click('#pr-more-btn')
     sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); bt=await pg.inner_text('#pr-bt'); cf=await pg.inner_text('#pr-conf')
     assert sig!='—' and 'RSI' in ind and 'ADX' in ind and 'وقف خسارة' in ind and 'الإطار الأعلى' in ind and '📊' in bt and 'الثقة' in cf, (sig,ind,bt,cf); print('✓ التحليل:', sig, '·', cf); print('  ', bt)
