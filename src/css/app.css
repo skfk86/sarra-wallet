@@ -790,5 +790,8 @@ body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body
 @keyframes m-pop{from{transform:scale(.3) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.mascot *,.m-say{animation:none!important}.mascot .m-fly,.mascot .m-drop,.mascot .m-conf{display:none}}
 .okring.has-m{background:none!important;border:0!important;width:auto;height:auto}
-.hempty .mascot-w{margin-bottom:4px}
+.hempty>span.mascot-w{width:auto;height:auto;border-radius:0;background:none;margin:0 0 6px;padding:14px 22px 6px;isolation:isolate}
+.hempty>span.mascot-w::before{content:"";position:absolute;z-index:-1;left:50%;top:54%;width:132px;height:132px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(47,213,245,.22) 0%,rgba(28,116,242,.12) 45%,transparent 70%)}
+.hempty:has(.mascot-w){border:0;background:linear-gradient(180deg,var(--s1),transparent 85%);padding:22px 20px 30px;gap:4px}
+.hempty:has(.mascot-w) b{font-size:16px;margin-top:2px}.hempty:has(.mascot-w) small{max-width:250px;line-height:1.6}
 .ord-win .mascot-w{margin:-6px 0 2px}
