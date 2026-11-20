@@ -1,9 +1,19 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+  X-Permitted-Cross-Domain-Policies: none
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.sarrapay.com https://osdojhpsfbcqguoctbpk.supabase.co https://api.github.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.sarrapay.com https://osdojhpsfbcqguoctbpk.supabase.co https://api.github.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
 /openapi.json
   Access-Control-Allow-Origin: *
+# صفحة الدفع: لا سكربت مضمّن إطلاقاً (هجوم XSS هنا قد يبدّل عنوان الدفع أمام العميل). تُطبَّق مع السياسة العامة، والأشد هو النافذ
+/pay.html
+  Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'none'
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+/inv_*
+  Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'none'

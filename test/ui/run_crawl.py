@@ -18,6 +18,7 @@ async def main():
   async with async_playwright() as pw:
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':int(__import__('os').environ.get('VW','360')),'height':int(__import__('os').environ.get('VH','740'))}); E.PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
+    csp=[]; pg.on('console',lambda m: csp.append(m.text) if 'Content Security Policy' in m.text and 'script' in m.text.lower() else None)
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
     await pg.route('https://api.coingecko.com/**', lambda r: r.fulfill(status=429, json={}))
     await pg.route('https://li.quest/**', lambda r: r.fulfill(status=404, json={}))
@@ -98,5 +99,6 @@ async def main():
     assert not problems, len(problems)
     assert not errs, errs
     print('✓ الزاحف: كل الشاشات والنوافذ (مفتوحة ومقفلة) بلا رموز خام أو undefined/NaN أو تجاوز للشاشة أو أخطاء JavaScript')
+    assert not csp, csp; print('✓ لا سكربت مضمّن يُرفض: سياسة المحتوى تمنع أي سكربت داخل الصفحة (حماية من XSS)')
     await b.close()
 asyncio.run(main())

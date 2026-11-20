@@ -3,20 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest https://api.github.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest https://api.github.com">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
-<script>
-// يُطبَّق قبل الرسم حتى لا تومض الشاشة باللون الخطأ
-(function () {
-  var pref = 'auto'; try { pref = localStorage.getItem('sarra.theme') || 'auto'; } catch (e) {}
-  var dark = pref === 'dark' || (pref === 'auto' && !(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches));
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-})();
-</script>
+<script src="boot-theme.js"></script>
 <!-- الخط لا يوقف فتح التطبيق: إن كان الإنترنت بطيئاً أو محجوباً يظهر التطبيق فوراً بخط الجهاز -->
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" media="print" id="font-css">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -1247,20 +1240,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script>
-// إظهار أي خطأ على الشاشة بدل شاشة سوداء
-function showFatal(e) {
-  var box = document.getElementById('fatal');
-  if (!box) {
-    box = document.createElement('div'); box.id = 'fatal';
-    box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:100;background:#2A1416;border:1px solid #5A262B;color:#FFB3B8;border-radius:14px;padding:12px;font:12px/1.6 monospace;direction:ltr;white-space:pre-wrap;max-height:40vh;overflow:auto';
-    (document.body || document.documentElement).appendChild(box);
-  }
-  box.textContent += (e && (e.stack || e.message) || String(e)) + '\n';
-}
-window.addEventListener('error', function (ev) { showFatal(ev.error || ev.message); });
-window.addEventListener('unhandledrejection', function (ev) { showFatal(ev.reason); });
-</script>
+<script src="boot-fatal.js"></script>
 <script src="config.js"></script>
 <script src="vendor/tronweb.js"></script>
 <script src="vendor/qrcode.js"></script>
