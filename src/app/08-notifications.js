@@ -175,7 +175,7 @@
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);
     var more = $('rx-more'); more.hidden = !RX.q.length; more.textContent = RX.q.length ? 'و ' + RX.q.length + ' تحويلات أخرى بعد هذه' : '';
     $('rx-detail').textContent = 'عرض على ' + explorerName(n.url);
-    var rr = document.querySelector('#rx-sheet .rxring'); if (rr) { rr.classList.add('has-m'); putMascot(rr, 'receive', 110); }
+    var rr = document.querySelector('#rx-sheet .rxring'); if (rr) { rr.classList.add('has-m'); putMascot(rr, 'receive', 112, 'جاتك قروش!'); }
     $('rx-sheet').classList.add('show');
     state.balances = null; state.historyCache = null; RX.evmBase = null;
     if (state.stack[state.stack.length - 1] === 'home') loadHome(true);
