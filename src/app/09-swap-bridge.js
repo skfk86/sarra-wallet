@@ -41,7 +41,7 @@
   };
   $('es-quote-btn').onclick = async function () {
     esReset();
-    var n = netOf(ES.net), amt = $('es-amt').value.trim().replace(',', '.');
+    var n = netOf(ES.net), amt = readAmt('es-amt', esErr); if (amt === null) return;
     if (!(Number(amt) > 0)) return esErr('أدخل المبلغ');
     var bal = balOn(ES.from, ES.net); if (bal != null && Number(amt) > bal) return esErr('الرصيد غير كافٍ');
     var nat = evmUnits(ES.net, n.native); if (nat != null && nat === 0n) { esErr('تحتاج ' + n.native + ' لدفع رسوم الشبكة'); return openGasHelp(ES.net); }
@@ -239,7 +239,7 @@
   $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null && BR.coin === netOf(BR.from).native) b = Math.max(0, b - REG.gasKeep(BR.from)); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
   $('br-quote-btn').onclick = async function () {
     brReset();
-    var amt = $('br-amt').value.trim().replace(',', '.');
+    var amt = readAmt('br-amt', brErr); if (amt === null) return;
     if (!(Number(amt) > 0)) return brErr('أدخل المبلغ');
     var bal = balOn(BR.coin, BR.from); if (bal != null && Number(amt) > bal) return brErr('الرصيد غير كافٍ على هذه الشبكة');
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';

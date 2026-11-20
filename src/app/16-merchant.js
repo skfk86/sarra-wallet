@@ -172,7 +172,7 @@
   $('mc-secret-copy').onclick = function () { copyText(MC.data.merchant.webhook_secret); };
   $('mc-docs').onclick = function () { window.open(PAY_DOCS, '_blank'); };
   $('mc-top').onclick = mcDo($('mc-top'), async function () {
-    var amt = $('mc-top-amt').value.trim().replace(',', '.');
+    var amt = readAmt('mc-top-amt'); if (amt === null) throw new Error('INVALID_AMOUNT');
     if (!/^\d{1,7}(\.\d{1,2})?$/.test(amt)) throw new Error('BAD_AMOUNT');
     var r = await payApi('pay.topup', { amount: amt, network: $('mc-top-net').value });
     $('mc-top-amt').value = '';

@@ -264,7 +264,7 @@
   $('od-go').onclick = async function () {
     if (state.txBusy) return;
     if (TR.oq && Date.now() - TR.oq.at < 60000) return odConfirm();
-    var c = trCoin(TR.sym), pay = odPay(), amt = $('od-amt').value.trim().replace(',', '.'), v = balOn(pay, TR.net);
+    var c = trCoin(TR.sym), pay = odPay(), amt = readAmt('od-amt', odErr), v = balOn(pay, TR.net); if (amt === null) return;
     if (!(Number(amt) > 0)) return odErr('أدخل المبلغ');
     if (v != null && Number(amt) > v) return odErr('الرصيد غير كافٍ على ' + netOf(TR.net).name);
     var usdIn = TR.side === 'buy' ? Number(amt) : (trPrice(c.sym) || 0) * Number(amt);

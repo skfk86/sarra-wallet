@@ -1219,6 +1219,7 @@
     evmFees: evmFees,
     toUnits: toUnits,
     toUnitsFloor: toUnitsFloor,
+    normAmount: normAmount,
     fromUnits: fromUnits,
     formatAmount: formatAmount,
     encryptSecret: encryptSecret,
