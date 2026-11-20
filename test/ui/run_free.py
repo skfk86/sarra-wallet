@@ -55,7 +55,7 @@ async def main():
     assert calls['ver']>=2 and calls['edge'].count('order.get')-g0<=1, (calls['ver'], calls['edge']); print('✓ شاشة الطلب تفحص النسخة فقط بدون جلب الطلب كل 6 ثوانٍ (%d فحص)' % calls['ver'])
     VER['s']='paid'; VER['v']=2; ORDER['status']='paid'; g1=calls['edge'].count('order.get')
     await pg.wait_for_timeout(7000)
-    assert calls['edge'].count('order.get')>g1 and 'أكّد الدفع' in await pg.inner_text('#ord-status'); print('✓ عند تغيّر الطلب يُجلب كاملاً فوراً')
+    assert calls['edge'].count('order.get')>g1 and ('بانتظار تحرير البائع' in await pg.inner_text('#ord-status') or 'أكّد الدفع' in await pg.inner_text('#ord-status')); print('✓ عند تغيّر الطلب يُجلب كاملاً فوراً')
     await pg.reload(); await pg.wait_for_timeout(1500)
     for c in '123456': await pg.click(f'#keypad button:text-is("{c}")')
     await pg.wait_for_timeout(3000); m0=calls['edge'].count('me')

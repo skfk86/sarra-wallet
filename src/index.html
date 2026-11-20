@@ -589,23 +589,33 @@
 </section>
 
 <!-- ===== P2P: الطلب ===== -->
-<section class="screen" id="s-order" aria-label="الطلب">
-  <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-    <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div>
-    <button type="button" class="icon-btn chat-btn" id="ord-chat-open" aria-label="المحادثة"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><i class="dot" id="ord-unread" hidden></i></button></div>
-  <div class="steps3" id="ord-steps" aria-hidden="true"><span>1 الضمان</span><span>2 الدفع</span><span>3 الاستلام</span></div>
-  <div class="ord-hero" id="ord-hero" role="status"><div class="oh-i" id="ord-hero-i" aria-hidden="true"></div><div class="oh-t"><b id="ord-status"></b><span id="ord-hero-d"></span></div></div>
-  <div class="card ord-win" id="ord-win" hidden><span class="muted" style="font-size:13px">وصلت إلى محفظتك</span><b class="w-amt" id="ord-win-amt"></b><span class="muted" style="font-size:12px" id="ord-win-s"></span><button type="button" class="btn btn-primary" id="ord-win-go" style="width:100%;margin-top:6px">عرض المحفظة</button></div>
-  <div class="card" id="ord-timer" hidden style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px"><span class="muted" style="font-size:13px" id="ord-timer-lbl">الوقت المتبقي للدفع</span><b class="ltr" id="ord-timer-val" style="font-size:22px;font-variant-numeric:tabular-nums">--:--</b></div>
-  <dl class="kv card" style="padding:4px 16px" id="ord-kv"></dl>
-  <div class="card" id="ord-bank" hidden style="display:flex;flex-direction:column;gap:8px">
-    <span class="row" style="gap:8px;font-weight:700"><svg class="i" viewBox="0 0 24 24" style="color:var(--ac)"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/></svg>حوّل إلى هذا الحساب في بنكك فقط</span>
-    <div class="row between"><span>المبلغ</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bamt"></b><button type="button" class="chip" id="ord-copy-amt" style="height:32px;gap:5px"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>نسخ</button></span></div>
-    <div class="row between"><span>الاسم</span><span class="row" style="gap:6px"><b id="ord-bname"></b><span class="vbadge">موثّق</span></span></div>
-    <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px;gap:5px"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>نسخ</button></span></div>
+<section class="screen bn-order" id="s-order" aria-label="الطلب">
+  <div class="bn-top"><button class="icon-btn flat" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    <div class="grow" style="display:flex;flex-direction:column;min-width:0"><h1 id="ord-title">طلب</h1><span class="muted" id="ord-sub"></span></div>
+    <button type="button" class="icon-btn flat chat-btn" id="ord-chat-open" aria-label="المحادثة"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><i class="dot" id="ord-unread" hidden></i></button></div>
+  <div class="bn-status ord-hero" id="ord-hero" role="status">
+    <div class="bn-st-row"><div class="bn-st-txt"><b id="ord-status"></b><div class="bn-timer" id="ord-timer" hidden><span id="ord-timer-lbl">الوقت المتبقي للدفع</span><b class="ltr" id="ord-timer-val">--:--</b></div></div><div class="oh-i" id="ord-hero-i" aria-hidden="true"></div></div>
+    <p id="ord-hero-d"></p>
   </div>
-  <div style="display:flex;flex-direction:column;gap:10px" id="ord-actions"></div>
-  <button type="button" class="chat-card" id="ord-chat-card"><span class="cc-av" id="ord-cc-av">؟</span><span class="cc-t"><b id="ord-cc-name">المحادثة</b><small id="ord-cc-last">لا رسائل بعد</small></span><span class="cc-n" id="ord-cc-n" hidden></span><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m9 18 6-6-6-6"/></svg></button>
+  <div class="steps3" id="ord-steps" aria-hidden="true"><span>1 الضمان</span><span>2 الدفع</span><span>3 الاستلام</span></div>
+  <div class="card ord-win" id="ord-win" hidden><span class="muted" style="font-size:13px">وصلت إلى محفظتك</span><b class="w-amt" id="ord-win-amt"></b><span class="muted" style="font-size:12px" id="ord-win-s"></span><button type="button" class="btn btn-primary" id="ord-win-go" style="width:100%;margin-top:6px">عرض المحفظة</button></div>
+  <button type="button" class="bn-party" id="ord-chat-card"><span class="cc-av" id="ord-cc-av">؟</span><span class="cc-t"><b id="ord-cc-name">المحادثة</b><small id="ord-cc-last">لا رسائل بعد</small></span><span class="cc-n" id="ord-cc-n" hidden></span><span class="bn-chat-pill"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>محادثة</span></button>
+  <div class="bn-sec"><h3>معلومات الطلب</h3><div class="bn-amt"><span>المبلغ الإجمالي</span><b class="ltr" id="ord-big"></b></div><dl class="kv bn-kv" id="ord-kv"></dl></div>
+  <div class="bn-sec" id="ord-bank" hidden>
+    <h3>طريقة الدفع</h3>
+    <div class="bn-pm"><span class="bn-pm-bar"></span><b>بنكك</b><span class="muted" style="font-size:12px">تحويل من تطبيق بنكك فقط</span></div>
+    <ol class="bn-steps">
+      <li><span>حوّل المبلغ الظاهر بالضبط إلى هذا الحساب</span>
+        <div class="bn-row"><span>المبلغ</span><span class="bn-v"><b class="ltr" id="ord-bamt"></b><button type="button" class="bn-copy" id="ord-copy-amt" aria-label="نسخ المبلغ"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button></span></div>
+        <div class="bn-row"><span>اسم الحساب</span><span class="bn-v"><b id="ord-bname"></b><span class="vbadge">موثّق</span></span></div>
+        <div class="bn-row"><span>رقم الحساب</span><span class="bn-v"><b class="ltr" id="ord-bacct"></b><button type="button" class="bn-copy" id="ord-copy" aria-label="نسخ رقم الحساب"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button></span></div>
+      </li>
+      <li><span>ارفع صورة إيصال التحويل من بنكك</span></li>
+      <li><span>اضغط «حوّلت المبلغ» لإبلاغ البائع</span></li>
+    </ol>
+    <div class="bn-warn"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 2 21h20z"/><path d="M12 10v4M12 17.5v.5"/></svg><span>لا تكتب في ملاحظة التحويل كلمات مثل USDT أو عملات رقمية. ولا تحوّل من حساب باسم شخص آخر.</span></div>
+  </div>
+  <div class="bn-bar" id="ord-actions"></div>
 </section>
 
 <section class="screen chat-screen" id="s-order-chat" aria-label="المحادثة">

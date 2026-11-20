@@ -543,3 +543,51 @@ i.skeleton{display:block;font-style:normal}
 .bub.sys{flex-direction:row;align-items:center;justify-content:center;gap:6px}
 .bub.sys .oic{color:var(--ac)}
 #ord-chat-card>.i{color:var(--mu)}
+
+/* ===== شاشة الطلب بتخطيط منصات P2P الكبرى: حالة كبيرة + أقسام مسطحة + شريط إجراءات ثابت ===== */
+.bn-order.active{gap:0;padding-bottom:0}
+.bn-order>*{margin-bottom:12px}
+.bn-top{display:flex;align-items:center;gap:8px}
+.bn-top h1{font-size:17px;margin:0}.bn-top .muted{font-size:12px}
+.bn-status{display:flex;flex-direction:column;gap:6px;padding:4px 2px 2px;border:0;background:none}
+.bn-st-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bn-st-txt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bn-status #ord-status{font-size:22px;font-weight:800;line-height:1.35}
+.bn-timer{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu)}
+.bn-timer b{font-size:15px;font-variant-numeric:tabular-nums;padding:2px 8px;border-radius:6px;background:var(--warn-bg);color:var(--warn)}
+.bn-status p{margin:0;font-size:13px;line-height:1.8;color:var(--tx2)}
+.bn-status .oh-i{flex:0 0 52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--s2);color:var(--mu)}
+.bn-status .oh-i .i{width:26px;height:26px;stroke-width:1.8}
+.bn-status.ok .oh-i{background:var(--ok-bg);color:var(--ac);border:0}
+.bn-status.warn .oh-i{background:var(--warn-bg);color:var(--warn);border:0}
+.bn-status.err .oh-i{background:var(--err-bg);color:var(--err);border:0}
+.bn-status.ok,.bn-status.warn,.bn-status.err{background:none;border:0}
+.bn-party{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:0;border-radius:14px;background:var(--s1);box-shadow:var(--shadow);color:inherit;font:inherit;cursor:pointer;text-align:start}
+.bn-chat-pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:17px;background:var(--ok-bg);color:var(--ac);font-size:13px;font-weight:700;flex:0 0 auto}
+.bn-chat-pill .i{width:16px;height:16px}
+.bn-sec{background:var(--s1);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.bn-sec h3{margin:0 0 2px;font-size:15px}
+.bn-amt{display:flex;align-items:baseline;justify-content:space-between;padding:4px 0 8px;border-bottom:1px solid var(--div)}
+.bn-amt span{font-size:13px;color:var(--mu)}
+.bn-amt b{font-size:24px;font-weight:800;color:var(--ac)}
+.bn-kv{padding:0;margin:0}
+.bn-kv .row,.bn-kv>div{border:0!important}
+.bn-pm{display:flex;align-items:center;gap:8px}
+.bn-pm-bar{width:4px;height:16px;border-radius:2px;background:var(--ac)}
+.bn-steps{margin:4px 0 0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:12px}
+.bn-steps>li{counter-increment:s;position:relative;padding-inline-start:32px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.bn-steps>li::before{content:counter(s);position:absolute;inset-inline-start:0;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--s2);color:var(--tx2)}
+.bn-steps>li:not(:last-child)::after{content:"";position:absolute;inset-inline-start:10.5px;top:26px;bottom:-10px;width:1px;background:var(--line)}
+.bn-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:10px;background:var(--s2)}
+.bn-row>span:first-child{font-size:13px;color:var(--mu)}
+.bn-v{display:flex;align-items:center;gap:8px;min-width:0}
+.bn-v b{font-size:15px}
+.bn-copy{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--ac);display:grid;place-items:center;cursor:pointer}
+.bn-copy .i{width:17px;height:17px}
+.bn-warn{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.7;color:var(--warn);background:var(--warn-bg);border-radius:10px;padding:8px 10px}
+.bn-warn .i{flex:0 0 16px;width:16px;height:16px;margin-top:2px}
+.bn-bar{position:sticky;bottom:0;z-index:5;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--s1);border-top:1px solid var(--line)}
+.bn-bar:empty{display:none}
+.bn-bar .btn{width:100%;height:48px;font-size:14px;padding:0 8px}
+.bn-bar .btn-primary{grid-column:1/-1;order:9}
+.bn-bar .btn-ghost:only-child,.bn-bar .btn-ghost:last-child:nth-child(odd){grid-column:1/-1}

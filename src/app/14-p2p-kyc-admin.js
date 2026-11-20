@@ -279,20 +279,23 @@
     $('ord-title').textContent = (role === 'buyer' ? 'شراء ' : role === 'seller' ? 'بيع ' : 'نزاع ') + fmt(o.amount_usdt) + ' USDT';
     var other = role === 'buyer' ? o.seller_profile : o.buyer_profile;
     $('ord-sub').textContent = role === 'admin' ? (o.buyer_profile || {}).nickname + ' ← ' + (o.seller_profile || {}).nickname : 'مع ' + ((other || {}).nickname || '—');
-    $('ord-status').textContent = st[0];
+    $('ord-status').textContent = titleOf(o, role) || st[0];
     // بطاقة الحالة: ماذا حدث، وماذا بعد، لكل طرف (بدل سطر حالة صغير)
-    var H = heroOf(o, role); $('ord-hero').className = 'ord-hero ' + st[1]; $('ord-hero-i').textContent = ''; $('ord-hero-i').appendChild(oIcon(H[0], 22)); $('ord-hero-d').textContent = H[1];
+    var H = heroOf(o, role); $('ord-hero').className = 'bn-status ord-hero ' + st[1]; $('ord-hero-i').textContent = ''; $('ord-hero-i').appendChild(oIcon(H[0], 22)); $('ord-hero-d').textContent = H[1];
     var won = o.status === 'released' && role === 'buyer';
     $('ord-win').hidden = !won;
     if (won) { $('ord-win-amt').textContent = '+' + fmt(o.buyer_receives, 6) + ' USDT'; $('ord-win-s').textContent = 'على ' + netLabel(o.network) + ' · مقابل ' + fmt(o.total_sdg) + ' ج.س'; }
     var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0;
 
     var dl = $('ord-kv'); dl.textContent = '';
-    kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
+    $('ord-big').textContent = fmt(o.total_sdg) + ' ج.س';
     kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
     kv(dl, 'الشبكة', netLabel(o.network));
     kv(dl, 'يستلم المشتري', fmt(o.buyer_receives, 6) + ' USDT', true);
     kv(dl, 'العمولة ورسوم الشبكة', fmt(o.fee_usdt, 6) + ' USDT', true);
+    kv(dl, 'الكمية', fmt(o.amount_usdt, 6) + ' USDT', true);
+    kv(dl, 'رقم الطلب', String(o.id).slice(0, 8).toUpperCase());
+    if (o.created_at) kv(dl, 'وقت الإنشاء', new Date(o.created_at).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }));
     if (o.pay_deadline && o.status === 'funded') kv(dl, 'آخر موعد للدفع', new Date(o.pay_deadline).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }));
     if (o.deposit_address && o.status === 'awaiting_deposit') {
       var gw = Math.max(0, Math.round((Number(o.deposit_amount) - Number(o.amount_usdt)) * 1e6) / 1e6);
@@ -311,12 +314,13 @@
     // بعد انتهاء الصفقة لا معنى لبطاقة «حوّل المبلغ إلى…»، وقد تدفع المشتري لتحويل ثانٍ بالخطأ
     var showBank = !!o.bankak_account && role !== 'seller' && ['funded', 'paid', 'disputed'].indexOf(o.status) >= 0;
     $('ord-bank').hidden = !showBank;
+    document.querySelectorAll('#ord-bank .bn-steps>li').forEach(function (li, i) { li.hidden = i > 0 && o.status !== 'funded'; });
     if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; $('ord-bamt').textContent = String(o.total_sdg); }
     var stepIdx = { awaiting_deposit: 0, funded: 1, paid: 2, releasing: 2, released: 3, disputed: 2 }[o.status];
     var dsp = o.status === 'disputed';
     document.querySelectorAll('#ord-steps span').forEach(function (x, i) { x.classList.toggle('on', stepIdx != null && i <= Math.min(stepIdx, 2) && !(dsp && i >= 1)); x.classList.toggle('bad', dsp && i === 1); });
     state.p2p.deadline = o.status === 'funded' ? o.pay_deadline : o.status === 'awaiting_deposit' ? o.deposit_expires_at : null;
-    $('ord-timer-lbl').textContent = o.status === 'funded' ? 'الوقت المتبقي للدفع' : 'الوقت المتبقي لإيداع البائع';
+    $('ord-timer-lbl').textContent = o.status === 'funded' ? 'ادفع خلال' : 'إيداع البائع خلال';
     tickTimer();
 
     $('ord-actions').textContent = '';
@@ -406,7 +410,7 @@
     if (onChat) { seen = msgs.length; try { localStorage.setItem(seenKey(o.id), String(seen)); } catch (e) {} }
     var unread = Math.max(0, msgs.slice(Math.min(seen, msgs.length)).filter(function (m) { return m.sender !== meAddr; }).length);
     $('ord-cc-av').textContent = $('oc-av').textContent = initial(oname);
-    $('ord-cc-name').textContent = 'محادثة ' + otherRole + (role === 'admin' ? '' : ' · ' + oname);
+    $('ord-cc-name').textContent = role === 'admin' ? 'محادثة الطلب' : oname + (other && other.verified ? ' ✓' : '');
     var last = msgs[msgs.length - 1];
     $('ord-cc-last').textContent = last ? (last.sender === meAddr ? 'أنت: ' : '') + last.body.replace(/^📎\s*/, '') : 'لا رسائل بعد · ابدأ المحادثة';
     $('ord-cc-n').hidden = !unread; $('ord-cc-n').textContent = unread > 9 ? '9+' : String(unread); $('ord-unread').hidden = !unread;
@@ -448,6 +452,17 @@
   $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter') $('ord-send').click(); };
   $('ord-copy').onclick = function () { copyText($('ord-bacct').textContent); };
   $('ord-copy-amt').onclick = function () { copyText($('ord-bamt').textContent); };
+  // عنوان حالة قصير وموجّه لكل طرف (مثل «ادفع للبائع»)، والشرح التفصيلي تحته
+  function titleOf(o, role) {
+    var b = role === 'buyer', sl = role === 'seller';
+    return ({
+      awaiting_deposit: b ? 'بانتظار إيداع البائع' : sl ? 'أودع USDT في الضمان' : 'بانتظار إيداع البائع',
+      funded: b ? 'ادفع للبائع' : sl ? 'بانتظار دفع المشتري' : 'محجوز في الضمان',
+      paid: b ? 'بانتظار تحرير البائع' : sl ? 'تحقق من الدفع ثم حرّر' : 'المشتري أكّد الدفع',
+      disputed: 'نزاع قيد المراجعة', releasing: 'جارٍ تحرير USDT', released: 'اكتملت الصفقة',
+      refunding: 'جارٍ الاسترداد', refunded: 'أُعيدت USDT للبائع', cancelled: 'أُلغي الطلب'
+    })[o.status];
+  }
   function heroOf(o, role) {
     var b = role === 'buyer', sl = role === 'seller', amt = fmt(o.total_sdg) + ' ج.س';
     switch (o.status) {
