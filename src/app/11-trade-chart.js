@@ -1,5 +1,8 @@
   // ===== رسم الشموع اليابانية (Canvas بلا مكتبات) =====
-  function drawCandles() {
+  // رسم واحد لكل إطار شاشة مهما كثرت أحداث اللمس (السحب والتكبير يطلقان عشرات الأحداث في الثانية)
+  var drawQ = false;
+  function drawCandles() { if (drawQ) return; drawQ = true; (window.requestAnimationFrame || setTimeout)(function () { drawQ = false; drawNow(); }); }
+  function drawNow() {
     var kl = TR.kl, cv = $('pr-cv'); if (!kl || !kl.length || !cv.offsetWidth) return;
     var dpr = window.devicePixelRatio || 1, W = cv.offsetWidth, H = cv.offsetHeight;
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
@@ -10,7 +13,7 @@
     var off = kl.length - n - TR.off, s = kl.slice(off, off + n), cw = (W - AX) / n; // TR.off: كم شمعة رجعنا للخلف بالسحب
     var closes = kl.map(function (k) { return k.c; }), m7 = sma(closes, 7), m25 = sma(closes, 25), m99 = sma(closes, 99);
     var hi = -Infinity, lo = Infinity; s.forEach(function (k) { if (k.h > hi) hi = k.h; if (k.l < lo) lo = k.l; });
-    [m7, m25, m99].forEach(function (m) { for (var i = off; i < kl.length; i++) if (m[i] != null) { if (m[i] > hi) hi = m[i]; if (m[i] < lo) lo = m[i]; } });
+    [m7, m25, m99].forEach(function (m) { for (var i = off; i < off + n; i++) if (m[i] != null) { if (m[i] > hi) hi = m[i]; if (m[i] < lo) lo = m[i]; } });
     var pad = (hi - lo) * 0.06 || hi * 0.01; hi += pad; lo -= pad;
     var ph = H - VOLH - TOP - BOT, Y = function (v) { return TOP + (hi - v) / (hi - lo) * ph; }, X = function (i) { return i * cw + cw / 2; };
     // شبكة وأسعار المحور
@@ -41,8 +44,15 @@
     if (ly > TOP && ly < TOP + ph) { x.fillStyle = lc; x.fillRect(W - AX + 1, ly - 9, AX - 2, 18); x.fillStyle = '#fff'; x.font = 'bold 10px system-ui,sans-serif'; x.fillText(fp(now.c), W - AX + 5, ly); }
     // محور الوقت
     x.fillStyle = mu; x.font = '10px system-ui,sans-serif'; x.textAlign = 'center';
-    var fmtT = function (t) { var d = new Date(t); return TR.tf === '1d' || TR.tf === '1w' ? (d.getMonth() + 1) + '/' + d.getDate() : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); };
-    for (var ti = Math.floor(n / 8); ti < n; ti += Math.max(1, Math.floor(n / 4))) x.fillText(fmtT(s[ti].t), X(ti), H - 6);
+    // التاريخ يظهر عند تغيّر اليوم (وفي الإطارات اليومية دائماً)، والساعة داخل اليوم نفسه، فلا تتكرر «08:00» بلا معنى في إطار 4 ساعات
+    var p2 = function (v) { return ('0' + v).slice(-2); }, prevD = null;
+    var fmtT = function (t, i) { var d = new Date(t), day = d.getMonth() * 40 + d.getDate(), lbl;
+      if (TR.tf === '1w') lbl = d.getFullYear() !== new Date().getFullYear() && d.getMonth() === 0 ? String(d.getFullYear()) : (d.getMonth() + 1) + '/' + d.getDate();
+      else if (TR.tf === '1d' || (prevD != null && day !== prevD) || TR.tf === '4h' && i === 0) lbl = (d.getMonth() + 1) + '/' + d.getDate();
+      else lbl = p2(d.getHours()) + ':' + p2(d.getMinutes());
+      prevD = day; return lbl; };
+    var step = Math.max(1, Math.floor(n / 4));
+    for (var ti = Math.floor(n / 8); ti < n; ti += step) { var lb = fmtT(s[ti].t, ti); if (X(ti) < W - AX - 14) x.fillText(lb, X(ti), H - 6); }
     // مؤشر اللمس
     var hv = TR.hover == null ? null : Math.max(0, Math.min(n - 1, TR.hover)), k2 = hv == null ? last : s[hv];
     if (hv != null) {
@@ -78,12 +88,21 @@
       else if (st && st.mode === 'hover') { TR.hover = null; drawCandles(); }
       st = null;
     };
+    // تكبير حول نقطة: الشمعة تحت الإصبعين (أو مؤشر الفأرة) تبقى مكانها، كما في منصات التداول
+    var zoomAt = function (cx, nv, base) {
+      var kl = TR.kl || [], r = cv.getBoundingClientRect(), f = Math.max(0, Math.min(1, (cx - r.left) / Math.max(1, r.width - AXW)));
+      var vOld = Math.min(base.view, kl.length), vNew = Math.max(20, Math.min(200, Math.round(nv)));
+      TR.view = vNew; TR.off = Math.max(0, base.off + Math.round((1 - f) * (vOld - Math.min(vNew, kl.length))));
+      drawCandles(); if (kl.length && TR.off + Math.min(vNew, kl.length) >= kl.length - 5) loadOlder();
+    };
+    var dist = function (t) { var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY; return Math.sqrt(dx * dx + dy * dy); };
+    var pz = null;
     cv.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 2) { clearTimeout(holdT); st = null; TR.hover = null; d0 = Math.abs(e.touches[0].clientX - e.touches[1].clientX); v0 = TR.view; return; }
+      if (e.touches.length === 2) { clearTimeout(holdT); st = null; TR.hover = null; d0 = dist(e.touches); v0 = TR.view; pz = { view: TR.view, off: TR.off || 0, cx: (e.touches[0].clientX + e.touches[1].clientX) / 2 }; return; }
       down(e.touches[0].clientX);
     }, { passive: true });
     cv.addEventListener('touchmove', function (e) {
-      if (e.touches.length === 2 && d0) { e.preventDefault(); var d = Math.abs(e.touches[0].clientX - e.touches[1].clientX); TR.view = Math.max(20, Math.min(200, Math.round(v0 * d0 / Math.max(d, 10)))); drawCandles(); return; }
+      if (e.touches.length === 2 && d0) { e.preventDefault(); zoomAt(pz.cx, v0 * d0 / Math.max(dist(e.touches), 20), pz); return; }
       if (st && (st.mode || Math.abs(e.touches[0].clientX - st.x) > 6)) e.preventDefault(); // نمنع تمرير الصفحة أثناء السحب الأفقي
       move(e.touches[0].clientX);
     }, { passive: false });
@@ -92,7 +111,7 @@
     cv.addEventListener('mousedown', function (e) { down(e.clientX); });
     window.addEventListener('mousemove', function (e) { if (st) move(e.clientX); });
     window.addEventListener('mouseup', function () { if (st) up(); });
-    cv.addEventListener('wheel', function (e) { e.preventDefault(); TR.view = Math.max(20, Math.min(200, TR.view + (e.deltaY > 0 ? 8 : -8))); drawCandles(); }, { passive: false });
+    cv.addEventListener('wheel', function (e) { e.preventDefault(); zoomAt(e.clientX, TR.view * (e.deltaY > 0 ? 1.12 : 1 / 1.12), { view: TR.view, off: TR.off || 0 }); }, { passive: false });
     cv.addEventListener('dblclick', function () { TR.off = 0; TR.view = 80; drawCandles(); }); // نقرتان: العودة لآخر سعر
     window.addEventListener('resize', function () { if (state.stack[state.stack.length - 1] === 'pair') drawCandles(); });
   })();

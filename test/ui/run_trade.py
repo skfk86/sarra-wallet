@@ -82,6 +82,19 @@ async def main():
       await pg.mouse.move(box['x']+20, box['y']+150); await pg.mouse.down(); await pg.mouse.move(box['x']+300, box['y']+150, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(120)
     await pg.wait_for_timeout(600)
     assert any('endTime=' in u for u in KLCALLS[KLN:]), KLCALLS[KLN:]; print('✓ عند أول الشارت تُحمَّل شموع أقدم تلقائياً')
+    # التكبير بعجلة الفأرة يثبّت الشمعة تحت المؤشر، وحدود 20..200
+    await pg.evaluate("(function(){var T=__core.tr().TR;T.off=0;T.view=80})()"); await pg.wait_for_timeout(100)
+    await pg.mouse.move(box['x']+box['width']*0.25, box['y']+150)
+    for i in range(6): await pg.mouse.wheel(0,-100); await pg.wait_for_timeout(30)
+    z=await pg.evaluate("({v:__core.tr().TR.view,o:__core.tr().TR.off})"); assert z['v']<80 and z['o']>0, z; print('✓ تكبير حول المؤشر: الشمعة تحت المؤشر تبقى مكانها (العرض', z['v'], 'والإزاحة', z['o'], ')')
+    for i in range(40): await pg.mouse.wheel(0,-100)
+    await pg.wait_for_timeout(100); assert await pg.evaluate("__core.tr().TR.view")==20
+    for i in range(80): await pg.mouse.wheel(0,100)
+    await pg.wait_for_timeout(100); assert await pg.evaluate("__core.tr().TR.view")==200; print('✓ حدود التكبير 20 إلى 200 شمعة')
+    # شمعة جديدة عند بدء فترة جديدة بدل تجميد الشارت
+    n0=await pg.evaluate("__core.tr().TR.kl.length"); await pg.evaluate("(function(){var X=__core.tr(),T=X.TR,l=T.kl[T.kl.length-1]; l.t=Date.now()-X.tfMs(T.tf)-1000;})()")
+    await pg.evaluate("__core.tr().top()"); await pg.wait_for_timeout(100)
+    n1=await pg.evaluate("__core.tr().TR.kl.length"); assert n1==n0+1, (n0,n1); print('✓ بدء فترة جديدة يضيف شمعة حيّة بدل تجميد الشارت')
     await pg.dblclick('#pr-cv'); await pg.wait_for_timeout(200)
     w=await pg.evaluate('document.documentElement.scrollWidth'); assert w<=360, w; print('✓ لا فيضان أفقي في شاشة الزوج')
     if SHOTS: await pg.screenshot(path=SHOTS+'/pair.png', full_page=True)

@@ -149,9 +149,20 @@
     var ch = $('pr-chg'); ch.textContent = isFinite(t.chg) ? (t.chg > 0 ? '+' : '') + t.chg.toFixed(2) + '%' : '—'; ch.className = 'pr-chg ' + (t.chg >= 0 ? 'up' : t.chg < 0 ? 'dn' : '');
     $('pr-usd').textContent = p ? '≈ $' + fp(p) : '';
     $('pr-hi').textContent = fp(t.hi); $('pr-lo').textContent = fp(t.lo); $('pr-vol').textContent = t.vol ? '$' + fVol(t.vol) : '—';
-    if (TR.kl && TR.kl.length && p && !TR.hover) { var last = TR.kl[TR.kl.length - 1]; if (Date.now() - last.t < tfMs(TR.tf)) { last.c = p; if (p > last.h) last.h = p; if (p < last.l) last.l = p; drawCandles(); } }
+    if (TR.kl && TR.kl.length && p && TR.hover == null) {
+      var last = TR.kl[TR.kl.length - 1], ms = tfMs(TR.tf), now = Date.now();
+      if (now - last.t < ms) { last.c = p; if (p > last.h) last.h = p; if (p < last.l) last.l = p; }
+      else if (ms && now - last.t < ms * 3 && TR.tf !== '1w') {
+        // بدأت شمعة جديدة: نضيفها بدل تجميد الشارت على شمعة منتهية حتى إعادة التحميل (حجمها يكتمل عند التحميل التالي)
+        var nt = last.t + Math.floor((now - last.t) / ms) * ms; TR.kl.push({ t: nt, o: last.c, h: Math.max(p, last.c), l: Math.min(p, last.c), c: p, v: 0 });
+        if (TR.off) TR.off++; // المستخدم يتصفح الماضي: يبقى المنظر ثابتاً
+        try { localStorage.removeItem('sarra.kl.' + TR.sym + '.' + TR.tf); } catch (e) {}
+      }
+      drawCandles();
+    }
     trRenderPos();
   }
+  if (location.protocol === 'file:' && window.__core) window.__core.tr = function () { return { TR: TR, top: trRenderTop, tfMs: tfMs }; }; // للاختبارات الآلية فقط
   function tfMs(tf) { return { '15m': 9e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 }[tf]; }
   // شموع Binance (200 شمعة) بصيغة موحّدة { t, o, h, l, c, v }؛ v = حجم التداول بالدولار
   async function binanceKlines(sym, tf) {
