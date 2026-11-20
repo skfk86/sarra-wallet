@@ -293,14 +293,27 @@
     if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address && depSent) {
       kv(dl, 'حالة الإيداع', 'أُرسل من محفظتك، بانتظار تأكيد الضمان (دقيقة إلى 5 دقائق)', true);
       actionBtn('تحقق من الإيداع', 'primary', function () { refreshOrder('order.refresh'); });
+      // الإرسال الأول انتهى بخطأ غامض ولم يخرج فعلاً؟ إعادة المحاولة متاحة لكن بعد تحذير صريح، وإلا قد يُدفع الإيداع مرتين
+      actionBtn('لم يخرج الإيداع؟ أعد المحاولة', 'ghost', async function () {
+        if (!(await askConfirm('افتح سجل المعاملات وتأكد أن إيداع ' + fmt(o.deposit_amount, 6) + ' USDT إلى الضمان لم يخرج من محفظتك. إن كان قد خرج فلا تعد المحاولة، وإلا ستدفع مرتين. هل تأكدت؟'))) return;
+        try { localStorage.removeItem(depKey); } catch (e) {} refreshOrder('order.get');
+      });
     } else if (role === 'seller' && s === 'awaiting_deposit' && o.deposit_address) {
       actionBtn('إيداع ' + fmt(o.deposit_amount, 6) + ' USDT في الضمان', 'primary', function () {
         var b = this;
         authorize('إيداع في الضمان', async function () {
           b.disabled = true; toast('جارٍ الإيداع…');
           try { var sent = localStorage.getItem(depKey); if (sent) { toast('أرسلت الإيداع مسبقاً. اضغط "تحقق من الإيداع"'); return; } } catch (e) {}
+          // إيداع قبل نهاية المهلة بقليل قد يصل بعد الإلغاء، فيُعاد ناقصاً رسوم الشبكة
+          if (o.deposit_expires_at && Date.now() > Date.parse(o.deposit_expires_at) - 120000) { b.disabled = false; return toast('مهلة الإيداع على وشك الانتهاء. ألغِ هذا الطلب وافتح طلباً جديداً حتى لا يصل الإيداع متأخراً', true); }
+          // نسجّل المحاولة قبل الإرسال: خطأ شبكة بعد خروج المعاملة لا يجوز أن يسمح بإيداع ثانٍ بضغطة واحدة
+          try { localStorage.setItem(depKey, String(Date.now())); } catch (e) {}
           try { var dr = o.network === 'BEP20' ? await core.evmSend('bsc', 'USDT', o.deposit_address, String(o.deposit_amount)) : await core.sendUSDT(o.deposit_address, String(o.deposit_amount)); lhAdd({ kind: 'send', net: o.network === 'BEP20' ? 'bsc' : 'tron', coin: 'USDT', amount: String(o.deposit_amount), to: o.deposit_address, via: 'إيداع في ضمان P2P', txid: dr && dr.txid, url: dr && dr.url, status: (dr && dr.status) || 'SUCCESS' }); try { localStorage.setItem(depKey, String(Date.now())); } catch (e) {} state.balances = null; state.historyCache = null; toast('تم الإيداع، بانتظار تأكيد الضمان'); }
-          catch (e) { toast(WalletCore.errorText(e), true); }
+          catch (e) {
+            // خطأ قبل الإرسال مؤكد (رصيد، رسوم، قفل…): لم يخرج شيء، فنسمح بالمحاولة مباشرة
+            if (e && /^(INSUFFICIENT|LOW_|LOCKED|INVALID|BAD_|SELF_SEND)/.test(e.message || '')) { try { localStorage.removeItem(depKey); } catch (e2) {} }
+            toast(WalletCore.errorText(e), true);
+          }
           b.disabled = false; refreshOrder('order.refresh');
         });
       });
