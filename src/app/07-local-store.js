@@ -72,7 +72,14 @@
   function withLocal(list, netFilter) {
     var loc = lhAll(), byTx = {}; loc.forEach(function (r) { if (r.txid) byTx[r.txid] = r; });
     var seen = {};
-    var out = (list || []).map(function (t) { var r = t.txid && byTx[t.txid]; if (r) { seen[r.id] = 1; t.rec = r; if (r.kind === 'swap' || r.kind === 'bridge') { var x = lhRow(r); x.net = t.net; return x; } } return t; });
+    // معاملة تبديل/نقل على EVM فيها تحويلان (خرج توكن ودخل آخر) بنفس الرقم: تُعرض صفاً واحداً بتفاصيلها المحلية لا صفين مكررين.
+    // ومعاملة إرسال ظهرت في سجل الشبكة = مؤكدة، فلا تُعرض «بانتظار التأكيد» لأن السجل المحلي لم يُحدَّث بعد
+    var out = []; (list || []).forEach(function (t) {
+      var r = t.txid && byTx[t.txid];
+      if (!r) return out.push(t);
+      if (r.kind === 'swap' || r.kind === 'bridge') { if (seen[r.id]) return; seen[r.id] = 1; var x = lhRow(r); x.net = t.net; return out.push(x); }
+      seen[r.id] = 1; t.rec = r; t.chain = 1; out.push(t);
+    });
     loc.forEach(function (r) {
       if (seen[r.id]) return;
       var row = lhRow(r);
@@ -82,4 +89,4 @@
     });
     return out;
   }
-
+  if (location.protocol === 'file:' && window.__core) window.__core.withLocal = function (l, f) { return withLocal(l, f); }; // للاختبارات الآلية فقط

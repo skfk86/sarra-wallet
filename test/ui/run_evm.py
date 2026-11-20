@@ -241,6 +241,15 @@ async def main():
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/hist.png')
     print('✓ السجل المحلي: الإرسال الناجح يظهر في السجل، ونافذة التفاصيل تعرض الشبكة والمبلغ والمستلم ورقم المعاملة')
     bad=await pg.evaluate('''Array.from(document.querySelectorAll('.screen.active *')).filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>window.innerWidth+1||r.left<-1)}).length''')
+    # السجل الموحّد: تبديل EVM فيه تحويلان بنفس الرقم يظهر صفاً واحداً، وإرسال ظهر في الشبكة لا يبقى «بانتظار التأكيد»
+    r=await pg.evaluate("""(function(){var k=Object.keys(localStorage).find(x=>x.startsWith('sarra.lh.'));var l=JSON.parse(localStorage.getItem(k)||'[]');
+      var H='0x'+'7'.repeat(64),S='0x'+'8'.repeat(64);
+      l.unshift({id:H,txid:H,kind:'swap',net:'bsc',coin:'BNB',amount:'0.01',paidCoin:'USDT',paidAmount:'6',status:'SUCCESS',time:Date.now()});
+      l.unshift({id:S,txid:S,kind:'send',net:'bsc',coin:'USDT',amount:'3',to:'0x'+'1'.repeat(40),status:'PENDING',time:Date.now()});
+      localStorage.setItem(k,JSON.stringify(l));
+      var out=__core.withLocal([{txid:H,net:'bsc',coin:'USDT',amount:'6',incoming:false,time:1},{txid:H,net:'bsc',coin:'BNB',amount:'0.01',incoming:true,time:1},{txid:S,net:'bsc',coin:'USDT',amount:'3',incoming:false,time:2,ok:true}],'all');
+      return {swap:out.filter(t=>t.txid===H).length, send:out.filter(t=>t.txid===S).map(t=>!!t.chain)};})()""")
+    assert r['swap']==1 and r['send']==[True], r; print('✓ السجل: التبديل يظهر مرة واحدة، والإرسال المؤكد في الشبكة لا يُعرض «بانتظار التأكيد»')
     assert not errs, errs
     await b.close()
 if __name__=="__main__": asyncio.run(main())

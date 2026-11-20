@@ -37,7 +37,9 @@
       var b = document.createElement('span'); b.className = 'b';
       txIcon(b, kind);
       var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column;min-width:0';
-      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; t1.textContent = txTitle(t) + (t.ok === false ? ' · فشلت' : '');
+      var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; var pnd = t.rec && t.rec.status === 'PENDING' && !t.chain && t.ok !== false;
+      t1.textContent = txTitle(t) + (t.ok === false ? ' · فشلت' : pnd ? ' · قيد التأكيد' : '');
+      if (pnd) t1.style.color = 'var(--warn)';
       if (t.ok === false) t1.style.color = 'var(--out)';
       var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.cssText = 'font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (t.net ? '' : ' · ' + netTag(t.net)) + (kind === 'swap' || kind === 'bridge' ? ' · ' + netTag(t.net) : ' · ' + shortAddr(t.counterparty));
@@ -78,7 +80,7 @@
     var url = r.url || (t.txid ? (t.net && t.net !== 'tron' ? core.evmTxUrl(t.net, t.txid) : core.network.explorer + t.txid) : '');
     txIcon($('txd-ic'), kind);
     $('txd-title').textContent = { recv: 'استلام', send: 'إرسال', self: 'تحويل لنفس العنوان', swap: 'تبديل', bridge: 'نقل بين الشبكات' }[kind];
-    var st = $('txd-st'), pend = r.status === 'PENDING', fail = t.ok === false || r.status === 'FAILED';
+    var st = $('txd-st'), pend = r.status === 'PENDING' && !t.chain, fail = t.ok === false || (r.status === 'FAILED' && !t.chain);
     st.textContent = fail ? 'فشلت' : pend ? 'بانتظار التأكيد' : 'تمت'; st.className = 'txd-st' + (fail ? ' fail' : pend ? ' pend' : '');
     var sign = kind === 'send' ? '−' : kind === 'self' ? '' : '+', a = state.hidden ? '••••' : sign + fmtExact(t.amount) + ' ' + (t.coin || 'USDT');
     $('txd-amt').textContent = a; fitAmt($('txd-amt'), a);
