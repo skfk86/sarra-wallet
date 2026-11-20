@@ -1,12 +1,19 @@
   // ===== الأمان =====
   function prepareSecurity() {
-    $('sw-hide').setAttribute('aria-checked', state.hidden ? 'true' : 'false');
+    $('sw-hide').setAttribute('aria-checked', state.hideOnOpen ? 'true' : 'false');
     $('sec-net').textContent = netName();
     $('sw-bio').setAttribute('aria-checked', bioEnabled() ? 'true' : 'false');
     bioAvailable().then(function (ok) { $('bio-row').hidden = !ok; });
     syncPhoneRow();
   }
-  $('sw-hide').onclick = function () { setHidden(!state.hidden); };
+  // الإعداد يحدد حالة كل فتح جديد، ويطبَّق فوراً أيضاً حتى يرى المستخدم أثره
+  $('sw-hide').onclick = function () {
+    state.hideOnOpen = !state.hideOnOpen;
+    try { localStorage.setItem('sarra.hideOnOpen', state.hideOnOpen ? '1' : '0'); localStorage.removeItem('sarra.hide'); } catch (e) {}
+    this.setAttribute('aria-checked', state.hideOnOpen ? 'true' : 'false');
+    setHidden(state.hideOnOpen, true);
+    toast(state.hideOnOpen ? 'ستُخفى الأرصدة تلقائياً عند كل فتح للتطبيق' : 'لن تُخفى الأرصدة تلقائياً عند الفتح');
+  };
   // استقبال التحويلات برقم الهاتف: للموثّقين فقط
   async function syncPhoneRow() {
     $('phone-row').hidden = true; $('sec-acc').parentNode.hidden = !P2P_URL; $('sec-acc').parentNode.previousElementSibling.hidden = !P2P_URL;

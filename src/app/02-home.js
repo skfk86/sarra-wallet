@@ -453,13 +453,17 @@
     try { if (P.Haptics) P.Haptics.impact({ style: 'LIGHT' }); } catch (e) {}
     if (!quiet && v && localStorage.getItem('sarra.hideTip') !== '1') { try { localStorage.setItem('sarra.hideTip', '1'); } catch (e) {} toast('أُخفيت الأرصدة في كل الشاشات. اضغط الرصيد أو العين لإظهارها'); }
     var tb = $('toggle-bal'); tb.classList.toggle('off', v); tb.setAttribute('aria-pressed', v ? 'true' : 'false'); tb.setAttribute('aria-label', v ? 'إظهار الرصيد' : 'إخفاء الرصيد');
-    try { localStorage.setItem('sarra.hide', v ? '1' : '0'); } catch (e) {}
     renderBalances();
     // الشاشة المفتوحة تُعاد رسمها فوراً بالوضع الجديد (التداول، الزوج، السجل)، لا عند التحديث التالي
     try { var cur = state.stack[state.stack.length - 1]; if (cur === 'trade') renderTrade(); else if (cur === 'pair') trRenderPos(); else if (cur === 'history') applyFilter(); } catch (e) {}
-    $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
+  // «عند كل فتح»: يشمل العودة للتطبيق من الخلفية بعد 30 ثانية أو أكثر، لا التشغيل من الصفر فقط
+  var bgAt = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { bgAt = Date.now(); return; }
+    if (state.hideOnOpen && !state.hidden && bgAt && Date.now() - bgAt >= 30000) setHidden(true, true);
+  });
   // الضغط على الرقم نفسه يخفي/يُظهر (كما في Binance)، والعين تبقى للوضوح
   $('bal-usdt').onclick = function () { setHidden(!state.hidden); };
   $('bal-usdt').setAttribute('role', 'button'); $('bal-usdt').setAttribute('tabindex', '0');

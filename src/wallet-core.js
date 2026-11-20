@@ -1133,7 +1133,7 @@
         var hexTw = client(null, false);
         var usdtReq = readRetry(function (k) {
           return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions/trc20?limit=' + n + '&contract_address=' + net.usdt, { headers: hdr(k) })
-            .then(function (r) { if (!r.ok) throw new Error(r.status === 429 ? 'RATE_429' : 'HISTORY_FAILED'); return r.json(); });
+            .then(function (r) { if (r.status === 400 || r.status === 404) return { data: [] }; if (!r.ok) throw new Error(r.status === 429 ? 'RATE_429' : 'HISTORY_FAILED'); return r.json(); }); // محفظة جديدة لم تُفعَّل على الشبكة: لا سجل، وليس خطأ
         });
         var trxReq = readRetry(function (k) {
           return fetch(net.fullHost + '/v1/accounts/' + addr + '/transactions?limit=' + n + '&only_confirmed=true', { headers: hdr(k) })

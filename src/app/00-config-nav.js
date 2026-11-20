@@ -80,7 +80,13 @@
   var TAB_SCREENS = ['home', 'trade', 'history', 'p2p', 'security'];
 
   // تفضيل إخفاء الأرصدة (غير حساس)
-  try { state.hidden = localStorage.getItem('sarra.hide') === '1'; } catch (e) {}
+  // «إخفاء الأرصدة عند فتح التطبيق» إعداد دائم (sarra.hideOnOpen)، منفصل عن حالة الإخفاء الحالية:
+  // العين تُظهر الأرصدة لهذه الجلسة فقط، وعند كل فتح جديد للتطبيق تعود مخفية إن كان الإعداد مفعّلاً
+  try {
+    if (localStorage.getItem('sarra.hideOnOpen') == null && localStorage.getItem('sarra.hide') === '1') localStorage.setItem('sarra.hideOnOpen', '1'); // ترحيل من الإعداد القديم
+    state.hideOnOpen = localStorage.getItem('sarra.hideOnOpen') === '1';
+    state.hidden = state.hideOnOpen;
+  } catch (e) {}
 
   // ===== تنقل =====
   function show(name, push) {
@@ -170,11 +176,28 @@
 
   // ===== Toast =====
   var toastTimer;
-  function toast(msg, isErr) {
-    var t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (isErr ? ' error' : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.className = 'toast'; }, 2800);
+  // رسالة عائمة بأيقونة ونوع واضح: نجاح، خطأ، تنبيه، معلومة. مدتها تناسب طولها، ولا تحجب اللمس عمّا تحتها
+  var TOAST_IC = {
+    ok: '<path d="m5 12 5 5L20 7"/>',
+    error: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.5"/>',
+    warn: '<path d="M12 3 2 21h20z"/><path d="M12 10v4M12 17.5v.5"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5v.5"/>'
+  };
+  function toastKind(msg, isErr) {
+    if (isErr === true) return /^(تأكد|انتبه|⚠)/.test(msg) ? 'warn' : 'error';
+    if (typeof isErr === 'string') return isErr;
+    return /✓|^تم |^تمت|^نُسخ|^حُفظ|^أُرسل|^وصل|^اكتمل/.test(msg) ? 'ok' : 'info';
   }
+  function toast(msg, isErr) {
+    var t = $('toast'), k = toastKind(String(msg || ''), isErr), text = String(msg || '').replace(/\s*✓\s*$/, '').replace(/^⚠️?\s*/, '');
+    t.textContent = '';
+    var ic = document.createElement('span'); ic.className = 'toast-ic'; ic.innerHTML = '<svg class="i" viewBox="0 0 24 24">' + TOAST_IC[k] + '</svg>';
+    var tx = document.createElement('span'); tx.className = 'toast-tx'; tx.textContent = text;
+    t.appendChild(ic); t.appendChild(tx);
+    t.className = 'toast show t-' + k + (k === 'error' || k === 'warn' ? ' error' : '');
+    t.setAttribute('role', k === 'error' ? 'alert' : 'status');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast t-' + k; }, Math.min(7000, 2200 + text.length * 45));
+  }
+
 

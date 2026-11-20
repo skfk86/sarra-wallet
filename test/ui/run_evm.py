@@ -286,6 +286,13 @@ async def main():
     await pg.click('#history-full button.tx'); await pg.wait_for_timeout(500); td=await pg.inner_text('#txd-amt')+await pg.inner_text('#txd-kv'); await pg.click('#txd-close')
     assert not leak(td), leak(td)
     print('✓ وضع الإخفاء: لا مبالغ في بطاقة الرصيد والعملات والسجل وملخصه ونافذة التفاصيل')
+    # إخفاء الأرصدة عند الفتح: إعداد دائم، والعين تُظهر لهذه الجلسة فقط
+    await pg.evaluate("localStorage.setItem('sarra.hideOnOpen','1')"); await pg.reload(); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
+    assert await pg.get_attribute('#toggle-bal','aria-pressed')=='true'; await pg.click('#toggle-bal'); await pg.wait_for_timeout(300)
+    assert await pg.get_attribute('#toggle-bal','aria-pressed')=='false' and await pg.evaluate("localStorage.getItem('sarra.hideOnOpen')")=='1'
+    await pg.reload(); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
+    assert await pg.get_attribute('#toggle-bal','aria-pressed')=='true'; print('✓ إخفاء عند الفتح: العين تُظهر للجلسة فقط، والفتح التالي يعيد الإخفاء والإعداد باقٍ')
+    await pg.evaluate("localStorage.setItem('sarra.hideOnOpen','0')"); await pg.click('#toggle-bal')
     assert not errs, errs
     await b.close()
 if __name__=="__main__": asyncio.run(main())

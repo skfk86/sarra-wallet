@@ -11,6 +11,12 @@
     if (d.toDateString() === y.toDateString()) return 'أمس';
     return d.toLocaleDateString('ar', { day: 'numeric', month: 'long', year: d.getFullYear() === n.getFullYear() ? undefined : 'numeric' });
   }
+  // محفظة جديدة فارغة (لا رصيد على أي شبكة ولا عمليات محلية): فشل جلب السجل لا يعني شيئاً، فنعرض «لا معاملات» لا رسالة خطأ
+  // (سجل TRON تحديداً: عنوان TRON بلا رصيد ولا عمليات محلية = لا سجل متوقع أصلاً)
+  function isFreshWallet() {
+    if (lhAll().some(function (r) { return !r.net || r.net === 'tron'; })) return false;
+    var b = state.balances; return !b || (!(Number(b.usdt) > 0) && !(Number(b.trx) > 0)); // رصيد لم يُقرأ بعد: لا نفترض خطأ
+  }
   function netTag(k) { return k === 'tron' || !k ? 'TRON' : (EVM[k] ? EVM[k].name : k); }
   function renderTxList(box, list, grouped) {
     box.textContent = '';
@@ -133,7 +139,7 @@
     var box = $('history');
     var tron = [];
     try { tron = (await core.getHistory(null, 5)).map(function (t) { t.net = 'tron'; return t; }); }
-    catch (e) { if (!lhAll().length) { if (!box.querySelector('button')) emptyMsg(box, WalletCore.errorText(e)); return; } }
+    catch (e) { if (!lhAll().length) { if (!box.querySelector('button')) { if (isFreshWallet()) renderTxList(box, [], false); else emptyMsg(box, WalletCore.errorText(e)); } return; } }
     renderTxList(box, withLocal(tron).sort(function (a, b) { return b.time - a.time; }).slice(0, 5));
   }
   function renderEvmHist() {
@@ -198,6 +204,7 @@
     var note = $('hist-note');
     // شبكة تعذّر سجلها الكامل لكن عملياتك من هذا الجهاز ظاهرة: لا داعي لتنبيه يربك المستخدم
     failed = failed.filter(function (k) { return !lhAll().some(function (r) { return r.net === k; }) && !(state.evmHist[k] && state.evmHist[k].length); });
+    if (!lhAll().length && !Object.keys(state.evmHist).some(function (k) { return state.evmHist[k] && state.evmHist[k].length; }) && isFreshWallet()) failed = []; // محفظة جديدة: لا تنبيه خطأ
     if (failed.length) { note.hidden = false; note.textContent = 'تعذّر تحميل سجل ' + failed.map(netTag).join(' و') + ' الآن. يمكنك فتحه من المستكشف أدناه.'; }
     else if (!core.isUnlocked() && keys.some(function (k) { return !state.evmHist[k]; })) { note.hidden = false; note.textContent = 'افتح المحفظة بالرمز لتحديث سجل الشبكات الأخرى.'; }
     else note.hidden = true;
@@ -244,7 +251,7 @@
     });
     $('hist-more').hidden = !!q || !(state.hnet === 'all' || state.hnet === 'tron') || !state.historyCache || state.historyCache.length < (state.tronLimit || 50) || (state.tronLimit || 50) >= 200;
     renderHistSum(all);
-    if (!list.length && !lhAll().length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
+    if (!list.length && !lhAll().length && !state.historyCache && state.tronErr && !isFreshWallet() && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
     if (!list.length && q) { var bx = $('history-full'); bx.textContent = ''; var em = el('div'); em.className = 'hempty'; em.appendChild(el('b', null, 'لا نتائج لـ«' + q + '»')); em.appendChild(el('small', null, 'جرّب جزءاً من العنوان أو رقم المعاملة أو المبلغ')); bx.appendChild(em); return; }
     renderTxList($('history-full'), list, true);
   }

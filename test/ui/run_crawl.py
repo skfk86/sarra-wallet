@@ -19,7 +19,7 @@ async def main():
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':int(__import__('os').environ.get('VW','360')),'height':int(__import__('os').environ.get('VH','740'))}); E.PG.append(pg)
     errs=[]; pg.on('pageerror',lambda e: errs.append(str(e)))
     csp=[]; pg.on('console',lambda m: csp.append(m.text) if 'Content Security Policy' in m.text and 'script' in m.text.lower() else None)
-    await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
+    await pg.route('**/v1/accounts/**', lambda r: r.fulfill(status=503, json={}) if '/trc20' in r.request.url else r.fulfill(json={'data':[]})) # محفظة جديدة وسجل TRON متعذّر: يجب ألا تظهر رسالة خطأ
     await pg.route('https://api.coingecko.com/**', lambda r: r.fulfill(status=429, json={}))
     await pg.route('https://li.quest/**', lambda r: r.fulfill(status=404, json={}))
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
@@ -27,6 +27,7 @@ async def main():
     await pg.route('https://mock.supabase.co/**', edge)
     await pg.route('https://mock.supabase.co/rest/**', lambda r: r.fulfill(json=None))
     await pg.goto('file://'+S+'/index.html')
+    await pg.evaluate('window.__trx=0; window.__usdt=0') # محفظة جديدة فعلاً: لا رصيد TRON
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
       await pg.wait_for_timeout(1500)
@@ -53,6 +54,8 @@ async def main():
         DES.append((i,label,m))
       for t in r['texts']:
         if t.startswith('@@OVERFLOW') or BAD.search(t): problems.append((label, r['screen'], t[:120]))
+        # محفظة جديدة فارغة: لا يجوز أن تظهر رسالة خطأ في أي شاشة لم يفعل فيها المستخدم شيئاً
+        elif label.startswith('مفتوحة') and re.search(r'تعذّر|تعذر|فشل|خطأ|حدث خطأ', t) and not re.search(r'لا تكتب|إن فشل|عند الفشل|أخطاء|تحميل الرسم', t): problems.append((label, r['screen'], 'رسالة خطأ في محفظة جديدة: '+t[:100]))
     async def go(sel, label, back=True):
       try:
         await pg.click(sel, timeout=4000)
