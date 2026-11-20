@@ -286,6 +286,7 @@
     var H = heroOf(o, role); $('ord-hero').className = 'bn-status ord-hero ' + st[1]; $('ord-hero-i').textContent = ''; $('ord-hero-i').appendChild(oIcon(H[0], 22)); $('ord-hero-d').textContent = H[1];
     var won = o.status === 'released' && role === 'buyer';
     $('ord-win').hidden = !won;
+    if (won && !$('ord-win').querySelector('.mascot-w')) $('ord-win').insertBefore(mascot('celebrate', 104), $('ord-win').firstChild);
     if (won) { $('ord-win-amt').textContent = '+' + fmt(o.buyer_receives, 6) + ' USDT'; $('ord-win-s').textContent = 'على ' + netLabel(o.network) + ' · مقابل ' + fmt(o.total_sdg) + ' ج.س'; }
     var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0;
 

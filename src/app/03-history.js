@@ -21,9 +21,9 @@
   function renderTxList(box, list, grouped) {
     box.textContent = '';
     if (!list.length) {
-      if (!grouped) return emptyMsg(box, 'لا توجد معاملات');
+      if (!grouped) { box.textContent = ''; var e0 = el('div'); e0.className = 'hempty'; e0.appendChild(mascot('idle', 76)); e0.appendChild(el('small', null, 'لا توجد معاملات بعد. أول تحويل يصلك سيظهر هنا')); box.appendChild(e0); return; }
       var em = el('div', null); em.className = 'hempty';
-      em.innerHTML = '<span aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>';
+      em.appendChild(mascot('idle', 88));
       em.appendChild(el('b', null, state.filter === 'in' ? 'لا يوجد استلام بعد' : state.filter === 'out' ? 'لا يوجد إرسال بعد' : 'لا توجد معاملات بعد'));
       em.appendChild(el('small', null, 'ستظهر هنا عملياتك بعد أول إرسال أو استلام أو تبديل'));
       box.appendChild(em); return;

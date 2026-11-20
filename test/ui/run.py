@@ -44,6 +44,8 @@ async def main():
     await pg.wait_for_timeout(8000)
     sent=await pg.evaluate('window.__sent'); assert len(sent)==1, sent; step('إرسال واحد فقط رغم الضغط المزدوج: '+str(sent))
     assert await vis('s-success'); step('شاشة النجاح: '+await pg.inner_text('#ok-title'))
+    assert await pg.locator('#ok-ring .mascot.m-happy, #ok-ring .mascot.m-wait').count()==1; step('«صُرّي» في شاشة النجاح')
+    if len(sys.argv)>2: await pg.wait_for_timeout(900); await pg.screenshot(path=sys.argv[2]+'/success-mascot.png')
     await pg.click('#s-success [data-go=home]')
     await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(500); assert '250' in await pg.inner_text('#history-full'); step('شاشة السجل')
     await pg.click('[data-filter=out]'); t=await pg.inner_text('#history-full'); assert '12.5' in t and '250' not in t, t; step('تصفية السجل: "إرسال" تعرض الإرسال المحفوظ محلياً فقط')

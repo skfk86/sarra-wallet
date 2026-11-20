@@ -27,7 +27,7 @@
   function showSuccess(o) {
     var pend = o.status === 'PENDING';
     $('ok-title').textContent = pend ? 'أُرسلت العملية، بانتظار التأكيد' : o.kind === 'swap' ? 'تم التبديل بنجاح' : 'تم الإرسال بنجاح';
-    $('ok-ring').classList.toggle('pend', pend);
+    $('ok-ring').classList.toggle('pend', pend); $('ok-ring').classList.add('has-m'); putMascot($('ok-ring'), pend ? 'wait' : 'happy', 120);
     var a = fmtExact(o.amt); $('ok-amt').textContent = a; fitAmt($('ok-amt'), a);
     $('ok-coin').textContent = o.coin + (o.kind === 'send' ? ' · ' + chainLabel(o.net) : '');
     var dl = $('ok-kv'); dl.textContent = '';

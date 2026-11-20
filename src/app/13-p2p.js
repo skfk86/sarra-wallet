@@ -213,7 +213,7 @@
     var box = $('p2p-list'), want = Number($('p2p-amt').value) || 0;
     var list = (state.p2p.offers || []).filter(function (o) { return !want || (want >= Number(o.min_usdt) && want <= Math.min(Number(o.max_usdt), Number(o.available_usdt))); });
     box.textContent = '';
-    if (!list.length) return emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا يوجد من يريد الشراء الآن' : 'لا توجد إعلانات بيع الآن');
+    if (!list.length) { emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا يوجد من يريد الشراء الآن' : 'لا توجد إعلانات بيع الآن'); var he = box.querySelector('.hempty span'); if (he) { he.replaceWith(mascot('idle', 80)); } return; }
     list.forEach(function (o) {
         var sp = o.seller_profile || {}, isBuyAd = o.side === 'buy';
         var c = el('div'); c.className = 'ad' + (isBuyAd ? ' ad-b' : '');
