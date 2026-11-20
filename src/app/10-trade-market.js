@@ -105,6 +105,11 @@
     var un = $('tr-pf-un'); un.textContent = state.hidden ? '••••' : pf.wait ? 'جارٍ…' : fUsd(pf.un, true); un.className = 'ltr ' + (pf.un > 0 ? 'pl-up' : pf.un < 0 ? 'pl-dn' : '');
     var rr = $('tr-pf-re'); rr.textContent = state.hidden ? '••••' : fUsd(pf.re, true); rr.className = 'ltr ' + (pf.re > 0 ? 'pl-up' : pf.re < 0 ? 'pl-dn' : '');
     $('tr-pf-n').textContent = pf.n;
+    // العائد على التكلفة + توزيع المراكز المفتوحة
+    var cost = 0, items = [];
+    trCoins().forEach(function (c) { var v = trPosView(c); if (v.q > 0 && v.val) { items.push({ sym: c.sym, usd: v.val }); cost += v.ps && v.ps.avg ? v.ps.avg * v.q : 0; } });
+    var roi = $('tr-pf-roi'); roi.textContent = !state.hidden && cost > 0 && pf.un != null ? (pf.un >= 0 ? '+' : '') + (pf.un / cost * 100).toFixed(2) + '%' : '';
+    renderAlloc($('tr-alloc'), items, state.hidden, ['#FFFFFF', '#FCD34D', '#93C5FD', '#C4B5FD', '#FCA5A5', 'rgba(255,255,255,.5)']);
     renderOpen();
     var q = TR.q.trim().toUpperCase(), list = trCoins().filter(function (c) { return !q || c.sym.indexOf(q) >= 0 || c.name.toUpperCase().indexOf(q) >= 0; });
     if (TR.sort === 'mine') list = list.filter(function (c) { var t = coinTotal(c); return (t && t > 0) || trPos(c.sym).qty > 0; });

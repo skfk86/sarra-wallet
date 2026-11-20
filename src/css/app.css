@@ -681,3 +681,33 @@ i.skeleton{display:block;font-style:normal}
 .txd-act[hidden]{display:none}
 .txd-acts:has(.txd-act[hidden]){grid-template-columns:1fr}
 .hday small{unicode-bidi:isolate;direction:ltr}
+
+/* ===== أداء المحفظة + توزيع الأصول ===== */
+.pf-card{display:flex;flex-direction:column;gap:10px;padding:16px}
+.pf-tabs{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--s2)}
+.pf-tabs button{border:0;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--mu);padding:5px 9px;border-radius:9px;cursor:pointer}
+.pf-tabs button.on{background:var(--s1);color:var(--tx);box-shadow:var(--shadow)}
+.pf-pl{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.pf-pl>div{display:flex;flex-direction:column;gap:2px}
+.pf-pl small{font-size:12px;color:var(--mu)}
+.pf-pl b{font-size:22px;font-weight:800}
+.pf-pl b.up,.pf-pct.up{color:var(--in)}.pf-pl b.dn,.pf-pct.dn{color:var(--out)}
+.pf-pct{font-size:13px;font-weight:800;padding:4px 10px;border-radius:10px;background:var(--s2)}
+.pf-pct.up{background:var(--in-bg)}.pf-pct.dn{background:var(--out-bg)}
+.pf-chart{height:120px;position:relative}
+.pf-chart svg{width:100%;height:100%;display:block;overflow:visible}
+.pf-chart .tip{position:absolute;top:-4px;transform:translateX(-50%);font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--tx);color:var(--bg);white-space:nowrap;pointer-events:none;direction:ltr}
+.pf-note{font-size:11.5px;line-height:1.7;margin:0}
+.pf-note:empty{display:none}
+.alloc{display:flex;flex-direction:column;gap:8px}
+.alloc .bar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;background:var(--s2)}
+.alloc .bar i{display:block;height:100%;min-width:3px}
+.alloc .lg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--tx2)}
+.alloc .lg span{display:inline-flex;align-items:center;gap:5px}
+.alloc .lg i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.alloc .lg b{font-weight:700;color:var(--tx);direction:ltr}
+.alloc.on-dark{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}
+.alloc.on-dark .bar{background:rgba(255,255,255,.18)}
+.alloc.on-dark .lg,.alloc.on-dark .lg b{color:#fff}
+.tr-roi{font-style:normal;font-size:11px;font-weight:700;opacity:.9;margin-top:1px}
+#pf-pl,#pf-pct{unicode-bidi:isolate;direction:ltr}

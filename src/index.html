@@ -120,6 +120,14 @@
     <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
     <button class="action" data-go="bridge" id="act-bridge" hidden><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/><path d="m13 9 3 3-3 3"/></svg></span>نقل</button>
   </nav>
+  <div class="card pf-card" id="pf-card" hidden>
+    <div class="row between"><b style="font-size:15px;white-space:nowrap">أداء المحفظة</b>
+      <div class="pf-tabs" id="pf-tabs" role="tablist"><button type="button" data-p="1" class="on">يوم</button><button type="button" data-p="7">أسبوع</button><button type="button" data-p="30">شهر</button><button type="button" data-p="0">الكل</button></div></div>
+    <div class="pf-pl"><div><small id="pf-pl-l">ربح/خسارة السوق</small><b class="ltr" id="pf-pl">—</b></div><span class="pf-pct ltr" id="pf-pct"></span></div>
+    <div class="pf-chart" id="pf-chart"></div>
+    <p class="muted pf-note" id="pf-note"></p>
+    <div class="alloc" id="pf-alloc"></div>
+  </div>
   <div class="row between" style="margin-bottom:-6px"><h2>العملات</h2><span class="muted" style="font-size:11px" id="price-src"></span></div>
   <div class="card" style="padding:4px 0" id="assets"></div>
   <div class="row between"><h2>آخر المعاملات</h2><button class="chip" data-tab="history" style="height:32px">عرض الكل</button></div>
@@ -953,10 +961,11 @@
     <div class="tr-pf-top"><span>قيمة عملاتك المتداولة</span><button type="button" class="tr-eye" id="tr-pf-hist">سجل الصفقات</button></div>
     <b class="ltr" id="tr-pf-val">—</b>
     <div class="tr-pf-row">
-      <div><span>ربح/خسارة مفتوحة</span><b class="ltr" id="tr-pf-un">—</b></div>
+      <div><span>ربح/خسارة مفتوحة</span><b class="ltr" id="tr-pf-un">—</b><em class="ltr tr-roi" id="tr-pf-roi"></em></div>
       <div><span>ربح محقق</span><b class="ltr" id="tr-pf-re">—</b></div>
       <div><span>عدد الصفقات</span><b class="ltr" id="tr-pf-n">0</b></div>
     </div>
+    <div class="alloc on-dark" id="tr-alloc" hidden></div>
   </div>
   <div class="field tr-search"><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu);flex-shrink:0"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tr-q" placeholder="ابحث عن عملة (BTC، ETH…)" autocomplete="off"></div>
   <div class="tr-tabs" id="tr-sort" role="tablist">

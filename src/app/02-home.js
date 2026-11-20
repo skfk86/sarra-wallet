@@ -325,6 +325,99 @@
       bc.appendChild(el('span', null, 'آخر 24 ساعة'));
     }
     $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
+    if (tot != null) pfRecord(tot);
+    renderPerf();
+  }
+  // ===== أداء المحفظة =====
+  // نقاط قيمة المحفظة محفوظة على الجهاز (لكل محفظة): نقطة كل 15 دقيقة على الأكثر، تُخفَّف بعد أسبوع لنقطة كل 6 ساعات
+  var ALLOC_COL = ['#16A37A', '#3B82F6', '#F0B90B', '#8B5CF6', '#EF4444', '#94A3B8'];
+  function pfKey() { return 'sarra.pfv.' + (state.lhAddr || ''); }
+  function pfAll() { var l = lsJson(pfKey(), []); return Array.isArray(l) ? l : []; }
+  function pfRecord(v) {
+    if (!state.lhAddr || !(v >= 0) || NETWORK !== 'mainnet') return;
+    var l = pfAll(), now = Date.now(), last = l[l.length - 1];
+    if (last && now - last[0] < 15 * 60000) { last[1] = v; } else l.push([now, v]);
+    var wk = now - 7 * 864e5, out = [], lastOld = 0;
+    l.forEach(function (p) { if (p[0] >= wk) out.push(p); else if (p[0] - lastOld >= 6 * 3600e3) { out.push(p); lastOld = p[0]; } });
+    lsPut(pfKey(), out.slice(-1500));
+  }
+  // صافي الإيداع والسحب في الفترة (استلام − إرسال من السجل المحلي، بلا تبديل ونقل): حتى لا يُحسب إيداعك «ربحاً»
+  function pfFlows(since) {
+    var f = 0; lhAll().forEach(function (r) {
+      if (!r.time || r.time < since || r.status === 'FAILED') return;
+      if (r.kind !== 'recv' && r.kind !== 'send') return;
+      var c = REG.asset(r.coin) || {}, p = c.stable ? 1 : (state.prices && state.prices[r.coin] && state.prices[r.coin].usd);
+      if (!p) return; f += (r.kind === 'recv' ? 1 : -1) * Number(r.amount || 0) * p;
+    });
+    return f;
+  }
+  state.pfP = Number(lsJson('sarra.pfp', 1)) || 1;
+  document.querySelectorAll('#pf-tabs button').forEach(function (b) {
+    b.classList.toggle('on', Number(b.dataset.p) === state.pfP);
+    b.onclick = function () { state.pfP = Number(b.dataset.p); lsPut('sarra.pfp', state.pfP); document.querySelectorAll('#pf-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderPerf(); };
+  });
+  function renderPerf() {
+    var card = $('pf-card'), tot = portfolioUsd();
+    if (NETWORK !== 'mainnet' || tot == null || !state.prices) { card.hidden = true; return; }
+    card.hidden = false;
+    var P = state.pfP, now = Date.now(), all = pfAll(), since = P ? now - P * 864e5 : 0;
+    var pts = all.filter(function (p) { return p[0] >= since; });
+    if (!pts.length || pts[pts.length - 1][0] < now - 60000) pts.push([now, tot]);
+    var pl, base, note = '';
+    if (P === 1) { var d = portfolioChange(); pl = d ? d.usd : 0; base = d ? tot - d.usd : tot; note = 'تغيّر أسعار عملاتك خلال 24 ساعة.'; }
+    else {
+      var first = pts[0], flows = pfFlows(first[0]);
+      pl = tot - first[1] - flows; base = first[1] + Math.max(0, flows);
+      var span = now - first[0];
+      note = span < (P || 1) * 864e5 * 0.8 ? 'يبدأ التتبع من ' + new Date(first[0]).toLocaleDateString('ar', { day: 'numeric', month: 'long' }) + ' (أول فتح بعد التحديث). ' : '';
+      note += 'الربح هنا بعد استبعاد ما أودعته أو سحبته.';
+    }
+    var up = pl >= 0, pct = base > 0 ? pl / base * 100 : 0;
+    var pe = $('pf-pl'); pe.className = 'ltr ' + (Math.abs(pl) < 0.005 ? '' : up ? 'up' : 'dn');
+    pe.textContent = state.hidden ? '••••' : (up ? '+' : '−') + usd(Math.abs(pl));
+    var pc = $('pf-pct'); pc.className = 'pf-pct ltr ' + (Math.abs(pct) < 0.005 ? '' : up ? 'up' : 'dn'); pc.textContent = (up ? '+' : '') + pct.toFixed(2) + '%';
+    $('pf-note').textContent = note;
+    if (P === 1 && pts.length < 3) pts = [[now - 864e5, base], [now, tot]]; // لا نقاط محفوظة بعد: من قيمة الأمس المحسوبة بالأسعار إلى الآن
+    pfDraw(pts, up);
+    renderAlloc($('pf-alloc'), COINS.map(function (c) { var t = coinTotal(c), p = priceOf(c); return { sym: c.sym, usd: t && p && p.usd ? t * p.usd : 0 }; }), state.hidden);
+  }
+  function pfDraw(pts, up) {
+    var box = $('pf-chart'); box.textContent = '';
+    var W = 300, H = 110, col = up ? 'var(--in)' : 'var(--out)';
+    if (pts.length < 2) pts = [[pts[0][0] - 1, pts[0][1]], pts[0]];
+    var t0 = pts[0][0], t1 = pts[pts.length - 1][0], lo = Infinity, hi = -Infinity;
+    pts.forEach(function (p) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); });
+    if (hi - lo < hi * 0.002) { hi += hi * 0.002 + 0.01; lo -= lo * 0.002 + 0.01; }
+    var X = function (t) { return (t - t0) / Math.max(1, t1 - t0) * W; }, Y = function (v) { return 8 + (hi - v) / (hi - lo) * (H - 16); };
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join(' ');
+    var id = 'pfg' + (up ? 'u' : 'd');
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"><defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + d + ' L' + W + ' ' + H + ' L0 ' + H + 'Z" fill="url(#' + id + ')" stroke="none"/><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
+    box.style.color = col;
+    // لمس الرسم: قيمة المحفظة في تلك اللحظة
+    var tip = el('span'); tip.className = 'tip'; tip.hidden = true; box.appendChild(tip);
+    var at = function (cx) { var r = box.getBoundingClientRect(), f = Math.max(0, Math.min(1, (cx - r.left) / r.width)), t = t0 + f * (t1 - t0), best = pts[0];
+      pts.forEach(function (p) { if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p; });
+      tip.hidden = state.hidden; tip.style.left = (X(best[0]) / W * 100) + '%'; tip.textContent = usd(best[1]) + ' · ' + new Date(best[0]).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+    box.onpointerdown = box.onpointermove = function (e) { if (e.buttons || e.pointerType === 'touch') at(e.clientX); };
+    box.onpointerleave = box.onpointerup = function () { setTimeout(function () { tip.hidden = true; }, 1200); };
+  }
+  // شريط توزيع الأصول: أكبر 4 عملات ثم «أخرى»
+  function renderAlloc(box, items, hid, pal) {
+    pal = pal || ALLOC_COL;
+    items = items.filter(function (x) { return x.usd > 0.005; }).sort(function (a, b) { return b.usd - a.usd; });
+    var sum = items.reduce(function (s, x) { return s + x.usd; }, 0); box.textContent = '';
+    if (!(sum > 0)) { box.hidden = true; return; }
+    box.hidden = false;
+    var top = items.slice(0, 4), rest = items.slice(4).reduce(function (s, x) { return s + x.usd; }, 0);
+    if (rest > 0) top.push({ sym: 'أخرى', usd: rest });
+    var bar = el('div'), lg = el('div'); bar.className = 'bar'; lg.className = 'lg';
+    top.forEach(function (x, i) {
+      var pc = x.usd / sum * 100, c = pal[x.sym === 'أخرى' ? 5 : i];
+      var seg = el('i'); seg.style.width = pc + '%'; seg.style.background = c; bar.appendChild(seg);
+      var it = el('span'); var dot = el('i'); dot.style.background = c; it.appendChild(dot); it.appendChild(document.createTextNode(x.sym + ' ')); it.appendChild(el('b', null, hid ? '••' : pc.toFixed(pc < 10 ? 1 : 0) + '%')); lg.appendChild(it);
+    });
+    box.appendChild(bar); box.appendChild(lg);
   }
   // تغيّر قيمة المحفظة خلال 24 ساعة بالدولار من تغيّر سعر كل عملة تملكها
   function portfolioChange() {
