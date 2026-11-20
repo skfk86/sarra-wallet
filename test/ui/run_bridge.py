@@ -32,7 +32,8 @@ async def lifi(route):
     if q['fromChain']=='TRN':
       rh,txid=tron_raw('TOTHERx4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='owner' else ME_T, APPR, bytes.fromhex('deadbeef'+'00'*12+('99'*20 if EVIL['on']=='recv' else q['toAddress'][2:].lower())), 60000000 if EVIL['on']=='value' else 0)
       if EVIL['on']=='txid': txid='ab'*32
-      return await route.fulfill(json={'tool':'symbiosis','toolDetails':{'name':'Symbiosis'},'estimate':{'toAmount':str(int(q['fromAmount'])*10**12*99//100),'toAmountMin':str(int(q['fromAmount'])*10**12*98//100),
+      PCT=70 if EVIL['on']=='fee' else 99
+      return await route.fulfill(json={'tool':'symbiosis','toolDetails':{'name':'Symbiosis'},'estimate':{'toAmount':str(int(q['fromAmount'])*10**12*PCT//100),'toAmountMin':str(int(q['fromAmount'])*10**12*(PCT-1)//100),
         'approvalAddress':APPR,'feeCosts':[{'amountUSD':'0.40'}],'gasCosts':[{'amountUSD':'1.10'}],'executionDuration':60},
         'action':act(q),
         'transactionRequest':{'customData':{'tronTransaction':{'txID':txid,'raw_data':{'contract':[{'type':'TriggerSmartContract','parameter':{'value':{'owner_address':ME_T,'contract_address':APPR,'call_value':0}}}]},'raw_data_hex':rh}}}})
@@ -67,6 +68,8 @@ async def main():
     assert 'للكسور' in await pg.inner_text('#br-err'); print('✓ «1,5» ملتبسة: تُرفض برسالة واضحة (لا تصبح 15 ولا 1.5)')
     await pg.fill('#br-amt','500'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(400)
     assert 'غير كافٍ' in await pg.inner_text('#br-err'); print('✓ رفض مبلغ أكبر من الرصيد')
+    EVIL['on']='fee'; await pg.fill('#br-amt','100'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800); EVIL['on']=None
+    assert 'تأخذ 30%' in await pg.inner_text('#br-err') and await pg.locator('#br-go').is_hidden(); print('✓ نقل تأكل رسومه 30% من المبلغ: يُرفض بشرح واضح')
     await pg.fill('#br-amt','100'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='TRN' and q['toChain']=='56' and q['fromAmount']=='100000000' and q['fromAddress'].startswith('T') and q['toAddress'].startswith('0x') and q['integrator']=='sarra-wallet' and 'fee' not in q, q
     print('✓ طلب السعر صحيح: 100 USDT من محفظتك على TRON إلى عنوانك 0x على BNB Chain، بدون عمولة إضافية')

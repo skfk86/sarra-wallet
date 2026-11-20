@@ -255,7 +255,11 @@
       $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : 'عادة بضع دقائق';
       $('br-tool').textContent = q.tool || 'LI.FI';
       $('br-app').textContent = q.appFee ? fmt(Number(q.amount) * q.appFee) + ' ' + BR.coin + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
+      // نفس العملة على الطرفين: ما يصل يجب أن يقارب ما يُدفع. في المبالغ الصغيرة قد تأكل رسوم الجسر معظم المبلغ
+      var loss = Number(q.amount) > 0 ? 1 - Number(q.toAmount) / Number(q.amount) : 0;
+      if (loss > 0.2) { BR.q = null; return brErr('رسوم هذا النقل تأخذ ' + (loss * 100).toFixed(0) + '% من المبلغ (يصل ' + fmt(q.toAmount) + ' من ' + fmt(q.amount) + '). زِد المبلغ أو اختر شبكة أخرى'); }
       $('br-quote').hidden = false; $('br-go').hidden = false;
+      if (loss > 0.05) brErr('⚠️ ستخسر حوالي ' + (loss * 100).toFixed(1) + '% من المبلغ في الرسوم. المبالغ الأكبر أوفر نسبياً');
     } catch (e) { brErr(WalletCore.errorText(e)); }
     finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
   };
@@ -274,6 +278,11 @@
     if (!BR.q || state.txBusy) return;
     if (Date.now() - (BR.q.at || 0) > 60000) { $('br-quote-btn').click(); brErr('انتهت صلاحية السعر، جُلب سعر جديد. راجعه ثم أكّد.'); return; }
     var q = BR.q, run = function () { doBridge(q); };
+    // نقل مكرر: نفس المبلغ ونفس الاتجاه خلال 15 دقيقة (مثلاً بعد خطأ شبكة رغم أن الأول أُرسل). الجسور تستغرق دقائق فلا يظهر الأول فوراً
+    var lb = lsJson('sarra.lastbridge', null);
+    if (lb && lb.f === q.fromNet && lb.t === q.toNet && lb.c === q.sym && lb.a === q.amount && Date.now() - lb.at < 900000) {
+      var go = run; run = async function () { if (await askConfirm('نقلت ' + q.amount + ' ' + q.sym + ' بنفس الاتجاه قبل ' + Math.max(1, Math.round((Date.now() - lb.at) / 60000)) + ' دقيقة، والجسور قد تستغرق دقائق حتى يظهر الوصول. تحقق من السجل حتى لا تنقل مرتين. هل تريد النقل مرة أخرى فعلاً؟')) go(); };
+    }
     var askPin = function () { openPin('verify', run); };
     if (bioEnabled()) bioVerify('تأكيد النقل').then(run).catch(askPin); else askPin();
   };
@@ -282,6 +291,7 @@
     state.txBusy = true; state.stack = ['home', 'bridge']; show('bridge', false);
     $('br-go').hidden = true; brErr(''); var tr = $('br-track'); tr.hidden = false;
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
+    try { localStorage.setItem('sarra.lastbridge', JSON.stringify({ f: q.fromNet, t: q.toNet, c: q.sym, a: q.amount, at: Date.now() })); } catch (e0) {}
     try {
       var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
       var rec = { kind: 'bridge', net: q.fromNet, toNet: q.toNet, coin: q.toSym || q.sym, amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: 'LI.FI', txid: r.txid, url: '', status: 'PENDING' };
@@ -297,7 +307,10 @@
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
         if (i === 119) $('br-track-t').textContent = 'ما زال النقل قيد التنفيذ — بعض الجسور تتأخر. تابع رابط التتبّع، والمبلغ يصل أو يُعاد تلقائياً';
       }
-    } catch (e) { tr.hidden = true; brErr(WalletCore.errorText(e)); }
+    } catch (e) {
+      if (e && /^(INSUFFICIENT|LOW_|LOCKED|NO_ROUTE|ROUTE_MISMATCH|QUOTE_EXPIRED|BAD_|APPROVE_PENDING)/.test(e.message || '')) { try { localStorage.removeItem('sarra.lastbridge'); } catch (e1) {} }
+      tr.hidden = true; brErr(WalletCore.errorText(e));
+    }
     finally { state.txBusy = false; }
   }
 
