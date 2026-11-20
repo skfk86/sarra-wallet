@@ -88,6 +88,8 @@ async def main():
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
     if len(sys.argv)>2: await pg.locator('.hero-card').screenshot(path=sys.argv[2]+'/hero.png', scale='device')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-full.png', full_page=True)
+    pv=await pg.evaluate("(function(){var k=Object.keys(localStorage).find(x=>x.startsWith('sarra.pfv.'));return k?JSON.parse(localStorage.getItem(k)):null})()")
+    assert pv and all(abs(x[1]-172.75)<0.01 for x in pv), pv; print('✓ نقطة قيمة المحفظة تُسجَّل فقط والأرصدة والأسعار كاملة (172.75$)')
     await pg.click('#bal-chg'); await pg.wait_for_timeout(500)
     assert await pg.locator('#pf-sheet.show').count()==1 and await pg.locator('#pf-chart svg').count()==1; print('✓ «ربح/خسارة اليوم» في بطاقة الرصيد يفتح تحليل الأرباح برسم بياني وتوزيع الأصول')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/pnl.png')

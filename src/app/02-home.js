@@ -326,12 +326,20 @@
       bc.appendChild(el('i', 'font-style:normal;opacity:.8;margin-inline-start:2px', '‹'));
     }
     $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
-    if (tot != null) pfRecord(tot);
+    if (tot != null && pfComplete()) pfRecord(tot); // نقطة ناقصة (شبكة لم تُقرأ أو سعر غير متوفر) كانت ستظهر «خسارة» وهمية في الرسم
     renderPerf();
   }
   // ===== أداء المحفظة =====
   // نقاط قيمة المحفظة محفوظة على الجهاز (لكل محفظة): نقطة كل 15 دقيقة على الأكثر، تُخفَّف بعد أسبوع لنقطة كل 6 ساعات
   var ALLOC_COL = ['#16A37A', '#3B82F6', '#F0B90B', '#8B5CF6', '#EF4444', '#94A3B8'];
+  // كل الأرصدة على كل الشبكات مقروءة، ولكل عملة غير مستقرة نملكها سعر معروف
+  function pfComplete() {
+    if (!state.prices) return false;
+    return COINS.every(function (c) {
+      var t = 0; for (var i = 0; i < c.nets.length; i++) { var v = balOn(c.sym, c.nets[i]); if (v == null) return false; t += v; }
+      return !t || c.stable || (state.prices[c.sym] && state.prices[c.sym].usd > 0);
+    });
+  }
   function pfKey() { return 'sarra.pfv.' + (state.lhAddr || ''); }
   function pfAll() { var l = lsJson(pfKey(), []); return Array.isArray(l) ? l : []; }
   function pfRecord(v) {
@@ -380,7 +388,7 @@
     var up = pl >= 0, pct = base > 0 ? pl / base * 100 : 0;
     var pe = $('pf-pl'); pe.className = 'ltr ' + (Math.abs(pl) < 0.005 ? '' : up ? 'up' : 'dn');
     pe.textContent = state.hidden ? '••••' : (up ? '+' : '−') + usd(Math.abs(pl));
-    var pc = $('pf-pct'); pc.className = 'pf-pct ltr ' + (Math.abs(pct) < 0.005 ? '' : up ? 'up' : 'dn'); pc.textContent = (up ? '+' : '') + pct.toFixed(2) + '%';
+    var pc = $('pf-pct'); pc.className = 'pf-pct ltr ' + (Math.abs(pct) < 0.005 ? '' : up ? 'up' : 'dn'); pc.textContent = state.hidden ? '••' : (up ? '+' : '') + pct.toFixed(2) + '%';
     $('pf-note').textContent = note;
     if (P === 1 && pts.length < 3) pts = [[now - 864e5, base], [now, tot]]; // لا نقاط محفوظة بعد: من قيمة الأمس المحسوبة بالأسعار إلى الآن
     pfDraw(pts, up);
