@@ -169,8 +169,14 @@
   document.querySelectorAll('[data-ep]').forEach(function (b) { b.onclick = function () { state.earnP = b.dataset.ep; renderEarn(); }; });
   $('adm-rate-go').onclick = async function () {
     try {
-      var r = await p2p('admin.rate.set', { sdg_per_usdt: $('adm-rate').value, band_pct: state.p2p.band });
-      renderRate(r.rate, r.range); toast('تم حفظ سعر الصرف');
+      var nv; try { nv = Number(WalletCore.normAmount($('adm-rate').value)); } catch (e) { nv = NaN; }
+      if (!(nv > 0)) return toast('اكتب السعر رقماً صحيحاً، مثل 2700 أو 2,700', true);
+      // سعر الصرف يحدد نطاق الأسعار المقبولة لكل الإعلانات: خطأ كتابة (270 بدل 2700) يوقف السوق كله. نؤكد التغيير الكبير
+      var cur = state.p2p.rate && Number(state.p2p.rate.sdg_per_usdt), b2 = state.p2p.band || 3;
+      var chg = cur > 0 ? Math.abs(nv / cur - 1) : 0;
+      if (!(await askConfirm((chg > 0.15 ? '⚠️ السعر الجديد يختلف ' + (chg * 100).toFixed(0) + '% عن الحالي (' + cur + '). تأكد أنه ليس خطأ كتابة: ' : '') + 'حفظ سعر الصرف ' + nv + ' ج.س؟ ستُقبل الإعلانات بين ' + Math.round(nv * (1 - b2 / 100)) + ' و' + Math.round(nv * (1 + b2 / 100)) + ' فقط، وتختفي الإعلانات خارج هذا النطاق.'))) return;
+      var r = await p2p('admin.rate.set', { sdg_per_usdt: String(nv), band_pct: state.p2p.band });
+      state.p2p.rate = r.rate; state.p2p.range = r.range; renderRate(r.rate, r.range); toast('تم حفظ سعر الصرف');
     } catch (e) { toast(p2pErr(e), true); }
   };
   async function admBan(banned) {
@@ -324,6 +330,17 @@
       if (s === 'releasing' || s === 'refunding') kv(dl, 'تنبيه', 'الصفقة عالقة في منتصف الدفع منذ أكثر من 10 دقائق. راجع OxaPay ← Payouts: إن وُجدت الدفعة فلا تفعل شيئاً وأبلغ المطوّر لتحديث الحالة.');
       if (['disputed', 'release_failed'].indexOf(s) >= 0) actionBtn('حكم: حرّر للمشتري', 'primary', function () { adminDo('admin_release', 'تحرير USDT للمشتري؟'); });
       if (['disputed', 'refund_failed', 'funded'].indexOf(s) >= 0) actionBtn('حكم: أرجع للبائع', 'danger', function () { adminDo('admin_refund', s === 'funded' ? 'المشتري لم يضغط «حوّلت» بعد، لكنه قد يكون حوّل فعلاً. راسله أولاً. إرجاع USDT للبائع؟' : 'إرجاع USDT للبائع؟'); });
+      // الدفعة موجودة فعلاً في OxaPay لكن الحالة عالقة: تسجيلها منتهية بلا دفع جديد (بدل «أبلغ المطوّر»)
+      var stuck = (s === 'releasing' || s === 'refunding') || (unk && (s === 'release_failed' || s === 'refund_failed'));
+      if (stuck) {
+        var rel = s === 'releasing' || s === 'release_failed';
+        actionBtn(rel ? 'وجدت الدفعة في OxaPay · سجّلها «حُرّرت»' : 'وجدت الدفعة في OxaPay · سجّلها «أُعيدت»', 'ghost', async function () {
+          var tid = await askConfirm('اكتب رقم الدفعة (Track ID) من OxaPay ← Payouts للطلب ' + o.id + '. هذا لا يرسل أي مال، فقط يسجّل أن الدفعة تمت. لا تفعل هذا إن لم ترَ الدفعة بعينك.', true);
+          if (!tid) return; tid = String(tid).trim();
+          if (tid.length < 4) return toast('اكتب رقم الدفعة كما يظهر في OxaPay', true);
+          authorize('تأكيد العملية', function () { refreshOrder('order.action', { action: rel ? 'admin_mark_released' : 'admin_mark_refunded', confirmed_paid: true, payout_track_id: tid }); });
+        });
+      }
       if (o.dispute_reason) kv(dl, 'سبب النزاع', o.dispute_reason);
     }
 

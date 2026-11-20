@@ -62,6 +62,17 @@ t('النزاع: بعد الدفع فقط، والمشرف يحكم', () => {
   assert.equal(L.transitionFor(o('disputed'), 'admin', 'admin_release', now).to, 'releasing');
   assert.equal(L.transitionFor(o('disputed'), 'admin', 'admin_refund', now).to, 'refunding');
   assert.equal(L.transitionFor(o('release_failed'), 'admin', 'admin_release', now).to, 'releasing');
+  // تسجيل دفعة تمت يدوياً: بتأكيد صريح فقط، ولصفقة عالقة 10 دقائق أو فاشلة بنتيجة مجهولة
+  assert.equal(L.transitionFor(o('releasing'), 'admin', 'admin_mark_released', now).to, 'released');
+  assert.equal(L.transitionFor(o('refund_failed'), 'admin', 'admin_mark_refunded', now).to, 'refunded');
+  assert.throws(() => L.transitionFor(o('disputed'), 'admin', 'admin_mark_released', now), /INVALID_STATE/);
+  assert.throws(() => L.transitionFor(o('releasing'), 'seller', 'admin_mark_released', now), /NOT_ALLOWED/);
+  const old = new Date(now - 700000).toISOString(), fresh = new Date(now - 60000).toISOString();
+  assert.equal(L.markSettledBlocked({ status: 'releasing', updated_at: old }, 'admin_mark_released', true, now), null);
+  assert.equal(L.markSettledBlocked({ status: 'releasing', updated_at: old }, 'admin_mark_released', undefined, now), 'PAYOUT_CONFIRM_REQUIRED');
+  assert.equal(L.markSettledBlocked({ status: 'releasing', updated_at: fresh }, 'admin_mark_released', true, now), 'STILL_PROCESSING');
+  assert.equal(L.markSettledBlocked({ status: 'release_failed', payout_error: 'OXAPAY: insufficient' }, 'admin_mark_released', true, now), 'NOT_ALLOWED');
+  assert.equal(L.markSettledBlocked({ status: 'release_failed', payout_error: 'UNKNOWN_RESULT: timeout' }, 'admin_mark_released', true, now), null);
 });
 
 t('الأدوار وتفاصيل بنكك', () => {

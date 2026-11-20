@@ -449,6 +449,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
 
     if (action === 'order.action') {
       if (role === 'admin' && L.payoutRetryBlocked(o as any, String(p.action), p.confirmed_unpaid)) throw new Error('PAYOUT_UNKNOWN_CONFIRM');
+      if (role === 'admin') { const mb = L.markSettledBlocked(o as any, String(p.action), p.confirmed_paid, Date.now()); if (mb) throw new Error(mb); }
       const tr = L.transitionFor(o as L.Order, role, String(p.action), Date.now());
       if (p.action === 'cancel') await limit(me, 'order_cancel');
       const patch: Record<string, any> = { status: tr.to };
@@ -470,6 +471,12 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       if (role === 'admin' && p.action === 'admin_release' && o.status === 'disputed') {
         const { data: s } = await db.from('profiles').select('disputes_lost').eq('address', o.seller).single();
         if (s) await db.from('profiles').update({ disputes_lost: s.disputes_lost + 1 }).eq('address', o.seller);
+      }
+      if (tr.marked) { // تسجيل يدوي بلا دفع: نُكمل المحاسبة كما لو أن settle نجح
+        await audit(o.id, me, 'admin_marked_' + tr.to, { prev_status: o.status, prev_error: o.payout_error || null, payout_track_id: String(p.payout_track_id || '').slice(0, 80) || null });
+        if (p.payout_track_id) await db.from('orders').update({ payout_track_id: String(p.payout_track_id).slice(0, 80), payout_error: null }).eq('id', o.id);
+        if (tr.to === 'released') for (const a of [o.buyer, o.seller]) { const { data: pr } = await db.from('profiles').select('trades_completed').eq('address', a).single(); if (pr) await db.from('profiles').update({ trades_completed: pr.trades_completed + 1 }).eq('address', a); }
+        else await db.rpc('p2p_unreserve_order', { p_order: o.id });
       }
       if (tr.release) locked.status = await settle(locked, 'release', me);
       if (tr.refund) locked.status = await settle(locked, 'refund', me);

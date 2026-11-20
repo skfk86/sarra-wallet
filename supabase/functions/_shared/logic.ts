@@ -12,7 +12,7 @@ export type Order = {
   deposit_expires_at?: string | null;
 };
 
-export type Transition = { from: string[]; to: string; refund?: boolean; release?: boolean };
+export type Transition = { marked?: boolean; from: string[]; to: string; refund?: boolean; release?: boolean };
 
 // ===== المبالغ بدقة 6 خانات (بدون أخطاء الأرقام العشرية) =====
 export function toMicro(v: string | number): bigint {
@@ -54,6 +54,14 @@ export function parseSignedMessage(message: string, now: number, maxSkewMs = 300
 // role: 'buyer' | 'seller' | 'admin'
 // محاولة دفع سابقة انقطعت ولا نعرف نتيجتها: قد يكون OxaPay أرسل المال فعلاً.
 // لا يُسمح للمشرف بإعادة التحرير/الإرجاع إلا بتأكيد صريح أنه راجع سجل Payouts ولم يجد الدفعة.
+// تسجيل «تم الدفع» يدوياً: فقط بعد تأكيد صريح أن الدفعة موجودة في OxaPay، ولصفقة عالقة 10 دقائق على الأقل
+// (لا نسجّل صفقة ما زال الخادم يدفعها الآن) أو فاشلة بنتيجة مجهولة. الفشل الصريح من OxaPay يعني أنه لم يُدفع شيء
+export function markSettledBlocked(order: { status: string; payout_error?: string | null; updated_at?: string }, action: string, confirmedPaid: unknown, now: number): string | null {
+  if (action !== 'admin_mark_released' && action !== 'admin_mark_refunded') return null;
+  if (confirmedPaid !== true) return 'PAYOUT_CONFIRM_REQUIRED';
+  if (order.status === 'releasing' || order.status === 'refunding') return order.updated_at && now - Date.parse(order.updated_at) >= 600000 ? null : 'STILL_PROCESSING';
+  return /^UNKNOWN_RESULT/.test(order.payout_error || '') ? null : 'NOT_ALLOWED';
+}
 export function payoutRetryBlocked(order: { status: string; payout_error?: string | null }, action: string, confirmedUnpaid: unknown): boolean {
   if (action !== 'admin_release' && action !== 'admin_refund') return false;
   if (order.status !== 'release_failed' && order.status !== 'refund_failed') return false;
@@ -89,6 +97,10 @@ export function transitionFor(order: Order, role: string, action: string, now: n
   if (role === 'admin') {
     if (action === 'admin_release') return A(['disputed', 'release_failed'], 'releasing', { release: true });
     if (action === 'admin_refund') return A(['disputed', 'refund_failed', 'funded'], 'refunding', { refund: true });
+    // الدفعة وصلت فعلاً في OxaPay لكن الحالة لم تُحدَّث (انقطاع بعد الدفع، أو «نتيجة مجهولة» تبيّن أنها نجحت):
+    // يسجّلها المشرف منتهية بلا أي دفع جديد. لا يُسمح بها إلا لصفقة عالقة في الدفع أو فاشلة بنتيجة مجهولة
+    if (action === 'admin_mark_released') return A(['releasing', 'release_failed'], 'released', { marked: true });
+    if (action === 'admin_mark_refunded') return A(['refunding', 'refund_failed'], 'refunded', { marked: true });
   }
   throw new Error('NOT_ALLOWED');
 }
