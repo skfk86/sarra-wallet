@@ -644,3 +644,4 @@ i.skeleton{display:block;font-style:normal}
 .chat-order,.chat-safe{flex:0 0 auto}
 .chat-day{background:none!important;padding:0!important;align-self:stretch}
 .msg-meta{direction:rtl}
+.chat-day{position:static!important}
