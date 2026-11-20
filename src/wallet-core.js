@@ -323,6 +323,10 @@
     if (act.fromAddress && !sameAddr(act.fromAddress, ctx.fromAddr)) throw routeBad('fromAddress');
     if (Number(act.fromChainId) !== ctx.chainId) throw routeBad('fromChain');
     if (Number(act.toChainId) !== ctx.toChainId) throw routeBad('toChain');
+    // حماية الانزلاق: نطلب 0.5%، فعرض يسمح بانزلاق أكبر من 5% (أو حد أدنى للاستلام أقل من 95% من المتوقع) يُرفض،
+    // لأنه يترك الصفقة مكشوفة لمن يتلاعب بالسعر لحظة التنفيذ (sandwich) فيخسر المستخدم الفرق
+    if (act.slippage != null && !(Number(act.slippage) <= 0.05)) throw routeBad('slippage');
+    if (q.toAmount != null && q.toAmountMin != null && Number(q.toAmount) > 0 && !(Number(q.toAmountMin) >= Number(q.toAmount) * (q.fromNet === q.toNet ? 0.95 : 0.90))) throw routeBad('minOut'); // الجسور رسومها متغيرة، فهامشها أوسع
     if (q.fromNet === 'tron') return; // معاملة ترون تُفحص في checkTronBridgeTx
     var tx = q.tx || {}, data = String(tx.data || '').toLowerCase();
     if (!sameAddr(tx.to, LIFI_DIAMOND)) throw routeBad('to');

@@ -36,7 +36,7 @@ async def lifi(route):
         'approvalAddress':APPR,'feeCosts':[{'amountUSD':'0.40'}],'gasCosts':[{'amountUSD':'1.10'}],'executionDuration':60},
         'action':act(q),
         'transactionRequest':{'customData':{'tronTransaction':{'txID':txid,'raw_data':{'contract':[{'type':'TriggerSmartContract','parameter':{'value':{'owner_address':ME_T,'contract_address':APPR,'call_value':0}}}]},'raw_data_hex':rh}}}})
-    return await route.fulfill(json={'tool':'allbridge','estimate':{'toAmount':str(int(q['fromAmount'])//10**12*99//100),'toAmountMin':'1','approvalAddress':DIA,
+    return await route.fulfill(json={'tool':'allbridge','estimate':{'toAmount':str(int(q['fromAmount'])//10**12*99//100),'toAmountMin':str(int(q['fromAmount'])//10**12*97//100),'approvalAddress':DIA,
         'feeCosts':[],'gasCosts':[{'amountUSD':'0.05','amount':'80000000000000'}],'executionDuration':300},
         'action':dict(act(q,'TEvilZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='dest' else None),**({'toChainId':1} if EVIL['on']=='chain' else {})),
         'transactionRequest':{'to':('0x9999999999999999999999999999999999999999' if EVIL['on']=='to' else DIA),'data':('0xdeadbeef'+'00'*64 if EVIL['on']=='recv' else evm_data(q)),'value':'0x0','gasLimit':'0x30d40','chainId':cid(q['fromChain'])}})

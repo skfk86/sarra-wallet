@@ -274,7 +274,7 @@
     if (usdIn && usdIn < 1) return odErr('أقل صفقة 1 دولار: المبالغ الأصغر ترفضها خدمات التبديل لأن رسوم الشبكة تقارب المبلغ نفسه');
     var n = netOf(TR.net);
     if (n.evm) { var nat = evmUnits(TR.net, n.native); if (nat != null && nat === 0n) { odErr('تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة'); return openGasHelp(TR.net); } }
-    var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');
+    var btn = this, qerr = ''; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');
     try {
       var q;
       if (TR.net === 'tron') { // TRX ↔ USDT عبر SunSwap
@@ -288,10 +288,15 @@
       $('od-out').textContent = niceNum(q.toAmount, 8) + ' ' + got;
       $('od-min').textContent = niceNum(q.toAmountMin, 8) + ' ' + got;
       $('od-rate').textContent = '1 ' + c.sym + ' ≈ ' + fp(TR.side === 'buy' ? inN / outN : outN / inN) + ' USDT';
+      // سعر التنفيذ مقارنة بسعر السوق: سيولة ضعيفة أو مسار سيئ قد يعطي سعراً أسوأ بكثير. فوق 10% نرفض، وفوق 3% ننبّه
+      var mk = trPrice(c.sym), ef = TR.side === 'buy' ? inN / outN : outN / inN, dev = mk && ef > 0 && isFinite(ef) ? (TR.side === 'buy' ? ef / mk - 1 : 1 - ef / mk) : 0;
+      if (dev > 0.10) { TR.oq = null; throw { ar: 'سعر التنفيذ أسوأ من سعر السوق بـ ' + (dev * 100).toFixed(1) + '% (سيولة ضعيفة على هذه الشبكة). جرّب مبلغاً أصغر أو شبكة أخرى' }; }
+      q.dev = dev > 0.03 ? dev : 0;
       $('od-fee').textContent = q.tron ? (q.fee || 'مجاناً') : q.appFee ? niceNum(inN * q.appFee, 6) + ' ' + pay + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('od-gas').textContent = q.tron ? 'بعملة TRX من رصيدك' : (Number(q.gasNative) ? niceNum(q.gasNative, 6) + ' ' + n.native + ' · ' : '') + (q.gasUsd < 0.01 ? 'أقل من $0.01' : '≈ $' + Number(q.gasUsd || 0).toFixed(2));
-    } catch (e) { odErr(WalletCore.errorText(e)); TR.oq = null; }
-    finally { btn.disabled = false; odRender(); }
+    } catch (e) { qerr = e && e.ar || WalletCore.errorText(e); TR.oq = null; }
+    // odRender يخفي رسالة الخطأ، فنعرضها بعده (وإلا اختفى سبب فشل جلب السعر فوراً ولم يره المستخدم)
+    finally { btn.disabled = false; odRender(); odErr(qerr || (TR.oq && TR.oq.dev ? '⚠️ سعر التنفيذ أسوأ من سعر السوق بـ ' + (TR.oq.dev * 100).toFixed(1) + '%. تأكد قبل المتابعة' : '')); }
   };
   function odConfirm() {
     var q = TR.oq; $('od-sheet').classList.remove('show');

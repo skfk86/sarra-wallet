@@ -259,6 +259,11 @@ const goodQ = () => ({ fromNet: 'bsc', toNet: 'polygon', units: 5n * 10n ** 18n,
 const ctx = { chainId: 56, toChainId: 137, toIsEvm: true, fromAddr: ME };
 const bad = (mut, why) => { const q = goodQ(); mut(q); assert.throws(() => W.checkBridgeQuote(q, ctx), (e) => e.message === 'ROUTE_MISMATCH' && (!why || e.raw === why), why); };
 await t('عرض نقل سليم يُقبل', () => { W.checkBridgeQuote(goodQ(), ctx); });
+await t('عرض بانزلاق مفرط أو حد أدنى منخفض يُرفض', () => {
+  bad((q) => { q.action.slippage = 0.2; }, 'slippage');
+  bad((q) => { q.toAmount = '100'; q.toAmountMin = '50'; }, 'minOut');
+  const q = goodQ(); q.action.slippage = 0.005; q.toAmount = '100'; q.toAmountMin = '99.5'; W.checkBridgeQuote(q, ctx);
+});
 await t('عرض ناقص الحقول يُرفض (لا تساهل عند غياب حقل)', () => {
   bad((q) => { q.action = {}; }, 'amount');
   bad((q) => { delete q.action.fromToken; }, 'fromToken');

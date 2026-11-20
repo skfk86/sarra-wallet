@@ -21,12 +21,14 @@ async def binance(route):
     chg={'BTCUSDT':'2.50','ETHUSDT':'-1.20','BNBUSDT':'0.80','DOGEUSDT':'-6.40','SOLUSDT':'7.10'}
     return await route.fulfill(json=[{'symbol':s,'lastPrice':str(PRICE['BTC'] if s=='BTCUSDT' else 3.5),'priceChangePercent':chg.get(s,'0.10'),'highPrice':'61000','lowPrice':'58500','quoteVolume':str(1e9 if s=='BTCUSDT' else 1e6)} for s in syms])
   await route.fulfill(status=404, json={})
+BADP=[False]
 async def lifi(route):
   u=urlparse(route.request.url); q={k:v[0] for k,v in parse_qs(u.query).items()}
   if u.path.endswith('/quote'):
     Q.append(q); fa=int(q['fromAmount'])
     buy=q['fromToken'].lower()=='0x55d398326f99059ff775485246999027b3197955'
     to=fa*10**18//(60000*10**18) if buy else fa*60000   # USDT→BTC أو BTC→USDT بسعر 60,000 (18 خانة على BSC)
+    if BADP[0]: to=to*80//100   # مسار بسعر أسوأ من السوق بـ 20%
     return await route.fulfill(json={'tool':'pancakeswap','toolDetails':{'name':'PancakeSwap'},'estimate':{'toAmount':str(to),'toAmountMin':str(to*99//100),'approvalAddress':DIA,
       'feeCosts':[],'gasCosts':[{'amountUSD':'0.03','amount':'50000000000000'}],'executionDuration':10},
       'action':{'fromAmount':q['fromAmount'],'toAddress':q['toAddress'],'fromChainId':int(q['fromChain']),'toChainId':int(q['toChain']),'fromToken':{'address':q['fromToken']},'toToken':{'address':q['toToken']}},
@@ -92,6 +94,9 @@ async def main():
     await pg.fill('#od-amt','1,000'); assert not await pg.is_disabled('#od-go'); print('✓ «1,000» بالفاصلة لا تُعطّل زر عرض السعر')
     await pg.fill('#od-amt','100'); await pg.click('#od-go'); await pg.wait_for_timeout(300)
     assert 'غير كافٍ' in await pg.inner_text('#od-err'); print('✓ رفض مبلغ أكبر من الرصيد')
+    BADP[0]=True; await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
+    er=await pg.inner_text('#od-err'); assert 'أسوأ من سعر السوق' in er and 'تأكيد' not in await pg.inner_text('#od-go'), er; print('✓ سعر تنفيذ أسوأ من السوق بـ 20% يُرفض وتظهر الرسالة')
+    BADP[0]=False
     await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='56' and q['fromAmount']==str(12*10**18), q; print('✓ طلب السعر: 12 USDT → BTC على BNB Chain')
     out=await pg.inner_text('#od-out'); rate=await pg.inner_text('#od-rate'); assert 'BTC' in out and '60,000' in rate, (out,rate); print('✓ ستستلم', out, '·', rate)
