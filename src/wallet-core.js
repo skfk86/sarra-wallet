@@ -1063,6 +1063,20 @@
         return { txid: txHash, fromNet: q.fromNet, toNet: q.toNet };
       },
       // DONE | FAILED | PENDING (+ رابط التتبع)
+      // حالة معاملة إرسال سابقة: SUCCESS أو FAILED أو PENDING (لم تُعدَّن بعد أو لا نعرف)
+      txStatus: async function (netKey, txid, isContract) {
+        try {
+          if (netKey === 'tron') {
+            var info = await client().trx.getTransactionInfo(txid);
+            if (!info || !info.id) return 'PENDING';
+            if (isContract) return info.receipt && info.receipt.result === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+            return info.result === 'FAILED' ? 'FAILED' : 'SUCCESS';
+          }
+          var c = EVM_CHAINS[netKey]; if (!c) return 'PENDING';
+          var rc = await evmCall(c, function (p) { return p.getTransactionReceipt(txid); });
+          return !rc ? 'PENDING' : rc.status === 0 ? 'FAILED' : 'SUCCESS';
+        } catch (e) { return 'PENDING'; }
+      },
       bridgeStatus: async function (txid, fromNet, toNet) {
         try {
           var r = await lifi('/status?' + new URLSearchParams({ txHash: txid, fromChain: bridgeChain(fromNet), toChain: bridgeChain(toNet) }).toString());

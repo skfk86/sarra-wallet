@@ -13,6 +13,30 @@
     } catch (e) {}
     vaultSoon();
   }
+  // عمليات تبديل/نقل بقيت «قيد التنفيذ» لأن التطبيق أُغلق قبل تأكيدها: نسأل عن نتيجتها عند فتح السجل أو السوق
+  var lhRechecking = false;
+  async function lhRecheck() {
+    if (lhRechecking || !core.bridgeStatus || !state.lhAddr) return; lhRechecking = true;
+    try {
+      var stuck = lhAll().filter(function (r) { return r.status === 'PENDING' && r.txid && r.net && Date.now() - (r.time || 0) > 120000 &&
+        ((r.kind === 'swap' || r.kind === 'bridge') && /^0x[0-9a-fA-F]{64}$/.test(r.txid) && r.net !== 'tron' || r.kind === 'send'); }).slice(0, 5);
+      var changed = false;
+      for (var i = 0; i < stuck.length; i++) {
+        var r = stuck[i];
+        if (r.kind === 'send') { // الإرسال: نقرأ إيصال المعاملة من الشبكة
+          var ts = core.txStatus ? await core.txStatus(r.net, r.txid, r.coin !== netOf(r.net).native) : 'PENDING';
+          if (ts === 'PENDING') continue; r.status = ts;
+        } else {
+          var st = await core.bridgeStatus(r.txid, r.net, r.toNet || r.net).catch(function () { return null; });
+          if (st && st.status === 'DONE') { r.status = 'SUCCESS'; if (st.link) r.url = st.link; }
+          else if (st && (st.status === 'FAILED' || st.status === 'REFUNDED')) r.status = 'FAILED';
+          else continue;
+        }
+        lhAdd(r); changed = true;
+      }
+      if (changed && state.stack[state.stack.length - 1] === 'history') loadHistoryFull();
+    } finally { lhRechecking = false; }
+  }
   // ===== خزنة السجل المشفّرة على الخادم: سجل المعاملات وصفقات التداول يبقيان بعد حذف التطبيق وإعادة تثبيته =====
   var vaultT = null;
   function vaultSoon() { if (!P2P_URL || !state.lhAddr) return; clearTimeout(vaultT); vaultT = setTimeout(vaultPush, 4000); }

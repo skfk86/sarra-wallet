@@ -81,7 +81,7 @@
 
   // ===== شاشة السوق =====
   function loadTrade() {
-    renderTrade(); trRecheck();
+    renderTrade(); trRecheck(); lhRecheck();
     trTickers().then(renderTrade);
     clearInterval(TR.timer);
     TR.timer = setInterval(function () {

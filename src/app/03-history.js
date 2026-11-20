@@ -181,6 +181,7 @@
     applyFilter();
   }
   async function loadHistoryFull() {
+    lhRecheck(); // لا ننتظره: يحدّث العمليات العالقة في الخلفية
     renderEvmHist(); buildHnetChips();
     var box = $('history-full');
     var haveTron = state.historyCache && Date.now() - state.fetchedAt.history < FRESH_MS;

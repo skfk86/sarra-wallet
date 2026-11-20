@@ -130,8 +130,11 @@ async def main():
       await pg.click('#tr-list .tr-row[data-sym=BTC]'); await pg.wait_for_timeout(1500); await pg.screenshot(path=SHOTS+'/pair-dark.png', full_page=True)
     # صفقة علقت «قيد التنفيذ» (أُغلق التطبيق) ثم فشلت على الشبكة: تُصحَّح عند فتح السوق ولا تبقى في المركز
     await pg.evaluate("(()=>{const k=Object.keys(localStorage).find(k=>k.startsWith('sarra.tr.'));const l=JSON.parse(localStorage.getItem(k));l.unshift({id:'0x'+'1'.repeat(48)+'dead'.repeat(4),sym:'ETH',side:'buy',qty:'1',usdt:'3.5',price:3.5,net:'bsc',time:Date.now()-3600000,status:'PENDING'});localStorage.setItem(k,JSON.stringify(l))})()")
+    await pg.evaluate("(()=>{const k=Object.keys(localStorage).find(k=>k.startsWith('sarra.lh.'));const l=JSON.parse(localStorage.getItem(k)||'[]');l.unshift({id:'0x'+'2'.repeat(48)+'dead'.repeat(4),txid:'0x'+'2'.repeat(48)+'dead'.repeat(4),kind:'bridge',net:'bsc',toNet:'polygon',coin:'USDT',amount:'5',status:'PENDING',time:Date.now()-3600000});localStorage.setItem(k,JSON.stringify(l))})()")
     await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(300); await pg.click('.tab[data-tab=trade]'); await pg.wait_for_timeout(2500)
     st=await pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('sarra.tr.'))))")
+    lh=await pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('sarra.lh.'))))")
+    br=[r for r in lh if r.get('kind')=='bridge'][0]; assert br['status']=='FAILED', br; print('✓ عملية نقل عالقة في السجل تُصحَّح تلقائياً')
     eth=[t for t in st if t['sym']=='ETH'][0]; assert eth['status']=='FAILED', eth; print('✓ صفقة عالقة «قيد التنفيذ» تُحدَّث تلقائياً إلى «فاشلة» ولا تُحسب في المركز')
     assert not errs, errs
     print('✓ لا أخطاء JavaScript')
