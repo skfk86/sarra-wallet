@@ -57,11 +57,18 @@
   async function trRecheck() {
     if (trRechecking || !core.bridgeStatus) return; trRechecking = true;
     try {
-      var stuck = trAll().filter(function (t) { return t.status === 'PENDING' && /^0x[0-9a-fA-F]{64}$/.test(t.id) && t.net && t.net !== 'tron' && Date.now() - t.time > 60000; }).slice(0, 5);
+      var stuck = trAll().filter(function (t) { return t.status === 'PENDING' && t.net && (t.net === 'tron' ? /^[0-9a-fA-F]{64}$/.test(t.id) : /^0x[0-9a-fA-F]{64}$/.test(t.id)) && Date.now() - t.time > 60000; }).slice(0, 5);
       var changed = false;
       for (var i = 0; i < stuck.length; i++) {
-        var t = stuck[i], st = await core.bridgeStatus(t.id, t.net, t.net).catch(function () { return null; });
-        var ns = st && st.status === 'DONE' ? 'SUCCESS' : st && (st.status === 'FAILED' || st.status === 'REFUNDED') ? 'FAILED' : null;
+        var t = stuck[i], st, ns;
+        if (t.net === 'tron') { // SunSwap: عقد ذكي، نقرأ نتيجة المعاملة من الشبكة
+          ns = core.txStatus ? await core.txStatus('tron', t.id, true).catch(function () { return 'PENDING'; }) : 'PENDING'; if (ns === 'PENDING') ns = null;
+        } else {
+          st = await core.bridgeStatus(t.id, t.net, t.net).catch(function () { return null; });
+          ns = st && st.status === 'DONE' ? 'SUCCESS' : st && (st.status === 'FAILED' || st.status === 'REFUNDED') ? 'FAILED' : null;
+          // الكمية الفعلية المستلمة بدل كمية عرض السعر (قد تختلف بالانزلاق)، ليُحسب متوسط الدخول والربح بدقة
+          if (ns === 'SUCCESS' && st.received && t.dec != null) { try { var ra = WalletCore.fromUnits(BigInt(st.received), t.dec); if (Number(ra) > 0) { if (t.side === 'buy') t.qty = ra; else t.usdt = ra; t.price = Number(t.usdt) / Number(t.qty); } } catch (e) {} }
+        }
         if (!ns) continue;
         t.status = ns; trSave(t); changed = true;
         var lr = lhAll().filter(function (x) { return x.id === t.id; })[0]; if (lr) { lr.status = ns; lhAdd(lr); }

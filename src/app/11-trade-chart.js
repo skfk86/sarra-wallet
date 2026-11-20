@@ -303,16 +303,17 @@
     if (state.txBusy || !q || q.used) return; q.used = true; // السعر نفسه لا يُنفَّذ مرتين (نقرتان أو تأكيدان)
     state.txBusy = true; toast(q.tSide === 'buy' ? 'جارٍ الشراء…' : 'جارٍ البيع…');
     var c = trCoin(q.tSym), coinAmt = q.tSide === 'buy' ? q.toAmount : q.amount, usdtAmt = q.tSide === 'buy' ? q.amount : q.toAmount;
-    var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING', fee: q.appFee ? String(Number(q.amount) * q.appFee) : null };
+    var t = { id: 'T' + Date.now(), sym: q.tSym, side: q.tSide, qty: String(coinAmt), usdt: String(usdtAmt), price: Number(usdtAmt) / Number(coinAmt), net: q.tNet, time: Date.now(), status: 'PENDING', dec: q.toTok && q.toTok.dec, fee: q.appFee ? String(Number(q.amount) * q.appFee) : null };
     var lh = { kind: 'swap', net: q.tNet, coin: q.tSide === 'buy' ? q.tSym : 'USDT', amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.tSide === 'buy' ? 'USDT' : q.tSym, via: (q.tSide === 'buy' ? 'شراء ' : 'بيع ') + q.tSym + ' · ' + (q.tron ? 'SunSwap' : 'LI.FI'), trade: q.tSide, status: 'PENDING' };
     try {
       if (q.tron) {
         var r = await core.swap(q.dir, q.amount, SWAP_SLIPPAGE_BPS, q.toAmount);
-        var ok = r.status === 'SUCCESS'; t.id = r.txid; t.url = r.url; t.status = ok ? 'SUCCESS' : 'FAILED';
+        // PENDING = أُرسلت ولم تُؤكَّد خلال المهلة: ليست فشلاً. وصفها بالفاشلة كان يدفع المستخدم لإعادة الشراء فيُنفَّذ مرتين
+        var ok = r.status === 'SUCCESS', pend = r.status === 'PENDING'; t.id = r.txid; t.url = r.url; t.status = ok ? 'SUCCESS' : pend ? 'PENDING' : 'FAILED';
         if (ok && r.out) { if (q.tSide === 'buy') t.qty = String(r.out); else t.usdt = String(r.out); t.price = Number(t.usdt) / Number(t.qty); }
         lh.txid = r.txid; lh.url = r.url; lh.status = t.status; lh.amount = String(r.out || q.toAmount);
         trSave(t); lhAdd(lh); state.balances = null; state.historyCache = null;
-        toast(ok ? (q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓') : 'لم تكتمل الصفقة', !ok);
+        toast(ok ? (q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓') : pend ? 'أُرسلت الصفقة وتنتظر تأكيد الشبكة. لا تكررها، ستُحدَّث تلقائياً' : 'لم تكتمل الصفقة', !ok && !pend);
       } else {
         var r2 = await core.bridgeExecute(q); rxExpect(q);
         t.id = r2.txid; t.url = core.evmTxUrl ? core.evmTxUrl(q.tNet, r2.txid) : ''; lh.txid = r2.txid; lh.url = t.url;
