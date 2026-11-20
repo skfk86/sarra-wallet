@@ -1085,7 +1085,11 @@
         try {
           var r = await lifi('/status?' + new URLSearchParams({ txHash: txid, fromChain: bridgeChain(fromNet), toChain: bridgeChain(toNet) }).toString());
           var s = r.status === 'DONE' ? (r.substatus === 'REFUNDED' ? 'REFUNDED' : 'DONE') : r.status === 'FAILED' ? 'FAILED' : 'PENDING';
-          return { status: s, link: r.lifiExplorerLink || '', received: r.receiving && r.receiving.amount ? r.receiving.amount : '' };
+          // DONE/PARTIAL: وصل المبلغ لكن بعملة أخرى غير المطلوبة (مثل نسخة مجسّرة من USDC). نعيد رمزها وخاناتها
+          // حتى لا يُقرأ المبلغ بخانات العملة المطلوبة فيظهر رقم خاطئ، ويعرف المستخدم ما وصله فعلاً
+          var rt = r.receiving && r.receiving.token || {};
+          return { status: s, link: r.lifiExplorerLink || '', received: r.receiving && r.receiving.amount ? r.receiving.amount : '',
+            partial: r.status === 'DONE' && r.substatus === 'PARTIAL', recvSym: rt.symbol || '', recvDec: rt.decimals != null ? Number(rt.decimals) : null, recvAddr: rt.address || '' };
         } catch (e) { return { status: 'PENDING', link: '' }; }
       },
       // يحوّل سجل الخادم الخام (history.evm) إلى عناصر موحّدة للواجهة. التوكنات غير المعروفة (سبام) تُهمل

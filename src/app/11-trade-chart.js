@@ -330,6 +330,10 @@
         state.txBusy = false; trRenderPos(); // أُرسلت: نتابع دون إيقاف التطبيق
         for (var i = 0; i < 45; i++) {
           var st = await core.bridgeStatus(r2.txid, q.tNet, q.tNet).catch(function () { return {}; });
+          if (st.status === 'DONE' && stOther(st, q)) { // وصل بعملة أخرى: الصفقة لم تتم كما طُلبت، فلا تُحسب في المركز
+            var oc = stOther(st, q); t.status = 'FAILED'; lh.coin = oc; lh.amount = stAmount(st, q); lh.status = 'SUCCESS'; if (st.link) lh.url = st.link; trSave(t); lhAdd(lh);
+            toast('لم تكتمل الصفقة كما طُلبت: وصلك ' + oc + ' بدل ' + (q.tSide === 'buy' ? q.tSym : 'USDT') + '. تجده في محفظتك', true); break;
+          }
           if (st.status === 'DONE') {
             var ra = stAmount(st, q); if (q.tSide === 'buy') t.qty = ra; else t.usdt = ra; t.price = Number(t.usdt) / Number(t.qty); lh.amount = ra;
             t.status = 'SUCCESS'; lh.status = 'SUCCESS'; if (st.link) lh.url = st.link; trSave(t); lhAdd(lh); toast(q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓'); break;

@@ -11,7 +11,9 @@
     rxPut('sarra.rxe', RX.expect); // يبقى بعد إغلاق التطبيق: وصول النقل لاحقاً لا يظهر كتحويلة من شخص آخر
   }
   // المبلغ المستلم فعلاً من حالة LI.FI (بالوحدات الخام) وإلا التقدير
-  function stAmount(st, q) { try { if (st && st.received && q && q.toTok) return WalletCore.fromUnits(BigInt(st.received), q.toTok.dec); } catch (e) {} return String(q.toAmount); }
+  function stAmount(st, q) { try { if (st && st.received && q && q.toTok) return WalletCore.fromUnits(BigInt(st.received), st.recvDec != null && st.recvAddr && String(st.recvAddr).toLowerCase() !== String(q.toTok.addr).toLowerCase() ? st.recvDec : q.toTok.dec); } catch (e) {} return String(q.toAmount); }
+  // وصل بعملة غير المطلوبة؟ نعيد رمزها لنُظهره للمستخدم
+  function stOther(st, q) { return st && st.partial && st.recvSym && q && st.recvSym !== (q.toSym || q.sym) ? st.recvSym : ''; }
   function rxUnexpect(q) { // عملية فشلت: لا ننتظر وارداً منها حتى لا نبتلع تحويلة حقيقية بنفس المبلغ
     for (var i = RX.expect.length - 1; i >= 0; i--) { var e = RX.expect[i]; if (e.net === q.toNet && e.coin === (q.toSym || q.sym)) { RX.expect.splice(i, 1); break; } }
     rxPut('sarra.rxe', RX.expect);

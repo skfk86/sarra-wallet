@@ -65,7 +65,7 @@
           ns = core.txStatus ? await core.txStatus('tron', t.id, true).catch(function () { return 'PENDING'; }) : 'PENDING'; if (ns === 'PENDING') ns = null;
         } else {
           st = await core.bridgeStatus(t.id, t.net, t.net).catch(function () { return null; });
-          ns = st && st.status === 'DONE' ? 'SUCCESS' : st && (st.status === 'FAILED' || st.status === 'REFUNDED') ? 'FAILED' : null;
+          ns = st && st.status === 'DONE' && st.partial ? 'FAILED' : st && st.status === 'DONE' ? 'SUCCESS' : st && (st.status === 'FAILED' || st.status === 'REFUNDED') ? 'FAILED' : null;
           // الكمية الفعلية المستلمة بدل كمية عرض السعر (قد تختلف بالانزلاق)، ليُحسب متوسط الدخول والربح بدقة
           if (ns === 'SUCCESS' && st.received && t.dec != null) { try { var ra = WalletCore.fromUnits(BigInt(st.received), t.dec); if (Number(ra) > 0) { if (t.side === 'buy') t.qty = ra; else t.usdt = ra; t.price = Number(t.usdt) / Number(t.qty); } } catch (e) {} }
         }

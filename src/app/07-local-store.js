@@ -19,16 +19,19 @@
     if (lhRechecking || !core.bridgeStatus || !state.lhAddr) return; lhRechecking = true;
     try {
       var stuck = lhAll().filter(function (r) { return r.status === 'PENDING' && r.txid && r.net && Date.now() - (r.time || 0) > 120000 &&
-        ((r.kind === 'swap' || r.kind === 'bridge') && /^0x[0-9a-fA-F]{64}$/.test(r.txid) && r.net !== 'tron' || r.kind === 'send'); }).slice(0, 5);
+        ((r.kind === 'swap' || r.kind === 'bridge') && (/^0x[0-9a-fA-F]{64}$/.test(r.txid) || r.net === 'tron' && /^[0-9a-fA-F]{64}$/.test(r.txid)) || r.kind === 'send'); }).slice(0, 5);
       var changed = false;
       for (var i = 0; i < stuck.length; i++) {
         var r = stuck[i];
         if (r.kind === 'send') { // الإرسال: نقرأ إيصال المعاملة من الشبكة
           var ts = core.txStatus ? await core.txStatus(r.net, r.txid, r.coin !== netOf(r.net).native) : 'PENDING';
           if (ts === 'PENDING') continue; r.status = ts;
-        } else {
+        } else if (r.net === 'tron' && !r.toNet) { // تبديل SunSwap على TRON (ليس عبر LI.FI): نتيجة العقد من الشبكة
+          var t2 = core.txStatus ? await core.txStatus('tron', r.txid, true).catch(function () { return 'PENDING'; }) : 'PENDING';
+          if (t2 === 'PENDING') continue; r.status = t2;
+        } else { // نقل عبر LI.FI، من EVM أو من TRON
           var st = await core.bridgeStatus(r.txid, r.net, r.toNet || r.net).catch(function () { return null; });
-          if (st && st.status === 'DONE') { r.status = 'SUCCESS'; if (st.link) r.url = st.link; }
+          if (st && st.status === 'DONE') { r.status = 'SUCCESS'; if (st.link) r.url = st.link; if (st.partial && st.recvSym) r.coin = st.recvSym; }
           else if (st && (st.status === 'FAILED' || st.status === 'REFUNDED')) r.status = 'FAILED';
           else continue;
         }

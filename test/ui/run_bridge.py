@@ -42,6 +42,8 @@ async def lifi(route):
         'action':dict(act(q,'TEvilZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf' if EVIL['on']=='dest' else None),**({'toChainId':1} if EVIL['on']=='chain' else {})),
         'transactionRequest':{'to':('0x9999999999999999999999999999999999999999' if EVIL['on']=='to' else DIA),'data':('0xdeadbeef'+'00'*64 if EVIL['on']=='recv' else evm_data(q)),'value':'0x0','gasLimit':'0x30d40','chainId':cid(q['fromChain'])}})
   if u.path.endswith('/status'):
+    ST.append(q)
+    if EVIL['on']=='partial': return await route.fulfill(json={'status':'DONE','substatus':'PARTIAL','lifiExplorerLink':'https://scan.li.fi/tx/x','receiving':{'amount':'9900000','token':{'symbol':'USDC','decimals':6,'address':'T'+'9'*33}}})
     ST.append(q); return await route.fulfill(json={'status':'DONE','substatus':'COMPLETED','lifiExplorerLink':'https://scan.li.fi/tx/x'})
   await route.fulfill(status=404, json={})
 async def main():
@@ -89,7 +91,7 @@ async def main():
     # BNB Chain → TRON
     await pg.click('#br-from [data-net=bsc]'); await pg.wait_for_timeout(1500)
     assert await pg.get_attribute('#br-to [data-net=tron]','aria-selected')=='true'
-    await pg.fill('#br-amt','10'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800)
+    await pg.fill('#br-amt','10'); await pg.click('#br-quote-btn'); await pg.wait_for_timeout(800); EVIL['on']='partial'
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='TRN' and q['fromAmount']==str(10*10**18) and q['toAddress'].startswith('T'), q
     n=len(E.sent); await pg.click('#br-go'); await pg.click('#brc-ok'); await pin('123456')
     for _ in range(40):
@@ -100,8 +102,11 @@ async def main():
     assert t[0]['data'].startswith('0x095ea7b3') and t[1]['to']==DIA and t[1]['data'].startswith('0xdeadbeef') and t[1]['cid']==56, t
     print('✓ من BNB Chain إلى TRON: موافقة ERC20 ثم معاملة الجسر موقّعة على السلسلة 56')
     for _ in range(40):
-      if 'تم النقل' in await pg.inner_text('#br-track-t'): break
+      if 'بعملة' in await pg.inner_text('#br-track-t'): break
       await pg.wait_for_timeout(500)
+    EVIL['on']=None; tt=await pg.inner_text('#br-track-t'); assert 'بعملة USDC بدل USDT' in tt, tt
+    lh=await pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('sarra.lh.')))||'[]')")
+    assert lh[0]['coin']=='USDC' and lh[0]['amount'] in ('9.9','9.90','9.900000'), lh[0]; print('✓ وصل بعملة أخرى (PARTIAL): يُبلَّغ المستخدم ويُسجَّل المبلغ بخانات العملة الواصلة فعلاً')
     # هجمات: خدمة النقل (أو وسيط) تعيد معاملة مختلفة عمّا رآه المستخدم
     for kind,label in [('to','عقد غير عقد LI.FI الرسمي'),('dest','وجهة غير محفظتك'),('chain','شبكة وجهة مختلفة')]:
       EVIL['on']=kind; n=len(E.sent)

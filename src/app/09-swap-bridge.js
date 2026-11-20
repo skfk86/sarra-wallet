@@ -76,7 +76,7 @@
         state.txBusy = false; // أُرسلت المعاملة: لا نوقف بقية التطبيق (والإشعارات) أثناء المتابعة
         for (var i = 0; i < 45; i++) {
           var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
-          if (st.status === 'DONE') { toast('تم التبديل ✓'); rec.amount = stAmount(st, q); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); break; }
+          if (st.status === 'DONE') { var o2 = stOther(st, q); toast(o2 ? 'وصل المبلغ بعملة ' + o2 + ' بدل ' + (q.toSym || q.sym) : 'تم التبديل ✓', !!o2); if (o2) rec.coin = o2; rec.amount = stAmount(st, q); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); break; }
           if (st.status === 'FAILED' || st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); esErr('لم يكتمل التبديل وبقي المبلغ في محفظتك'); break; }
           await new Promise(function (res) { setTimeout(res, i < 15 ? 4000 : 10000); });
         }
@@ -301,14 +301,16 @@
       for (var i = 0; i < 120; i++) {
         var st = await core.bridgeStatus(r.txid, q.fromNet, q.toNet).catch(function () { return {}; });
         if (st.link) { $('br-track-l').href = st.link; $('br-track-l').hidden = false; if (!rec.url) { rec.url = st.link; lhAdd(rec); } }
-        if (st.status === 'DONE') { rec.amount = stAmount(st, q); rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec); $('br-track-t').textContent = 'تم النقل بنجاح ✓'; $('br-quote').hidden = true; toast('وصلت عملتك إلى ' + netOf(q.toNet).name); break; }
+        if (st.status === 'DONE') { var oth = stOther(st, q); rec.amount = stAmount(st, q); if (oth) rec.coin = oth; rec.url = st.link || rec.url; rec.status = 'SUCCESS'; lhAdd(rec);
+          $('br-track-t').textContent = oth ? 'وصل المبلغ لكن بعملة ' + oth + ' بدل ' + (q.toSym || q.sym) + ' (حدث هذا في الجسر). يمكنك تبديلها من شاشة التبديل، أو تواصل مع الدعم' : 'تم النقل بنجاح ✓';
+          $('br-quote').hidden = true; toast(oth ? 'وصل المبلغ بعملة ' + oth : 'وصلت عملتك إلى ' + netOf(q.toNet).name, !!oth); break; }
         if (st.status === 'REFUNDED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'تعذّر النقل وأُعيد المبلغ لمحفظتك'; break; }
         if (st.status === 'FAILED') { rxUnexpect(q); rec.status = 'FAILED'; lhAdd(rec); $('br-track-t').textContent = 'فشل النقل — تابع الرابط أو تواصل مع الدعم'; break; }
         await new Promise(function (res) { setTimeout(res, i < 10 ? 6000 : 15000); });
         if (i === 119) $('br-track-t').textContent = 'ما زال النقل قيد التنفيذ — بعض الجسور تتأخر. تابع رابط التتبّع، والمبلغ يصل أو يُعاد تلقائياً';
       }
     } catch (e) {
-      if (e && /^(INSUFFICIENT|LOW_|LOCKED|NO_ROUTE|ROUTE_MISMATCH|QUOTE_EXPIRED|BAD_|APPROVE_PENDING)/.test(e.message || '')) { try { localStorage.removeItem('sarra.lastbridge'); } catch (e1) {} }
+      if (e && /^(INSUFFICIENT|LOW_|LOCKED|NO_ROUTE|ROUTE_MISMATCH|QUOTE_EXPIRED|BAD_|APPROVE_PENDING|TX_FAILED)/.test(e.message || '')) { try { localStorage.removeItem('sarra.lastbridge'); } catch (e1) {} }
       tr.hidden = true; brErr(WalletCore.errorText(e));
     }
     finally { state.txBusy = false; }
