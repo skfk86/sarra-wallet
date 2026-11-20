@@ -1,11 +1,11 @@
-  // ===== «مِلّيم»: شخصية صُرّة =====
-  // مِلّيم: أصغر عملة سودانية قديمة، وصُرّة قماش زرقاء صغيرة تحفظه. بأسلوب الشخصيات التعليمية (مثل Duolingo):
+  // ===== «زَرُوق»: شخصية صُرّة =====
+  // زَرُوق: صُرّة قماش زرقاء صغيرة (اسمه من زُرقته). بأسلوب الشخصيات التعليمية (مثل Duolingo):
   // عينان كبيرتان معبّرتان، جسم ينضغط ويتمدد عند القفز (squash & stretch)، تحضير قبل القفزة وارتداد عند الهبوط،
   // ذراعان وقدمان، فقاعة كلام، وتتفاعل عند لمسها. SVG + CSS فقط: بلا مكتبات، بلا إنترنت، ومتوافقة مع سياسة المحتوى،
   // وتتوقف حركتها تماماً عند «تقليل الحركة» في إعدادات الهاتف.
   // الحالات: happy (نجاح)، receive (استلام عملة)، celebrate (احتفال)، wait (انتظار)، idle (شاشة فارغة)
   var MASCOT_N = 0;
-  var MASCOT_NAME = 'مِلّيم';
+  var MASCOT_NAME = 'زَرُوق';
   function mascot(mood, size, say) {
     var id = 'm' + (++MASCOT_N), s = size || 120, happyEyes = mood === 'happy' || mood === 'celebrate';
     var coin = '<g class="m-coin"><circle r="11" fill="#FFC83D" stroke="#D99A00" stroke-width="2.5"/><circle r="7" fill="none" stroke="#FFE08A" stroke-width="1.5"/><text y="4.5" text-anchor="middle" font-size="12" font-weight="900" fill="#9A6B00" font-family="system-ui,sans-serif" direction="ltr">$</text></g>';

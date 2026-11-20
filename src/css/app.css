@@ -745,7 +745,7 @@ body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body
 .toast.t-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-bd)}
 .toast.t-warn .toast-ic{background:var(--warn);color:#fff}
 .toast-tx{font-size:13.5px}
-/* ===== «مِلّيم» شخصية صُرّة: حركة بأسلوب Duolingo (تحضير، قفزة بتمدد، هبوط بانضغاط، ارتداد) ===== */
+/* ===== «زَرُوق» شخصية صُرّة: حركة بأسلوب Duolingo (تحضير، قفزة بتمدد، هبوط بانضغاط، ارتداد) ===== */
 .mascot-w{position:relative;display:inline-flex;flex-direction:column;align-items:center;line-height:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .mascot{overflow:visible}
 .mascot .m-jump{transform-origin:60px 132px}
