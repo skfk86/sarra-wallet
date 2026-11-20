@@ -88,6 +88,10 @@ async def main():
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home.png')
     if len(sys.argv)>2: await pg.locator('.hero-card').screenshot(path=sys.argv[2]+'/hero.png', scale='device')
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-full.png', full_page=True)
+    await pg.click('#bal-chg'); await pg.wait_for_timeout(500)
+    assert await pg.locator('#pf-sheet.show').count()==1 and await pg.locator('#pf-chart svg').count()==1; print('✓ «ربح/خسارة اليوم» في بطاقة الرصيد يفتح تحليل الأرباح برسم بياني وتوزيع الأصول')
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/pnl.png')
+    await pg.click('#pf-close'); await pg.wait_for_timeout(300)
     await pg.click('#assets [data-asset=BNB]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#cs-chart').is_visible() and 'days=1' in CG[-1] and any('functions/v1/market' in x for x in MK) and await pg.locator('#ch-svg path').count()==2
     assert '$' in await pg.inner_text('#ch-price') and 'أعلى' in await pg.inner_text('#ch-hi')

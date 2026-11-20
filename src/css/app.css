@@ -711,3 +711,5 @@ i.skeleton{display:block;font-style:normal}
 .alloc.on-dark .lg,.alloc.on-dark .lg b{color:#fff}
 .tr-roi{font-style:normal;font-size:11px;font-weight:700;opacity:.9;margin-top:1px}
 #pf-pl,#pf-pct{unicode-bidi:isolate;direction:ltr}
+button.bal-chg{border:0;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#fff}
+.pf-card{max-height:90vh;overflow:auto}

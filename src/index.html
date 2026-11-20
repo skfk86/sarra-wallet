@@ -103,7 +103,7 @@
     <div class="row between"><span class="muted" style="font-size:14px" id="bal-label">رصيد الدولار الرقمي</span>
       <button class="icon-btn flat" id="toggle-bal" aria-label="إخفاء الرصيد" aria-pressed="false" style="width:36px;height:32px;background:none"><svg class="i eye-on" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="i eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c7 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3 7 10 7a10.6 10.6 0 0 0 5.4-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></div>
     <div class="balance ltr" style="text-align:right" id="bal-usdt"><span class="skeleton">0000.00</span></div>
-    <div class="bal-chg" id="bal-chg" hidden></div>
+    <button type="button" class="bal-chg" id="bal-chg" hidden aria-label="تحليل الأرباح"></button>
     <div class="row between" style="gap:8px">
       <span id="bal-chip" style="font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--tx2)">USDT</span>
       
@@ -120,14 +120,6 @@
     <button class="action" data-go="swap"><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></span>تبديل</button>
     <button class="action" data-go="bridge" id="act-bridge" hidden><span class="ic"><svg class="i" style="width:24px;height:24px;stroke-width:2" viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 12h6"/><path d="m13 9 3 3-3 3"/></svg></span>نقل</button>
   </nav>
-  <div class="card pf-card" id="pf-card" hidden>
-    <div class="row between"><b style="font-size:15px;white-space:nowrap">أداء المحفظة</b>
-      <div class="pf-tabs" id="pf-tabs" role="tablist"><button type="button" data-p="1" class="on">يوم</button><button type="button" data-p="7">أسبوع</button><button type="button" data-p="30">شهر</button><button type="button" data-p="0">الكل</button></div></div>
-    <div class="pf-pl"><div><small id="pf-pl-l">ربح/خسارة السوق</small><b class="ltr" id="pf-pl">—</b></div><span class="pf-pct ltr" id="pf-pct"></span></div>
-    <div class="pf-chart" id="pf-chart"></div>
-    <p class="muted pf-note" id="pf-note"></p>
-    <div class="alloc" id="pf-alloc"></div>
-  </div>
   <div class="row between" style="margin-bottom:-6px"><h2>العملات</h2><span class="muted" style="font-size:11px" id="price-src"></span></div>
   <div class="card" style="padding:4px 0" id="assets"></div>
   <div class="row between"><h2>آخر المعاملات</h2><button class="chip" data-tab="history" style="height:32px">عرض الكل</button></div>
@@ -1180,6 +1172,18 @@
 </div>
 
 <!-- ===== إشعار استلام تحويلة ===== -->
+<div class="sheet-bg" id="pf-sheet" role="dialog" aria-modal="true" aria-label="تحليل الأرباح">
+  <div class="sheet pf-card" id="pf-card">
+    <div class="row between"><b style="font-size:17px;white-space:nowrap">تحليل الأرباح</b>
+      <div class="pf-tabs" id="pf-tabs" role="tablist"><button type="button" data-p="1" class="on">يوم</button><button type="button" data-p="7">أسبوع</button><button type="button" data-p="30">شهر</button><button type="button" data-p="0">الكل</button></div></div>
+    <div class="pf-pl"><div><small id="pf-pl-l">ربح/خسارة السوق</small><b class="ltr" id="pf-pl">—</b></div><span class="pf-pct ltr" id="pf-pct"></span></div>
+    <div class="pf-chart" id="pf-chart"></div>
+    <p class="muted pf-note" id="pf-note"></p>
+    <b style="font-size:14px;margin-top:4px">توزيع الأصول</b>
+    <div class="alloc" id="pf-alloc"></div>
+    <button type="button" class="btn btn-ghost" id="pf-close">إغلاق</button>
+  </div>
+</div>
 <div class="sheet-bg" id="txd-sheet" role="dialog" aria-modal="true" aria-labelledby="txd-title">
   <div class="sheet txd" style="gap:14px;max-height:92vh;overflow:auto">
     <div class="txd-head">

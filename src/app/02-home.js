@@ -322,7 +322,8 @@
       bc.appendChild(el('i', 'font-style:normal;font-size:10px', up ? '▲' : '▼'));
       bc.appendChild(el('b', 'direction:ltr;unicode-bidi:isolate', (up ? '+' : '−') + usd(Math.abs(dch.usd))));
       bc.appendChild(el('b', 'direction:ltr;unicode-bidi:isolate;opacity:.9', (up ? '+' : '') + dch.pct.toFixed(2) + '%'));
-      bc.appendChild(el('span', null, 'آخر 24 ساعة'));
+      bc.appendChild(el('span', null, 'ربح/خسارة اليوم'));
+      bc.appendChild(el('i', 'font-style:normal;opacity:.8;margin-inline-start:2px', '‹'));
     }
     $('bal-label').textContent = multi ? 'إجمالي الأصول' : 'رصيد الدولار الرقمي';
     if (tot != null) pfRecord(tot);
@@ -356,10 +357,14 @@
     b.classList.toggle('on', Number(b.dataset.p) === state.pfP);
     b.onclick = function () { state.pfP = Number(b.dataset.p); lsPut('sarra.pfp', state.pfP); document.querySelectorAll('#pf-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderPerf(); };
   });
-  function renderPerf() {
-    var card = $('pf-card'), tot = portfolioUsd();
-    if (NETWORK !== 'mainnet' || tot == null || !state.prices) { card.hidden = true; return; }
-    card.hidden = false;
+  // مثل Binance: سطر «ربح/خسارة اليوم» صغير في بطاقة الرصيد، والضغط عليه يفتح التحليل الكامل (لا يحجز مكاناً في الرئيسية)
+  $('bal-chg').onclick = function () { renderPerf(true); $('pf-sheet').classList.add('show'); };
+  $('pf-close').onclick = function () { $('pf-sheet').classList.remove('show'); };
+  $('pf-sheet').addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+  function renderPerf(force) {
+    var tot = portfolioUsd();
+    if (!force && !$('pf-sheet').classList.contains('show')) return;
+    if (NETWORK !== 'mainnet' || tot == null || !state.prices) return;
     var P = state.pfP, now = Date.now(), all = pfAll(), since = P ? now - P * 864e5 : 0;
     var pts = all.filter(function (p) { return p[0] >= since; });
     if (!pts.length || pts[pts.length - 1][0] < now - 60000) pts.push([now, tot]);
