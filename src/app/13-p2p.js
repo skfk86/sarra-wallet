@@ -16,7 +16,7 @@
     MIN_TOO_LOW: 'أقل صفقة 10 USDT', MAX_LT_MIN: 'أكبر صفقة يجب أن تكون أكبر من الأقل', AMOUNT_LT_MIN: 'الكمية المعروضة أقل من أقل صفقة',
     BAD_BANKAK_ACCOUNT: 'رقم حساب بنكك غير صحيح (أرقام فقط)', BAD_BANKAK_NAME: 'اكتب اسم صاحب الحساب',
     BAD_PRICE_SDG: 'اكتب السعر', BAD_MIN_USDT: 'اكتب أقل صفقة', BAD_MAX_USDT: 'اكتب أكبر صفقة', BAD_AMOUNT_USDT: 'اكتب الكمية',
-    BAD_NICKNAME: 'الاسم من 2 إلى 24 حرفاً', EMPTY_MESSAGE: 'اكتب رسالة', ORDER_CLOSED: 'الطلب مغلق',
+    BAD_NICKNAME: 'الاسم من 2 إلى 24 حرفاً (حروف وأرقام فقط)', RESERVED_NICKNAME: 'هذا الاسم يشبه اسم الإدارة أو الدعم، اختر اسماً آخر', MESSAGE_TOO_LONG: 'الرسالة أطول من 1000 حرف', EMPTY_MESSAGE: 'اكتب رسالة', ORDER_CLOSED: 'الطلب مغلق',
     RATE_NOT_SET: 'لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', PRICE_OUT_OF_RANGE: 'السعر خارج النطاق المسموح',
     MAX_OFFERS: 'لديك 3 إعلانات نشطة. أوقف واحداً أولاً', BAD_RATE: 'سعر الصرف غير صحيح', BAD_BAND: 'اختر الهامش',
     BAD_ADDRESS: 'عنوان المحفظة غير صحيح',

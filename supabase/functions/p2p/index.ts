@@ -262,8 +262,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { ok: true };
   }
   if (action === 'profile.set') {
-    const nickname = String(p.nickname || '').trim();
-    if (nickname.length < 2 || nickname.length > 24) throw new Error('BAD_NICKNAME');
+    const nickname = L.cleanNickname(p.nickname);
     await limit(me, 'profile');
     await db.from('profiles').update({ nickname }).eq('address', me);
     return { ok: true };
@@ -454,7 +453,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       if (p.action === 'cancel') await limit(me, 'order_cancel');
       const patch: Record<string, any> = { status: tr.to };
       if (tr.to === 'paid') patch.paid_at = new Date().toISOString();
-      if (tr.to === 'disputed') { patch.dispute_by = me; patch.dispute_reason = String(p.reason || '').slice(0, 500); }
+      if (tr.to === 'disputed') { patch.dispute_by = me; patch.dispute_reason = (() => { try { return L.cleanChatBody(p.reason).slice(0, 500); } catch { return ''; } })(); }
       if (role === 'admin') patch.resolved_by = me;
       const { data: locked } = await db.from('orders').update(patch).eq('id', o.id).in('status', tr.from).select().maybeSingle();
       if (!locked) throw new Error('INVALID_STATE');
@@ -512,18 +511,20 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     }
 
     if (action === 'message.send') {
-      const body = String(p.body || '').trim().slice(0, 1000);
-      if (!body) throw new Error('EMPTY_MESSAGE');
+      const body = L.cleanChatBody(p.body);
       await limit(me, 'message');
       if (['cancelled', 'released', 'refunded'].includes(o.status) && role !== 'admin') throw new Error('ORDER_CLOSED');
       await db.from('messages').insert({ order_id: o.id, sender: me, body });
     }
 
     const { data: offer } = await db.from('offers').select('bankak_name,bankak_account').eq('id', o.offer_id).single();
-    const { data: msgs } = await db.from('messages').select('id,sender,body,created_at').eq('order_id', o.id).order('id').limit(200);
+    // أحدث 200 رسالة (لا أقدمها): في نزاع طويل كانت الرسائل الجديدة تختفي بعد الرسالة رقم 200
+    const { data: msgsDesc } = await db.from('messages').select('id,sender,body,created_at').eq('order_id', o.id).order('id', { ascending: false }).limit(200);
+    const msgs = (msgsDesc || []).slice().reverse();
+    // رسائل النظام تُعرَّف بالخادم: المرسل هو المشتري ونصها يبدأ بالبادئة (والمستخدم لا يستطيع كتابتها بعد cleanChatBody)
     const profs = await profilesMap([o.buyer, o.seller]);
     const { count: rcount } = await db.from('order_receipts').select('id', { count: 'exact', head: true }).eq('order_id', o.id);
-    return { order: { ...publicOrder(o, offer, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller], receipts: rcount || 0 }, role, messages: msgs || [] };
+    return { order: { ...publicOrder(o, offer, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller], receipts: rcount || 0 }, role, messages: msgs.map((m: any) => ({ ...m, sys: m.sender === o.buyer && String(m.body).startsWith(L.SYS_PREFIX) })) };
   }
 
   if (action === 'admin.queue') {

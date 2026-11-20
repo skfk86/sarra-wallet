@@ -256,6 +256,8 @@
     alert: '<path d="M12 3 2 21h20z"/><path d="M12 10v4M12 17.5v.5"/>',
     send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
     clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+    chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     receipt: '<path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2l-3 2-2-2-2 2-2-2-2 2z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     bank: '<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/>'
   };
@@ -422,34 +424,108 @@
     var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0 && role !== 'admin';
     $('ord-msg-row').hidden = closed; $('ord-chat-note').hidden = !closed;
     $('oc-attach').hidden = !(role === 'buyer' && ['funded', 'paid', 'disputed'].indexOf(o.status) >= 0 && (o.receipts || 0) < 3);
-    // الرسائل: فقاعات بوقت، وفاصل لكل يوم، ورسائل النظام في الوسط
-    var chat = $('ord-chat'), atBottom = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 30 || !chat.childNodes.length;
-    chat.textContent = '';
-    if (!msgs.length) chat.appendChild(el('div', 'margin:auto;text-align:center;color:var(--mu);font-size:13px;line-height:1.8', 'لا رسائل بعد.\nاكتب لـ' + otherRole + ' هنا؛ المحادثة داخل التطبيق هي دليلك إن حدث نزاع.'));
-    var lastDay = '';
-    msgs.forEach(function (m) {
-      var d = dayOf(m.created_at); if (d && d !== lastDay) { chat.appendChild(el('span', null, d)).className = 'chat-day'; lastDay = d; }
-      var mine = m.sender === meAddr, sys = /^📎/.test(m.body);
-      var who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
-      var b = el('div'); b.className = 'bub ' + (sys ? 'sys' : mine ? 'me' : 'them');
-      if (!mine && !sys && (role === 'admin' || who === 'المشرف')) b.appendChild(el('span', null, who)).className = 'who';
-      if (sys) { b.appendChild(oIcon('receipt', 15)); b.appendChild(document.createTextNode(m.body.replace(/^📎\s*/, ''))); }
-      else b.appendChild(document.createTextNode(m.body));
-      var tm = hm(m.created_at); if (tm) b.appendChild(el('time', null, tm));
-      chat.appendChild(b);
-    });
-    if (atBottom || onChat) setTimeout(function () { chat.scrollTop = chat.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }, 0);
+    renderMsgs(r, meAddr, otherRole, onChat);
+    renderQuick(o, role, closed);
   }
-  function openChat() { show('order-chat'); if (state.p2p.lastOrder) renderChat(state.p2p.lastOrder); setTimeout(function () { $('ord-msg').focus(); }, 150); }
+  // ===== الرسائل =====
+  // تجميع الرسائل المتتالية من نفس المرسل، وقت وعلامة إرسال لكل رسالة، فواصل «اليوم/أمس»، رسائل النظام في الوسط،
+  // وتحذيرات احتيال تلقائية: رقم حساب غير حساب الطلب، أو دعوة للتواصل خارج التطبيق، أو طلب تحرير قبل الدفع
+  var SCAM = [
+    [/(wa\.me|whats ?app|واتس|واتساب|telegram|t\.me|تيليجرام|تلغرام|تلجرام|signal|سيجنال|imo|ايمو|ماسنجر|messenger)/i, 'دعوة للتواصل خارج التطبيق. المحادثة هنا هي دليلك الوحيد عند النزاع، فلا تنتقل لتطبيق آخر.'],
+    [/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|me|app|link|xyz|site|top|info)\b)/i, 'رابط خارجي. لا تفتح روابط من الطرف الآخر ولا تدخل فيها بيانات محفظتك أو بنكك.'],
+    [/(كلمات (الاسترداد|السر|المرور)|العبارة السرية|seed|recovery phrase|private key|المفتاح الخاص|رمز التحقق|otp|كود التفعيل|الرمز السري|pin)/i, 'طلب بيانات سرية. لا أحد (ولا الدعم) يحتاج كلماتك السرية أو رمز PIN أو رمز التحقق. من يطلبها محتال.'],
+    [/(حرر|حرّر|release).{0,25}(قبل|أولاً|اولا|وبعدين|بعدين|ثم)/i, 'طلب تحرير قبل الدفع. لا تحرّر USDT أبداً قبل أن ترى المبلغ في تطبيق بنكك.']
+  ];
+  function scamNote(body, o, fromOther) {
+    if (!fromOther) return '';
+    for (var k = 0; k < SCAM.length; k++) if (SCAM[k][0].test(body)) return SCAM[k][1];
+    // رقم حساب أو هاتف (7 أرقام فأكثر) يختلف عن حساب بنكك في الطلب
+    var acct = String(o.bankak_account || ''), nums = String(body).replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).match(/\d[\d\s-]{6,}\d/g) || [];
+    for (var n = 0; n < nums.length; n++) { var d = nums[n].replace(/\D/g, ''); if (d.length >= 7 && d !== acct && d !== String(o.total_sdg).replace(/\D/g, '')) return 'رقم حساب أو هاتف مختلف عن حساب الطلب. حوّل فقط إلى الحساب الظاهر في تفاصيل الطلب، والدفع لغيره لا يحميه الضمان.'; }
+    return '';
+  }
+  function dayLabel(t) {
+    var d = new Date(t); if (isNaN(d)) return '';
+    var a = new Date(); a.setHours(0, 0, 0, 0); var b = new Date(d); b.setHours(0, 0, 0, 0); var diff = Math.round((a - b) / 864e5);
+    return diff === 0 ? 'اليوم' : diff === 1 ? 'أمس' : d.toLocaleDateString('ar', { day: 'numeric', month: 'long', year: d.getFullYear() !== a.getFullYear() ? 'numeric' : undefined });
+  }
+  function renderMsgs(r, meAddr, otherRole, onChat) {
+    var o = r.order, role = r.role, msgs = (r.messages || []).slice();
+    (state.p2p.outbox || []).forEach(function (m) { if (m.order === o.id) msgs.push(m); });
+    var chat = $('ord-chat'), atBottom = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 40 || !chat.childNodes.length;
+    var prevCount = Number(chat.dataset.count || 0);
+    chat.textContent = '';
+    if (!msgs.length) {
+      var em = el('div'); em.className = 'chat-empty';
+      em.appendChild(oIcon('chat', 34)); em.appendChild(el('b', null, 'ابدأ المحادثة مع ' + otherRole));
+      em.appendChild(el('span', null, 'اكتب هنا فقط: المحادثة داخل صُرّة محفوظة وهي دليلك إن حدث نزاع.'));
+      chat.appendChild(em);
+    }
+    var lastDay = '', lastSender = null, lastT = 0;
+    msgs.forEach(function (m, idx) {
+      var d = dayLabel(m.created_at); if (d && d !== lastDay) { var dl = el('div'); dl.className = 'chat-day'; dl.appendChild(el('span', null, d)); chat.appendChild(dl); lastDay = d; lastSender = null; }
+      var sys = m.sys === true || (m.sys == null && m.sender === o.buyer && /^📎/.test(m.body));
+      if (sys) {
+        var sb = el('div'); sb.className = 'chat-sys'; sb.appendChild(oIcon('receipt', 14)); sb.appendChild(el('span', null, String(m.body).replace(/^📎\s*/, '')));
+        var st = hm(m.created_at); if (st) sb.appendChild(el('time', null, st));
+        chat.appendChild(sb); lastSender = null; return;
+      }
+      var mine = m.sender === meAddr, isAdm = m.sender !== o.buyer && m.sender !== o.seller;
+      var who = isAdm ? 'المشرف' : m.sender === o.buyer ? 'المشتري' : 'البائع';
+      var t = Date.parse(m.created_at) || 0, next = msgs[idx + 1];
+      var first = lastSender !== m.sender || t - lastT > 300000;
+      var last = !next || next.sender !== m.sender || (Date.parse(next.created_at) || 0) - t > 300000 || dayLabel(next.created_at) !== d || next.sys;
+      lastSender = m.sender; lastT = t;
+      var row = el('div'); row.className = 'msg ' + (mine ? 'me' : 'them') + (isAdm ? ' adm' : '') + (first ? ' first' : '') + (last ? ' last' : '') + (m.pending ? ' pending' : '') + (m.failed ? ' failed' : '');
+      if (first && !mine && (role === 'admin' || isAdm)) { var wl = el('span', null, isAdm ? 'المشرف · صُرّة' : who); wl.className = 'msg-who'; if (isAdm) wl.insertBefore(oIcon('shield', 12), wl.firstChild); row.appendChild(wl); }
+      var b = el('div'); b.className = 'bubble';
+      var tx = el('p'); tx.setAttribute('dir', 'auto'); tx.textContent = m.body; b.appendChild(tx);
+      var meta = el('span'); meta.className = 'msg-meta';
+      meta.appendChild(el('time', null, m.pending ? '' : hm(m.created_at)));
+      if (mine) meta.appendChild(oIcon(m.failed ? 'alert' : m.pending ? 'clock' : 'check', 13));
+      b.appendChild(meta); row.appendChild(b);
+      if (m.failed) { var rt = el('button', null, 'لم تُرسل · اضغط لإعادة المحاولة'); rt.type = 'button'; rt.className = 'msg-retry'; rt.onclick = function () { dropOut(m); sendMsg(m.body); }; row.appendChild(rt); }
+      var warn = scamNote(m.body, o, !mine && !isAdm);
+      if (warn) { var wn = el('div'); wn.className = 'msg-warn'; wn.appendChild(oIcon('alert', 14)); wn.appendChild(el('span', null, warn)); row.appendChild(wn); }
+      chat.appendChild(row);
+    });
+    chat.dataset.count = String(msgs.length);
+    var gained = msgs.length - prevCount;
+    if (atBottom || onChat && gained > 0 && msgs[msgs.length - 1] && msgs[msgs.length - 1].sender === meAddr) { setTimeout(function () { chat.scrollTop = chat.scrollHeight; }, 0); $('oc-down').hidden = true; }
+    else if (gained > 0 && prevCount) { $('oc-down').hidden = false; $('oc-down-n').textContent = String(gained); }
+  }
+  // ردود سريعة مناسبة لدور كل طرف ومرحلة الطلب
+  function renderQuick(o, role, closed) {
+    var q = $('oc-quick'); q.textContent = '';
+    var L = closed ? [] : role === 'buyer' ? ({ awaiting_deposit: ['السلام عليكم، في انتظار إيداعك في الضمان'], funded: ['حوّلت المبلغ، أرجو التأكد والتحرير', 'سأحوّل الآن', 'رفعت الإيصال'], paid: ['حوّلت المبلغ، أرجو التأكد والتحرير', 'هل وصلك المبلغ؟'], disputed: ['أرفقت الإيصال كدليل'] })[o.status]
+      : role === 'seller' ? ({ awaiting_deposit: ['أودعت USDT في الضمان، تفضّل بالتحويل'], funded: ['أرجو التحويل إلى الحساب الظاهر فقط', 'أرسل صورة الإيصال من فضلك'], paid: ['جارٍ التأكد من وصول المبلغ', 'لم يصلني المبلغ بعد، أرسل الإيصال من فضلك', 'وصل المبلغ، سأحرّر الآن'], disputed: ['لم يصلني أي مبلغ في بنكك'] })[o.status] : [];
+    (L || []).forEach(function (t) { var c = el('button', null, t); c.type = 'button'; c.className = 'qr'; c.onclick = function () { sendMsg(t); }; q.appendChild(c); });
+    q.hidden = !(L && L.length);
+  }
+  function dropOut(m) { state.p2p.outbox = (state.p2p.outbox || []).filter(function (x) { return x !== m; }); }
+  async function sendMsg(v) {
+    v = String(v || '').trim(); if (!v || !state.p2p.orderId) return;
+    var id = state.p2p.orderId, m = { order: id, sender: state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.address, body: v, created_at: new Date().toISOString(), pending: true };
+    state.p2p.outbox = (state.p2p.outbox || []).concat([m]);
+    if (state.p2p.lastOrder) renderChat(state.p2p.lastOrder);
+    try {
+      var r = await p2p('message.send', { id: id, body: v });
+      dropOut(m); if (state.p2p.orderId === id) renderOrder(r);
+    } catch (e) {
+      m.pending = false; m.failed = true; toast(p2pErr(e), true);
+      if (state.p2p.lastOrder) renderChat(state.p2p.lastOrder);
+    }
+  }
+  function openChat() { show('order-chat'); $('ord-chat').dataset.count = '0'; $('ord-chat').textContent = ''; if (state.p2p.lastOrder) renderChat(state.p2p.lastOrder); msgSize(); }
   $('ord-chat-open').onclick = openChat; $('ord-chat-card').onclick = openChat;
   $('oc-order').onclick = function () { state.stack.pop(); show('order', false); };
   $('oc-attach').onclick = function () { pickReceipt(); };
-  $('ord-send').onclick = async function () {
-    var v = $('ord-msg').value.trim(); if (!v) return;
-    $('ord-msg').value = '';
-    await refreshOrder('message.send', { body: v });
-  };
-  $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter') $('ord-send').click(); };
+  function msgSize() { var t = $('ord-msg'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; var n = t.value.length; $('oc-count').hidden = n < 800; $('oc-count').textContent = n + '/1000'; $('ord-send').disabled = !t.value.trim(); }
+  $('ord-send').onclick = function () { var v = $('ord-msg').value.trim(); if (!v) return; $('ord-msg').value = ''; msgSize(); sendMsg(v); $('ord-msg').focus(); };
+  $('ord-msg').oninput = msgSize;
+  $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('ord-send').click(); } };
+  $('oc-down').onclick = function () { var c = $('ord-chat'); c.scrollTop = c.scrollHeight; $('oc-down').hidden = true; };
+  $('ord-chat').onscroll = function () { var c = this; if (c.scrollTop + c.clientHeight >= c.scrollHeight - 40) $('oc-down').hidden = true; };
   $('ord-copy').onclick = function () { copyText($('ord-bacct').textContent); };
   $('ord-copy-amt').onclick = function () { copyText($('ord-bamt').textContent); };
   // عنوان حالة قصير وموجّه لكل طرف (مثل «ادفع للبائع»)، والشرح التفصيلي تحته

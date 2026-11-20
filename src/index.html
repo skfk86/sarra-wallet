@@ -626,11 +626,13 @@
   </div>
   <button type="button" class="chat-order" id="oc-order"><span><b id="oc-o-t"></b><small id="oc-o-s"></small></span><span class="chip" style="height:30px">تفاصيل الطلب</span></button>
   <div class="chat-safe"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg><span>لا تحرّر USDT قبل أن ترى المبلغ في تطبيق بنكك. لا تتواصل خارج التطبيق ولا تشارك رموز أو كلمات محفظتك.</span></div>
-  <div class="chat-list" id="ord-chat"></div>
+  <div class="chat-wrap"><div class="chat-list" id="ord-chat" aria-live="polite"></div>
+    <button type="button" class="chat-down" id="oc-down" hidden aria-label="رسائل جديدة"><span id="oc-down-n">1</span><svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>
+  <div class="chat-quick" id="oc-quick" hidden></div>
   <div class="chat-input" id="ord-msg-row">
-    <button type="button" class="icon-btn flat" id="oc-attach" aria-label="رفع إيصال" hidden><svg class="i" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-    <input id="ord-msg" placeholder="اكتب رسالة…" autocomplete="off" maxlength="1000">
-    <button type="button" class="chat-send" id="ord-send" aria-label="إرسال الرسالة"><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button>
+    <button type="button" class="chat-att" id="oc-attach" aria-label="رفع إيصال" hidden><svg class="i" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+    <div class="chat-box"><textarea id="ord-msg" rows="1" dir="auto" placeholder="اكتب رسالة…" autocomplete="off" maxlength="1000"></textarea><span class="chat-count" id="oc-count" hidden></span></div>
+    <button type="button" class="chat-send" id="ord-send" aria-label="إرسال الرسالة" disabled><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button>
   </div>
   <p class="muted chat-closed" id="ord-chat-note" hidden>الصفقة مغلقة. المحادثة محفوظة للمراجعة.</p>
 </section>

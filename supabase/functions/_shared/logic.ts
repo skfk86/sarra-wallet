@@ -350,3 +350,33 @@ export function earningsSummary(rows: any[], netFee: (n: string) => string | num
   }
   return out;
 }
+
+// تنظيف رسالة المحادثة قبل حفظها:
+// - حروف عكس الاتجاه الخفية (RLO وأخواتها) تجعل «1234» يظهر «4321»: حيلة لتزوير رقم حساب أو مبلغ داخل المحادثة
+// - المحارف الصفرية العرض والتحكم تُخفي نصاً أو تكسر العرض
+// - رسائل النظام تبدأ بـ📎 وتصدر من الخادم فقط: لا يجوز لمستخدم أن يكتب رسالة تبدو كرسالة نظام («رفع المشتري إيصالاً»)
+export const SYS_PREFIX = '📎';
+export function cleanChatBody(raw: unknown): string {
+  let b = String(raw ?? '').normalize('NFC')
+    .replace(/[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]/g, '')
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '')
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '')
+    .replace(/\n{3,}/g, '\n\n').trim();
+  while (b.startsWith(SYS_PREFIX)) b = b.slice(SYS_PREFIX.length).trim();
+  if (!b) throw new Error('EMPTY_MESSAGE');
+  if (b.length > 1000) throw new Error('MESSAGE_TOO_LONG');
+  return b;
+}
+
+// اسم مستعار آمن: بلا محارف خفية أو عكس اتجاه، ولا ينتحل صفة الإدارة أو الدعم أو التطبيق
+// (محتال باسم «المشرف» أو «دعم صُرّة» داخل محادثة صفقة = أسهل طريق لإقناع الضحية)
+const RESERVED_NICK = /(مشرف|ادمن|أدمن|إدارة|اداره|الإدارة|دعم|الدعم|support|admin|moderator|mod\b|staff|official|رسمي|صر[ةه]|sarra|binance|بينانس|oxapay|بنكك|bankak|نظام|system)/i;
+export function cleanNickname(raw: unknown): string {
+  const n = String(raw ?? '').normalize('NFC')
+    .replace(/[\u202A-\u202E\u2066-\u2069\u200B-\u200F\u061C\u2060\uFEFF\u00AD]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  if (n.length < 2 || n.length > 24) throw new Error('BAD_NICKNAME');
+  if (!/^[\p{L}\p{N} _.\-]+$/u.test(n)) throw new Error('BAD_NICKNAME');
+  if (RESERVED_NICK.test(n.replace(/[\s_.\-\u064B-\u0652\u0640]/g, ''))) throw new Error('RESERVED_NICKNAME');
+  return n;
+}

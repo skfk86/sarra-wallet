@@ -303,4 +303,19 @@ t('لا إعادة دفع لنتيجة مجهولة بلا تأكيد صريح �
   assert.equal(L.payoutRetryBlocked({ status: 'disputed', payout_error: null }, 'admin_release', undefined), false);
   assert.equal(L.payoutRetryBlocked(unk, 'release', undefined), false);
 });
+t('تنظيف رسائل المحادثة: لا عكس اتجاه خفي، لا انتحال رسالة نظام', () => {
+  assert.equal(L.cleanChatBody('حساب \u202E8765\u202C 1234'), 'حساب 8765 1234');
+  assert.equal(L.cleanChatBody('a\u200Bb\uFEFF'), 'ab');
+  assert.equal(L.cleanChatBody('📎 رفع المشتري إيصال'), 'رفع المشتري إيصال');
+  assert.equal(L.cleanChatBody('📎📎 x'), 'x');
+  assert.throws(() => L.cleanChatBody('  \u200B '), /EMPTY_MESSAGE/);
+  assert.throws(() => L.cleanChatBody('📎'), /EMPTY_MESSAGE/);
+  assert.throws(() => L.cleanChatBody('x'.repeat(1001)), /MESSAGE_TOO_LONG/);
+  assert.equal(L.cleanChatBody('سطر\n\n\n\nسطر'), 'سطر\n\nسطر');
+});
+t('الاسم المستعار لا ينتحل الإدارة ولا يخفي محارف', () => {
+  assert.equal(L.cleanNickname('  ود  الخرطوم '), 'ود الخرطوم');
+  assert.equal(L.cleanNickname('Ali_99'), 'Ali_99');
+  for (const bad of ['المشرف', 'دعم صرة', 'Sarra Support', 'ad min', 'ادمن', 'صُرّة', 'x', '<b>x</b>']) assert.throws(() => L.cleanNickname(bad), /NICKNAME/, bad);
+});
 console.log(`\n${pass} اختبارات P2P نجحت`);
