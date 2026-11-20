@@ -548,7 +548,11 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     const { data } = await db.from('profiles').select('address,nickname,full_name,phone,bankak_account,id_doc_path,prev_kyc').eq('verify_status', 'pending').limit(30);
     const out = await Promise.all((data || []).map(async (r) => {
       const { data: s } = r.id_doc_path ? await db.storage.from('kyc').createSignedUrl(r.id_doc_path, 600) : { data: null };
-      return { ...r, id_doc_path: undefined, prev_kyc: undefined, change_from: r.prev_kyc?.bankak_account || null, image_url: s?.signedUrl || null };
+      // نفس حساب بنكك أو نفس الهاتف على محفظة أخرى: علامة تعدد حسابات أو انتحال (أو محفظة محظورة تعود بعنوان جديد)
+      const { data: dup } = await db.from('profiles').select('address,banned,verify_status').neq('address', r.address)
+        .or(`bankak_account.eq.${String(r.bankak_account || '').replace(/[^0-9]/g, '') || '-'},phone.eq.${String(r.phone || '').replace(/[^0-9]/g, '') || '-'}`).limit(5);
+      return { ...r, id_doc_path: undefined, prev_kyc: undefined, change_from: r.prev_kyc?.bankak_account || null, image_url: s?.signedUrl || null,
+        dups: (dup || []).map((d) => ({ address: d.address, banned: !!d.banned, verified: d.verify_status === 'approved' })) };
     }));
     return { pending: out };
   }

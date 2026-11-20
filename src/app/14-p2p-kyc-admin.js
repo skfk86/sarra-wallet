@@ -73,11 +73,16 @@
         if (v.change_from) c.appendChild(el('span', 'font-size:12px;font-weight:700;color:var(--warn)', 'طلب تغيير حساب: من ' + v.change_from + ' إلى ' + v.bankak_account + ' (الرفض يعيد الحساب القديم)'));
         c.appendChild(el('span', 'font-size:13px;color:var(--mu);direction:ltr;text-align:right', v.phone + ' · بنكك ' + v.bankak_account));
         c.appendChild(el('span', 'font-size:11px;color:var(--mu);direction:ltr;word-break:break-all', v.address));
+        if (v.dups && v.dups.length) {
+          var banned = v.dups.some(function (d) { return d.banned; });
+          c.appendChild(el('span', 'font-size:12px;font-weight:700;color:var(--err)', '⚠️ نفس رقم الهاتف أو حساب بنكك مستخدم في ' + v.dups.length + ' محفظة أخرى' + (banned ? '، منها محفظة محظورة' : '') + '. قد يكون شخصاً يفتح حسابات متعددة أو ينتحل هوية غيره: ' + v.dups.map(function (d) { return d.address.slice(0, 6) + '…' + d.address.slice(-4) + (d.banned ? ' (محظورة)' : d.verified ? ' (موثّقة)' : ''); }).join('، ')));
+        }
         if (v.image_url) { var im = el('img', 'width:100%;border-radius:12px'); im.src = v.image_url; im.alt = 'صورة الهوية'; c.appendChild(im); }
         var row = el('div', 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px');
         var ok = el('button', null, 'قبول'); ok.type = 'button'; ok.className = 'btn btn-primary'; ok.style.height = '44px';
         var no = el('button', 'color:var(--err)', 'رفض'); no.type = 'button'; no.className = 'btn btn-ghost'; no.style.height = '44px';
         var decide = async function (approve) {
+          if (approve && !(await askConfirm('قبول توثيق ' + v.full_name + '؟ تأكد أن الاسم في الهوية يطابق الاسم المكتوب، وأن الصورة واضحة. بعد القبول يستطيع البيع في السوق.' + (v.dups && v.dups.length ? ' ⚠️ انتبه: بياناته مكررة في محفظة أخرى.' : '')))) return;
           var note = approve ? '' : await askConfirm('سبب الرفض (يراه المستخدم):', true);
           if (!approve && !note) return;
           try { await p2p('admin.verify.decide', { address: v.address, approve: approve, note: note }); toast(approve ? 'تم التوثيق' : 'تم الرفض'); c.remove(); }
