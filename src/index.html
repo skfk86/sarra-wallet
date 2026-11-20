@@ -198,7 +198,9 @@
 
 <!-- ===== السجل ===== -->
 <section class="screen with-tabs" id="s-history" aria-label="السجل">
-  <h1 style="font-size:22px">السجل</h1>
+  <div class="hhead"><h1>السجل</h1>
+    <button type="button" class="icon-btn flat" id="hist-refresh" aria-label="تحديث السجل"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg></button></div>
+  <div class="hsearch"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="hist-q" type="search" dir="auto" placeholder="ابحث بالعنوان أو المبلغ أو رقم المعاملة" autocomplete="off"><button type="button" id="hist-q-x" aria-label="مسح البحث" hidden><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="hsum" id="hist-sum" aria-live="polite">
     <div class="hsum-c in"><span class="hsum-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg></span><span><small>استلمت · 30 يوماً</small><b class="ltr" id="hsum-in">—</b></span></div>
     <div class="hsum-c out"><span class="hsum-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span><span><small>أرسلت · 30 يوماً</small><b class="ltr" id="hsum-out">—</b></span></div>
@@ -209,7 +211,8 @@
     <button type="button" data-filter="out" role="tab">إرسال</button>
   </div>
   <div class="hnet-row" id="hnet-chips" role="tablist" aria-label="الشبكة"></div>
-  <div id="history-full"><p class="muted">جارٍ التحميل…</p></div>
+  <div id="history-full"><div class="hskel"><i></i><i></i><i></i><i></i></div></div>
+  <button type="button" class="btn btn-ghost hmore" id="hist-more" hidden>عرض معاملات أقدم</button>
   <p class="muted" id="hist-note" hidden style="font-size:12px;line-height:1.7"></p>
   <div id="evm-hist" hidden class="hexp">
     <span class="muted">المعاملات الأقدم في المستكشف</span>
@@ -1178,6 +1181,10 @@
     <div class="txd-amt"><b class="ltr" id="txd-amt">—</b><span id="txd-sub" class="muted"></span></div>
     <dl class="kv card" id="txd-kv" style="padding:4px 16px;margin:0"></dl>
     <p class="muted" id="txd-note" style="font-size:12px;margin:0;line-height:1.7" hidden></p>
+    <div class="txd-acts">
+      <button type="button" class="txd-act" id="txd-again" hidden><span><svg class="i" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></span>إرسال مرة أخرى</button>
+      <button type="button" class="txd-act" id="txd-share"><span><svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg></span>مشاركة الإيصال</button>
+    </div>
     <button class="btn btn-primary" id="txd-exp">عرض على المستكشف</button>
     <button class="btn btn-ghost" id="txd-close">إغلاق</button>
   </div>

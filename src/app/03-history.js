@@ -26,7 +26,13 @@
     list.forEach(function (t) {
       if (grouped) {
         var dl = dayLabel(t.time);
-        if (dl !== lastDay) { lastDay = dl; box.appendChild(el('div', null, dl)).className = 'hday'; group = box.appendChild(el('div', null)); group.className = 'hgroup'; }
+        if (dl !== lastDay) {
+          lastDay = dl; var hd = el('div'); hd.className = 'hday'; hd.appendChild(el('span', null, dl));
+          // صافي اليوم بالدولار (استلام − إرسال، بلا تبديل ونقل)
+          var net = 0, has = false; list.forEach(function (x) { if (dayLabel(x.time) !== dl || x.ok === false || x.self || (x.rec && (x.rec.kind === 'swap' || x.rec.kind === 'bridge'))) return; var v = usdOf(x.amount, x.coin || 'USDT'); if (v) { has = true; net += x.incoming ? v : -v; } });
+          if (has && !state.hidden) hd.appendChild(el('small', null, (net >= 0 ? '+' : '−') + usd(Math.abs(net))));
+          box.appendChild(hd); group = box.appendChild(el('div', null)); group.className = 'hgroup';
+        }
       }
       var row = document.createElement('button'); row.type = 'button'; row.className = 'tx' + (grouped ? ' txg' : '');
       row.style.cssText = 'width:100%;background:none;border:0;border-bottom:1px solid var(--row);cursor:pointer;color:inherit;text-align:start';
@@ -38,9 +44,8 @@
       txIcon(b, kind);
       var mid = document.createElement('div'); mid.className = 'grow'; mid.style.cssText = 'display:flex;flex-direction:column;min-width:0';
       var t1 = document.createElement('span'); t1.style.cssText = 'font-size:14px;font-weight:600'; var pnd = t.rec && t.rec.status === 'PENDING' && !t.chain && t.ok !== false;
-      t1.textContent = txTitle(t) + (t.ok === false ? ' · فشلت' : pnd ? ' · قيد التأكيد' : '');
-      if (pnd) t1.style.color = 'var(--warn)';
-      if (t.ok === false) t1.style.color = 'var(--out)';
+      t1.textContent = txTitle(t);
+      if (t.ok === false || pnd) { var pl = el('span', null, t.ok === false ? 'فشلت' : 'قيد التأكيد'); pl.className = 'tx-pill ' + (t.ok === false ? 'fail' : 'pend'); t1.appendChild(pl); row.classList.add(t.ok === false ? 'failed' : 'pending'); }
       var t2 = document.createElement('span'); t2.className = 'muted'; t2.style.cssText = 'font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       t2.textContent = (grouped ? new Date(t.time).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : new Date(t.time).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (t.net ? '' : ' · ' + netTag(t.net)) + (kind === 'swap' || kind === 'bridge' ? ' · ' + netTag(t.net) : ' · ' + shortAddr(t.counterparty));
       if (t.net) { var nl = document.createElement('img'); nl.src = netLogo(t.net); nl.alt = netTag(t.net); nl.title = netTag(t.net); nl.className = 'tx-badge'; b.appendChild(nl); }
@@ -104,6 +109,22 @@
     $('txd-note').hidden = !(r.kind && !t.txid); $('txd-note').textContent = 'هذه العملية محفوظة على جهازك. رقم المعاملة غير متوفر لها، ويمكنك رؤيتها في المستكشف من صفحة عنوانك.';
     $('txd-exp').hidden = !url; $('txd-exp').textContent = 'عرض على ' + explorerName(url);
     $('txd-exp').onclick = function () { if (url) window.open(url, '_blank'); };
+    // إرسال مرة أخرى (نفس المستلم والشبكة والعملة) + مشاركة إيصال نصي
+    var again = kind === 'send' && (r.to || t.counterparty) && t.net && NETS.some(function (n) { return n.key === t.net; });
+    $('txd-again').hidden = !again;
+    $('txd-again').onclick = function () {
+      $('txd-sheet').classList.remove('show');
+      state.sendNet = t.net; state.coin = t.coin || 'USDT'; renderCoinSeg(); show('send');
+      $('to').value = r.to || t.counterparty; $('amt').value = ''; $('amt').focus();
+      toast('تأكد من العنوان قبل الإرسال');
+    };
+    $('txd-share').onclick = async function () {
+      var lines = ['إيصال عملية · صُرّة', $('txd-title').textContent + ' · ' + $('txd-st').textContent, (state.hidden ? '' : $('txd-amt').textContent), $('txd-sub').textContent, fmtWhen(t.time)];
+      if (t.txid) lines.push('رقم المعاملة: ' + t.txid);
+      if (url) lines.push(url);
+      var text = lines.filter(Boolean).join('\n');
+      try { if (P.Share) await P.Share.share({ title: 'إيصال عملية', text: text }); else { copyText(text); toast('نُسخ الإيصال'); } } catch (e) {}
+    };
     $('txd-sheet').classList.add('show');
   }
   $('txd-close').onclick = function () { $('txd-sheet').classList.remove('show'); };
@@ -188,9 +209,9 @@
     var box = $('history-full');
     var haveTron = state.historyCache && Date.now() - state.fetchedAt.history < FRESH_MS;
     if (haveTron) { applyFilter(); loadEvmHistFor(state.hnet); return; }
-    if (!state.historyCache) emptyMsg(box, 'جارٍ التحميل…');
+    if (!state.historyCache) { box.textContent = ''; var sk = el('div'); sk.className = 'hskel'; for (var si = 0; si < 4; si++) sk.appendChild(el('i')); box.appendChild(sk); }
     state.fetchedAt.history = Date.now();
-    var tronP = core.getHistory(null, 50).then(function (l) { state.historyCache = l.map(function (t) { t.net = 'tron'; return t; }); }).catch(function (e) {
+    var tronP = core.getHistory(null, state.tronLimit || 50).then(function (l) { state.historyCache = l.map(function (t) { t.net = 'tron'; return t; }); }).catch(function (e) {
       state.fetchedAt.history = 0; if (!state.historyCache) state.tronErr = WalletCore.errorText(e);
     });
     var evmP = loadEvmHistFor(state.hnet);
@@ -214,11 +235,34 @@
     Object.keys(state.evmHist).forEach(function (k) { if ((state.hnet === 'all' || state.hnet === k) && state.evmHist[k]) all = all.concat(state.evmHist[k]); });
     all = withLocal(all, state.hnet);
     all.sort(function (a, b) { return b.time - a.time; });
-    var list = all.filter(function (t) { return state.filter === 'all' || (state.filter === 'in') === !!t.incoming; });
+    var q = String($('hist-q').value || '').trim().toLowerCase().replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); });
+    var list = all.filter(function (t) {
+      if (!(state.filter === 'all' || (state.filter === 'in') === !!t.incoming)) return false;
+      if (!q) return true;
+      var r = t.rec || {}, hay = [t.txid, t.counterparty, r.to, r.from, t.coin, r.paidCoin, t.amount, r.paidAmount, txTitle(t), netTag(t.net)].join(' ').toLowerCase();
+      return q.split(/\s+/).every(function (w) { return hay.indexOf(w) >= 0; });
+    });
+    $('hist-more').hidden = !!q || !(state.hnet === 'all' || state.hnet === 'tron') || !state.historyCache || state.historyCache.length < (state.tronLimit || 50) || (state.tronLimit || 50) >= 200;
     renderHistSum(all);
     if (!list.length && !lhAll().length && !state.historyCache && state.tronErr && state.hnet !== 'bsc' && state.hnet !== 'eth' && state.hnet !== 'polygon') return emptyMsg($('history-full'), state.tronErr);
+    if (!list.length && q) { var bx = $('history-full'); bx.textContent = ''; var em = el('div'); em.className = 'hempty'; em.appendChild(el('b', null, 'لا نتائج لـ«' + q + '»')); em.appendChild(el('small', null, 'جرّب جزءاً من العنوان أو رقم المعاملة أو المبلغ')); bx.appendChild(em); return; }
     renderTxList($('history-full'), list, true);
   }
+  $('hist-q').oninput = function () { $('hist-q-x').hidden = !this.value; applyFilter(); };
+  $('hist-q-x').onclick = function () { $('hist-q').value = ''; this.hidden = true; applyFilter(); $('hist-q').focus(); };
+  $('hist-refresh').onclick = async function () {
+    var b = this; if (b.classList.contains('spin')) return; b.classList.add('spin');
+    state.fetchedAt.history = 0; state.evmHistAt = {};
+    try { await loadHistoryFull(); } finally { setTimeout(function () { b.classList.remove('spin'); }, 400); }
+  };
+  // سجل TRON: 50 معاملة أولاً، و«عرض أقدم» يضاعف حتى 200
+  $('hist-more').onclick = async function () {
+    var b = this; b.disabled = true; b.textContent = 'جارٍ التحميل…';
+    state.tronLimit = Math.min(200, (state.tronLimit || 50) * 2);
+    try { state.historyCache = (await core.getHistory(null, state.tronLimit)).map(function (t) { t.net = 'tron'; return t; }); state.fetchedAt.history = Date.now(); applyFilter(); }
+    catch (e) { toast(WalletCore.errorText(e), true); }
+    finally { b.disabled = false; b.textContent = 'عرض معاملات أقدم'; }
+  };
   document.querySelectorAll('[data-filter]').forEach(function (c) {
     c.onclick = function () {
       state.filter = c.dataset.filter;

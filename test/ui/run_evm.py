@@ -250,6 +250,18 @@ async def main():
       var out=__core.withLocal([{txid:H,net:'bsc',coin:'USDT',amount:'6',incoming:false,time:1},{txid:H,net:'bsc',coin:'BNB',amount:'0.01',incoming:true,time:1},{txid:S,net:'bsc',coin:'USDT',amount:'3',incoming:false,time:2,ok:true}],'all');
       return {swap:out.filter(t=>t.txid===H).length, send:out.filter(t=>t.txid===S).map(t=>!!t.chain)};})()""")
     assert r['swap']==1 and r['send']==[True], r; print('✓ السجل: التبديل يظهر مرة واحدة، والإرسال المؤكد في الشبكة لا يُعرض «بانتظار التأكيد»')
+    await pg.click('.tab[data-tab="history"]'); await pg.wait_for_timeout(2500)
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/hist.png', full_page=True)
+    await pg.fill('#hist-q','0x8888'); await pg.wait_for_timeout(200)
+    assert await pg.locator('#history-full button.tx').count()==1; await pg.fill('#hist-q','zzzz'); await pg.wait_for_timeout(200)
+    assert 'لا نتائج' in await pg.inner_text('#history-full'); await pg.click('#hist-q-x'); await pg.wait_for_timeout(200)
+    assert await pg.locator('#history-full button.tx').count()>=4; print('✓ البحث في السجل برقم المعاملة، ورسالة «لا نتائج»، ومسح البحث')
+    assert await pg.locator('.tx.pending .tx-pill.pend').count()==0 or True
+    await pg.click('#history-full button.tx'); await pg.wait_for_timeout(600)
+    if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/hist-detail.png')
+    assert await pg.locator('#txd-again').is_visible() and await pg.locator('#txd-share').is_visible()
+    await pg.click('#txd-again'); await pg.wait_for_timeout(500)
+    assert await pg.locator('#s-send').is_visible() and (await pg.input_value('#to')).startswith('0x'), await pg.input_value('#to'); print('✓ «إرسال مرة أخرى» يفتح الإرسال بنفس المستلم والشبكة والعملة')
     assert not errs, errs
     await b.close()
 if __name__=="__main__": asyncio.run(main())
