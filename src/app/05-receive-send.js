@@ -3,7 +3,10 @@
     rxWatch(); // المستخدم ينتظر تحويلة: فحص أسرع
     renderNetbar($('recv-nets'), state.recvNet, function (k) { state.recvNet = k; loadReceive(); }, 'USDT');
     var n = netOf(state.recvNet), evm = !!n.evm;
-    var a = evm ? await core.evmAddress() : await core.getAddress();
+    var want = state.recvNet, a = evm ? await core.evmAddress() : await core.getAddress();
+    // تبديل سريع بين الشبكات: نتيجة طلب قديم لا تكتب عنواناً لشبكة غير المختارة (عنوان TRON تحت اسم BNB Chain = ضياع أموال)
+    if (state.recvNet !== want) return;
+    if (!a) { $('addr').textContent = '—'; $('qr').textContent = ''; return toast('افتح المحفظة مرة أخرى لتجهيز عنوان هذه الشبكة', true); }
     $('recv-label').textContent = 'عنوان محفظتك على شبكة ' + n.name + (evm ? ' (' + n.short + ')' : '');
     $('recv-warn').firstChild.innerHTML = '';
     var w = $('recv-warn').firstChild;
@@ -234,9 +237,14 @@
     state.recipRisk = null; $('c-risk').hidden = true;
     if (!core.recipientRisk) return;
     var r = await Promise.race([core.recipientRisk(netKey, to), new Promise(function (ok) { setTimeout(function () { ok(null); }, 5000); })]).catch(function () { return null; });
+    // تسميم العناوين: المحتال يرسل مبلغاً تافهاً من عنوان يطابق أول وآخر أحرف عنوان تتعامل معه، فينسخه الضحية من السجل.
+    // عنوان جديد يطابق عنواناً سابقاً في أوله وآخره ويختلف في الوسط = شبه مؤكد أنه مزيّف
+    if (!r) { var low = String(to).toLowerCase(), tw = recentList(netKey).filter(function (x) { x = String(x).toLowerCase(); return x.length === low.length && x !== low && x.slice(0, 5) === low.slice(0, 5) && x.slice(-4) === low.slice(-4); })[0]; if (tw) r = 'poison'; }
     state.recipRisk = r;
     if (!r) return;
-    $('c-risk-t').textContent = r === 'token'
+    $('c-risk-t').textContent = r === 'poison'
+      ? '⚠️ هذا العنوان يشبه عنواناً أرسلت إليه من قبل (نفس البداية والنهاية) لكنه مختلف في الوسط. هذه حيلة احتيال معروفة: لا تنسخ العناوين من سجل المعاملات. قارن العنوان كاملاً حرفاً حرفاً مع المستلم.'
+      : r === 'token'
       ? '⚠️ هذا عنوان عقد العملة نفسها، وليس محفظة. المبلغ المرسل إليه يضيع نهائياً في الغالب. تأكد من عنوان المستلم.'
       : '⚠️ هذا العنوان عقد ذكي وليس محفظة عادية. إن لم تكن متأكداً أن العقد يقبل هذه العملة فقد يضيع المبلغ. تأكد من المستلم قبل الإرسال.';
     $('c-risk').hidden = false;
@@ -320,7 +328,13 @@
   // كل إرسال يحتاج تأكيد الهوية: البصمة إن كانت مفعّلة، وإلا رمز القفل
   $('confirm-send').onclick = async function () {
     if (state.recipRisk) $('sheet').classList.remove('show');
-    if (state.recipRisk && !(await askConfirm(state.recipRisk === 'token' ? 'العنوان هو عقد العملة نفسها، والمبلغ سيضيع غالباً. هل أنت متأكد تماماً أنك تريد الإرسال إليه؟' : 'المستلم عقد ذكي وليس محفظة. هل أنت متأكد أنه يقبل هذه العملة؟'))) return;
+    if (state.recipRisk && !(await askConfirm(state.recipRisk === 'poison' ? 'العنوان يشبه عنواناً سابقاً لكنه مختلف، وقد يكون عنوان محتال. هل قارنته كاملاً مع المستلم وتأكدت أنه صحيح؟' : state.recipRisk === 'token' ? 'العنوان هو عقد العملة نفسها، والمبلغ سيضيع غالباً. هل أنت متأكد تماماً أنك تريد الإرسال إليه؟' : 'المستلم عقد ذكي وليس محفظة. هل أنت متأكد أنه يقبل هذه العملة؟'))) return;
+    // حماية من الإرسال المكرر: نفس المبلغ لنفس المستلم خلال 10 دقائق (نقرة مزدوجة، أو إعادة المحاولة بعد خطأ شبكة رغم أن الأولى وصلت)
+    var pd = state.pending, ls = lsJson('sarra.lastsend', null);
+    if (pd && ls && ls.to === pd.to && ls.amt === pd.amt && ls.coin === pd.coin && ls.net === (pd.net || 'tron') && Date.now() - ls.t < 600000) {
+      $('sheet').classList.remove('show');
+      if (!(await askConfirm('أرسلت ' + pd.amt + ' ' + pd.coin + ' لنفس المستلم قبل ' + Math.max(1, Math.round((Date.now() - ls.t) / 60000)) + ' دقيقة. تحقق من سجل المعاملات أولاً حتى لا ترسل مرتين. هل تريد الإرسال مرة أخرى فعلاً؟'))) return;
+    }
     $('sheet').classList.remove('show');
     var askPin = function () { openPin('verify', function () { doSend(); }); };
     if (bioEnabled()) bioVerify('تأكيد الإرسال').then(doSend).catch(askPin);

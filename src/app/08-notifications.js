@@ -221,6 +221,7 @@
       // آخر فحص قبل التوقيع: العملة موجودة على الشبكة والعنوان من نوعها (logic/registry.js)
       var bad = SarraLogic.checkTransfer(REG, p.net || 'tron', p.coin, p.to, { tron: function (a) { return core.isValidAddress(a); }, evm: function (a) { return core.isEvmAddress(a); } });
       if (bad) throw new Error(bad);
+      try { localStorage.setItem('sarra.lastsend', JSON.stringify({ to: p.to, amt: p.amt, coin: p.coin, net: p.net || 'tron', t: Date.now() })); } catch (e2) {}
       var r = p.net && p.net !== 'tron' ? await core.evmSend(p.net, p.coin, p.to, p.amt)
         : p.coin === 'USDT' ? await core.sendUSDT(p.to, p.amt) : await core.sendTRX(p.to, p.amt);
       if (p.net && p.net !== 'tron') state.evmBal = null;
@@ -232,6 +233,8 @@
       state.stack = ['home'];
       show('success');
     } catch (e) {
+      // خطأ قبل البث مؤكد (رصيد، عنوان، قفل…): لم يُرسل شيء، فلا نحذّر من «إرسال مكرر» عند إعادة المحاولة
+      if (e && /^(INSUFFICIENT|LOW_|SELF_SEND|INVALID|LOCKED|BAD_)/.test(e.message || '')) { try { localStorage.removeItem('sarra.lastsend'); } catch (e3) {} }
       state.stack = ['home'];
       show('send');
       sendError(WalletCore.errorText(e));

@@ -195,6 +195,23 @@ async def main():
       await pg.wait_for_timeout(200)
     assert await pg.locator('#c-risk').is_hidden(); await pg.click('#cancel-send')
     print('✓ المستلم عقد ذكي أو عقد العملة نفسها: تحذير أحمر وتأكيد إضافي، والمحفظة العادية بلا تحذير')
+    # تسميم العناوين: عنوان يطابق مستلماً سابقاً في أوله وآخره ويختلف في الوسط
+    fake=TO[:5]+('1' if TO[5]!='1' else '2')*(len(TO)-9)+TO[-4:]
+    await pg.fill('#to', fake); await pg.fill('#amt','1'); await pg.click('#review')
+    for _ in range(30):
+      if await pg.locator('#sheet.show').count(): break
+      await pg.wait_for_timeout(200)
+    assert await pg.locator('#c-risk').is_visible() and 'يشبه عنواناً' in await pg.inner_text('#c-risk-t'), await pg.inner_text('#send-err')
+    n0=len(sent); await pg.click('#confirm-send'); await pg.wait_for_timeout(300); await pg.click('#ask-no'); await pg.wait_for_timeout(500); assert len(sent)==n0
+    print('✓ عنوان مزيّف يشبه مستلماً سابقاً: تحذير احتيال وتأكيد إضافي')
+    # إرسال مكرر: إعادة نفس 1 USDT لنفس المستلم بعد خطأ شبكة غامض (nonce) قبل دقائق
+    await pg.fill('#to', TO); await pg.fill('#amt','1'); await pg.click('#review')
+    for _ in range(30):
+      if await pg.locator('#sheet.show').count(): break
+      await pg.wait_for_timeout(200)
+    n0=len(sent); await pg.click('#confirm-send'); await pg.wait_for_timeout(300)
+    assert await pg.locator('#ask-sheet.show').count() and 'مرتين' in await pg.inner_text('#ask-text'); await pg.click('#ask-no'); await pg.wait_for_timeout(500); assert len(sent)==n0
+    print('✓ نفس المبلغ لنفس المستلم خلال 10 دقائق: تنبيه قبل الإرسال المكرر')
     await pg.goto('file://'+S+'/index.html'); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(2500)
     await pg.click('.actions [data-go=send]'); await pg.wait_for_timeout(1500)
     await pg.click('#send-nets [data-net=eth]'); await pg.wait_for_timeout(300)
