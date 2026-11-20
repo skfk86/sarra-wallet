@@ -1,4 +1,5 @@
 # سيناريو سوق P2P بخادم وهمي يحاكي قواعد الخادم الحقيقي
+import struct, zlib
 import asyncio, sys, json
 from playwright.async_api import async_playwright
 S=sys.argv[1]
@@ -58,7 +59,7 @@ async def handler(route):
     amt=float(p['amount']); o={'id':'sell2','offer_id':'bd1','side':'buy','seller':ME,'buyer':BUYER2,'amount_usdt':amt,'price_sdg':2690,'total_sdg':amt*2690,'fee_usdt':round(amt*0.005,6),'status':'awaiting_deposit','created_at':'2026-10-24T10:00:00Z','buyer_profile':{'nickname':'مشتري_جاد'},'seller_profile':{'nickname':'أنا'},'deposit_address':DEP,'deposit_amount':amt}
     st['orders']['sell2']=o; return await ok(view(o))
   if a=='order.create':
-    amt=float(p['amount']); o={'id':'buy1','offer_id':'of1','seller':SELLER,'buyer':ME,'amount_usdt':amt,'price_sdg':2700,'total_sdg':amt*2700,'fee_usdt':round(amt*0.005,6),'status':'awaiting_deposit','created_at':'2026-10-24T09:00:00Z','buyer_profile':{'nickname':st['profile']['nickname']},'seller_profile':{'nickname':'ود_الخرطوم'},'deposit_address':'Tsecret','deposit_amount':amt}
+    amt=float(p['amount']); o={'id':'buy1','offer_id':'of1','network':'BEP20','seller':SELLER,'buyer':ME,'amount_usdt':amt,'price_sdg':2700,'total_sdg':amt*2700,'fee_usdt':round(amt*0.005,6),'status':'awaiting_deposit','created_at':'2026-10-24T09:00:00Z','buyer_profile':{'nickname':st['profile']['nickname']},'seller_profile':{'nickname':'ود_الخرطوم'},'deposit_address':'Tsecret','deposit_amount':amt}
     st['orders']['buy1']=o; return await ok(view(o))
   if a=='orders.mine': return await ok({'orders':[view(o)['order'] for o in st['orders'].values()]})
   o=st['orders'].get(p.get('id'))
@@ -70,9 +71,14 @@ async def handler(route):
     if o['status'] not in t[0]: return await err('INVALID_STATE')
     o['status']=t[1]
     if t[1]=='disputed': o['dispute_reason']=p.get('reason')
+  if a=='receipt.upload': o['receipts']=o.get('receipts',0)+1; st['msgs'].setdefault(o['id'],[]).append({'id':99,'sender':ME,'body':'📎 رفع المشتري إيصال تحويل بنكك','created_at':'x'})
   if a=='message.send': st['msgs'].setdefault(o['id'],[]).append({'id':len(st['msgs'].get(o['id'],[]))+1,'sender':ME,'body':p['body'],'created_at':'x'})
   return await ok(view(o))
 
+def png(w,h):
+  raw=b''.join(b'\x00'+bytes((x*7+y*3)%256 for x in range(w*3)) for y in range(h))
+  ch=lambda t,d: struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
+  return b'\x89PNG\r\n\x1a\n'+ch(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+ch(b'IDAT',zlib.compress(raw))+ch(b'IEND',b'')
 async def main():
   async with async_playwright() as pw:
     b=await pw.chromium.launch(); pg=await b.new_page(viewport={'width':360,'height':780})
@@ -138,17 +144,23 @@ async def main():
     assert '135000' in await pg.inner_text('#ord-bamt'); step('زر نسخ المبلغ بالجنيه')
     assert await vis('ord-timer') and ':' in await pg.inner_text('#ord-timer-val'); step('عداد مهلة الدفع')
     assert await pg.locator('#ord-steps span.on').count()==2; step('مؤشر الخطوات (الضمان ← الدفع)')
+    if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-funded.png', full_page=True)
     await pg.fill('#ord-msg','حوّلت 135 ألف'); await pg.click('#ord-send'); await pg.wait_for_timeout(800)
     assert 'حوّلت 135 ألف' in await pg.inner_text('#ord-chat'); step('المحادثة')
     await pg.click('#ord-actions button:text-is("حوّلت المبلغ عبر بنكك")'); await pg.wait_for_timeout(300)
     assert await vis('ask-sheet'); await pg.click('#ask-no'); await pg.wait_for_timeout(400)
     assert st['orders']['buy1']['status']=='funded'; step('التراجع في نافذة التأكيد لا يرسل شيئاً')
+    await pg.set_input_files('#rcpt-file',files=[{'name':'r.png','mimeType':'image/png','buffer':png(700,1200)}]); await pg.wait_for_timeout(1500)
+    assert st['orders']['buy1'].get('receipts')==1; step('رفع إيصال بنكك')
+    if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-receipt.png', full_page=True)
     await pg.click('#ord-actions button:text-is("حوّلت المبلغ عبر بنكك")'); await pg.click('#ask-yes'); await pg.wait_for_timeout(1000)
     assert st['orders']['buy1']['status']=='paid' and 'أكّد الدفع' in await pg.inner_text('#ord-status'); step('تأكيد الدفع')
+    if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-waiting.png', full_page=True)
     await pg.click('#ord-actions button:text-is("فتح نزاع")'); await pg.click('#ask-yes'); await pg.wait_for_timeout(300)
     assert st['orders']['buy1']['status']=='paid'; step('النزاع يتطلب كتابة السبب')
     await pg.fill('#ask-in','البائع لا يرد'); await pg.click('#ask-yes'); await pg.wait_for_timeout(1000)
     assert st['orders']['buy1']['status']=='disputed' and st['orders']['buy1']['dispute_reason']=='البائع لا يرد'; step('فتح نزاع مع السبب')
+    if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-dispute.png', full_page=True)
     # البائع: إيداع ثم تحرير
     await pg.click('#s-order [data-back]'); await pg.click('#p2p-orders-btn'); await pg.wait_for_timeout(800)
     t=await pg.inner_text('#orders-list'); assert 'بيع 30' in t and 'شراء 50' in t, t; step('طلباتي: الشراء والبيع')
@@ -161,16 +173,15 @@ async def main():
     assert not await vis('ord-bank'); step('البائع لا يرى بطاقة "حوّل إلى" الخاصة بالمشتري')
     await pg.click('#ord-actions button:has-text("حرّر USDT")'); await pg.click('#ask-yes'); await pin('123456'); await pg.wait_for_timeout(1500)
     assert st['orders']['sell1']['status']=='released' and 'اكتملت' in await pg.inner_text('#ord-status'); step('التحرير بعد التأكيد والرمز ← اكتملت الصفقة')
+    st['orders']['buy1']['status']='released'
+    await pg.click('#s-order [data-back]'); await pg.click('#orders-list button:has-text("شراء 50")') if await vis('s-p2p-orders') else None; await pg.wait_for_timeout(1000)
+    if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-success.png', full_page=True)
     # إعلان جديد
     await pg.click('#s-order [data-back]'); await pg.click('#s-p2p-orders [data-back]'); await pg.click('#p2p-new-btn'); await pg.wait_for_timeout(800)
     assert await vis('s-p2p-verify') and not await vis('s-p2p-new'); step('لا إعلان قبل التوثيق: يفتح شاشة التوثيق')
     await no_overflow('التوثيق')
     from base64 import b64encode
     import struct, zlib
-    def png(w,h):
-      raw=b''.join(b'\x00'+bytes((x*7+y*3)%256 for x in range(w*3)) for y in range(h))
-      ch=lambda t,d: struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
-      return b'\x89PNG\r\n\x1a\n'+ch(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+ch(b'IDAT',zlib.compress(raw))+ch(b'IEND',b'')
     await pg.fill('#ver-name','محمد أحمد علي'); await pg.fill('#ver-phone','0912345678'); await pg.fill('#ver-acct','99887766')
     await pg.set_input_files('#ver-file',files=[{'name':'id.png','mimeType':'image/png','buffer':png(900,600)}]); await pg.wait_for_timeout(800)
     assert await vis('ver-prev'); step('التقاط صورة الهوية وتصغيرها إلى JPEG')

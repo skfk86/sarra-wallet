@@ -261,7 +261,14 @@
     $('ord-title').textContent = (role === 'buyer' ? 'شراء ' : role === 'seller' ? 'بيع ' : 'نزاع ') + fmt(o.amount_usdt) + ' USDT';
     var other = role === 'buyer' ? o.seller_profile : o.buyer_profile;
     $('ord-sub').textContent = role === 'admin' ? (o.buyer_profile || {}).nickname + ' ← ' + (o.seller_profile || {}).nickname : 'مع ' + ((other || {}).nickname || '—');
-    $('ord-status').textContent = st[0]; $('ord-status').className = 'note ' + st[1];
+    $('ord-status').textContent = st[0];
+    // بطاقة الحالة: ماذا حدث، وماذا بعد، لكل طرف (بدل سطر حالة صغير)
+    var H = heroOf(o, role); $('ord-hero').className = 'ord-hero ' + st[1]; $('ord-hero-i').textContent = H[0]; $('ord-hero-d').textContent = H[1];
+    var won = o.status === 'released' && role === 'buyer';
+    $('ord-win').hidden = !won;
+    if (won) { $('ord-win-amt').textContent = '+' + fmt(o.buyer_receives, 6) + ' USDT'; $('ord-win-s').textContent = 'على ' + netLabel(o.network) + ' · مقابل ' + fmt(o.total_sdg) + ' ج.س'; }
+    var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0;
+    $('ord-msg-row').hidden = closed && role !== 'admin'; $('ord-chat-note').textContent = closed ? 'الصفقة مغلقة. المحادثة محفوظة للمراجعة.' : 'لا تتواصل خارج التطبيق: المحادثة هنا هي دليلك عند النزاع.';
     var dl = $('ord-kv'); dl.textContent = '';
     kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
     kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
@@ -283,11 +290,13 @@
         dl.appendChild(wn);
       }
     }
-    var showBank = !!o.bankak_account && role !== 'seller';
+    // بعد انتهاء الصفقة لا معنى لبطاقة «حوّل المبلغ إلى…»، وقد تدفع المشتري لتحويل ثانٍ بالخطأ
+    var showBank = !!o.bankak_account && role !== 'seller' && ['funded', 'paid', 'disputed'].indexOf(o.status) >= 0;
     $('ord-bank').hidden = !showBank;
     if (showBank) { $('ord-bname').textContent = o.bankak_name; $('ord-bacct').textContent = o.bankak_account; $('ord-bamt').textContent = String(o.total_sdg); }
     var stepIdx = { awaiting_deposit: 0, funded: 1, paid: 2, releasing: 2, released: 3, disputed: 2 }[o.status];
-    document.querySelectorAll('#ord-steps span').forEach(function (x, i) { x.classList.toggle('on', stepIdx != null && i <= Math.min(stepIdx, 2)); });
+    var dsp = o.status === 'disputed';
+    document.querySelectorAll('#ord-steps span').forEach(function (x, i) { x.classList.toggle('on', stepIdx != null && i <= Math.min(stepIdx, 2) && !(dsp && i >= 1)); x.classList.toggle('bad', dsp && i === 1); });
     state.p2p.deadline = o.status === 'funded' ? o.pay_deadline : o.status === 'awaiting_deposit' ? o.deposit_expires_at : null;
     $('ord-timer-lbl').textContent = o.status === 'funded' ? 'الوقت المتبقي للدفع' : 'الوقت المتبقي لإيداع البائع';
     tickTimer();
@@ -383,11 +392,28 @@
   $('ord-msg').onkeydown = function (e) { if (e.key === 'Enter') $('ord-send').click(); };
   $('ord-copy').onclick = function () { copyText($('ord-bacct').textContent); };
   $('ord-copy-amt').onclick = function () { copyText($('ord-bamt').textContent); };
+  function heroOf(o, role) {
+    var b = role === 'buyer', sl = role === 'seller', amt = fmt(o.total_sdg) + ' ج.س';
+    switch (o.status) {
+      case 'awaiting_deposit': return ['⏳', b ? 'ينتظر البائع إيداع USDT في الضمان. لا تحوّل أي مبلغ الآن؛ سيظهر حساب بنكك هنا بعد الحجز.' : sl ? 'أودع USDT في الضمان من الزر أدناه لتبدأ الصفقة. المشتري لن يحوّل قبل ذلك.' : 'بانتظار إيداع البائع.'];
+      case 'funded': return ['🔒', b ? 'USDT محجوزة لك بأمان في الضمان. حوّل ' + amt + ' إلى الحساب أدناه، ارفع الإيصال، ثم اضغط «حوّلت المبلغ».' : sl ? 'عملتك في الضمان. انتظر تحويل المشتري، ولا تحرّر قبل أن ترى المبلغ في تطبيق بنكك.' : 'محجوز في الضمان.'];
+      case 'paid': return ['🕒', b ? 'أبلغنا البائع بتحويلك. سيتأكد من وصول المبلغ في بنكك ثم يحرّر USDT، وغالباً خلال دقائق. إن تأخر طويلاً أو لم يرد فافتح نزاعاً.' : sl ? 'المشتري يقول إنه حوّل ' + amt + '. افتح تطبيق بنكك وتأكد من وصول المبلغ فعلاً، ثم حرّر.' : 'المشتري أكّد الدفع.'];
+      case 'disputed': return ['⚖️', 'المشرف يراجع المحادثة والإيصالات. USDT محجوزة في الضمان ولن تُحرَّر لأي طرف قبل القرار. أضف أي دليل في المحادثة' + (o.dispute_reason ? '. سبب النزاع: «' + o.dispute_reason + '»' : '') + '.'];
+      case 'releasing': return ['⏳', 'جارٍ إرسال USDT إلى المشتري. يستغرق عادة أقل من دقيقة.'];
+      case 'released': return ['✓', b ? 'تمت الصفقة بنجاح، ووصلت USDT إلى محفظتك.' : sl ? 'تمت الصفقة بنجاح. أُرسلت USDT للمشتري.' : 'اكتملت.'];
+      case 'refunding': return ['↩', 'جارٍ إعادة USDT إلى البائع.'];
+      case 'refunded': return ['↩', sl ? 'أُعيدت USDT إلى محفظتك (بعد خصم رسوم الشبكة).' : 'أُعيدت USDT إلى البائع وأُغلق الطلب.'];
+      case 'cancelled': return ['✕', 'أُلغي الطلب ولم يُحجز أو يُحوَّل شيء.'];
+      default: return ['!', 'تأخر الإرسال، والمشرف يتابع الطلب. أموالك محفوظة في الضمان.'];
+    }
+  }
+  $('ord-win-go').onclick = function () { resetTo('home'); };
   function tickTimer() {
     var d = state.p2p.deadline; $('ord-timer').hidden = !d;
     if (!d) return;
     var left = Math.max(0, Math.floor((Date.parse(d) - Date.now()) / 1000));
-    $('ord-timer-val').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    var hh = Math.floor(left / 3600), mm = Math.floor(left % 3600 / 60), ss = left % 60, p2 = function (x) { return String(x).padStart(2, '0'); };
+    $('ord-timer-val').textContent = (hh ? hh + ':' + p2(mm) : p2(mm)) + ':' + p2(ss);
     $('ord-timer-val').style.color = left < 120 ? 'var(--err)' : '';
   }
   setInterval(function () { if (state.stack[state.stack.length - 1] === 'order') tickTimer(); }, 1000);

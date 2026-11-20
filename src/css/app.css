@@ -162,6 +162,20 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 .steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .steps3 span{font-size:12px;text-align:center;padding:8px 2px 6px;border-top:3px solid var(--s2);color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .steps3 span.on{border-color:var(--ac);color:var(--tx,#fff);font-weight:600}
+.steps3 span.bad{border-color:var(--err);color:var(--err);font-weight:600}
+.ord-hero{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:var(--s1)}
+.ord-hero .oh-i{flex:0 0 44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--s2)}
+.ord-hero .oh-t{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ord-hero .oh-t b{font-size:16px}
+.ord-hero .oh-t span{font-size:13px;line-height:1.75;color:var(--mu)}
+.ord-hero.ok{border-color:color-mix(in srgb,var(--ok,#16a37a) 40%,transparent);background:color-mix(in srgb,var(--ok,#16a37a) 9%,var(--s1))}
+.ord-hero.ok .oh-i{background:var(--ok,#16a37a);color:#fff}
+.ord-hero.warn{border-color:color-mix(in srgb,var(--warn,#d97706) 40%,transparent);background:color-mix(in srgb,var(--warn,#d97706) 8%,var(--s1))}
+.ord-hero.warn .oh-i{background:color-mix(in srgb,var(--warn,#d97706) 18%,transparent)}
+.ord-hero.err{border-color:color-mix(in srgb,var(--err) 40%,transparent);background:color-mix(in srgb,var(--err) 8%,var(--s1))}
+.ord-hero.err .oh-i{background:color-mix(in srgb,var(--err) 16%,transparent)}
+.ord-win{display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 16px;text-align:center}
+.ord-win .w-amt{font-size:30px;font-weight:800;color:var(--ok,#16a37a);direction:ltr}
 .ad{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .ad-top{display:flex;align-items:center;gap:10px;min-width:0}
 .ad-av{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--ok-bg);color:var(--ac);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
