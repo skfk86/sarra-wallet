@@ -105,9 +105,9 @@ async def main():
     await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(600); assert await pg.locator('#cs-chart').is_visible(); await pg.click('#cs-close')
     print('✓ رسم السعر: 5 فترات، لمس لعرض السعر في أي لحظة، أعلى وأدنى سعر، ويظهر لكل العملات')
     assert await pg.locator('#bal-chip .logos img').count()==4; await pg.click('#toggle-bal'); await pg.wait_for_timeout(200)
-    assert '••••' in await pg.inner_text('#bal-usdt') and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
+    assert await pg.locator('#bal-usdt .bal-dots i').count()==6 and not any(ch.isdigit() for ch in await pg.inner_text('#bal-usdt')) and await pg.get_attribute('#toggle-bal','aria-pressed')=='true'
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/home-hidden.png')
-    await pg.click('#toggle-bal'); await pg.wait_for_timeout(200); print('✓ شارة الشبكات بالشعارات، وإخفاء الرصيد مع تبديل الأيقونة')
+    await pg.click('#bal-usdt'); await pg.wait_for_timeout(200); assert await pg.get_attribute('#toggle-bal','aria-pressed')=='false'; print('✓ شارة الشبكات بالشعارات، وإخفاء الرصيد مع تبديل الأيقونة')
     row=await pg.inner_text('#assets [data-asset=USDT]'); assert '151' in row and '$1.00' in row and '%' not in row, row; print('✓ USDT: مجموع كل الشبكات 151 مع السعر، بلا نسبة تغير مزدحمة')
     tot=await pg.inner_text('#bal-usdt'); assert tot=='$172.75', tot; print('✓ إجمالي الأصول بالدولار: '+tot)
     await pg.click('#assets [data-asset=USDT]'); await pg.wait_for_timeout(300)

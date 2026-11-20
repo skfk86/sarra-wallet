@@ -713,3 +713,23 @@ i.skeleton{display:block;font-style:normal}
 #pf-pl,#pf-pct{unicode-bidi:isolate;direction:ltr}
 button.bal-chg{border:0;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#fff}
 .pf-card{max-height:90vh;overflow:auto}
+
+/* ===== وضع الخصوصية (إخفاء الأرصدة) ===== */
+#bal-usdt{cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+#bal-usdt.flip{animation:balflip .32s ease}
+@keyframes balflip{0%{opacity:.2;transform:translateY(4px) scale(.98);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}
+.bal-dots{display:inline-flex;align-items:center;gap:7px;height:1em;vertical-align:middle;margin-inline-start:6px}
+.bal-dots i{width:.26em;height:.26em;border-radius:50%;background:currentColor;opacity:.9;animation:dotin .35s ease backwards}
+.bal-dots i:nth-child(2){animation-delay:.03s}.bal-dots i:nth-child(3){animation-delay:.06s}.bal-dots i:nth-child(4){animation-delay:.09s}.bal-dots i:nth-child(5){animation-delay:.12s}.bal-dots i:nth-child(6){animation-delay:.15s}
+@keyframes dotin{from{transform:scale(0)}to{transform:none}}
+#s-home .hero-card .balance.masked{color:#fff;letter-spacing:0}
+.priv-chip{display:none;align-self:flex-start;align-items:center;gap:6px;border:0;font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;cursor:pointer}
+.priv-chip .i{width:13px;height:13px}
+body.privacy .priv-chip{display:inline-flex}
+#toggle-bal .i{transition:transform .25s ease,opacity .25s}
+#toggle-bal.off .eye-off{animation:eyeflip .3s ease}
+@keyframes eyeflip{from{transform:rotateY(90deg);opacity:0}to{transform:none;opacity:1}}
+/* القيم المقنّعة في بقية الشاشات: لون هادئ ومسافة ثابتة بدل نقاط ملتصقة */
+body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body.privacy .pp-pl b,body.privacy #hsum-in,body.privacy #hsum-out,body.privacy .op-g b,body.privacy #pr-pos-v,body.privacy #pr-pos-q,body.privacy #pr-pos-pl{letter-spacing:2px}
+#bal-usdt{direction:ltr}.bal-dots{margin-inline-start:8px}
+.bal-dots{direction:ltr;flex-direction:row;margin-inline-start:0}.bal-dots .bal-cur{vertical-align:0;margin-right:4px;align-self:flex-start}

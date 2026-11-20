@@ -307,7 +307,10 @@
     var multi = Object.keys(EVM).length || (state.prices && NETWORK === 'mainnet');
     var tot = portfolioUsd();
     var bu = $('bal-usdt'); bu.classList.toggle('masked', state.hidden);
-    if (state.hidden) bu.textContent = '$ ••••••';
+    if (state.hidden) { // نقاط دائرية بحجم الرقم نفسه (لا نص «••••» صغير يكشف عدد الخانات)
+      bu.textContent = ''; var dots = el('span'); dots.className = 'bal-dots'; dots.setAttribute('aria-label', 'الرصيد مخفي');
+      dots.appendChild(el('span', null, '$')).className = 'bal-cur'; for (var di = 0; di < 6; di++) dots.appendChild(el('i')); bu.appendChild(dots);
+    }
     else {
       // الدولارات كبيرة والسنتات أصغر، كما في تطبيقات البنوك
       var val = multi && tot != null ? tot : Number(b.usdt) || 0, sp = usd(val).replace('$', '').split('.');
@@ -443,8 +446,12 @@
     if (!(prev > 0)) return null;
     return { usd: now - prev, pct: (now - prev) / prev * 100 };
   }
-  function setHidden(v) {
+  function setHidden(v, quiet) {
     state.hidden = v;
+    document.body.classList.toggle('privacy', v);
+    var bu0 = $('bal-usdt'); bu0.classList.remove('flip'); void bu0.offsetWidth; bu0.classList.add('flip'); // حركة انتقال ناعمة
+    try { if (P.Haptics) P.Haptics.impact({ style: 'LIGHT' }); } catch (e) {}
+    if (!quiet && v && localStorage.getItem('sarra.hideTip') !== '1') { try { localStorage.setItem('sarra.hideTip', '1'); } catch (e) {} toast('أُخفيت الأرصدة في كل الشاشات. اضغط الرصيد أو العين لإظهارها'); }
     var tb = $('toggle-bal'); tb.classList.toggle('off', v); tb.setAttribute('aria-pressed', v ? 'true' : 'false'); tb.setAttribute('aria-label', v ? 'إظهار الرصيد' : 'إخفاء الرصيد');
     try { localStorage.setItem('sarra.hide', v ? '1' : '0'); } catch (e) {}
     renderBalances();
@@ -453,12 +460,17 @@
     $('sw-hide').setAttribute('aria-checked', v ? 'true' : 'false');
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
+  // الضغط على الرقم نفسه يخفي/يُظهر (كما في Binance)، والعين تبقى للوضوح
+  $('bal-usdt').onclick = function () { setHidden(!state.hidden); };
+  $('bal-usdt').setAttribute('role', 'button'); $('bal-usdt').setAttribute('tabindex', '0');
+  $('bal-usdt').onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setHidden(!state.hidden); } };
+  $('priv-chip').onclick = function () { setHidden(false); };
   function syncHeroSid() {
     var sid = state.p2p && state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.sarra_id, hb = $('hero-sid');
     if (!sid) { hb.hidden = true; return; }
     hb.hidden = false; hb.textContent = ''; hb.appendChild(el('small', null, 'معرّفي')); hb.appendChild(el('b', null, fmtSid(sid)));
     hb.onclick = function () { copyText(String(sid)); toast('نُسخ معرّف صُرّة'); };
   }
-  if (state.hidden) { $('toggle-bal').classList.add('off'); $('toggle-bal').setAttribute('aria-pressed', 'true'); }
+  if (state.hidden) { $('toggle-bal').classList.add('off'); $('toggle-bal').setAttribute('aria-pressed', 'true'); document.body.classList.add('privacy'); }
   $('refresh').onclick = function () { state.fetchedAt.history = 0; loadHome(true); };
 
