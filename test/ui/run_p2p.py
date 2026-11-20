@@ -285,5 +285,9 @@ async def main():
     await pg.reload(); await pg.wait_for_timeout(1500); await pin('123456'); await pg.wait_for_timeout(5000)
     got=await pg.evaluate("JSON.parse(localStorage.getItem('sarra.lh."+ME+"')||'[]').map(r=>r.amount)")
     assert '12.5' in got, got; step('بعد إعادة الفتح بنفس المحفظة: السجل استُعيد من الخزنة وفُكّ تشفيره')
+    for _ in range(3):
+      if await vis('s-order'): await pg.click('#s-order [data-back]'); await pg.wait_for_timeout(300)
+    await pg.evaluate("window.__pn.l.pushNotificationActionPerformed({notification:{data:{kind:'p2p',order:'buy1'}}})"); await pg.wait_for_timeout(2500)
+    assert await vis('s-order'), 'push tap did not open order'; step('الضغط على إشعار P2P يفتح الطلب نفسه')
     print('\nأخطاء JavaScript:', errs or 'لا يوجد'); await b.close()
 asyncio.run(main())

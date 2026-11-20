@@ -46,8 +46,18 @@
       });
       await PN.addListener('registrationError', function () { state.pushOn = false; });
       // وصل إشعار والتطبيق مفتوح: لا يظهر في الشريط (presentationOptions فارغة)، فنفحص فوراً ونعرض نافذة الاستلام
-      await PN.addListener('pushNotificationReceived', function () { rxTick(true); });
-      await PN.addListener('pushNotificationActionPerformed', function () { setTimeout(function () { rxTick(true); }, 800); });
+      // إشعار P2P (حالة طلب أو رسالة): التطبيق مفتوح ← نحدّث الطلب المفتوح والشارة فوراً؛ ضغط الإشعار ← يفتح الطلب نفسه
+      var p2pData = function (n) { var d = n && (n.data || (n.notification && n.notification.data)) || {}; return d.kind === 'p2p' && /^[\w-]{1,64}$/.test(String(d.order || '')) ? d.order : null; };
+      await PN.addListener('pushNotificationReceived', function (n) {
+        var oid = p2pData(n);
+        if (!oid) return rxTick(true);
+        if (state.p2p.orderId === oid && /^order/.test(state.stack[state.stack.length - 1])) refreshOrder('order.get'); else { toast((n && n.title) || 'تحديث على طلب P2P'); pollMyOrders(); }
+      });
+      await PN.addListener('pushNotificationActionPerformed', function (a) {
+        var oid = p2pData(a);
+        if (!oid) return setTimeout(function () { rxTick(true); }, 800);
+        var go = function () { if (core.isUnlocked()) openOrder(oid, true); else setTimeout(go, 700); }; setTimeout(go, 600); // بعد فتح القفل
+      });
       if (PN.createChannel) await PN.createChannel({ id: 'tx2', name: 'المعاملات', description: 'استلام وخصم', importance: 5, visibility: 1, sound: 'coin.wav', vibration: true, lights: true, lightColor: '#16A37A' }).catch(function () {});
       var pm = await PN.checkPermissions(); if (pm.receive !== 'granted') pm = await PN.requestPermissions();
       if (pm.receive === 'granted') await PN.register();

@@ -38,4 +38,19 @@ t('نطاق الكتل: لحاق تدريجي، وقفز بعد انقطاع ط�
   assert.equal(L.blockRange(1000, 1000, 80, 800), null);
   assert.deepEqual(L.blockRange(100, 1000, 80, 800), [1000, 1000]);
 });
+t('إشعارات P2P: كل حالة تُبلغ الطرف المعني فقط', () => {
+  const o = { id: 'o1', buyer: 'TB', seller: 'TS', amount_usdt: 50, total_sdg: 135000, status: '' };
+  const to = (st: string) => L.p2pStatusPushes({ ...o, status: st }, ['TA']).map((p) => p.to).join(',');
+  assert.equal(to('awaiting_deposit'), 'TS'); assert.equal(to('funded'), 'TB'); assert.equal(to('paid'), 'TS');
+  assert.equal(to('disputed'), 'TB,TS,TA'); assert.equal(to('released'), 'TB,TS'); assert.equal(to('refunded'), 'TS');
+  assert.equal(to('release_failed'), 'TA'); assert.equal(to('releasing'), '');
+  assert.match(L.p2pStatusPushes({ ...o, status: 'paid' }, [])[0].body, /135,000/);
+});
+t('إشعارات رسائل P2P: لا تصل للمرسل، وتُجمع رسائل الطلب الواحد', () => {
+  const o = { id: 'o1', buyer: 'TB', seller: 'TS', amount_usdt: 50, total_sdg: 1, status: 'funded' };
+  const ps = L.p2pMessagePushes([{ order_id: 'o1', sender: 'TS', body: 'أ' }, { order_id: 'o1', sender: 'TS', body: 'ب' }, { order_id: 'zz', sender: 'TS', body: 'x' }], { o1: o });
+  assert.equal(ps.length, 1); assert.equal(ps[0].to, 'TB'); assert.match(ps[0].body, /^2 رسائل جديدة. آخرها: ب/); assert.equal(ps[0].title, 'رسالة من البائع');
+  const adm = L.p2pMessagePushes([{ order_id: 'o1', sender: 'TA', body: 'قرار' }], { o1: o });
+  assert.deepEqual(adm.map((p) => p.to), ['TB', 'TS']); assert.equal(adm[0].title, 'رسالة من المشرف');
+});
 console.log(`\n${pass} اختبارات ماسح الإشعارات نجحت`);

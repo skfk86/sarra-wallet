@@ -58,11 +58,14 @@ async function fcmAccess() {
   fcmTok = { t: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 }; return fcmTok.t;
 }
 async function send(token: string, e: L.Ev): Promise<'ok' | 'gone' | 'err'> {
-  const m = L.message(e);
+  return fcm(token, L.message(e), { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx }, e.key);
+}
+// visibility PRIVATE: على شاشة القفل الآمنة يظهر «صُرّة» فقط بلا مبالغ ولا نص المحادثة (حسب إعداد الهاتف لإخفاء المحتوى الحساس)
+async function fcm(token: string, m: { title: string; body: string }, data: Record<string, string>, tag: string): Promise<'ok' | 'gone' | 'err'> {
   const r = await fetch('https://fcm.googleapis.com/v1/projects/' + sa.project_id + '/messages:send', {
     method: 'POST', headers: { authorization: 'Bearer ' + await fcmAccess(), 'content-type': 'application/json' },
-    body: JSON.stringify({ message: { token, notification: m, data: { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx },
-      android: { priority: 'HIGH', notification: { channel_id: 'tx2', sound: 'coin', icon: 'ic_stat_coin', color: '#16A37A', tag: e.key } } } })
+    body: JSON.stringify({ message: { token, notification: m, data,
+      android: { priority: 'HIGH', notification: { channel_id: 'tx2', sound: 'coin', icon: 'ic_stat_coin', color: '#16A37A', tag, visibility: 'PRIVATE' } } } })
   });
   if (r.ok) return 'ok';
   const t = await r.text();
@@ -74,11 +77,12 @@ Deno.serve(async (req) => {
   if (!cfg || req.headers.get('x-cron') !== cfg.v) return new Response('forbidden', { status: 403 });
   if (!sa || !sa.private_key) return Response.json({ ok: false, error: 'FCM_SERVICE_ACCOUNT_MISSING' });
 
-  // الأجهزة المسجّلة: hex20 → رموز
-  const toksByHex: Record<string, Record<string, string[]>> = { tron: {}, evm: {} };
+  // الأجهزة المسجّلة: hex20 → رموز (للتحويلات)، وعنوان المحفظة → رموز (لإشعارات P2P)
+  const toksByHex: Record<string, Record<string, string[]>> = { tron: {}, evm: {} }, toksByAddr: Record<string, string[]> = {};
   for (let from = 0; ; from += 1000) {
     const { data } = await db.from('push_tokens').select('token,address,evm').range(from, from + 999);
     for (const r of data || []) {
+      (toksByAddr[r.address] ||= []).push(r.token);
       const th = L.tronToHex20(r.address); if (th) (toksByHex.tron[th] ||= []).push(r.token);
       const eh = String(r.evm || '').toLowerCase().replace(/^0x/, ''); if (/^[0-9a-f]{40}$/.test(eh)) (toksByHex.evm[eh] ||= []).push(r.token);
     }
@@ -119,6 +123,35 @@ Deno.serve(async (req) => {
     const res = await Promise.all(tokens.map((t) => send(t, e).catch(() => 'err' as const)));
     res.forEach((r, i) => { if (r === 'ok') sent++; if (r === 'gone') gone.add(tokens[i]); });
   }
+  // ===== P2P: تغيّرات حالة الطلبات ورسائل المحادثة منذ الدورة السابقة =====
+  try {
+    const ADMINS = env('ADMIN_ADDRESSES').split(',').map((x) => x.trim()).filter(Boolean);
+    const runAt = new Date().toISOString(), since = new Date(lastOf['p2p'] || Date.now() - 120000).toISOString();
+    const { data: ch } = await db.from('orders').select('id,status,buyer,seller,amount_usdt,total_sdg').gt('updated_at', since).order('updated_at').limit(500);
+    const { data: msgs } = await db.from('messages').select('order_id,sender,body').gt('created_at', since).order('id').limit(500);
+    const pushes: L.P2PPush[] = [];
+    if (ch && ch.length) {
+      // آخر حالة أُبلغ عنها لكل طلب: تحديث لا يغيّر الحالة (رسالة، رفع إيصال) لا يكرر إشعار الحالة
+      const { data: seen } = await db.from('p2p_push_seen').select('order_id,status').in('order_id', ch.map((o) => o.id));
+      const was = Object.fromEntries((seen || []).map((x) => [x.order_id, x.status]));
+      const fresh = ch.filter((o) => was[o.id] !== o.status);
+      for (const o of fresh) pushes.push(...L.p2pStatusPushes(o as L.P2POrder, ADMINS));
+      if (fresh.length) await db.from('p2p_push_seen').upsert(fresh.map((o) => ({ order_id: o.id, status: o.status, at: runAt })));
+    }
+    if (msgs && msgs.length) {
+      const ids = [...new Set(msgs.map((m) => m.order_id))];
+      const { data: os } = await db.from('orders').select('id,status,buyer,seller,amount_usdt,total_sdg').in('id', ids);
+      pushes.push(...L.p2pMessagePushes(msgs, Object.fromEntries((os || []).map((o) => [o.id, o as L.P2POrder]))));
+    }
+    await db.from('push_state').upsert({ chain: 'p2p', last_block: Date.parse(runAt), updated_at: runAt });
+    let ps = 0;
+    for (const p of pushes) {
+      const tokens = toksByAddr[p.to] || [];
+      const res = await Promise.all(tokens.map((t) => fcm(t, { title: p.title, body: p.body }, { kind: 'p2p', order: p.order }, p.tag).catch(() => 'err' as const)));
+      res.forEach((r, i) => { if (r === 'ok') ps++; if (r === 'gone') gone.add(tokens[i]); });
+    }
+    report.p2p = { changes: ch?.length || 0, messages: msgs?.length || 0, sent: ps };
+  } catch (e) { report.p2p = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
   if (gone.size) await db.from('push_tokens').delete().in('token', [...gone]);
   return Response.json({ ok: true, sent, removed: gone.size, report });
 });

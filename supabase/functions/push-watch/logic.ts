@@ -61,3 +61,39 @@ export function message(e: Ev): { title: string; body: string } {
     ? { title: 'وصلتك تحويلة', body: 'استلمت +' + e.amount + ' ' + e.sym + ' على ' + NET_NAME[e.chain] }
     : { title: 'خرج مبلغ من محفظتك', body: e.amount + ' ' + e.sym + ' على ' + NET_NAME[e.chain] + '. إن لم تكن أنت فاحمِ محفظتك فوراً.' };
 }
+
+// ===== إشعارات P2P: حالة الطلب الجديدة ← من يُبلَّغ وبماذا (تصل والتطبيق مغلق) =====
+export type P2POrder = { id: string; status: string; buyer: string; seller: string; amount_usdt: number | string; total_sdg: number | string };
+export type P2PPush = { to: string; title: string; body: string; order: string; tag: string };
+const n2 = (v: unknown) => Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+export function p2pStatusPushes(o: P2POrder, admins: string[]): P2PPush[] {
+  const u = n2(o.amount_usdt) + ' USDT', sdg = n2(o.total_sdg) + ' ج.س', mk = (to: string, title: string, body: string) => ({ to, title, body, order: o.id, tag: 'p2p-' + o.id });
+  switch (o.status) {
+    case 'awaiting_deposit': return [mk(o.seller, 'طلب P2P جديد', 'مشترٍ طلب ' + u + '. أودعها في الضمان ليبدأ الطلب قبل انتهاء المهلة.')];
+    case 'funded': return [mk(o.buyer, 'حُجزت ' + u + ' لك', 'حوّل ' + sdg + ' عبر بنكك إلى حساب البائع، ثم اضغط «حوّلت المبلغ».')];
+    case 'paid': return [mk(o.seller, 'المشتري أكّد التحويل', 'يقول إنه حوّل ' + sdg + '. تأكد من وصولها في تطبيق بنكك قبل التحرير.')];
+    case 'disputed': return [mk(o.buyer, 'فُتح نزاع على طلبك', 'المشرف يراجع الطلب. USDT محفوظة في الضمان حتى القرار.'), mk(o.seller, 'فُتح نزاع على طلبك', 'المشرف يراجع الطلب. USDT محفوظة في الضمان حتى القرار.'),
+      ...admins.map((a) => mk(a, 'نزاع جديد يحتاج مراجعة', 'طلب ' + u + ' / ' + sdg))];
+    case 'released': return [mk(o.buyer, 'وصلتك ' + u, 'اكتملت صفقة P2P، والعملة في محفظتك.'), mk(o.seller, 'اكتملت الصفقة', 'أُرسلت ' + u + ' للمشتري.')];
+    case 'refunded': return [mk(o.seller, 'أُعيدت USDT إليك', 'أُعيد مبلغ الضمان إلى محفظتك (بعد رسوم الشبكة).')];
+    case 'cancelled': return [mk(o.buyer, 'أُلغي الطلب', 'أُلغي طلب ' + u + '.'), mk(o.seller, 'أُلغي الطلب', 'أُلغي طلب ' + u + '.')];
+    case 'release_failed': case 'refund_failed': return admins.map((a) => mk(a, 'دفعة فاشلة تحتاج تدخلاً', 'طلب ' + u + ': ' + (o.status === 'release_failed' ? 'تعذّر التحرير' : 'تعذّر الاسترداد')));
+    default: return [];
+  }
+}
+// رسائل المحادثة الجديدة: إشعار واحد لكل طلب ولكل مستلم في الدورة (لا سيل إشعارات)
+export function p2pMessagePushes(msgs: { order_id: string; sender: string; body: string }[], orders: Record<string, P2POrder>): P2PPush[] {
+  const out = new Map<string, P2PPush & { n: number }>();
+  for (const m of msgs) {
+    const o = orders[m.order_id]; if (!o) continue;
+    const sys = String(m.body).startsWith('📎');
+    for (const to of [o.buyer, o.seller]) {
+      if (to === m.sender) continue;
+      const who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
+      const k = o.id + ':' + to, prev = out.get(k), txt = sys ? 'رفع المشتري إيصال التحويل' : String(m.body).slice(0, 90);
+      if (prev) { prev.n++; prev.body = prev.n + ' رسائل جديدة. آخرها: ' + txt; }
+      else out.set(k, { to, title: 'رسالة من ' + who, body: txt, order: o.id, tag: 'p2pm-' + o.id, n: 1 });
+    }
+  }
+  return [...out.values()].map(({ n: _n, ...p }) => p);
+}
