@@ -168,7 +168,7 @@
     var row = function (k, v, cls) { var d = el('div'); d.appendChild(el('dt', null, k)); var dd = el('dd', null, v); dd.className = 'ltr ' + (cls || ''); d.appendChild(dd); kv.appendChild(d); };
     row('سعر التنفيذ', fp(t.price) + ' USDT');
     row(buy ? 'المبلغ المدفوع' : 'المبلغ المستلم', niceNum(t.usdt, 6) + ' USDT');
-    if (t.fee) row('عمولة صُرّة', niceNum(t.fee, 6) + ' ' + (buy ? 'USDT' : t.sym));
+    if (t.fee) row('عمولة صُرّة', niceNum(t.fee, 6) + ' ' + (t.feeCoin || (buy ? 'USDT' : t.sym)));
     row('الشبكة', netOf(t.net).name);
     row('الوقت', new Date(t.time).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
     if (buy && p && t.status !== 'FAILED') { var u = (p - t.price) * Number(t.qty); row('السعر الآن', fp(p)); row('الربح/الخسارة منذ الشراء', fUsd(u, true) + ' (' + pctTxt((p / t.price - 1) * 100) + ')', plCls(u)); }
@@ -316,6 +316,10 @@
         // PENDING = أُرسلت ولم تُؤكَّد خلال المهلة: ليست فشلاً. وصفها بالفاشلة كان يدفع المستخدم لإعادة الشراء فيُنفَّذ مرتين
         var ok = r.status === 'SUCCESS', pend = r.status === 'PENDING'; t.id = r.txid; t.url = r.url; t.status = ok ? 'SUCCESS' : pend ? 'PENDING' : 'FAILED';
         if (ok && r.out) { if (q.tSide === 'buy') t.qty = String(r.out); else t.usdt = String(r.out); t.price = Number(t.usdt) / Number(t.qty); }
+        // عمولة التطبيق على TRON تُدفع بعملة TRX منفصلة بعد التبديل: نحسبها في المركز وإلا ظهرت كمية TRX أكبر من الحقيقية وربح أعلى
+        if (ok && Number(r.fee) > 0) { var fe = Number(r.fee); t.fee = String(r.fee); t.feeCoin = 'TRX';
+          if (q.tSide === 'buy') t.qty = String(Math.max(0, Number(t.qty) - fe)); else t.qty = String(Number(t.qty) + fe);
+          t.price = Number(t.usdt) / Number(t.qty); }
         lh.txid = r.txid; lh.url = r.url; lh.status = t.status; lh.amount = String(r.out || q.toAmount);
         trSave(t); lhAdd(lh); state.balances = null; state.historyCache = null;
         toast(ok ? (q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓') : pend ? 'أُرسلت الصفقة وتنتظر تأكيد الشبكة. لا تكررها، ستُحدَّث تلقائياً' : 'لم تكتمل الصفقة', !ok && !pend);
