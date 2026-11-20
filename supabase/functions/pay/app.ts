@@ -42,13 +42,13 @@ export function createApp(d: Deps) {
     try { const j = JSON.parse(t || '{}'); return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch { return {}; }
   }
   const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': reqId, ...extra } });
-  const STATUS: Record<string, number> = { BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
+  const STATUS: Record<string, number> = { TRY_AGAIN: 409, METHOD_NOT_ALLOWED: 405, ORDER_ID_CONFLICT: 409, BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
   // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
   const MSG: Record<string, string> = {
     UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.',
     BAD_AMOUNT: 'Amount must be a string like "10" or "10.50".', AMOUNT_TOO_SMALL: 'Minimum amount is 1.', AMOUNT_TOO_LARGE: 'Maximum amount is 100000.',
     BAD_NETWORK: 'Unsupported network. Use bsc, tron, polygon or eth.', BAD_CURRENCY: 'Unsupported currency for this network.', NETWORK_NOT_CONFIGURED: 'No receiving address for this network in your account.',
-    BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
+    METHOD_NOT_ALLOWED: 'This HTTP method is not allowed on this path.', BAD_STATUS_FILTER: 'status must be pending, paid, expired or cancelled.', BAD_CURSOR: 'before must be the id of one of your invoices.', ORDER_ID_CONFLICT: 'This order_id already has an active invoice with a different amount, network or currency. Cancel it first or use a new order_id.', BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
     TOO_MANY_PENDING: 'Too many pending invoices.', PAYLOAD_TOO_LARGE: 'Request body is too large (max 16 KB).', BANNED: 'This account is suspended.', RATE_LIMITED: 'Too many requests. Retry later.', NOT_FOUND: 'Not found.', NOT_PENDING: 'Invoice is not pending.',
     NOT_TEST_INVOICE: 'Only test invoices can be simulated.', BAD_STATUS: 'status must be paid or expired.', MERCHANT_DISABLED: 'Merchant account is disabled.', SERVER_ERROR: 'Internal error. Retry later.', TRY_AGAIN: 'Temporary conflict. Retry.'
   };
@@ -102,7 +102,9 @@ export function createApp(d: Deps) {
     const description = p.description == null ? null : String(p.description).slice(0, 140);
     const mins = Math.min(120, Math.max(10, Number(p.expires_min) || 30));
     const existing = async () => order_id ? (await db.from('pay_invoices').select('*').eq('merchant_id', m.id).eq('test', test).eq('order_id', order_id).in('status', ['pending', 'paid']).maybeSingle()).data : null;
-    const dup = await existing(); if (dup) return dup; // إعادة إرسال الطلب نفسه لا تنشئ فاتورة ثانية
+    // نفس رقم الطلب ببيانات مختلفة (مبلغ أو شبكة أو عملة) خطأ صريح، لا الفاتورة القديمة بصمت: وإلا قد يدفع العميل مبلغ السلة القديم
+    const same = (r: Record<string, any>) => String(r.amount) === amount.toString() && r.network === net && (r.currency || 'USDT') === currency && r.kind === kind;
+    const dup = await existing(); if (dup) { if (!same(dup)) throw new Error('ORDER_ID_CONFLICT'); return dup; } // إعادة إرسال الطلب نفسه لا تنشئ فاتورة ثانية
     await hit('pay:' + m.id, test ? 'pay_inv_test' : 'pay_inv', 300, 3600);
     const { data: open } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', test).eq('status', 'pending').limit(MAX_PENDING + 1);
     if ((open || []).length >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
@@ -123,7 +125,7 @@ export function createApp(d: Deps) {
         return data;
       }
       if (error?.code !== '23505') throw new Error('SERVER_ERROR');
-      const d2 = await existing(); if (d2) return d2; // سباق على رقم الطلب نفسه
+      const d2 = await existing(); if (d2) { if (!same(d2)) throw new Error('ORDER_ID_CONFLICT'); return d2; } // سباق على رقم الطلب نفسه
       // وإلا فالمبلغ الفريد مستخدم لفاتورة أخرى على العنوان نفسه: نجرّب كسراً آخر
     }
     throw new Error('TRY_AGAIN');
@@ -366,16 +368,26 @@ export function createApp(d: Deps) {
       }
       if (path === '/v1/invoices' && req.method === 'GET') {
         const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
-        const q = new URL(req.url).searchParams, lim = Math.min(100, Math.max(1, Number(q.get('limit')) || 20)), st = q.get('status');
-        let sel = db.from('pay_invoices').select('*').eq('merchant_id', me.id).eq('kind', 'payment').eq('test', test).order('created_at', { ascending: false }).limit(lim);
-        if (st && ['pending', 'paid', 'expired', 'cancelled'].includes(st)) sel = sel.eq('status', st);
-        const { data } = await sel;
-        return json({ invoices: (data || []).map((r) => P.invoiceView(r, PAY_PAGE, d.now())) });
+        const q = new URL(req.url).searchParams, lim = Math.min(100, Math.max(1, Number(q.get('limit')) || 20)), st = q.get('status'), before = q.get('before');
+        if (st && !['pending', 'paid', 'expired', 'cancelled'].includes(st)) throw new Error('BAD_STATUS_FILTER');
+        let sel = db.from('pay_invoices').select('*').eq('merchant_id', me.id).eq('kind', 'payment').eq('test', test).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(lim + 1);
+        if (st) sel = sel.eq('status', st);
+        // الصفحة التالية: before = رقم آخر فاتورة في الصفحة السابقة
+        if (before) {
+          if (!/^inv_[0-9a-f]{20}$/.test(before)) throw new Error('BAD_CURSOR');
+          const { data: cur } = await db.from('pay_invoices').select('created_at').eq('id', before).eq('merchant_id', me.id).maybeSingle();
+          if (!cur) throw new Error('BAD_CURSOR');
+          sel = sel.or(`created_at.lt."${cur.created_at}",and(created_at.eq."${cur.created_at}",id.lt.${before})`); // الترتيب بالوقت ثم الرقم: لا تكرار ولا فقدان عند تساوي الوقت
+        }
+        const rows = (await sel).data || [];
+        return json({ invoices: rows.slice(0, lim).map((r) => P.invoiceView(r, PAY_PAGE, d.now())), has_more: rows.length > lim });
       }
       if (path === '/v1/balance' && req.method === 'GET') {
         const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
         return json({ test, credit: P.fmtUnits(me.credit), currency: 'USDT', fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN) });
       }
+      // مسار موجود بطريقة خاطئة (GET بدل POST مثلاً): 405 بدل «غير موجود»
+      if (/^\/v1\/(invoices(\/inv_[0-9a-f]{20}(\/(cancel|simulate))?)?|balance|merchant|public\/inv_[0-9a-f]{20}(\/simulate)?)$/.test(path)) return fail('METHOD_NOT_ALLOWED');
       return fail('NOT_FOUND');
     } catch (e) {
       const msg = String((e as Error).message || e), code = /^[A-Z_]+$/.test(msg) ? msg : 'SERVER_ERROR';

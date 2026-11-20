@@ -364,7 +364,7 @@ def sarra_hook():
       <tr><th>الحقل</th><th>الوصف</th></tr>
       <tr><td><code>amount</code> <span class="req">إلزامي</span></td><td>نص مثل <code>"25"</code> أو <code>"25.50"</code>. من 1 إلى 100000، بخانتين عشريتين كحد أقصى.</td></tr>
       <tr><td><code>network</code> <span class="req">إلزامي</span></td><td><code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات.</td></tr>
-      <tr><td><code>order_id</code></td><td>رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم ترجع الفاتورة نفسها ولا تنشئ ثانية.</td></tr>
+      <tr><td><code>order_id</code></td><td>رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم والبيانات ترجع الفاتورة نفسها ولا تنشئ ثانية. بنفس الرقم ومبلغ أو شبكة أو عملة مختلفة: خطأ <code>ORDER_ID_CONFLICT</code> (ألغِ القديمة أولاً).</td></tr>
       <tr><td><code>description</code></td><td>نص يظهر للعميل في صفحة الدفع (حتى 140 حرفاً).</td></tr>
       <tr><td><code>currency</code></td><td><code>USDT</code> (الافتراضي) أو <code>USDC</code>. USDC متاح على <code>bsc</code> و<code>polygon</code> و<code>eth</code> فقط.</td></tr>
       <tr><td><code>expires_min</code></td><td>مهلة الدفع بالدقائق، من 10 إلى 120. الافتراضي 30.</td></tr>
@@ -378,7 +378,7 @@ def sarra_hook():
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
     <div class="ep"><span>/v1/invoices</span><b class="g">GET</b></div>
-    <p>آخر الفواتير، الأحدث أولاً. اختياري: <code>status</code> للتصفية (<code>pending</code> أو <code>paid</code> أو <code>expired</code> أو <code>cancelled</code>) و<code>limit</code> حتى 100.</p>
+    <p>آخر الفواتير، الأحدث أولاً. اختياري: <code>status</code> للتصفية (<code>pending</code> أو <code>paid</code> أو <code>expired</code> أو <code>cancelled</code>) و<code>limit</code> حتى 100. الرد فيه <code>has_more</code>؛ للصفحة التالية أرسل <code>before</code> = رقم آخر فاتورة في الصفحة.</p>
     <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl "https://api.sarrapay.com/v1/invoices?status=paid&amp;limit=20" \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
 
@@ -419,6 +419,11 @@ def sarra_hook():
       <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة. انتظر انتهاء بعضها.</td></tr>
       <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحدود: 120 طلباً في الدقيقة لكل IP، و300 فاتورة في الساعة لكل حساب، و600 قراءة في الدقيقة. 20 مفتاحاً خاطئاً من نفس الـ IP تحظر محاولاته الخاطئة 10 دقائق (المفتاح الصحيح لا يُحظر). انتظر المدة في ترويسة <code>Retry-After</code> (بالثواني).</td></tr>
       <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>413</td><td>جسم الطلب أكبر من 16 KB.</td></tr>
+      <tr><td><code>ORDER_ID_CONFLICT</code></td><td>409</td><td>رقم الطلب له فاتورة نشطة بمبلغ أو شبكة أو عملة مختلفة.</td></tr>
+      <tr><td><code>METHOD_NOT_ALLOWED</code></td><td>405</td><td>المسار صحيح لكن الطريقة خاطئة (GET بدل POST مثلاً).</td></tr>
+      <tr><td><code>BAD_STATUS_FILTER</code> / <code>BAD_CURSOR</code></td><td>400</td><td>قيمة <code>status</code> أو <code>before</code> غير صحيحة في قائمة الفواتير.</td></tr>
+      <tr><td><code>MERCHANT_DISABLED</code></td><td>403</td><td>حساب التاجر موقوف. تواصل مع الدعم.</td></tr>
+      <tr><td><code>TRY_AGAIN</code> / <code>SERVER_ERROR</code></td><td>409 / 500</td><td>تعارض مؤقت أو خطأ داخلي. أعد المحاولة بعد لحظات بنفس <code>order_id</code>، فلن تُنشأ فاتورة مكررة.</td></tr>
       <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك، أو تخص الوضع الآخر (تجريبي/حقيقي).</td></tr>
       <tr><td><code>TEST_KEY_REQUIRED</code></td><td>403</td><td>المحاكاة تعمل بالمفتاح التجريبي فقط.</td></tr>
       <tr><td><code>NOT_PENDING</code></td><td>400</td><td>العملية (إلغاء أو محاكاة) تحتاج فاتورة بانتظار الدفع.</td></tr>

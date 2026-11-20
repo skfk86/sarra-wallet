@@ -195,7 +195,7 @@
           "order_id": {
             "type": "string",
             "pattern": "^[\\w.:\\-]{1,64}$",
-            "description": "Idempotency: repeating the same order_id returns the same invoice while it is pending or paid."
+            "description": "Idempotency: same order_id with the same amount/network/currency returns the same invoice while pending or paid; different values return 409 ORDER_ID_CONFLICT."
           },
           "description": {
             "type": "string",
@@ -325,6 +325,26 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "ORDER_ID_CONFLICT or TRY_AGAIN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "MERCHANT_DISABLED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -354,6 +374,15 @@
               "maximum": 100,
               "default": 20
             }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor: id of the last invoice of the previous page.",
+            "schema": {
+              "type": "string",
+              "pattern": "^inv_[0-9a-f]{20}$"
+            }
           }
         ],
         "responses": {
@@ -369,6 +398,9 @@
                       "items": {
                         "$ref": "#/components/schemas/Invoice"
                       }
+                    },
+                    "has_more": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -377,6 +409,16 @@
           },
           "401": {
             "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BAD_STATUS_FILTER or BAD_CURSOR",
             "content": {
               "application/json": {
                 "schema": {

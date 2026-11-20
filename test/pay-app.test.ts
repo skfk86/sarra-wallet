@@ -40,7 +40,10 @@ function fakeDb() {
     lt(k: string, v: any) { this.f.push((r) => r[k] < v); return this; }
     lte(k: string, v: any) { this.f.push((r) => r[k] != null && r[k] <= v); return this; }
     like(k: string, v: string) { const p = v.replace(/%$/, ''); this.f.push((r) => String(r[k]).startsWith(p)); return this; }
-    order(k: string, o: any = {}) { this.ord = [k, o.ascending !== false]; return this; }
+    order(k: string, o: any = {}) { (this.ords ||= []).push([k, o.ascending !== false]); return this; }
+    // يكفي للصيغة التي يستخدمها التصفح: a.lt.X,and(a.eq.X,b.lt.Y)
+    or(expr: string) { const m = /^(\w+)\.lt\.(.+?),and\(\1\.eq\.(.+?),(\w+)\.lt\.(.+)\)$/.exec(expr); if (!m) throw new Error('fake or: ' + expr);
+      const [, a, x0, , b, y] = m; const x = x0.replace(/^"|"$/g, ''); this.f.push((r) => r[a] < x || (r[a] === x && r[b] < y)); return this; }
     limit(n: number) { this.lim = n; return this; }
     maybeSingle() { this.single = true; return this; }
     then(res: (v: any) => void) { res(this.run()); }
@@ -64,7 +67,7 @@ function fakeDb() {
       }
       if (this.op === 'delete') { const m = new Set(match()); T[this.t] = rows.filter((r) => !m.has(r)); return { data: null, error: null }; }
       let m = match();
-      if (this.ord) { const [k, asc] = this.ord; m = m.slice().sort((a, b) => (a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0) * (asc ? 1 : -1)); }
+      if (this.ords) m = m.slice().sort((a, b) => { for (const [k, asc] of this.ords) { const c = (a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0) * (asc ? 1 : -1); if (c) return c; } return 0; });
       const total = m.length; m = m.slice(0, this.lim);
       if (this.opts.head) return { data: null, error: null, count: total };
       return this.out(m);
@@ -438,5 +441,28 @@ await t('الحظر: المحفظة المحظورة لا تدير متجرها�
   db.T.profiles.length = 0; db.T.pay_merchants[0].active = false;
   assert.equal((await api('GET', '/v1/balance', KEY)).j.error, 'MERCHANT_DISABLED');
   db.T.pay_merchants[0].active = true; assert.equal((await api('GET', '/v1/balance', KEY)).status, 200);
+});
+await t('API: نفس order_id بمبلغ مختلف = 409 لا الفاتورة القديمة، وطرق HTTP الخاطئة = 405، وفلتر خاطئ = 400', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  db.T.pay_merchants[0].credit = 100000000;
+  const a = (await api('POST', '/v1/invoices', KEY, { amount: '10', network: 'bsc', order_id: 'cart-77' })).j.invoice;
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '10', network: 'bsc', order_id: 'cart-77' })).j.invoice.id, a.id, 'نفس البيانات = نفس الفاتورة');
+  const c = await api('POST', '/v1/invoices', KEY, { amount: '12', network: 'bsc', order_id: 'cart-77' }); assert.equal(c.status, 409); assert.equal(c.j.error, 'ORDER_ID_CONFLICT');
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '10', network: 'polygon', order_id: 'cart-77' })).j.error, 'ORDER_ID_CONFLICT');
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '10', network: 'bsc', currency: 'USDC', order_id: 'cart-77' })).j.error, 'ORDER_ID_CONFLICT');
+  await api('POST', '/v1/invoices/' + a.id + '/cancel', KEY);
+  assert.equal((await api('POST', '/v1/invoices', KEY, { amount: '12', network: 'bsc', order_id: 'cart-77' })).status, 200, 'بعد الإلغاء يُقبل المبلغ الجديد');
+  assert.equal((await api('GET', '/v1/invoices/' + a.id + '/cancel', KEY)).status, 405);
+  assert.equal((await api('DELETE', '/v1/invoices', KEY)).status, 405);
+  assert.equal((await api('GET', '/v1/nothing', KEY)).status, 404);
+  assert.equal((await api('GET', '/v1/invoices?status=done', KEY)).j.error, 'BAD_STATUS_FILTER');
+});
+await t('API: التصفح بالصفحات (before + has_more) بلا تكرار ولا فقدان', async () => {
+  for (let i = 0; i < 7; i++) { clock.t += 1000; await api('POST', '/v1/invoices', KEY, { amount: String(20 + i), network: 'bsc' }); }
+  const seen: string[] = []; let before = '', pages = 0, more = true;
+  while (more && pages < 100) { const r = (await api('GET', '/v1/invoices?limit=3' + (before ? '&before=' + before : ''), KEY)).j; r.invoices.forEach((x: any) => seen.push(x.id)); more = r.has_more; before = r.invoices.at(-1)?.id; pages++; }
+  const all = db.T.pay_invoices.filter((x) => !x.test && x.kind === 'payment' && x.merchant_id === db.T.pay_merchants[0].id).length;
+  assert.equal(seen.length, all); assert.equal(new Set(seen).size, all);
+  assert.equal((await api('GET', '/v1/invoices?before=inv_' + 'f'.repeat(20), KEY)).j.error, 'BAD_CURSOR');
 });
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
