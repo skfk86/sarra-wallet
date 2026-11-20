@@ -3,6 +3,7 @@
 import * as L from '../_shared/logic.ts';
 import * as P from '../_shared/pay.ts';
 import { TRANSFER, topicOf, blockRange } from '../push-watch/logic.ts';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -19,7 +20,9 @@ export function createApp(d: Deps) {
   const db = d.db, FEE_BPS = d.cfg.feeBps, FEE_MIN = d.cfg.feeMin, TOPUP = d.cfg.topup, PAY_PAGE = d.cfg.payPage;
   const MAX_PENDING = 200, LATE_GRACE_MIN = 20;
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Expose-Headers': 'x-request-id, retry-after' };
-  let reqId = '';
+  // رقم الطلب وعنوان IP لكل طلب على حدة: الخادم يعالج طلبات متزامنة، والمتغير المشترك كان يخلط بينها
+  const als = new AsyncLocalStorage<{ reqId: string; ip: string }>();
+  const RQ = () => als.getStore() || { reqId: '', ip: '' };
   // ===== طبقة الحماية الأولى (في الذاكرة، بدون قاعدة بيانات): حد لكل IP، وحجم الطلب =====
   const IP_MAX = d.cfg.ipLimit ?? 120, IP_WIN = 60000, BAD_KEY_MAX = 20, BAD_KEY_WIN = 600000, MAX_BODY = 16384, TEST_TTL_MS = 3 * 60000;
   const mem = new Map<string, { n: number; t: number }>();
@@ -35,13 +38,12 @@ export function createApp(d: Deps) {
     const h = req.headers, x = h.get('x-nf-client-connection-ip') || h.get('cf-connecting-ip') || (h.get('x-forwarded-for') || '').split(',')[0] || h.get('x-real-ip') || '';
     return x.trim().slice(0, 64);
   }
-  let ip = '';
   async function readJson(req: Request): Promise<Record<string, any>> {
     const t = await req.text().catch(() => '');
     if (t.length > MAX_BODY) throw new Error('PAYLOAD_TOO_LARGE');
     try { const j = JSON.parse(t || '{}'); return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch { return {}; }
   }
-  const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': reqId, ...extra } });
+  const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': RQ().reqId, ...extra } });
   const STATUS: Record<string, number> = { TRY_AGAIN: 409, METHOD_NOT_ALLOWED: 405, ORDER_ID_CONFLICT: 409, BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
   // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
   const MSG: Record<string, string> = {
@@ -54,7 +56,7 @@ export function createApp(d: Deps) {
   };
   const fail = (code: string) => {
     const st = code.startsWith('RATE_LIMITED') ? 429 : STATUS[code] || 400;
-    return json({ error: code, message: MSG[code] || code, request_id: reqId }, st, st === 429 ? { 'Retry-After': '60' } : {});
+    return json({ error: code, message: MSG[code] || code, request_id: RQ().reqId }, st, st === 429 ? { 'Retry-After': '60' } : {});
   };
 
   type Merchant = { id: string; address: string; name: string; tron_addr: string | null; evm_addr: string | null; key_hint: string | null; test_key_hint?: string | null; webhook_url: string | null; webhook_secret: string; credit: string | number; active: boolean };
@@ -70,6 +72,7 @@ export function createApp(d: Deps) {
     // من يجرّب مفاتيح خاطئة كثيرة يُحظر 10 دقائق (في الذاكرة ثم في قاعدة البيانات عبر كل النسخ)
     // المفتاح الصحيح لا يُحظر أبداً (حتى لا يستطيع أحد حظر تاجر بانتحال عنوانه)؛ الحظر يطال المحاولات الخاطئة فقط
     const badKey = async () => {
+      const ip = RQ().ip;
       if (ip) {
         if (!memHit('bad:' + ip, BAD_KEY_MAX, BAD_KEY_WIN)) throw new Error('RATE_LIMITED');
         await hit('ip:' + ip, 'pay_badkey', BAD_KEY_MAX, 600);
@@ -198,7 +201,7 @@ export function createApp(d: Deps) {
     let settled = 0, cursor = last, scanned = 0;
     for (let round = 0; round < 3; round++) {
       // أول دورة بعد الخمول: نرجع بضع دقائق لنغطي ما بين إنشاء الفاتورة وتشغيل الماسح
-      const rg: [number, number] | null = cursor == null ? [head - N.cap + 1, head] : blockRange(cursor, head, N.cap, N.cap * 30);
+      const rg: [number, number] | null = cursor == null ? [head - N.cap + 1, head] : blockRange(cursor, head, N.cap, N.cap * 200) /* بعد انقطاع طويل نلحق تدريجياً بدل القفز وتفويت التحويلات */;
       if (!rg) break;
       // كل عملة لها عقدها: نستعلم سجلات كل عقد على حدة، ونطابق فواتير تلك العملة فقط
       for (const cur of [...new Set(pending.map((p) => p.currency || 'USDT'))]) {
@@ -207,7 +210,8 @@ export function createApp(d: Deps) {
         const hexes = [...new Set(pc.map((p) => p.match_hex))], logs: unknown[] = [];
         const base = { fromBlock: hx(rg[0]), toBlock: hx(rg[1]), address: tk.token };
         // TRON: استعلام لكل عنوان (فلتر «أو» غير مضمون في خادمها)؛ البقية على دفعات
-        const groups = N.kind === 'tron' ? hexes.slice(0, 40).map((h) => [h]) : Array.from({ length: Math.ceil(hexes.length / 50) }, (_, i) => hexes.slice(i * 50, i * 50 + 50));
+        // (كان يُقصّ عند 40 عنواناً فتُفوَّت تحويلات بقية التجار) — كل العناوين تُستعلم الآن
+        const groups = N.kind === 'tron' ? hexes.map((h) => [h]) : Array.from({ length: Math.ceil(hexes.length / 50) }, (_, i) => hexes.slice(i * 50, i * 50 + 50));
         for (const g of groups) logs.push(...(await d.rpc(net, 'eth_getLogs', [{ ...base, topics: [TRANSFER, null, g.length === 1 ? topicOf(g[0]) : g.map(topicOf)] }]) || []));
         for (const h of P.matchLogs(net, logs as any[], pc, cur)) {
           const { data } = await db.rpc('pay_settle', { p_id: h.id, p_tx: h.tx, p_key: h.key, p_payer: h.from });
@@ -234,6 +238,11 @@ export function createApp(d: Deps) {
     const { data } = await q.limit(25);
     let ok = 0;
     await Promise.all((data || []).map(async (r) => {
+      // حجز الإشعار قبل إرساله: الماسح وزر الإلغاء/المحاكاة قد يلتقطان الفاتورة نفسها معاً فيُرسل الإشعار مرتين.
+      // من ينجح في تغيير hook_next يرسل، والآخر يتركه. إن توقف الخادم أثناء الإرسال يُعاد بعد دقيقتين تلقائياً
+      const { data: claimed } = await db.from('pay_invoices').update({ hook_next: new Date(d.now() + 120000).toISOString() })
+        .eq('id', r.id).eq('hook_state', 'pending').eq('hook_next', r.hook_next).select('id').maybeSingle();
+      if (!claimed) return;
       const m = r.pay_merchants as { webhook_url: string | null; webhook_secret: string } | null, url = m && P.safeWebhookUrl(m.webhook_url);
       if (!m || !url) { await db.from('pay_invoices').update({ hook_state: 'none' }).eq('id', r.id); return; }
       const event = r.hook_event || P.hookEventOf(r.status) || 'invoice.paid';
@@ -259,12 +268,7 @@ export function createApp(d: Deps) {
   }
   async function cron() {
     // انتهاء المهلة (بعد فترة سماح للدفع المتأخر): فواتير الدفع ترسل invoice.expired، وفواتير الشحن لا ترسل شيئاً
-    const cut = new Date(d.now() - LATE_GRACE_MIN * 60000).toISOString(), nowIso = new Date(d.now()).toISOString();
-    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', false).lt('expires_at', cut);
-    // التجريبية لا تُدفع فعلياً، فلا فترة سماح لها
-    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', true).lt('expires_at', nowIso);
-    await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').eq('kind', 'topup').lt('expires_at', cut);
-    await db.from('pay_hook_log').delete().lt('at', new Date(d.now() - 30 * 86400000).toISOString());
+    // المسح أولاً ثم إنهاء المهلة: تحويل وصل قبل انتهاء المهلة لا يضيع لأن الماسح متأخر قليلاً
     const { data: pend } = await db.from('pay_invoices').select('id,network,match_hex,exact,currency').eq('status', 'pending').eq('test', false).limit(5000); // التجريبية لا تُراقَب
     const { data: st } = await db.from('push_state').select('chain,last_block').like('chain', 'pay:%');
     const lastOf = Object.fromEntries((st || []).map((s) => [s.chain, Number(s.last_block)]));
@@ -273,6 +277,12 @@ export function createApp(d: Deps) {
       try { report[net] = await scanNet(net, (pend || []).filter((p) => p.network === net), lastOf['pay:' + net] ?? null); }
       catch (e) { report[net] = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
     }));
+    const cut = new Date(d.now() - LATE_GRACE_MIN * 60000).toISOString(), nowIso = new Date(d.now()).toISOString();
+    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', false).lt('expires_at', cut);
+    // التجريبية لا تُدفع فعلياً، فلا فترة سماح لها
+    await db.from('pay_invoices').update({ status: 'expired', hook_state: 'pending', hook_event: 'invoice.expired', hook_next: nowIso, hook_attempts: 0 }).eq('status', 'pending').eq('kind', 'payment').eq('test', true).lt('expires_at', nowIso);
+    await db.from('pay_invoices').update({ status: 'expired' }).eq('status', 'pending').eq('kind', 'topup').lt('expires_at', cut);
+    await db.from('pay_hook_log').delete().lt('at', new Date(d.now() - 30 * 86400000).toISOString());
     const hooks_sent = await deliverHooks();
     return { ok: true, pending: (pend || []).length, hooks_sent, test_deleted: await purgeTest(), report };
   }
@@ -305,11 +315,13 @@ export function createApp(d: Deps) {
     return (await db.from('pay_invoices').select('*').eq('id', row.id).maybeSingle()).data;
   }
 
-  async function handle(req: Request): Promise<Response> {
-    reqId = 'req_' + P.randHex(8);
+  function handle(req: Request): Promise<Response> {
+    return als.run({ reqId: 'req_' + P.randHex(8), ip: clientIp(req) }, () => handleIn(req));
+  }
+  async function handleIn(req: Request): Promise<Response> {
+    const { reqId, ip } = RQ();
     if (req.method === 'OPTIONS') return new Response('ok', { headers: { ...cors, 'X-Request-Id': reqId } });
     const path = new URL(req.url).pathname.replace(/^.*?\/pay(?=\/|$)/, '').replace(/\/+$/, '') || '/';
-    ip = clientIp(req);
     try {
       if (ip && !memHit('ip:' + ip, IP_MAX, IP_WIN)) throw new Error('RATE_LIMITED');
       const len = Number(req.headers.get('content-length') || 0); if (len > MAX_BODY) throw new Error('PAYLOAD_TOO_LARGE');

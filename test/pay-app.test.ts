@@ -465,4 +465,22 @@ await t('API: التصفح بالصفحات (before + has_more) بلا تكرا�
   assert.equal(seen.length, all); assert.equal(new Set(seen).size, all);
   assert.equal((await api('GET', '/v1/invoices?before=inv_' + 'f'.repeat(20), KEY)).j.error, 'BAD_CURSOR');
 });
+await t('التزامن: طلبات متزامنة من أجهزة مختلفة لا تختلط (عنوان IP ورقم الطلب لكل طلب)', async () => {
+  const at = (ip: string, auth: string) => app.handle(new Request('https://x/functions/v1/pay/v1/balance', { headers: { 'x-forwarded-for': ip, authorization: 'Bearer ' + auth } }));
+  const bad = 'sk_live_' + '1'.repeat(48);
+  const rs = await Promise.all([...Array.from({ length: 25 }, () => at('7.7.7.7', bad)), ...Array.from({ length: 5 }, () => at('8.8.8.8', bad))]);
+  const ids = new Set<string>(); for (const r of rs) { const id = r.headers.get('x-request-id')!; assert.equal((await r.clone().json()).request_id, id); ids.add(id); }
+  assert.equal(ids.size, 30, 'رقم طلب مختلف لكل طلب، ومطابق في الترويسة والجسم');
+  assert.equal((await at('8.8.8.8', bad)).status, 401, 'الجهاز الثاني لم يُحظر بأخطاء الأول');
+  assert.equal((await at('7.7.7.7', bad)).status, 429);
+});
+await t('الإشعار لا يُرسل مرتين حين يلتقطه الماسح وزر المحاكاة معاً', async () => {
+  const TK = (await call(signed('pay.key', { test: true }))).j.api_key;
+  hookStatus = 200;
+  const inv = (await api('POST', '/v1/invoices', TK, { amount: '2', network: 'bsc' })).j.invoice;
+  const before = hooks.length;
+  await Promise.all([api('POST', '/v1/invoices/' + inv.id + '/simulate', TK), tick(), tick()]);
+  const sent = hooks.slice(before).filter((h) => JSON.parse(h.body).invoice.id === inv.id);
+  assert.equal(sent.length, 1, 'أُرسل ' + sent.length);
+});
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
