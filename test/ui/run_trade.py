@@ -67,7 +67,7 @@ async def main():
     assert await pg.is_hidden('#pr-ind') and (await pg.inner_text('#pr-sig')) in ('إيجابي','سلبي','محايد'); print('✓ الإشارة مختصرة: شراء/بيع/محايد، والتفاصيل مخفية')
     await pg.click('#pr-more-btn')
     sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); bt=await pg.inner_text('#pr-bt'); cf=await pg.inner_text('#pr-conf')
-    assert sig!='—' and 'RSI' in ind and 'ADX' in ind and 'وقف خسارة' in ind and 'الإطار الأعلى' in ind and '📊' in bt and 'الثقة' in cf, (sig,ind,bt,cf); print('✓ التحليل:', sig, '·', cf); print('  ', bt)
+    assert sig!='—' and 'RSI' in ind and 'ADX' in ind and 'مستوى وقف' in ind and 'الإطار الأعلى' in ind and '📊' in bt and 'الثقة' in cf, (sig,ind,bt,cf); print('✓ التحليل:', sig, '·', cf); print('  ', bt)
     await pg.click('#pr-tf [data-tf="4h"]'); await pg.wait_for_timeout(800); assert await pg.is_hidden('#pr-load'); print('✓ تغيير الإطار الزمني')
     box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.mouse.down(); await pg.wait_for_timeout(450)
     o2=await pg.inner_text('#pr-ohlc'); await pg.mouse.up(); assert '/' in o2, o2; print('✓ لمسة مطوّلة تعرض شمعة محددة بتاريخها')
