@@ -120,7 +120,7 @@ export function safeWebhookUrl(v: unknown): string | null {
   if (typeof v !== 'string' || v.length > 300) return null;
   let u: URL; try { u = new URL(v.trim()); } catch { return null; }
   if (u.protocol !== 'https:' || u.username || u.password) return null;
-  const h = u.hostname.toLowerCase();
+  const h = u.hostname.toLowerCase().replace(/\.+$/, ''); // «localhost.» بنقطة في آخره = localhost
   if (!h.includes('.') || h.endsWith('.local') || h.endsWith('.internal') || h === 'localhost') return null;
   if (/^\[|^\d+\.\d+\.\d+\.\d+$/.test(h) || /^[0-9.]+$/.test(h)) return null; // عناوين IP مباشرة مرفوضة
   if (u.port && u.port !== '443') return null;
@@ -150,7 +150,9 @@ export const randTail = () => 1 + (crypto.getRandomValues(new Uint32Array(1))[0]
 export type InvoiceRow = { id: string; kind: string; network: string; address: string; amount: string | number; exact: string | number; fee: string | number; order_id: string | null; description: string | null; status: string; tx: string | null; paid_at: string | null; expires_at: string; created_at: string; test?: boolean; currency?: string; metadata?: Record<string, unknown> | null; success_url?: string | null };
 // شكل الفاتورة في الـ API (للتاجر) وفي صفحة الدفع (للعميل)
 export function invoiceView(r: InvoiceRow, payBase: string, now: number, forMerchant = true) {
-  const late = r.status === 'pending' && now > Date.parse(r.expires_at);
+  // العميل يرى «منتهية» فور انتهاء المهلة (فلا يدفع بعدها). التاجر يرى الحالة الحقيقية: الفاتورة تبقى «معلّقة» خلال فترة السماح
+  // لأن تحويلاً متأخراً قد يسددها، فلا يُلغي الطلب ثم يصله invoice.paid
+  const late = !forMerchant && r.status === 'pending' && now > Date.parse(r.expires_at);
   const v: Record<string, unknown> = {
     id: r.id, status: late ? 'expired' : r.status, network: r.network, network_name: NETS[r.network]?.name || r.network, currency: r.currency || 'USDT',
     amount: fmtUnits(r.amount), pay_amount: fmtUnits(r.exact), address: r.address,

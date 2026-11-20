@@ -72,12 +72,14 @@ await t('المفاتيح والمعرّفات: عشوائية وبالصيغة 
   assert.match(P.newApiKey(), /^sk_live_[0-9a-f]{48}$/); assert.match(P.newInvoiceId(), /^inv_[0-9a-f]{20}$/); assert.notEqual(P.newApiKey(), P.newApiKey());
   assert.equal(await P.sha256Hex('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
 });
-await t('عرض الفاتورة: منتهية بعد وقتها، وصفحة العميل لا تكشف العمولة ولا رقم الطلب', () => {
+await t('عرض الفاتورة: منتهية للعميل بعد وقتها ومعلّقة للتاجر خلال فترة السماح، وصفحة العميل لا تكشف العمولة ولا رقم الطلب', () => {
   const r = { id: 'inv_' + '0'.repeat(20), kind: 'payment', network: 'bsc', address: E, amount: '10000000', exact: '10004321', fee: '50000', order_id: 'A-7', description: 'x', status: 'pending', tx: null, paid_at: null,
     expires_at: '2026-01-01T00:30:00Z', created_at: '2026-01-01T00:00:00Z' };
   const v = P.invoiceView(r, 'https://p/pay.html', Date.parse('2026-01-01T00:10:00Z'));
   assert.equal(v.status, 'pending'); assert.equal(v.amount, '10'); assert.equal(v.pay_amount, '10.004321'); assert.equal(v.fee, '0.05'); assert.equal(v.pay_url, 'https://p/pay.html?i=' + r.id);
-  assert.equal(P.invoiceView(r, 'x', Date.parse('2026-01-01T00:31:00Z')).status, 'expired');
+  assert.equal(P.invoiceView(r, 'x', Date.parse('2026-01-01T00:31:00Z'), false).status, 'expired'); // العميل: منتهية فلا يدفع
+  assert.equal(P.invoiceView(r, 'x', Date.parse('2026-01-01T00:31:00Z')).status, 'pending'); // التاجر: معلّقة خلال فترة السماح
+  assert.equal(P.safeWebhookUrl('https://localhost./x'), null);
   const pub = P.invoiceView(r, 'x', 0, false); assert.ok(!('fee' in pub) && !('order_id' in pub));
 });
 await t('v2: رابط الرجوع https فقط، وmetadata كائن مسطح محدود، وأسماء الأحداث', () => {

@@ -210,10 +210,11 @@ await t('عطل في خادم شبكة: يُسجَّل الخطأ، ولا تض�
   pay('bsc', EVM, units(inv.pay_amount)); rpcFail = 'bsc'; let j = await tick(); assert.match(j.report.bsc, /^error/); assert.equal(j.ok, true);
   rpcFail = null; j = await tick(); assert.equal(j.report.bsc.settled, 1);
 });
-await t('انتهاء المهلة: تُعرض منتهية فوراً، وتُقبل دفعة متأخرة قليلاً، ثم تُغلق نهائياً', async () => {
+await t('انتهاء المهلة: صفحة العميل تعرضها منتهية فوراً، والتاجر يراها معلّقة خلال فترة السماح، وتُقبل دفعة متأخرة قليلاً، ثم تُغلق نهائياً', async () => {
   const a = (await api('POST', '/v1/invoices', KEY, { amount: '4', network: 'bsc', order_id: 'LATE', expires_min: 10 })).j.invoice;
   const b = (await api('POST', '/v1/invoices', KEY, { amount: '4', network: 'bsc', order_id: 'DEAD', expires_min: 10 })).j.invoice;
-  await tick(12); assert.equal((await api('GET', '/v1/invoices/' + a.id, KEY)).j.invoice.status, 'expired');
+  await tick(12); assert.equal((await api('GET', '/v1/invoices/' + a.id, KEY)).j.invoice.status, 'pending');
+  assert.equal((await call(new Request('https://x/functions/v1/pay/v1/public/' + a.id))).j.invoice.status, 'expired');
   pay('bsc', EVM, units(a.pay_amount)); await tick(); assert.equal((await api('GET', '/v1/invoices/' + a.id, KEY)).j.invoice.status, 'paid');
   await tick(25); assert.equal(db.T.pay_invoices.find((x) => x.id === b.id)!.status, 'expired');
   pay('bsc', EVM, units(b.pay_amount)); await tick(); assert.equal((await api('GET', '/v1/invoices/' + b.id, KEY)).j.invoice.status, 'expired');
