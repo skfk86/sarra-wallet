@@ -28,6 +28,13 @@
 
   // ===== الشبكات المتوافقة مع EVM (من نفس الكلمات الـ12) =====
   // خوادم عامة مجانية؛ كل هاتف يتصل مباشرة بحده الخاص، ونجرّب التالي إن فشل الأول
+  // قيمة صفر دائماً «غبار»، والوارد أقل من 0.001 من عملة مستقرة كذلك (لا أحد يرسل عُشر سنت إلا لتسميم السجل)
+  var STABLES = { USDT: 1, USDC: 1, DAI: 1, FDUSD: 1 };
+  function isDust(value, incoming, dec) {
+    var u; try { u = BigInt(value); } catch (e) { return true; }
+    if (u <= 0n) return true;
+    return !!incoming && u * 1000n < 10n ** BigInt(dec || 6);
+  }
   var EVM_CHAINS = {
     bsc: {
       id: 56, name: 'BNB Chain', short: 'BEP20', native: 'BNB', color: '#F0B90B', explorer: 'https://bscscan.com',
@@ -1107,6 +1114,7 @@
           else { var tk = known[t.c]; if (!tk) return; coin = tk.sym; dec = tk.dec; }
           var units; try { units = BigInt(t.v); } catch (e) { return; }
           if (units === 0n) return;
+          if (incoming && !outgoing && STABLES[coin] && isDust(units, true, dec)) return; // غبار عملات مستقرة: حيلة تسميم
           out.push({
             net: chainKey, coin: coin, txid: t.h, incoming: incoming && !outgoing,
             self: incoming && outgoing, counterparty: incoming ? t.from : t.to,
@@ -1133,7 +1141,9 @@
         })
           .catch(function () { return { data: [] }; });
         var results = await Promise.all([usdtReq, trxReq]);
-        var list = (results[0].data || []).map(function (t) {
+        // تسميم العناوين على TRON: معاملات بقيمة صفر (transferFrom مزيّف يظهر كأنك أرسلت لعنوان المحتال) أو «غبار» واردة
+        // بأجزاء من السنت من عنوان يشبه عناوينك. لا تُعرض في السجل حتى لا ينسخ المستخدم عنوان المحتال منه
+        var list = (results[0].data || []).filter(function (t) { return !isDust(t.value, t.to === addr && t.from !== addr, USDT_DECIMALS); }).map(function (t) {
           var incoming = t.to === addr;
           return {
             coin: 'USDT', txid: t.transaction_id, incoming: incoming,

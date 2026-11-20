@@ -10,7 +10,9 @@ async def main():
     async def hist(route):
       u=route.request.url
       if '/trc20' in u:
-        await route.fulfill(json={'data':[{'transaction_id':'u1','to':'TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf','from':'TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw','value':'250000000','token_info':{'decimals':6},'block_timestamp':1760000000000}]})
+        await route.fulfill(json={'data':[{'transaction_id':'u1','to':'TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf','from':'TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw','value':'250000000','token_info':{'decimals':6},'block_timestamp':1760000000000},
+          {'transaction_id':'z0','to':'TQ7mZ4bPoisonXXXXXXXXXXXXXXXXX9xKf','from':'TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf','value':'0','token_info':{'decimals':6},'block_timestamp':1760000050000},
+          {'transaction_id':'z1','to':'TQ7mZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf','from':'TK3aZ4bPoisonYYYYYYYYYYYYYYYY12pLw','value':'1','token_info':{'decimals':6},'block_timestamp':1760000060000}]})
       else:
         await route.fulfill(json={'data':[
           {'txID':'t1','block_timestamp':1760000100000,'ret':[{'contractRet':'SUCCESS'}],'raw_data':{'contract':[{'type':'TransferContract','parameter':{'value':{'amount':20000000,'owner_address':'41bb','to_address':'41aa'}}}]}},
@@ -33,6 +35,7 @@ async def main():
     assert 'شبكة TRON' in await pg.inner_text('#net-label'); step('الشبكة الرئيسية ظاهرة')
     h=await pg.inner_text('#history'); assert 'TRX' in h and 'USDT' in h, h; step('السجل يعرض TRX وUSDT معاً')
     assert h.count('TRX')==2, h; step('السجل يتجاهل المعاملات الفاشلة واستدعاءات العقود')
+    assert 'Poison' not in h and h.count('USDT')==1, h; step('معاملات التسميم (قيمة صفر أو غبار) لا تظهر في السجل')
     # تبديل TRX ← USDT مع العمولة
     await pg.click('.actions [data-go=swap]'); await pg.wait_for_timeout(500)
     assert await vis('swap-on') if False else True

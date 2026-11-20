@@ -249,6 +249,12 @@ await t('evmHistoryItems: اتجاه، فلترة سبام، تنسيق المب
   assert.equal(out[2].ok, false);
   assert.equal(core.evmHistoryItems('nope', me, raw).length, 0);
   assert.equal(core.evmTxUrl('bsc', h(1)), 'https://bscscan.com/tx/' + h(1));
+  // غبار تسميم: 0.0001 USDT واردة تُخفى، و0.01 تظهر، والصادر الصغير يظهر دائماً
+  const dust = core.evmHistoryItems('bsc', me, [
+    { h: h(6), k: 'token', c: usdt, from: other, to: me, v: '100000000000000', t: 1, ok: true },
+    { h: h(7), k: 'token', c: usdt, from: other, to: me, v: '10000000000000000', t: 2, ok: true },
+    { h: h(8), k: 'token', c: usdt, from: me, to: other, v: '100000000000000', t: 3, ok: true }]);
+  assert.deepEqual(dust.map((x) => x.txid), [h(7), h(8)]);
 });
 
 // ===== حماية النقل عبر LI.FI =====
