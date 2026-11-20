@@ -499,7 +499,7 @@
     var q = $('oc-quick'); q.textContent = '';
     var L = closed ? [] : role === 'buyer' ? ({ awaiting_deposit: ['السلام عليكم، في انتظار إيداعك في الضمان'], funded: ['حوّلت المبلغ، أرجو التأكد والتحرير', 'سأحوّل الآن', 'رفعت الإيصال'], paid: ['حوّلت المبلغ، أرجو التأكد والتحرير', 'هل وصلك المبلغ؟'], disputed: ['أرفقت الإيصال كدليل'] })[o.status]
       : role === 'seller' ? ({ awaiting_deposit: ['أودعت USDT في الضمان، تفضّل بالتحويل'], funded: ['أرجو التحويل إلى الحساب الظاهر فقط', 'أرسل صورة الإيصال من فضلك'], paid: ['جارٍ التأكد من وصول المبلغ', 'لم يصلني المبلغ بعد، أرسل الإيصال من فضلك', 'وصل المبلغ، سأحرّر الآن'], disputed: ['لم يصلني أي مبلغ في بنكك'] })[o.status] : [];
-    (L || []).forEach(function (t) { var c = el('button', null, t); c.type = 'button'; c.className = 'qr'; c.onclick = function () { sendMsg(t); }; q.appendChild(c); });
+    (L || []).forEach(function (t) { var c = el('button', null, t); c.type = 'button'; c.className = 'qrep'; c.onclick = function () { sendMsg(t); }; q.appendChild(c); });
     q.hidden = !(L && L.length);
   }
   function dropOut(m) { state.p2p.outbox = (state.p2p.outbox || []).filter(function (x) { return x !== m; }); }

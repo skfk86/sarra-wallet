@@ -157,7 +157,7 @@ async def main():
     assert 'أنتظر الإيصال' in t; step('رسالة الطرف الآخر تصل والمحادثة مفتوحة')
     assert await pg.locator('.msg-warn').count()>=2 and 'مختلف عن حساب الطلب' in t and 'خارج التطبيق' in t, t; step('تحذير تلقائي: رقم حساب مختلف ودعوة لواتساب')
     assert await pg.locator('.chat-sys').count()==0 or all(['البائع' not in x for x in []]); assert await pg.locator('.msg.them:has-text("رفع المشتري إيصال")').count()==1; step('رسالة من البائع تنتحل رسالة النظام تُعرض كرسالة عادية منه')
-    assert await pg.locator('#oc-quick .qr').count()>=2; step('ردود سريعة حسب الدور والمرحلة')
+    assert await pg.locator('#oc-quick .qrep').count()>=2; step('ردود سريعة حسب الدور والمرحلة')
     if len(sys.argv)>2: await pg.wait_for_timeout(300); await pg.screenshot(path=sys.argv[2]+'/p2p-chat.png')
     await pg.click('#oc-order'); await pg.wait_for_timeout(400); assert await vis('s-order') and await pg.is_hidden('#ord-cc-n'); step('العودة لتفاصيل الطلب، ولا شارة غير مقروء بعد القراءة')
     await pg.click('#ord-actions button:text-is("حوّلت المبلغ عبر بنكك")'); await pg.wait_for_timeout(300)

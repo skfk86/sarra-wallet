@@ -631,8 +631,8 @@ i.skeleton{display:block;font-style:normal}
 .chat-down .i{width:16px;height:16px;stroke:var(--on-ac)}
 .chat-quick{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none;flex:0 0 auto}
 .chat-quick::-webkit-scrollbar{display:none}
-.qr{flex:0 0 auto;height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line);background:var(--s1);color:var(--tx2);font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
-.qr:active{background:var(--ok-bg);color:var(--ac);border-color:var(--ok-bd)}
+.qrep{flex:0 0 auto;height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line);background:var(--s1);color:var(--tx2);font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.qrep:active{background:var(--ok-bg);color:var(--ac);border-color:var(--ok-bd)}
 .chat-input{position:static;align-items:flex-end;gap:8px;padding:6px 0 calc(10px + env(safe-area-inset-bottom))}
 .chat-box{flex:1;min-width:0;position:relative;display:flex;align-items:flex-end;border:1px solid var(--line);background:var(--s1);border-radius:22px;padding:0 14px}
 .chat-box:focus-within{border-color:var(--ac)}
