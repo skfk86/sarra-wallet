@@ -129,7 +129,10 @@
   // نفتح ماسحاً داخل التطبيق بالكاميرا (jsQR) يعمل على أي هاتف
   var Scanner = P.BarcodeScanner;
   function useScanResult(raw) {
-    var addr = String(raw || '').trim().replace(/^(tron|ethereum|bnb|polygon):/i, '').split(/[?&/@]/)[0];
+    var s = String(raw || '').trim();
+    // رابط EIP-681 لتحويل عملة: ethereum:<عقد العملة>@56/transfer?address=<المستلم>. المستلم هو address، لا عقد العملة
+    var m681 = s.match(/^ethereum:0x[0-9a-fA-F]{40}(?:@\d+)?\/transfer\?(?:.*&)?address=(0x[0-9a-fA-F]{40})/i);
+    var addr = m681 ? m681[1] : s.replace(/^(tron|ethereum|bnb|polygon):/i, '').split(/[?&/@]/)[0];
     var evm = state.sendNet !== 'tron';
     if (evm ? core.isEvmAddress(addr) : core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
     toast(evm ? 'الرمز لا يحتوي عنواناً صحيحاً يبدأ بـ 0x' : 'الرمز لا يحتوي عنوان TRON صحيحاً', true);
