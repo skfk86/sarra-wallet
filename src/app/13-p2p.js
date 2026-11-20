@@ -376,8 +376,8 @@
   // الإدخال بالجنيه: نحوّله إلى USDT (بدقة 6 خانات، للأسفل حتى لا يتجاوز المبلغ)
   $('buy-sdg').oninput = function () {
     var o = state.p2p.offer;
-    var raw = String(this.value).replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); }).replace(/[٫,]/g, '.');
-    var s = Number(raw.replace(/[^\d.]/g, '')) || 0;
+    // نفس قواعد مبالغ USDT: «150,000» = مئة وخمسون ألفاً (كانت تُقرأ 150.000 = 150 جنيهاً فقط)، والصيغ الملتبسة تُرفض
+    var s = 0; try { s = Number(WalletCore.normAmount(this.value)) || 0; } catch (e) { s = 0; }
     $('buy-amt').value = s && o ? String(Math.floor(s / o.price_sdg * 1e6) / 1e6) : '';
     calcBuy();
   };
@@ -425,7 +425,7 @@
     show('p2p-new');
   };
   $('new-price').oninput = function () {
-    var rg = state.p2p.range, v = Number(this.value);
+    var rg = state.p2p.range, v = amtNum('new-price');
     $('new-range').style.color = rg && v && (v < rg.min || v > rg.max) ? 'var(--err)' : '';
   };
   async function loadSellerBalance() {
@@ -470,10 +470,13 @@
   $('new-all').onclick = function () { if (state.p2p.bal) { var v = sellable(state.p2p.bal.usdt); $('new-amount').value = v; if (!$('new-max').value) $('new-max').value = v; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
-    var num = function (id) { try { return WalletCore.fromUnits(WalletCore.toUnitsFloor($(id).value, 6), 6); } catch (e) { return '0'; } };
+    var bad = null, num = function (id) { if (!$(id).value.trim()) return '0'; try { return WalletCore.fromUnits(WalletCore.toUnitsFloor($(id).value, 6), 6); } catch (e) { bad = bad || e; return '0'; } };
+    var vals = { price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max') };
+    // رقم ملتبس مثل «2,5»: نشرح السبب بدل إرسال 0 للخادم فيرفضه برسالة عامة
+    if (bad) { $('new-err').textContent = WalletCore.errorText(bad); $('new-err').hidden = false; btn.disabled = false; return; }
     try {
       await p2p('offer.create', {
-        price_sdg: num('new-price'), amount_usdt: num('new-amount'), min_usdt: num('new-min'), max_usdt: num('new-max'),
+        price_sdg: vals.price_sdg, amount_usdt: vals.amount_usdt, min_usdt: vals.min_usdt, max_usdt: vals.max_usdt,
         pay_window_min: state.p2p.win, side: state.p2p.newSide, network: state.p2p.newNet
       });
       state.p2p.cache = {}; toast('تم نشر الإعلان');
