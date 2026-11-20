@@ -256,6 +256,7 @@
     if (needAuth) authorize('تأكيد العملية', run); else run();
   }
   function renderOrder(r) {
+    state.p2p.lastOrder = r;
     var o = r.order, role = r.role; state.p2p.order = o; state.p2p.role = role;
     var st = STATUS[o.status] || [o.status, 'warn'];
     $('ord-title').textContent = (role === 'buyer' ? 'شراء ' : role === 'seller' ? 'بيع ' : 'نزاع ') + fmt(o.amount_usdt) + ' USDT';
@@ -268,7 +269,7 @@
     $('ord-win').hidden = !won;
     if (won) { $('ord-win-amt').textContent = '+' + fmt(o.buyer_receives, 6) + ' USDT'; $('ord-win-s').textContent = 'على ' + netLabel(o.network) + ' · مقابل ' + fmt(o.total_sdg) + ' ج.س'; }
     var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0;
-    $('ord-msg-row').hidden = closed && role !== 'admin'; $('ord-chat-note').textContent = closed ? 'الصفقة مغلقة. المحادثة محفوظة للمراجعة.' : 'لا تتواصل خارج التطبيق: المحادثة هنا هي دليلك عند النزاع.';
+
     var dl = $('ord-kv'); dl.textContent = '';
     kv(dl, 'المبلغ بالجنيه', fmt(o.total_sdg) + ' ج.س');
     kv(dl, 'السعر', fmt(o.price_sdg) + ' ج.س / USDT');
@@ -371,19 +372,56 @@
       if (o.dispute_reason) kv(dl, 'سبب النزاع', o.dispute_reason);
     }
 
-    var chat = $('ord-chat'), atBottom = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 10;
+    renderChat(r);
+  }
+  // ===== المحادثة: شاشة منفصلة (على طريقة Binance P2P) =====
+  function seenKey(id) { return 'sarra.chatSeen.' + id; }
+  function initial(n) { n = String(n || '').trim(); return n ? n.charAt(0).toUpperCase() : '؟'; }
+  function hm(t) { var d = new Date(t); return isNaN(d) ? '' : d.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }); }
+  function dayOf(t) { var d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString('ar', { day: 'numeric', month: 'long' }); }
+  function renderChat(r) {
+    var o = r.order, role = r.role, msgs = r.messages || [], meAddr = state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.address;
+    var other = role === 'buyer' ? o.seller_profile : role === 'seller' ? o.buyer_profile : null, oname = role === 'admin' ? 'محادثة الطلب' : ((other || {}).nickname || '—');
+    var otherRole = role === 'buyer' ? 'البائع' : role === 'seller' ? 'المشتري' : 'المشتري والبائع';
+    // بطاقة المحادثة في شاشة الطلب + شارة غير المقروء
+    var seen = 0; try { seen = Number(localStorage.getItem(seenKey(o.id)) || 0); } catch (e) {}
+    var onChat = state.stack[state.stack.length - 1] === 'order-chat';
+    if (onChat) { seen = msgs.length; try { localStorage.setItem(seenKey(o.id), String(seen)); } catch (e) {} }
+    var unread = Math.max(0, msgs.slice(Math.min(seen, msgs.length)).filter(function (m) { return m.sender !== meAddr; }).length);
+    $('ord-cc-av').textContent = $('oc-av').textContent = initial(oname);
+    $('ord-cc-name').textContent = 'محادثة ' + otherRole + (role === 'admin' ? '' : ' · ' + oname);
+    var last = msgs[msgs.length - 1];
+    $('ord-cc-last').textContent = last ? (last.sender === meAddr ? 'أنت: ' : '') + last.body : 'لا رسائل بعد · ابدأ المحادثة';
+    $('ord-cc-n').hidden = !unread; $('ord-cc-n').textContent = unread > 9 ? '9+' : String(unread); $('ord-unread').hidden = !unread;
+    // رأس شاشة المحادثة
+    $('oc-name').textContent = oname;
+    var pf = other || {}; $('oc-meta').textContent = role === 'admin' ? 'أنت المشرف' : otherRole + (pf.verified ? ' · موثّق ✓' : '') + (pf.trades_completed != null ? ' · ' + pf.trades_completed + ' صفقة' : '') + (pf.completion != null ? ' · ' + pf.completion + '%' : '');
+    $('oc-o-t').textContent = (role === 'buyer' ? 'شراء ' : role === 'seller' ? 'بيع ' : '') + fmt(o.amount_usdt) + ' USDT · ' + fmt(o.total_sdg) + ' ج.س';
+    $('oc-o-s').textContent = (STATUS[o.status] || [o.status])[0];
+    var closed = ['released', 'refunded', 'cancelled'].indexOf(o.status) >= 0 && role !== 'admin';
+    $('ord-msg-row').hidden = closed; $('ord-chat-note').hidden = !closed;
+    $('oc-attach').hidden = !(role === 'buyer' && ['funded', 'paid', 'disputed'].indexOf(o.status) >= 0 && (o.receipts || 0) < 3);
+    // الرسائل: فقاعات بوقت، وفاصل لكل يوم، ورسائل النظام في الوسط
+    var chat = $('ord-chat'), atBottom = chat.scrollTop + chat.clientHeight >= chat.scrollHeight - 30 || !chat.childNodes.length;
     chat.textContent = '';
-    if (!r.messages.length) chat.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لا رسائل بعد'));
-    r.messages.forEach(function (m) {
-      var mine = m.sender === (state.p2p.me && state.p2p.me.profile && state.p2p.me.profile.address);
+    if (!msgs.length) chat.appendChild(el('div', 'margin:auto;text-align:center;color:var(--mu);font-size:13px;line-height:1.8', 'لا رسائل بعد.\nاكتب لـ' + otherRole + ' هنا؛ المحادثة داخل التطبيق هي دليلك إن حدث نزاع.'));
+    var lastDay = '';
+    msgs.forEach(function (m) {
+      var d = dayOf(m.created_at); if (d && d !== lastDay) { chat.appendChild(el('span', null, d)).className = 'chat-day'; lastDay = d; }
+      var mine = m.sender === meAddr, sys = /^📎/.test(m.body);
       var who = m.sender === o.buyer ? 'المشتري' : m.sender === o.seller ? 'البائع' : 'المشرف';
-      var b = el('div', 'max-width:85%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;' + (mine ? 'align-self:flex-start;background:var(--ok-bg)' : 'align-self:flex-end;background:var(--s2)'));
-      b.appendChild(el('span', 'display:block;font-size:11px;color:var(--mu)', mine ? 'أنت' : who));
+      var b = el('div'); b.className = 'bub ' + (sys ? 'sys' : mine ? 'me' : 'them');
+      if (!mine && !sys && (role === 'admin' || who === 'المشرف')) b.appendChild(el('span', null, who)).className = 'who';
       b.appendChild(document.createTextNode(m.body));
+      var tm = hm(m.created_at); if (tm) b.appendChild(el('time', null, tm));
       chat.appendChild(b);
     });
-    if (atBottom) chat.scrollTop = chat.scrollHeight;
+    if (atBottom || onChat) setTimeout(function () { chat.scrollTop = chat.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }, 0);
   }
+  function openChat() { show('order-chat'); if (state.p2p.lastOrder) renderChat(state.p2p.lastOrder); setTimeout(function () { $('ord-msg').focus(); }, 150); }
+  $('ord-chat-open').onclick = openChat; $('ord-chat-card').onclick = openChat;
+  $('oc-order').onclick = function () { state.stack.pop(); show('order', false); };
+  $('oc-attach').onclick = function () { pickReceipt(); };
   $('ord-send').onclick = async function () {
     var v = $('ord-msg').value.trim(); if (!v) return;
     $('ord-msg').value = '';
@@ -424,7 +462,7 @@
   var orderTick = 0;
   setInterval(async function () {
     var cur = state.stack[state.stack.length - 1];
-    if (cur !== 'order' || !state.p2p.orderId || document.hidden || !core.isUnlocked()) return;
+    if ((cur !== 'order' && cur !== 'order-chat') || !state.p2p.orderId || document.hidden || !core.isUnlocked()) return;
     orderTick++;
     var o = state.p2p.order, id = state.p2p.orderId;
     if (o && o.status === 'awaiting_deposit' && state.p2p.role === 'seller' && orderTick % 5 === 0) return refreshOrder('order.refresh');

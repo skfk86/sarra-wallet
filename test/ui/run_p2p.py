@@ -71,8 +71,8 @@ async def handler(route):
     if o['status'] not in t[0]: return await err('INVALID_STATE')
     o['status']=t[1]
     if t[1]=='disputed': o['dispute_reason']=p.get('reason')
-  if a=='receipt.upload': o['receipts']=o.get('receipts',0)+1; st['msgs'].setdefault(o['id'],[]).append({'id':99,'sender':ME,'body':'📎 رفع المشتري إيصال تحويل بنكك','created_at':'x'})
-  if a=='message.send': st['msgs'].setdefault(o['id'],[]).append({'id':len(st['msgs'].get(o['id'],[]))+1,'sender':ME,'body':p['body'],'created_at':'x'})
+  if a=='receipt.upload': o['receipts']=o.get('receipts',0)+1; st['msgs'].setdefault(o['id'],[]).append({'id':99,'sender':ME,'body':'📎 رفع المشتري إيصال تحويل بنكك','created_at':__import__('datetime').datetime.utcnow().isoformat()+'Z'})
+  if a=='message.send': st['msgs'].setdefault(o['id'],[]).append({'id':len(st['msgs'].get(o['id'],[]))+1,'sender':ME,'body':p['body'],'created_at':__import__('datetime').datetime.utcnow().isoformat()+'Z'})
   return await ok(view(o))
 
 def png(w,h):
@@ -145,8 +145,13 @@ async def main():
     assert await vis('ord-timer') and ':' in await pg.inner_text('#ord-timer-val'); step('عداد مهلة الدفع')
     assert await pg.locator('#ord-steps span.on').count()==2; step('مؤشر الخطوات (الضمان ← الدفع)')
     if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-funded.png', full_page=True)
+    await pg.click('#ord-chat-card'); await pg.wait_for_timeout(400); assert await vis('s-order-chat'); step('المحادثة في شاشة منفصلة')
     await pg.fill('#ord-msg','حوّلت 135 ألف'); await pg.click('#ord-send'); await pg.wait_for_timeout(800)
     assert 'حوّلت 135 ألف' in await pg.inner_text('#ord-chat'); step('المحادثة')
+    st['msgs']['buy1'].append({'id':2,'sender':SELLER,'body':'تمام، أنتظر الإيصال','created_at':'2026-10-24T09:05:00Z'})
+    await pg.wait_for_timeout(7000); assert 'أنتظر الإيصال' in await pg.inner_text('#ord-chat'); step('رسالة الطرف الآخر تصل والمحادثة مفتوحة')
+    if len(sys.argv)>2: await pg.wait_for_timeout(300); await pg.screenshot(path=sys.argv[2]+'/p2p-chat.png')
+    await pg.click('#oc-order'); await pg.wait_for_timeout(400); assert await vis('s-order') and await pg.is_hidden('#ord-cc-n'); step('العودة لتفاصيل الطلب، ولا شارة غير مقروء بعد القراءة')
     await pg.click('#ord-actions button:text-is("حوّلت المبلغ عبر بنكك")'); await pg.wait_for_timeout(300)
     assert await vis('ask-sheet'); await pg.click('#ask-no'); await pg.wait_for_timeout(400)
     assert st['orders']['buy1']['status']=='funded'; step('التراجع في نافذة التأكيد لا يرسل شيئاً')

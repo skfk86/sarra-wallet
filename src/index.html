@@ -591,7 +591,8 @@
 <!-- ===== P2P: الطلب ===== -->
 <section class="screen" id="s-order" aria-label="الطلب">
   <div class="row"><button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-    <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div></div>
+    <div class="grow" style="display:flex;flex-direction:column"><h1 style="font-size:18px" id="ord-title">طلب</h1><span class="muted" style="font-size:12px" id="ord-sub"></span></div>
+    <button type="button" class="icon-btn chat-btn" id="ord-chat-open" aria-label="المحادثة"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><i class="dot" id="ord-unread" hidden></i></button></div>
   <div class="steps3" id="ord-steps" aria-hidden="true"><span>1 الضمان</span><span>2 الدفع</span><span>3 الاستلام</span></div>
   <div class="ord-hero" id="ord-hero" role="status"><div class="oh-i" id="ord-hero-i" aria-hidden="true">⏳</div><div class="oh-t"><b id="ord-status"></b><span id="ord-hero-d"></span></div></div>
   <div class="card ord-win" id="ord-win" hidden><span class="muted" style="font-size:13px">وصلت إلى محفظتك</span><b class="w-amt" id="ord-win-amt"></b><span class="muted" style="font-size:12px" id="ord-win-s"></span><button type="button" class="btn btn-primary" id="ord-win-go" style="width:100%;margin-top:6px">عرض المحفظة</button></div>
@@ -604,11 +605,26 @@
     <div class="row between"><span>رقم الحساب</span><span class="row" style="gap:8px"><b class="ltr" id="ord-bacct"></b><button type="button" class="chip" id="ord-copy" style="height:32px">نسخ</button></span></div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px" id="ord-actions"></div>
-  <h2 style="font-size:15px">المحادثة</h2>
-  <div class="card" id="ord-chat" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding:12px"></div>
-  <div class="field" id="ord-msg-row"><input id="ord-msg" placeholder="اكتب رسالة…" autocomplete="off" maxlength="1000"><button type="button" class="icon-btn flat" id="ord-send" aria-label="إرسال الرسالة"><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button></div>
-  <p class="muted" style="font-size:12px" id="ord-chat-note">لا تتواصل خارج التطبيق: المحادثة هنا هي دليلك عند النزاع.</p>
+  <button type="button" class="chat-card" id="ord-chat-card"><span class="cc-av" id="ord-cc-av">؟</span><span class="cc-t"><b id="ord-cc-name">المحادثة</b><small id="ord-cc-last">لا رسائل بعد</small></span><span class="cc-n" id="ord-cc-n" hidden></span><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m9 18 6-6-6-6"/></svg></button>
 </section>
+
+<section class="screen chat-screen" id="s-order-chat" aria-label="المحادثة">
+  <div class="chat-head">
+    <button class="icon-btn" data-back aria-label="رجوع"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    <span class="cc-av" id="oc-av">؟</span>
+    <div class="grow" style="display:flex;flex-direction:column;min-width:0"><b id="oc-name" style="font-size:16px">—</b><small class="muted" id="oc-meta" style="font-size:12px"></small></div>
+  </div>
+  <button type="button" class="chat-order" id="oc-order"><span><b id="oc-o-t"></b><small id="oc-o-s"></small></span><span class="chip" style="height:30px">تفاصيل الطلب</span></button>
+  <div class="chat-safe">🛡️ لا تحرّر USDT قبل أن ترى المبلغ في تطبيق بنكك. لا تتواصل خارج التطبيق ولا تشارك رموز أو كلمات محفظتك.</div>
+  <div class="chat-list" id="ord-chat"></div>
+  <div class="chat-input" id="ord-msg-row">
+    <button type="button" class="icon-btn flat" id="oc-attach" aria-label="رفع إيصال" hidden><svg class="i" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+    <input id="ord-msg" placeholder="اكتب رسالة…" autocomplete="off" maxlength="1000">
+    <button type="button" class="chat-send" id="ord-send" aria-label="إرسال الرسالة"><svg class="i" viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button>
+  </div>
+  <p class="muted chat-closed" id="ord-chat-note" hidden>الصفقة مغلقة. المحادثة محفوظة للمراجعة.</p>
+</section>
+
 
 <!-- ===== نافذة تأكيد عامة ===== -->
 <div class="celebrate" id="celebrate" role="dialog" aria-modal="true" aria-labelledby="cel-t">
