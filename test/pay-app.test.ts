@@ -6,6 +6,7 @@ import * as P from '../supabase/functions/_shared/pay.ts';
 import { TRANSFER, topicOf } from '../supabase/functions/push-watch/logic.ts';
 
 type Row = Record<string, any>;
+const NO_BONUS_COL = { v: false };
 function fakeDb() {
   const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [], profiles: [] };
   const hits: Record<string, number> = {}; let hitLimit = Infinity;
@@ -55,6 +56,7 @@ function fakeDb() {
     run() {
       const rows = T[this.t]; const match = () => rows.filter((r) => this.f.every((f) => f(r)));
       if (this.op === 'insert') {
+        if (this.t === 'pay_invoices' && NO_BONUS_COL.v && 'bonus' in this.val) return { data: null, error: { code: '42703' } }; // قاعدة قبل ترحيل 026
         const r = { ...(DEF[this.t]?.() || {}), ...this.val };
         if (violates(this.t, rows, r)) return { data: null, error: { code: '23505' } };
         rows.push(r); return this.out([r]);
@@ -508,5 +510,11 @@ await t('هامش السماح: الفواتير تستمر حتى سالب 0.5�
   const bal = await (await appG.handle(new Request('https://x/functions/v1/pay/v1/balance', { headers: { authorization: 'Bearer ' + KEY } }))).json() as any;
   assert.equal(bal.low_credit, true); assert.equal(bal.grace, '0.5');
   for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+});
+await t('ترتيب النشر: الدالة الجديدة قبل ترحيل 026 تُنشئ الشحن بلا مكافأة بدل أن تتعطل', async () => {
+  NO_BONUS_COL.v = true;
+  const r = await call(signed('pay.topup', { amount: '20', network: 'bsc' })); NO_BONUS_COL.v = false;
+  assert.equal(r.status, 200, JSON.stringify(r.j)); assert.equal(r.j.invoice.bonus, '0', 'لا يُوعد بمكافأة لن تُضاف');
+  db.T.pay_invoices.find((x) => x.id === r.j.invoice.id)!.status = 'expired';
 });
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');

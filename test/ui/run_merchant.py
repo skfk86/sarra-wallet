@@ -72,6 +72,10 @@ async def main():
     await pg.click('#ask-no'); await pg.wait_for_timeout(400)
     tp=[c for c in st['calls'] if c[0]=='pay.topup']; op=await pg.evaluate('window.__opened')
     assert len(tp)==1 and tp[0][1]=={'amount':'5','network':'bsc'} and len(op)==1 and 'pay.html?i=inv_' in op[0], (tp,op); step('شحن الرصيد: نقرتان = طلب واحد، وتُفتح صفحة الدفع')
+    n=len(await pg.evaluate('window.__opened'))
+    await pg.fill('#mc-top-amt','5'); await pg.click('#mc-top'); await pg.wait_for_timeout(1200)
+    await pg.evaluate("window.__core.st().askBack=true;document.getElementById('ask-no').click()"); await pg.wait_for_timeout(500)
+    assert await pg.locator('#ask-sheet.show').count()==0 and len(await pg.evaluate('window.__opened'))==n and not await pg.locator('#mc-top').is_disabled(); step('زر الرجوع في نافذة الاختيار يلغي فقط: لا صفحة دفع، والزر يعود للعمل')
     # خروج ورجوع: المفتاح لا يُعرض ثانية، والفواتير تظهر
     await pg.click('#s-merchant [data-back]'); await pg.wait_for_timeout(400)
     await pg.click('#menu-btn'); await pg.wait_for_timeout(300); await pg.click('[data-menu=merchant]'); await pg.wait_for_timeout(1500)

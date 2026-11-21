@@ -122,7 +122,9 @@ export function createApp(d: Deps) {
     for (let i = 0; i < 6; i++) {
       const row = { id: P.newInvoiceId(), merchant_id: m.id, kind, network: net, address, match_hex: mh, amount: amount.toString(), exact: P.exactUnits(amount, P.randTail()).toString(),
         fee: fee.toString(), ...(kind === 'topup' ? { bonus: bonusOf(amount).toString() } : {}), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
-      const { data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle();
+      let { data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle();
+      // نُشرت الدالة قبل ترحيل 026 (عمود bonus غير موجود): نُنشئ الشحن بلا مكافأة بدل أن يتعطل الشحن كله
+      if (error?.code === '42703' && 'bonus' in row) { delete (row as Record<string, unknown>).bonus; ({ data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle()); }
       if (data) {
         // فحص ثانٍ بعد الإدراج يغلق سباق الطلبات المتزامنة: إن تجاوزت العمولات المعلّقة الرصيد نحذف فاتورتنا
         if (kind === 'payment' && !test) {

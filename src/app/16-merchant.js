@@ -192,7 +192,7 @@
     var inv = r.invoice, bonus = Number(inv.bonus || 0), netN = netNameOf(inv.network);
     MC.busy = false; // نافذة الاختيار ليست عملية شبكة: لا نُبقي الأزرار معطلة أثناءها
     var own = await askConfirm('ادفع ' + inv.pay_amount + ' USDT على ' + netN + (bonus ? '، ويُضاف لرصيدك ' + niceNum(Number(inv.amount) + bonus, 2) + ' USDT (مع مكافأة الباقة)' : '') + '. المبلغ بكسوره مهم: هو ما يربط الدفعة بحسابك.', false, 'ادفع من محفظتي', 'صفحة دفع لمحفظة أخرى');
-    if (own) payFromWallet(inv); else if (own === null) window.open(inv.pay_url, '_blank'); // صفحة الدفع: المبلغ الدقيق والعنوان
+    if (own) payFromWallet(inv); else if (own === null) window.open(inv.pay_url, '_blank'); // صفحة الدفع: المبلغ الدقيق والعنوان. زر الرجوع (false) = إلغاء بلا شيء
   });
   // باقات الشحن السريعة: 5 و20 و50 (مع مكافأة الباقة إن وُجدت)
   function mcPacks(d) {
@@ -225,7 +225,7 @@
   function mcCache(m) { try { localStorage.setItem('sarra.mc', JSON.stringify({ low: !!m.low_credit, neg: Number(m.credit) < 0, t: Date.now() })); } catch (e) {} }
   // من الرئيسية: للتجار فقط، فحص خفيف كل 6 ساعات على الأكثر، وتنبيه مرة واحدة في اليوم إن كان الرصيد منخفضاً
   async function mcLowCheck() {
-    var c = lsJson('sarra.mc', null); if (!c || !PAY_URL) return;
+    var c = lsJson('sarra.mc', null); if (!c || !PAY_URL || !core.isUnlocked()) return; // فحص خلفي: لا يفتح لوحة الرمز أبداً
     if (Date.now() - (c.t || 0) > 6 * 3600000) {
       try { var d = await payApi('pay.me'); if (!d.merchant) { localStorage.removeItem('sarra.mc'); return; } MC.data = d; mcCache(d.merchant); c = lsJson('sarra.mc', c); } catch (e) { return; }
     }

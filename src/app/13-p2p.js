@@ -94,7 +94,7 @@
       $('ask-yes').onclick = function () {
         if (withInput) { var t = $('ask-in').value.trim(); if (!t) { $('ask-in').focus(); return; } done(t); } else done(true);
       };
-      $('ask-no').onclick = function () { done(null); };
+      $('ask-no').onclick = function () { var back = state.askBack; state.askBack = false; done(back ? false : null); };
     });
   }
 

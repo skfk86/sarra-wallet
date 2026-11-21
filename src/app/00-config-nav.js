@@ -161,7 +161,7 @@
       if ($('celebrate').classList.contains('show')) { $('cel-ok').click(); return; }
       if ($('coins-sheet').classList.contains('show')) { $('coins-sheet').classList.remove('show'); return; }
       if ($('gas-sheet').classList.contains('show')) { $('gas-sheet').classList.remove('show'); return; }
-      if ($('ask-sheet').classList.contains('show')) { $('ask-no').click(); return; }
+      if ($('ask-sheet').classList.contains('show')) { state.askBack = true; $('ask-no').click(); return; } // زر الرجوع = إلغاء (false)، يختلف عن زر «لا» (null)
       if ($('nick-sheet').classList.contains('show')) { $('nick-no').click(); return; }
       if (cur && cur !== 'home' && TAB_SCREENS.indexOf(cur) >= 0) { resetTo('home'); return; }
       if (state.stack.length > 1 && cur !== 'home' && !(cur === 'pin' && state.pinMode === 'unlock')) back();
