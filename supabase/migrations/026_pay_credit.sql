@@ -22,6 +22,7 @@ begin
   return true;
 end $$;
 revoke all on function public.pay_settle(text, text, text, text) from public, anon, authenticated;
+grant execute on function public.pay_settle(text, text, text, text) to service_role;
 
 -- ملخص البوابة للأدمن فقط: تُستدعى من دالة p2p بمفتاح الخدمة بعد التحقق من أن الموقّع أدمن.
 -- لا تُتاح لأي مستخدم (revoke من الجميع)، وتعيد أرقاماً مجمّعة فقط بلا بيانات تجار.
@@ -41,3 +42,4 @@ returns json language sql stable security definer set search_path = public as $$
   );
 $$;
 revoke all on function public.pay_admin_stats() from public, anon, authenticated;
+grant execute on function public.pay_admin_stats() to service_role; -- صريحاً، لا اعتماداً على الصلاحيات الافتراضية

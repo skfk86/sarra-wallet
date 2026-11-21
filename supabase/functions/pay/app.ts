@@ -108,9 +108,9 @@ export function createApp(d: Deps) {
     // هامش السماح لمن شحن مرة على الأقل فقط: وإلا يفتح أي أحد محافظ كثيرة ويستعمل الهامش عمولات مجانية بلا شحن أبداً.
     // نسأل القاعدة فقط حين يحتاجه الرصيد (المسار المعتاد بلا استعلام إضافي)
     let grace: bigint | null = null;
-    const graceOf = async () => {
+    const graceOf = async (): Promise<bigint> => {
       if (grace === null) { const { data: tp } = await db.from('pay_invoices').select('id').eq('merchant_id', m.id).eq('kind', 'topup').eq('status', 'paid').limit(1); grace = (tp || []).length ? GRACE : 0n; }
-      return grace;
+      return grace as bigint;
     };
     const short = async (credit: bigint, need: bigint) => credit < need && credit + await graceOf() < need;
     if (kind === 'payment' && !test && await short(BigInt(m.credit), fee)) throw new Error('INSUFFICIENT_CREDIT'); // التجريبية لا تخصم شيئاً
