@@ -101,7 +101,7 @@ async def main():
       await pg.evaluate('window.scrollTo(0,0)'); await pg.screenshot(path=sys.argv[2]+'/mc-dash.png',full_page=True)
     await pg.click('#mc-docs'); assert 'docs.sarrapay.com' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
     # الباقات وتنبيه الرصيد المنخفض وهامش السماح
-    pk=await pg.inner_text('#mc-packs'); assert 'رصيدك 5' in pk and 'رصيدك 22' in pk and 'هدية +2' in pk and 'رصيدك 57.5' in pk and 'هدية +7.5' in pk and 'مكافأة' not in pk, pk
+    pk=await pg.inner_text('#mc-packs'); assert 'رصيدك 5' in pk and 'رصيدك 22' in pk and '+2' in pk and 'رصيدك 57.5' in pk and '+7.5' in pk and 'مكافأة' not in pk, pk
     await pg.locator('#mc-packs .mc-pack').nth(1).click(); assert await pg.input_value('#mc-top-amt')=='20' and await pg.locator('#mc-packs .mc-pack.on').count()==1; step('باقات الشحن: 5 و20 و50 مع مكافأتها، والنقر يملأ المبلغ')
     assert not await pg.locator('#mc-low').is_visible() and 'سالب 0.5' in await pg.inner_text('#mc-grace'); step('هامش السماح موضّح، ولا تنبيه والرصيد كافٍ')
     st['m']['credit']='-0.2'; st['m']['low_credit']=True

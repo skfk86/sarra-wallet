@@ -202,7 +202,7 @@
       var t = (d.bonus || []).filter(function (b) { return v >= Number(b.min); }).sort(function (a, b) { return Number(b.min) - Number(a.min); })[0];
       var b = el('button', ''); b.type = 'button'; b.className = 'mc-pack'; b.dataset.v = String(v);
       b.appendChild(el('b', '', v + ' USDT'));
-      var got = v + (t ? v * t.pct / 100 : 0); b.appendChild(el('small', '', 'رصيدك ' + niceNum(got, 2))); if (t) b.appendChild(el('i', 'mc-gift', 'هدية +' + niceNum(v * t.pct / 100, 2)));
+      var got = v + (t ? v * t.pct / 100 : 0); b.appendChild(el('small', '', 'رصيدك ' + niceNum(got, 2))); if (t) b.appendChild(el('i', 'mc-gift', 'هدية \u2066+' + niceNum(v * t.pct / 100, 2) + '\u2069'));
       b.onclick = function () { $('mc-top-amt').value = String(v); mcPackSel(); };
       box.appendChild(b);
     });
