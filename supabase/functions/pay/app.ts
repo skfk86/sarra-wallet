@@ -125,6 +125,9 @@ export function createApp(d: Deps) {
     await hit('pay:' + m.id, test ? 'pay_inv_test' : 'pay_inv', 300, 3600);
     const { data: open } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', test).eq('status', 'pending').limit(MAX_PENDING + 1);
     if ((open || []).length >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
+    // الشحن يذهب لعنوان واحد مشترك (عنواننا) والكسور الفريدة لكل مبلغ محدودة: 3 شحنات معلّقة لكل تاجر تكفي،
+    // وتمنع من يفتح محافظ كثيرة من حجز كل الكسور لمبلغ شائع (مثل 20) فيتعطل الشحن على الآخرين
+    if (kind === 'topup') { const { data: ot } = await db.from('pay_invoices').select('id').eq('merchant_id', m.id).eq('kind', 'topup').eq('status', 'pending').limit(3); if ((ot || []).length >= 3) throw new Error('TOO_MANY_PENDING'); }
     // الرصيد يجب أن يغطي عمولات الفواتير المعلّقة كلها، لا الفاتورة الجديدة وحدها (وإلا قد يصبح سالباً)
     if (kind === 'payment' && !test && await short(BigInt(m.credit), fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n))) throw new Error('INSUFFICIENT_CREDIT');
     for (let i = 0; i < 6; i++) {

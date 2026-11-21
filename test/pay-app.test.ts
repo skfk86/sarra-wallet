@@ -522,4 +522,10 @@ await t('ترتيب النشر: الدالة الجديدة قبل ترحيل 02
   assert.equal(r.status, 200, JSON.stringify(r.j)); assert.equal(r.j.invoice.bonus, '0', 'لا يُوعد بمكافأة لن تُضاف');
   db.T.pay_invoices.find((x) => x.id === r.j.invoice.id)!.status = 'expired';
 });
+await t('الشحن: 3 شحنات معلّقة كحد أقصى لكل تاجر (لا حجز لكل الكسور على عنواننا)', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  for (let i = 0; i < 3; i++) assert.equal((await call(signed('pay.topup', { amount: '5', network: 'bsc' }))).status, 200);
+  assert.equal((await call(signed('pay.topup', { amount: '5', network: 'bsc' }))).j.error, 'TOO_MANY_PENDING');
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+});
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');
