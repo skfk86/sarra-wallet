@@ -22,3 +22,22 @@ begin
   return true;
 end $$;
 revoke all on function public.pay_settle(text, text, text, text) from public, anon, authenticated;
+
+-- ملخص البوابة للأدمن فقط: تُستدعى من دالة p2p بمفتاح الخدمة بعد التحقق من أن الموقّع أدمن.
+-- لا تُتاح لأي مستخدم (revoke من الجميع)، وتعيد أرقاماً مجمّعة فقط بلا بيانات تجار.
+create or replace function public.pay_admin_stats()
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'received',   (select coalesce(sum(exact), 0) from pay_invoices where kind = 'topup' and status = 'paid' and not test),
+    'earned',     (select coalesce(sum(fee), 0)   from pay_invoices where kind = 'payment' and status = 'paid' and not test),
+    'earned_30d', (select coalesce(sum(fee), 0)   from pay_invoices where kind = 'payment' and status = 'paid' and not test and paid_at > now() - interval '30 days'),
+    'gifts',      (select coalesce(sum(bonus), 0) from pay_invoices where kind = 'topup' and status = 'paid' and not test),
+    'owed',       (select coalesce(sum(greatest(credit, 0)), 0) from pay_merchants),
+    'grace_debt', (select coalesce(-sum(least(credit, 0)), 0) from pay_merchants),
+    'merchants',  (select count(*) from pay_merchants),
+    'active_30d', (select count(distinct merchant_id) from pay_invoices where kind = 'payment' and status = 'paid' and not test and paid_at > now() - interval '30 days'),
+    'paid_30d',   (select count(*) from pay_invoices where kind = 'payment' and status = 'paid' and not test and paid_at > now() - interval '30 days'),
+    'volume_30d', (select coalesce(sum(amount), 0) from pay_invoices where kind = 'payment' and status = 'paid' and not test and paid_at > now() - interval '30 days')
+  );
+$$;
+revoke all on function public.pay_admin_stats() from public, anon, authenticated;

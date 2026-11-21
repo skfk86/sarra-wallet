@@ -31,7 +31,7 @@ async def handler(route):
   if a=='push.register': st.setdefault('push',[]).append(p); return await ok({'ok':True})
   if a=='me': return await ok({'profile':st['profile'],'is_admin':True,'fee_bps':50,'min_trade':10,'rate':r,'range':rg})
   if a=='profile.set': st['profile']['nickname']=p['nickname']; return await ok({'ok':True})
-  if a=='admin.stats': return await ok({'users':7,'active_offers':2,'open_orders':1,'disputes':1,'completed':4,'earnings':{'today':{'trades':1,'volume':'100','commission':'0.5','net_fees':'0.3'},'d7':{'trades':3,'volume':'400','commission':'2','net_fees':'1.3'},'d30':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'},'all':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'}}})
+  if a=='admin.stats': return await ok({'users':7,'active_offers':2,'open_orders':1,'disputes':1,'completed':4,'earnings':{'today':{'trades':1,'volume':'100','commission':'0.5','net_fees':'0.3'},'d7':{'trades':3,'volume':'400','commission':'2','net_fees':'1.3'},'d30':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'},'all':{'trades':4,'volume':'1000','commission':'12.75','net_fees':'2'}},'gateway':{'received':'120.000777','earned':'8.5','earned_30d':'3.25','gifts':'7.5','owed':'119','grace_debt':'0.2','merchants':5,'active_30d':2,'paid_30d':14,'volume_30d':'650'}})
   if a=='admin.rate.set':
     st['rate']={'sdg_per_usdt':float(p['sdg_per_usdt']),'band_pct':p['band_pct']}; r=st['rate']
     return await ok({'rate':r,'range':{'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}})
@@ -256,6 +256,7 @@ async def main():
     assert '7' in await pg.inner_text('#adm-stats'); step('لوحة الأدمن: الإحصائيات')
     await no_overflow('لوحة الأدمن')
     assert await pg.inner_text('#adm-earn-com')=='12.75'; step('أرباح العمولات: 30 يوماً افتراضياً')
+    gw=await pg.inner_text('#adm-gw'); assert await pg.inner_text('#adm-gw-earned')=='8.5' and '3.25' in gw and '120.000777' in gw and '119' in gw and '7.5' in gw and 'ديون هامش السماح' in gw and '2 نشط من 5' in gw and '14 فاتورة' in gw, gw; step('ملخص بوابة الدفع للأدمن: المكتسب منفصل عما وصلك ورصيد التجار')
     await pg.click('[data-ep=today]'); assert await pg.inner_text('#adm-earn-com')=='0.5' and '1 صفقة' in await pg.inner_text('#adm-earn-sub'); step('أرباح اليوم')
     ot=await pg.inner_text('#adm-earn-other'); assert 'LI.FI' in ot and 'TRON' in ot, ot; step('مصادر العمولة الأخرى ظاهرة')
     if len(sys.argv)>2: await pg.locator('#adm-earn').screenshot(path=sys.argv[2]+'/earn.png')

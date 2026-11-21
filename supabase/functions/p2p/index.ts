@@ -606,7 +606,8 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       pending_verify: await count(db.from('profiles').select('address', { count: 'exact', head: true }).eq('verify_status', 'pending')),
       disputes: await count(db.from('orders').select('id', { count: 'exact', head: true }).in('status', ['disputed', 'release_failed', 'refund_failed'])),
       completed: await count(db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'released')),
-      earnings: await earnings()
+      earnings: await earnings(),
+      gateway: await gatewayStats()
     };
   }
 
@@ -618,6 +619,17 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
 async function earnings() {
   const { data } = await db.from('orders').select('amount_usdt,fee_usdt,network,updated_at').eq('status', 'released').order('updated_at', { ascending: false }).limit(10000);
   return L.earningsSummary(data || [], (n: string) => netFeeOf(n), Date.now());
+}
+
+// ملخص بوابة الدفع (أدمن فقط، داخل admin.stats المحمي): أرقام مجمّعة من pay_admin_stats (ترحيل 026).
+// قبل تطبيق الترحيل تعيد null فيظهر في التطبيق «شغّل pay-setup» بدل خطأ
+async function gatewayStats() {
+  const { data, error } = await db.rpc('pay_admin_stats');
+  if (error || !data) return null;
+  const u = (v: unknown) => { try { const n = BigInt(String(v ?? 0)); const neg = n < 0n, a = neg ? -n : n; return (neg ? '-' : '') + (a / 1000000n) + '.' + String(a % 1000000n).padStart(6, '0'); } catch { return '0.000000'; } };
+  const d = data as Record<string, unknown>;
+  return { received: u(d.received), earned: u(d.earned), earned_30d: u(d.earned_30d), gifts: u(d.gifts), owed: u(d.owed), grace_debt: u(d.grace_debt),
+    volume_30d: u(d.volume_30d), merchants: Number(d.merchants) || 0, active_30d: Number(d.active_30d) || 0, paid_30d: Number(d.paid_30d) || 0 };
 }
 
 // يُستدعى من هنا ومن oxapay-webhook عبر order.refresh

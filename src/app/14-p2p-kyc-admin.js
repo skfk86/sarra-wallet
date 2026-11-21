@@ -149,9 +149,23 @@
         c.appendChild(el('span', 'font-size:12px;color:var(--mu)', x[0])); c.appendChild(el('b', 'font-size:20px', String(x[1])));
         box.appendChild(c);
       });
-      state.admEarn = s.earnings || null; renderEarn();
+      state.admEarn = s.earnings || null; renderEarn(); renderGw(s.gateway);
     } catch (e) { toast(p2pErr(e), true); }
   };
+  // ملخص بوابة الدفع: يأتي ضمن admin.stats (الخادم يتحقق أن الطالب أدمن)، فلا يراه غيرك
+  function renderGw(g) {
+    var dl = $('adm-gw-kv'); dl.textContent = '';
+    if (!g) { $('adm-gw-earned').textContent = '—'; $('adm-gw-sub').textContent = 'يظهر بعد تشغيل pay-setup ثم push-setup'; return; }
+    var hid = state.hidden, m = function (v) { return hid ? '••••' : fmtExact(v); };
+    $('adm-gw-earned').textContent = m(g.earned);
+    $('adm-gw-sub').textContent = 'منها ' + m(g.earned_30d) + ' في آخر 30 يوماً';
+    kvRow(dl, 'إجمالي ما وصلك من الشحن', m(g.received));
+    kvRow(dl, 'رصيد التجار المتبقي', m(g.owed));
+    kvRow(dl, 'الهدايا الممنوحة', m(g.gifts));
+    if (Number(g.grace_debt) > 0) kvRow(dl, 'ديون هامش السماح', m(g.grace_debt));
+    kvRow(dl, 'التجار', g.active_30d + ' نشط من ' + g.merchants);
+    kvRow(dl, 'مبيعات التجار (30 يوماً)', m(g.volume_30d) + ' · ' + g.paid_30d + ' فاتورة');
+  }
   state.earnP = 'd30';
   function renderEarn() {
     var e = state.admEarn, k = state.earnP, x = e && e[k];
