@@ -455,7 +455,7 @@
     var tb = $('toggle-bal'); tb.classList.toggle('off', v); tb.setAttribute('aria-pressed', v ? 'true' : 'false'); tb.setAttribute('aria-label', v ? 'إظهار الرصيد' : 'إخفاء الرصيد');
     renderBalances();
     // الشاشة المفتوحة تُعاد رسمها فوراً بالوضع الجديد (التداول، الزوج، السجل)، لا عند التحديث التالي
-    try { var cur = state.stack[state.stack.length - 1]; if (cur === 'trade') renderTrade(); else if (cur === 'pair') trRenderPos(); else if (cur === 'history') applyFilter(); } catch (e) {}
+    try { var cur = state.stack[state.stack.length - 1]; if (cur === 'trade') renderTrade(); else if (cur === 'pair') trRenderPos(); else if (cur === 'history') applyFilter(); else if (cur === 'p2p-admin') renderGw(state.admGw); else if (cur === 'merchant' && MC.data && MC.data.merchant) mcRender(); } catch (e) {}
   }
   $('toggle-bal').onclick = function () { setHidden(!state.hidden); };
   // «عند كل فتح»: يشمل العودة للتطبيق من الخلفية بعد 30 ثانية أو أكثر، لا التشغيل من الصفر فقط

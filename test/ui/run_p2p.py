@@ -257,6 +257,7 @@ async def main():
     await no_overflow('لوحة الأدمن')
     assert await pg.inner_text('#adm-earn-com')=='12.75'; step('أرباح العمولات: 30 يوماً افتراضياً')
     gw=await pg.inner_text('#adm-gw'); assert await pg.inner_text('#adm-gw-earned')=='8.5' and '3.25' in gw and '120.000777' in gw and '119' in gw and '7.5' in gw and 'ديون هامش السماح' in gw and '2 نشط من 5' in gw and '14 فاتورة' in gw, gw; step('ملخص بوابة الدفع للأدمن: المكتسب منفصل عما وصلك ورصيد التجار')
+    await pg.evaluate('window.__core.hide(true)'); assert await pg.inner_text('#adm-gw-earned')=='••••' and '120' not in await pg.inner_text('#adm-gw'); await pg.evaluate('window.__core.hide(false)'); assert await pg.inner_text('#adm-gw-earned')=='8.5'; step('إخفاء الأرصدة يُخفي أرقام البوابة فوراً والشاشة مفتوحة')
     await pg.click('[data-ep=today]'); assert await pg.inner_text('#adm-earn-com')=='0.5' and '1 صفقة' in await pg.inner_text('#adm-earn-sub'); step('أرباح اليوم')
     ot=await pg.inner_text('#adm-earn-other'); assert 'LI.FI' in ot and 'TRON' in ot, ot; step('مصادر العمولة الأخرى ظاهرة')
     if len(sys.argv)>2: await pg.locator('#adm-earn').screenshot(path=sys.argv[2]+'/earn.png')

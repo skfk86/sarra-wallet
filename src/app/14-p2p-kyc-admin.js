@@ -149,7 +149,7 @@
         c.appendChild(el('span', 'font-size:12px;color:var(--mu)', x[0])); c.appendChild(el('b', 'font-size:20px', String(x[1])));
         box.appendChild(c);
       });
-      state.admEarn = s.earnings || null; renderEarn(); renderGw(s.gateway);
+      state.admEarn = s.earnings || null; renderEarn(); state.admGw = s.gateway || null; renderGw(state.admGw);
     } catch (e) { toast(p2pErr(e), true); }
   };
   // ملخص بوابة الدفع: يأتي ضمن admin.stats (الخادم يتحقق أن الطالب أدمن)، فلا يراه غيرك
