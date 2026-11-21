@@ -105,7 +105,15 @@ export function createApp(d: Deps) {
     const mh = P.matchHex(net, address); if (!address || !mh) throw new Error('NETWORK_NOT_CONFIGURED');
     const amount = P.parseAmount(p.amount);
     const fee = kind === 'payment' ? P.feeUnits(amount, FEE_BPS, FEE_MIN) : 0n;
-    if (kind === 'payment' && !test && BigInt(m.credit) + GRACE < fee) throw new Error('INSUFFICIENT_CREDIT'); // التجريبية لا تخصم شيئاً
+    // هامش السماح لمن شحن مرة على الأقل فقط: وإلا يفتح أي أحد محافظ كثيرة ويستعمل الهامش عمولات مجانية بلا شحن أبداً.
+    // نسأل القاعدة فقط حين يحتاجه الرصيد (المسار المعتاد بلا استعلام إضافي)
+    let grace: bigint | null = null;
+    const graceOf = async () => {
+      if (grace === null) { const { data: tp } = await db.from('pay_invoices').select('id').eq('merchant_id', m.id).eq('kind', 'topup').eq('status', 'paid').limit(1); grace = (tp || []).length ? GRACE : 0n; }
+      return grace;
+    };
+    const short = async (credit: bigint, need: bigint) => credit < need && credit + await graceOf() < need;
+    if (kind === 'payment' && !test && await short(BigInt(m.credit), fee)) throw new Error('INSUFFICIENT_CREDIT'); // التجريبية لا تخصم شيئاً
     const order_id = p.order_id == null || p.order_id === '' ? null : String(p.order_id);
     if (order_id && !/^[\w.:\-]{1,64}$/.test(order_id)) throw new Error('BAD_ORDER_ID');
     const description = p.description == null ? null : String(p.description).slice(0, 140);
@@ -118,7 +126,7 @@ export function createApp(d: Deps) {
     const { data: open } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', test).eq('status', 'pending').limit(MAX_PENDING + 1);
     if ((open || []).length >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
     // الرصيد يجب أن يغطي عمولات الفواتير المعلّقة كلها، لا الفاتورة الجديدة وحدها (وإلا قد يصبح سالباً)
-    if (kind === 'payment' && !test && BigInt(m.credit) + GRACE < fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n)) throw new Error('INSUFFICIENT_CREDIT');
+    if (kind === 'payment' && !test && await short(BigInt(m.credit), fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n))) throw new Error('INSUFFICIENT_CREDIT');
     for (let i = 0; i < 6; i++) {
       const row = { id: P.newInvoiceId(), merchant_id: m.id, kind, network: net, address, match_hex: mh, amount: amount.toString(), exact: P.exactUnits(amount, P.randTail()).toString(),
         fee: fee.toString(), ...(kind === 'topup' ? { bonus: bonusOf(amount).toString() } : {}), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
@@ -131,7 +139,7 @@ export function createApp(d: Deps) {
           const { data: cur } = await db.from('pay_merchants').select('credit').eq('id', m.id).maybeSingle();
           const { data: all } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', false).eq('status', 'pending').limit(MAX_PENDING + 50);
           const owed = (all || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n);
-          if (cur && BigInt(cur.credit) + GRACE < owed) { await db.from('pay_invoices').delete().eq('id', data.id).eq('status', 'pending'); throw new Error('INSUFFICIENT_CREDIT'); }
+          if (cur && await short(BigInt(cur.credit), owed)) { await db.from('pay_invoices').delete().eq('id', data.id).eq('status', 'pending'); throw new Error('INSUFFICIENT_CREDIT'); }
         }
         return data;
       }

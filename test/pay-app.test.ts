@@ -504,12 +504,17 @@ await t('هامش السماح: الفواتير تستمر حتى سالب 0.5�
   const apiG = async (body: unknown) => { const r = await appG.handle(new Request('https://x/functions/v1/pay/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify(body) })); return { status: r.status, j: await r.json() as any }; };
   for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
   db.T.pay_merchants[0].credit = 0;
-  assert.equal((await apiG({ amount: '40', network: 'bsc' })).status, 200, 'عمولة 0.2 ضمن الهامش');
+  assert.equal((await apiG({ amount: '40', network: 'bsc' })).status, 200, 'عمولة 0.2 ضمن الهامش (هذا التاجر شحن من قبل)');
   assert.equal((await apiG({ amount: '50', network: 'bsc' })).status, 200, 'المجموع 0.45 ضمن الهامش');
   assert.equal((await apiG({ amount: '20', network: 'bsc' })).j.error, 'INSUFFICIENT_CREDIT', '0.55 يتجاوز الهامش');
   const bal = await (await appG.handle(new Request('https://x/functions/v1/pay/v1/balance', { headers: { authorization: 'Bearer ' + KEY } }))).json() as any;
   assert.equal(bal.low_credit, true); assert.equal(bal.grace, '0.5');
   for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  // تاجر جديد لم يشحن قط: لا هامش، فلا عمولات مجانية بفتح محافظ كثيرة
+  const NEW = 'T' + 'N'.repeat(33); await call(signed('pay.save', { name: 'جديد', webhook_url: null }, NEW));
+  const NK = (await call(signed('pay.key', {}, NEW))).j.api_key; db.T.pay_merchants.find((x) => x.address === NEW)!.credit = 0;
+  const r0 = await appG.handle(new Request('https://x/functions/v1/pay/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + NK }, body: JSON.stringify({ amount: '5', network: 'tron' }) }));
+  assert.equal((await r0.json() as any).error, 'INSUFFICIENT_CREDIT', 'بلا شحن سابق لا يُستعمل الهامش');
 });
 await t('ترتيب النشر: الدالة الجديدة قبل ترحيل 026 تُنشئ الشحن بلا مكافأة بدل أن تتعطل', async () => {
   NO_BONUS_COL.v = true;
