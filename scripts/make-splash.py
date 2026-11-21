@@ -2,7 +2,7 @@
 # بنفس مقاس كل نسخة (عمودي/أفقي/كل الكثافات) حتى لا تتمدد الصورة
 import glob
 from PIL import Image
-BG = (7, 18, 34)
+BG = (11, 15, 20)
 logo = Image.open('resources/icon.png').convert('RGB')
 files = glob.glob('android/app/src/main/res/drawable*/splash.png')
 for f in files:

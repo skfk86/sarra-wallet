@@ -62,8 +62,8 @@ console.log('AndroidManifest patched (ML Kit barcode_ui, CAMERA, USE_BIOMETRIC, 
 // أيقونة التطبيق: نسخ الأيقونات من resources/android إلى مشروع Android، ولون خلفية الأيقونة التكيّفية
 cpSync('resources/android', 'android/app/src/main/res', { recursive: true });
 writeFileSync('android/app/src/main/res/values/ic_launcher_background.xml',
-  '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n');
-console.log('App icon copied (mipmap-*), adaptive background #FFFFFF');
+  '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#0D3029</color>\n</resources>\n');
+console.log('App icon copied (mipmap-*), adaptive background #0D3029');
 
 // إشعارات المعاملات: صوت عملة + أيقونة عملة للشريط
 cpSync('android-src/res', 'android/app/src/main/res', { recursive: true });
