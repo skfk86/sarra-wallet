@@ -17,6 +17,7 @@ const tw = new TronWeb({ fullHost: 'https://api.trongrid.io' });
 const FEE_BPS = Number(env('PAY_FEE_BPS', '50'));                                   // 0.5%
 const FEE_MIN = BigInt(Math.round(Number(env('PAY_FEE_MIN_USDT', '0.02')) * 1e6));  // بحد أدنى 0.02 USDT
 const TOPUP: Record<string, string> = { tron: env('PAY_TOPUP_TRON'), evm: env('PAY_TOPUP_EVM') }; // عناويننا لاستلام شحن الرصيد
+const units = (k: string, d: string) => BigInt(Math.round(Math.max(0, Number(env(k, d)) || 0) * 1e6));
 const PAY_PAGE = env('PAY_PAGE_URL', 'https://pay.sarrapay.com/');
 const TRON_KEY = env('TRONGRID_API_KEY');
 const RPCS: Record<string, string[]> = {
@@ -62,6 +63,6 @@ async function safeHookFetch(url: string | URL | Request, init?: RequestInit) {
 const app = createApp({
   db, rpc, fetch: safeHookFetch, now: () => Date.now(),
   verify: async (message, signature) => await tw.trx.verifyMessageV2(message, signature),
-  cfg: { feeBps: FEE_BPS, feeMin: FEE_MIN, topup: TOPUP, payPage: PAY_PAGE }
+  cfg: { feeBps: FEE_BPS, feeMin: FEE_MIN, topup: TOPUP, payPage: PAY_PAGE, grace: units('PAY_GRACE_USDT', '0.5'), lowCredit: units('PAY_LOW_USDT', '1') }
 });
 Deno.serve((req) => app.handle(req));

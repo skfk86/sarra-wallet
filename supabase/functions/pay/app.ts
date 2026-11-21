@@ -13,11 +13,17 @@ export type Deps = {
   rpc: (net: string, method: string, params: unknown[]) => Promise<any>; // JSON-RPC للشبكة
   fetch: typeof fetch;                                                 // لإرسال إشعارات التجار
   now: () => number;
-  cfg: { feeBps: number; feeMin: bigint; topup: Record<string, string>; payPage: string; ipLimit?: number };
+  cfg: { feeBps: number; feeMin: bigint; topup: Record<string, string>; payPage: string; ipLimit?: number; grace?: bigint; lowCredit?: bigint; bonus?: { min: bigint; bps: number }[] };
 };
 
 export function createApp(d: Deps) {
   const db = d.db, FEE_BPS = d.cfg.feeBps, FEE_MIN = d.cfg.feeMin, TOPUP = d.cfg.topup, PAY_PAGE = d.cfg.payPage;
+  // هامش السماح: تستمر الفواتير حتى رصيد سالب صغير، فلا تتوقف عملية زبون في منتصفها. يُسدَّد تلقائياً من الشحنة التالية
+  const GRACE = d.cfg.grace ?? 500000n;            // 0.5 USDT
+  const LOW = d.cfg.lowCredit ?? 1000000n;         // تنبيه «الرصيد منخفض» تحت 1 USDT
+  // باقات الشحن: مكافأة تُضاف للرصيد فوق المبلغ المدفوع (أعلى باقة ينطبق حدها). المكافأة تُحسب على المبلغ المطلوب لا على الكسر الفريد
+  const BONUS = (d.cfg.bonus ?? [{ min: 50000000n, bps: 1500 }, { min: 20000000n, bps: 1000 }]).slice().sort((a, b) => (b.min > a.min ? 1 : -1));
+  const bonusOf = (amount: bigint) => { const t = BONUS.find((b) => amount >= b.min); return t ? amount * BigInt(t.bps) / 10000n : 0n; };
   const MAX_PENDING = 200, LATE_GRACE_MIN = 20;
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Expose-Headers': 'x-request-id, retry-after' };
   // رقم الطلب وعنوان IP لكل طلب على حدة: الخادم يعالج طلبات متزامنة، والمتغير المشترك كان يخلط بينها
@@ -99,7 +105,7 @@ export function createApp(d: Deps) {
     const mh = P.matchHex(net, address); if (!address || !mh) throw new Error('NETWORK_NOT_CONFIGURED');
     const amount = P.parseAmount(p.amount);
     const fee = kind === 'payment' ? P.feeUnits(amount, FEE_BPS, FEE_MIN) : 0n;
-    if (kind === 'payment' && !test && BigInt(m.credit) < fee) throw new Error('INSUFFICIENT_CREDIT'); // التجريبية لا تخصم شيئاً
+    if (kind === 'payment' && !test && BigInt(m.credit) + GRACE < fee) throw new Error('INSUFFICIENT_CREDIT'); // التجريبية لا تخصم شيئاً
     const order_id = p.order_id == null || p.order_id === '' ? null : String(p.order_id);
     if (order_id && !/^[\w.:\-]{1,64}$/.test(order_id)) throw new Error('BAD_ORDER_ID');
     const description = p.description == null ? null : String(p.description).slice(0, 140);
@@ -112,10 +118,10 @@ export function createApp(d: Deps) {
     const { data: open } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', test).eq('status', 'pending').limit(MAX_PENDING + 1);
     if ((open || []).length >= MAX_PENDING) throw new Error('TOO_MANY_PENDING');
     // الرصيد يجب أن يغطي عمولات الفواتير المعلّقة كلها، لا الفاتورة الجديدة وحدها (وإلا قد يصبح سالباً)
-    if (kind === 'payment' && !test && BigInt(m.credit) < fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n)) throw new Error('INSUFFICIENT_CREDIT');
+    if (kind === 'payment' && !test && BigInt(m.credit) + GRACE < fee + (open || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n)) throw new Error('INSUFFICIENT_CREDIT');
     for (let i = 0; i < 6; i++) {
       const row = { id: P.newInvoiceId(), merchant_id: m.id, kind, network: net, address, match_hex: mh, amount: amount.toString(), exact: P.exactUnits(amount, P.randTail()).toString(),
-        fee: fee.toString(), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
+        fee: fee.toString(), ...(kind === 'topup' ? { bonus: bonusOf(amount).toString() } : {}), order_id, description, test, currency, metadata, success_url, expires_at: new Date(d.now() + mins * 60000).toISOString() };
       const { data, error } = await db.from('pay_invoices').insert(row).select().maybeSingle();
       if (data) {
         // فحص ثانٍ بعد الإدراج يغلق سباق الطلبات المتزامنة: إن تجاوزت العمولات المعلّقة الرصيد نحذف فاتورتنا
@@ -123,7 +129,7 @@ export function createApp(d: Deps) {
           const { data: cur } = await db.from('pay_merchants').select('credit').eq('id', m.id).maybeSingle();
           const { data: all } = await db.from('pay_invoices').select('fee').eq('merchant_id', m.id).eq('test', false).eq('status', 'pending').limit(MAX_PENDING + 50);
           const owed = (all || []).reduce((a: bigint, r: { fee: string | number }) => a + BigInt(r.fee || 0), 0n);
-          if (cur && BigInt(cur.credit) < owed) { await db.from('pay_invoices').delete().eq('id', data.id).eq('status', 'pending'); throw new Error('INSUFFICIENT_CREDIT'); }
+          if (cur && BigInt(cur.credit) + GRACE < owed) { await db.from('pay_invoices').delete().eq('id', data.id).eq('status', 'pending'); throw new Error('INSUFFICIENT_CREDIT'); }
         }
         return data;
       }
@@ -135,10 +141,10 @@ export function createApp(d: Deps) {
   }
 
   // ===== إدارة حساب التاجر من تطبيق صُرّة (طلب موقّع بالمحفظة) =====
-  const merchantView = (m: Merchant) => ({ name: m.name, tron_addr: m.tron_addr, evm_addr: m.evm_addr, webhook_url: m.webhook_url, webhook_secret: m.webhook_secret, key_hint: m.key_hint, test_key_hint: m.test_key_hint || null, credit: P.fmtUnits(m.credit), active: m.active });
+  const merchantView = (m: Merchant) => ({ low_credit: BigInt(m.credit) < LOW, name: m.name, tron_addr: m.tron_addr, evm_addr: m.evm_addr, webhook_url: m.webhook_url, webhook_secret: m.webhook_secret, key_hint: m.key_hint, test_key_hint: m.test_key_hint || null, credit: P.fmtUnits(m.credit), active: m.active });
   async function merchantAction(action: string, p: Record<string, unknown>, me: string) {
     const { data: cur } = await db.from('pay_merchants').select('*').eq('address', me).maybeSingle();
-    const info = { fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN), topup_networks: Object.keys(P.NETS).filter((n) => !!P.matchHex(n, TOPUP[P.NETS[n].kind])), networks: Object.fromEntries(Object.entries(P.NETS).map(([k, v]) => [k, v.name])) };
+    const info = { fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN), grace: P.fmtUnits(GRACE), low_at: P.fmtUnits(LOW), bonus: BONUS.map((b) => ({ min: P.fmtUnits(b.min), pct: b.bps / 100 })), topup_networks: Object.keys(P.NETS).filter((n) => !!P.matchHex(n, TOPUP[P.NETS[n].kind])), networks: Object.fromEntries(Object.entries(P.NETS).map(([k, v]) => [k, v.name])) };
     if (action === 'pay.me') {
       if (!cur) return { merchant: null, ...info };
       const { data: inv } = await db.from('pay_invoices').select('*').eq('merchant_id', cur.id).order('created_at', { ascending: false }).limit(15);
@@ -398,7 +404,7 @@ export function createApp(d: Deps) {
       }
       if (path === '/v1/balance' && req.method === 'GET') {
         const { me, test } = await merchantByKey(req); await hit('pay:' + me.id, 'pay_read', 600, 60);
-        return json({ test, credit: P.fmtUnits(me.credit), currency: 'USDT', fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN) });
+        return json({ test, credit: P.fmtUnits(me.credit), low_credit: BigInt(me.credit) < LOW, grace: P.fmtUnits(GRACE), currency: 'USDT', fee_pct: FEE_BPS / 100, fee_min: P.fmtUnits(FEE_MIN) });
       }
       // مسار موجود بطريقة خاطئة (GET بدل POST مثلاً): 405 بدل «غير موجود»
       if (/^\/v1\/(invoices(\/inv_[0-9a-f]{20}(\/(cancel|simulate))?)?|balance|merchant|public\/inv_[0-9a-f]{20}(\/simulate)?)$/.test(path)) return fail('METHOD_NOT_ALLOWED');

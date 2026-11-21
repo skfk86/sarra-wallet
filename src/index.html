@@ -867,14 +867,17 @@
     <div class="card mcs" style="display:flex;flex-direction:column;gap:10px">
       <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><b>رصيد رسوم البوابة</b></div>
       <div class="row" style="justify-content:space-between;align-items:flex-end"><b class="ltr" style="font-size:26px"><span id="mc-credit">0</span> USDT</b><b id="mc-shop" class="mc-pill"></b></div>
+      <div class="mc-low" id="mc-low" hidden role="status"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span id="mc-low-t"></span></div>
       <span class="mcd">هذا ليس رصيد مبيعاتك. هو رصيد مسبق تُخصم منه عمولة البوابة عند كل فاتورة مدفوعة، فاشحنه قبل أن ينفد وإلا يتوقف إنشاء الفواتير.</span>
+      <span class="mcd" id="mc-grace" hidden></span>
+      <div class="mc-packs" id="mc-packs" role="group" aria-label="باقات الشحن"></div>
       <span class="mcd" id="mc-fee"></span>
       <div class="row" style="gap:8px">
         <div class="field" style="flex:1;min-width:0"><input id="mc-top-amt" class="ltr" inputmode="decimal" placeholder="المبلغ (USDT)" autocomplete="off"></div>
         <select id="mc-top-net" aria-label="شبكة الشحن" class="mc-sel"></select>
       </div>
       <button type="button" class="btn btn-primary mcb" id="mc-top"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg><span>شحن رصيد الرسوم</span></button>
-      <span class="mcd" style="font-size:11.5px">تُفتح صفحة دفع بالمبلغ الدقيق. ادفع من أي محفظة، ويُضاف الرصيد تلقائياً بعد تأكيد الشبكة.</span>
+      <span class="mcd" style="font-size:11.5px">تختار بعدها: الدفع من محفظتك هذه بلمسة، أو فتح صفحة دفع لأي محفظة أخرى. يُضاف الرصيد تلقائياً بعد تأكيد الشبكة.</span>
     </div>
     <div class="card mcs" style="display:flex;flex-direction:column;gap:10px">
       <div class="mch"><span class="mci"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></span><b>مفاتيح API</b></div>

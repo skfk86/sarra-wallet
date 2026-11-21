@@ -396,10 +396,10 @@ def sarra_hook():
     <p>محاكاة دفع أو انتهاء فاتورة تجريبية. بالمفتاح التجريبي فقط. <a href="#test">التفاصيل</a>.</p>
 
     <div class="ep"><span>/v1/balance</span><b class="g">GET</b></div>
-    <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة.</p>
+    <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة. <code>low_credit</code> تصبح <code>true</code> حين يقل الرصيد عن 1 USDT، فيمكن لخادمك تنبيهك. ولا تتوقف الفواتير فور نفاد الرصيد: تستمر حتى سالب <code>grace</code>، ويُسدَّد ذلك تلقائياً من شحنتك التالية.</p>
     <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://api.sarrapay.com/v1/balance \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
-    <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "credit": "0.98", "currency": "USDT", "fee_pct": 0.5, "fee_min": "0.02" }</code></pre></div>
+    <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "credit": "0.98", "low_credit": true, "grace": "0.5", "currency": "USDT", "fee_pct": 0.5, "fee_min": "0.02" }</code></pre></div>
   </section>
 
   <section class="card" id="errors">

@@ -329,6 +329,12 @@
   $('confirm-send').onclick = async function () {
     if (state.recipRisk) $('sheet').classList.remove('show');
     if (state.recipRisk && !(await askConfirm(state.recipRisk === 'poison' ? 'العنوان يشبه عنواناً سابقاً لكنه مختلف، وقد يكون عنوان محتال. هل قارنته كاملاً مع المستلم وتأكدت أنه صحيح؟' : state.recipRisk === 'token' ? 'العنوان هو عقد العملة نفسها، والمبلغ سيضيع غالباً. هل أنت متأكد تماماً أنك تريد الإرسال إليه؟' : 'المستلم عقد ذكي وليس محفظة. هل أنت متأكد أنه يقبل هذه العملة؟'))) return;
+    // دفع فاتورة شحن رصيد البوابة: المبلغ والعنوان والشبكة يجب أن تبقى كما هي حرفياً، وإلا لا تُطابق الفاتورة
+    var pl = state.payLock;
+    if (pl && (!state.pending || String(state.pending.to).toLowerCase() !== String(pl.to).toLowerCase() || Number(state.pending.amt) !== Number(pl.amt) || state.pending.coin !== 'USDT' || (state.pending.net || 'tron') !== pl.net)) {
+      $('sheet').classList.remove('show'); toast('تغيّر المبلغ أو العنوان أو الشبكة، فلن تُطابق فاتورة الشحن. ارجع لقسم التجار وأنشئ الشحن من جديد', true); return;
+    }
+    if (pl && Date.now() > pl.until) { $('sheet').classList.remove('show'); unlockPay(); toast('انتهت مهلة فاتورة الشحن. أنشئ شحناً جديداً من قسم التجار', true); return; }
     // حماية من الإرسال المكرر: نفس المبلغ لنفس المستلم خلال 10 دقائق (نقرة مزدوجة، أو إعادة المحاولة بعد خطأ شبكة رغم أن الأولى وصلت)
     var pd = state.pending, ls = lsJson('sarra.lastsend', null);
     if (pd && ls && ls.to === pd.to && ls.amt === pd.amt && ls.coin === pd.coin && ls.net === (pd.net || 'tron') && Date.now() - ls.t < 600000) {

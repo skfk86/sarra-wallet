@@ -64,7 +64,7 @@
     } catch (e) {}
   }
   async function loadHome(force) {
-    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(vaultRestore, 2500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
+    if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(vaultRestore, 2500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); setTimeout(function () { mcLowCheck().catch(function () {}); }, 6000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح
     if (!state.lhAddr) { try { state.lhAddr = await core.getAddress(); } catch (e) {} }
     if (!state.balances || !state.evmBal) loadBalCache();
     $('net-label').textContent = Object.keys(EVM).length ? 'محفظتك الرقمية' : netName();

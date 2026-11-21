@@ -85,9 +85,9 @@
   state.p2p = { tab: 'market', me: null, offer: null, orderId: null, poll: 0 };
 
   // نافذة تأكيد من تصميم التطبيق (بدل confirm/prompt)؛ withInput يطلب نصاً
-  function askConfirm(text, withInput) {
+  function askConfirm(text, withInput, yesLbl, noLbl) {
     return new Promise(function (resolve) {
-      $('ask-text').textContent = text;
+      $('ask-text').textContent = text; $('ask-yes').textContent = yesLbl || 'تأكيد'; $('ask-no').textContent = noLbl || 'رجوع';
       $('ask-field').hidden = !withInput; $('ask-in').value = '';
       $('ask-sheet').classList.add('show');
       var done = function (v) { $('ask-sheet').classList.remove('show'); resolve(v); };

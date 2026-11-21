@@ -3,7 +3,8 @@ import asyncio, sys, json
 from playwright.async_api import async_playwright
 S=sys.argv[1]
 st={'m':None,'signed':0,'calls':[],'fail':None}
-INFO={'fee_pct':0.5,'fee_min':'0.02','topup_networks':['tron','bsc'],'networks':{'tron':'TRON (TRC20)','bsc':'BNB Chain (BEP20)','polygon':'Polygon','eth':'Ethereum (ERC20)'}}
+TOPUP_TRON='TFeeZ4bR8xLkP2vN9cW3jH5sD6fGa19xKf'
+INFO={'grace':'0.5','low_at':'1','bonus':[{'min':'50','pct':15},{'min':'20','pct':10}],'fee_pct':0.5,'fee_min':'0.02','topup_networks':['tron','bsc'],'networks':{'tron':'TRON (TRC20)','bsc':'BNB Chain (BEP20)','polygon':'Polygon','eth':'Ethereum (ERC20)'}}
 INV=[{'id':'inv_'+'a'*20,'kind':'payment','status':'paid','amount':'25','pay_amount':'25.004321','network':'bsc','network_name':'BNB Chain (BEP20)','order_id':'ORDER-1001'},
      {'id':'inv_'+'b'*20,'kind':'payment','status':'pending','amount':'10','pay_amount':'10.001234','network':'tron','network_name':'TRON (TRC20)','order_id':None},
      {'id':'inv_'+'c'*20,'kind':'topup','status':'paid','amount':'5','pay_amount':'5.000111','network':'bsc','network_name':'BNB Chain (BEP20)','order_id':None}]
@@ -23,7 +24,9 @@ async def handler(route):
   if a=='pay.hooks': return await route.fulfill(json={'hooks':[{'invoice_id':'inv_'+'a'*20,'event':'invoice.paid','status':500,'ok':False,'at':'2026-11-19T10:00:00Z'},{'invoice_id':'inv_'+'b'*20,'event':'invoice.cancelled','status':200,'ok':True,'at':'2026-11-19T09:00:00Z'}]})
   if a=='pay.resend': return await route.fulfill(json={'ok':True,'status':200})
   if a=='pay.hooktest': return await route.fulfill(json=st.pop('hook',{'ok':True,'status':200}))
-  if a=='pay.topup': return await route.fulfill(json={'invoice':{'id':'inv_'+'d'*20,'pay_url':'https://skfk86.github.io/sarra-wallet/pay.html?i=inv_'+'d'*20,'pay_amount':p['amount']+'.000777'}})
+  if a=='pay.topup':
+    bonus='2' if float(p['amount'])>=20 else '0'
+    return await route.fulfill(json={'invoice':{'id':'inv_'+'d'*20,'kind':'topup','network':p['network'],'address':TOPUP_TRON if p['network']=='tron' else '0x'+'ab'*20,'amount':p['amount'],'bonus':bonus,'expires_at':'2099-01-01T00:00:00Z','pay_url':'https://skfk86.github.io/sarra-wallet/pay.html?i=inv_'+'d'*20,'pay_amount':p['amount']+'.000777'}})
   return await route.fulfill(status=400,json={'error':'BAD_ACTION'})
 async def main():
   async with async_playwright() as pw:
@@ -65,6 +68,8 @@ async def main():
     assert not any(c[0]=='pay.topup' for c in st['calls']); step('مبلغ شحن غير صحيح: لا يُرسل للخادم')
     assert await pg.input_value('#mc-top-net')=='bsc' and await pg.locator('#mc-top-net option').count()==2
     await pg.fill('#mc-top-amt','5'); await pg.dblclick('#mc-top'); await pg.wait_for_timeout(1500)
+    assert await pg.locator('#ask-sheet.show').count()==1 and await pg.inner_text('#ask-yes')=='ادفع من محفظتي' and '5.000777' in await pg.inner_text('#ask-text'); step('بعد إنشاء الشحن: اختيار الدفع من المحفظة أو صفحة دفع، مع المبلغ الدقيق')
+    await pg.click('#ask-no'); await pg.wait_for_timeout(400)
     tp=[c for c in st['calls'] if c[0]=='pay.topup']; op=await pg.evaluate('window.__opened')
     assert len(tp)==1 and tp[0][1]=={'amount':'5','network':'bsc'} and len(op)==1 and 'pay.html?i=inv_' in op[0], (tp,op); step('شحن الرصيد: نقرتان = طلب واحد، وتُفتح صفحة الدفع')
     # خروج ورجوع: المفتاح لا يُعرض ثانية، والفواتير تظهر
@@ -91,6 +96,23 @@ async def main():
     if len(sys.argv)>2:
       await pg.evaluate('window.scrollTo(0,0)'); await pg.screenshot(path=sys.argv[2]+'/mc-dash.png',full_page=True)
     await pg.click('#mc-docs'); assert 'docs.sarrapay.com' in (await pg.evaluate('window.__opened'))[-1]; step('زر التوثيق يفتح صفحة المطوّرين')
+    # الباقات وتنبيه الرصيد المنخفض وهامش السماح
+    pk=await pg.inner_text('#mc-packs'); assert '+2 مكافأة' in pk and '+7.5 مكافأة' in pk and 'بلا مكافأة' in pk, pk
+    await pg.locator('#mc-packs .mc-pack').nth(1).click(); assert await pg.input_value('#mc-top-amt')=='20' and await pg.locator('#mc-packs .mc-pack.on').count()==1; step('باقات الشحن: 5 و20 و50 مع مكافأتها، والنقر يملأ المبلغ')
+    assert not await pg.locator('#mc-low').is_visible() and 'سالب 0.5' in await pg.inner_text('#mc-grace'); step('هامش السماح موضّح، ولا تنبيه والرصيد كافٍ')
+    st['m']['credit']='-0.2'; st['m']['low_credit']=True
+    await pg.click('#s-merchant [data-back]'); await pg.wait_for_timeout(400); await pg.click('#menu-btn'); await pg.wait_for_timeout(300); await pg.click('[data-menu=merchant]'); await pg.wait_for_timeout(1500)
+    assert await pg.locator('#mc-low.neg').is_visible() and 'سالب' in await pg.inner_text('#mc-low-t'); step('رصيد سالب: تنبيه أحمر يشرح هامش السماح والخصم التلقائي')
+    c=await pg.evaluate("JSON.parse(localStorage.getItem('sarra.mc'))"); assert c['low'] and c['neg'], c; step('حالة الرصيد تُحفظ لتنبيه الرئيسية (بلا أسرار)')
+    # الدفع من المحفظة نفسها: العنوان والمبلغ مقفلان، والتغيير يمنع الإرسال
+    await pg.select_option('#mc-top-net','tron'); await pg.fill('#mc-top-amt','20'); await pg.click('#mc-top'); await pg.wait_for_timeout(1200)
+    assert '22' in await pg.inner_text('#ask-text'); await pg.click('#ask-yes'); await pg.wait_for_timeout(800)
+    assert await pg.locator('#s-send.active').count()==1 and await pg.input_value('#to')==TOPUP_TRON and await pg.input_value('#amt')=='20.000777'
+    assert await pg.evaluate("document.getElementById('amt').readOnly && document.getElementById('to').readOnly && document.getElementById('max').disabled"); step('ادفع من محفظتي: الإرسال مفتوح بالعنوان والمبلغ الدقيق، مقفلين')
+    await pg.evaluate("window.__core.st().pending={to:'"+TOPUP_TRON+"',amt:'19',coin:'USDT'}"); await pg.evaluate("document.getElementById('confirm-send').click()"); await pg.wait_for_timeout(500)
+    assert 'لن تُطابق' in await pg.inner_text('#toast'), await pg.inner_text('#toast'); step('تغيير المبلغ (حتى برمجياً) يمنع الإرسال: لا دفعة لا تُطابق الفاتورة')
+    await pg.click('#s-send [data-back]'); await pg.wait_for_timeout(400)
+    assert await pg.evaluate("!window.__core.st().payLock && !document.getElementById('amt').readOnly && !document.getElementById('max').disabled"); step('مغادرة الإرسال تفك القفل، فالإرسال العادي لا يتأثر')
     print('أخطاء JavaScript:', errs or 'لا يوجد'); assert not errs
     await b.close()
 asyncio.run(main())

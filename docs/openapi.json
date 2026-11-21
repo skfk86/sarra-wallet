@@ -627,6 +627,14 @@
                     },
                     "fee_min": {
                       "type": "string"
+                    },
+                    "low_credit": {
+                      "type": "boolean",
+                      "description": "true when credit is below 1 USDT"
+                    },
+                    "grace": {
+                      "type": "string",
+                      "description": "Invoices keep working until credit reaches minus this amount; repaid from the next top-up"
                     }
                   }
                 }

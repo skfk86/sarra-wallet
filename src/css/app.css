@@ -795,3 +795,12 @@ body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body
 .hempty:has(.mascot-w){border:0;background:linear-gradient(180deg,var(--s1),transparent 85%);padding:22px 20px 30px;gap:4px}
 .hempty:has(.mascot-w) b{font-size:16px;margin-top:2px}.hempty:has(.mascot-w) small{max-width:250px;line-height:1.6}
 .ord-win .mascot-w{margin:-6px 0 2px}
+/* بوابة الدفع: تنبيه الرصيد المنخفض وباقات الشحن */
+.mc-low{display:flex;gap:9px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn);font-size:12.5px;line-height:1.7}
+.mc-low .i{flex:none;width:18px;height:18px;margin-top:2px}
+.mc-low.neg{background:var(--err-bg);border-color:var(--err-bd);color:var(--err)}
+.mc-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mc-pack{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:12px;background:var(--s2);border:1.5px solid var(--line);color:var(--tx);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mc-pack b{font-size:14px;direction:ltr}.mc-pack small{font-size:11px;color:var(--ac);font-weight:700}
+.mc-pack.on{border-color:var(--ac);background:var(--ok-bg)}
+#s-send input[readonly]{opacity:.85;background:var(--s2)}

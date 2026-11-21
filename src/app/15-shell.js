@@ -26,7 +26,7 @@
     await bioDisable();
     try {
       // السجل المحلي وإشعارات الاستلام تخص المحفظة المحذوفة: تُحذف معها
-      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb|bal|tr|kl|push|pfv|chatSeen)\.|^sarra\.(rxe|exactAsked|pfp|lastsend|lastbridge)$/.test(k)) localStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (/^sarra\.(me|lh|rx|rxb|bal|tr|kl|push|pfv|chatSeen)\.|^sarra\.(rxe|exactAsked|pfp|lastsend|lastbridge|mc|mcNote)$/.test(k)) localStorage.removeItem(k); });
       sessionStorage.setItem('sarra.after-wipe', next);
     } catch (e) {}
     location.reload();

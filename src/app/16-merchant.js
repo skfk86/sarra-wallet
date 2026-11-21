@@ -2,6 +2,10 @@
   var PAY_URL = CFG.payUrl || (P2P_URL ? P2P_URL.replace(/\/p2p\/?$/, '/pay') : '');
   var PAY_DOCS = CFG.payDocs || 'https://docs.sarrapay.com/';
   var MC = { data: null, busy: false };
+  function unlockPay() {
+    state.payLock = null; $('to').readOnly = false; $('amt').readOnly = false;
+    document.querySelectorAll('#s-send .pct button').forEach(function (b) { b.disabled = false; });
+  }
   var MC_ERRORS = {
     BAD_NAME: 'اكتب اسم المتجر (من حرفين إلى 40 حرفاً)',
     BANNED: 'هذا الحساب موقوف. تواصل مع الدعم', MERCHANT_DISABLED: 'متجرك موقوف. تواصل مع الدعم',
@@ -72,6 +76,15 @@
     var d = MC.data, m = d && d.merchant;
     if (!m) return mcForm();
     $('mc-credit').textContent = state.hidden ? '••••' : niceNum(m.credit, 2); $('mc-shop').textContent = m.name; mcSteps(m, d); mcAddrs(m);
+    mcCache(m);
+    // تنبيه الرصيد المنخفض أو السالب (هامش السماح)
+    var cr = Number(m.credit), neg = cr < 0;
+    $('mc-low').hidden = !m.low_credit; $('mc-low').classList.toggle('neg', neg);
+    $('mc-low-t').textContent = neg ? 'رصيدك سالب، وتعمل الآن من هامش السماح (' + (d.grace || '0.5') + ' USDT). اشحن قريباً حتى لا يتوقف إنشاء الفواتير، والمبلغ السالب يُخصم من شحنتك تلقائياً.'
+      : 'رصيد الرسوم منخفض (أقل من ' + (d.low_at || '1') + ' USDT). اشحن الآن حتى لا تتوقف فواتيرك.';
+    $('mc-grace').hidden = !d.grace || d.grace === '0';
+    $('mc-grace').textContent = 'لا تتوقف الفواتير فور نفاد الرصيد: تستمر حتى سالب ' + d.grace + ' USDT، ويُسدَّد ذلك من شحنتك التالية تلقائياً.';
+    mcPacks(d);
     $('mc-fee').textContent = 'العمولة ' + d.fee_pct + '% من كل فاتورة مدفوعة، وأقلها ' + d.fee_min + ' USDT. الفواتير التي لم تُدفع والتجريبية مجانية.';
     var sel = $('mc-top-net'); sel.textContent = '';
     (d.topup_networks || []).forEach(function (k) { var o = el('option', '', ({ tron: 'TRON', bsc: 'BNB Chain', polygon: 'Polygon', eth: 'Ethereum' })[k] || (d.networks && d.networks[k]) || k); o.value = k; sel.appendChild(o); });
@@ -175,6 +188,49 @@
     var amt = readAmt('mc-top-amt'); if (amt === null) throw new Error('INVALID_AMOUNT');
     if (!/^\d{1,7}(\.\d{1,2})?$/.test(amt)) throw new Error('BAD_AMOUNT');
     var r = await payApi('pay.topup', { amount: amt, network: $('mc-top-net').value });
-    $('mc-top-amt').value = '';
-    window.open(r.invoice.pay_url, '_blank'); // صفحة الدفع: المبلغ الدقيق والعنوان، ويُضاف الرصيد تلقائياً بعد التأكيد
+    $('mc-top-amt').value = ''; mcPackSel();
+    var inv = r.invoice, bonus = Number(inv.bonus || 0), netN = netNameOf(inv.network);
+    MC.busy = false; // نافذة الاختيار ليست عملية شبكة: لا نُبقي الأزرار معطلة أثناءها
+    var own = await askConfirm('ادفع ' + inv.pay_amount + ' USDT على ' + netN + (bonus ? '، ويُضاف لرصيدك ' + niceNum(Number(inv.amount) + bonus, 2) + ' USDT (مع مكافأة الباقة)' : '') + '. المبلغ بكسوره مهم: هو ما يربط الدفعة بحسابك.', false, 'ادفع من محفظتي', 'صفحة دفع لمحفظة أخرى');
+    if (own) payFromWallet(inv); else if (own === null) window.open(inv.pay_url, '_blank'); // صفحة الدفع: المبلغ الدقيق والعنوان
   });
+  // باقات الشحن السريعة: 5 و20 و50 (مع مكافأة الباقة إن وُجدت)
+  function mcPacks(d) {
+    var box = $('mc-packs'); box.textContent = '';
+    [5, 20, 50].forEach(function (v) {
+      var t = (d.bonus || []).filter(function (b) { return v >= Number(b.min); }).sort(function (a, b) { return Number(b.min) - Number(a.min); })[0];
+      var b = el('button', ''); b.type = 'button'; b.className = 'mc-pack'; b.dataset.v = String(v);
+      b.appendChild(el('b', '', v + ' USDT'));
+      b.appendChild(el('small', '', t ? '+' + niceNum(v * t.pct / 100, 2) + ' مكافأة' : 'بلا مكافأة'));
+      b.onclick = function () { $('mc-top-amt').value = String(v); mcPackSel(); };
+      box.appendChild(b);
+    });
+    var best = (d.bonus || [])[0];
+    if (best) box.title = 'مكافأة ' + best.pct + '% عند شحن ' + best.min + ' USDT أو أكثر';
+  }
+  function mcPackSel() { var v = $('mc-top-amt').value.trim(); document.querySelectorAll('#mc-packs .mc-pack').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); }); }
+  $('mc-top-amt').addEventListener('input', mcPackSel);
+  function netNameOf(k) { return ({ tron: 'TRON', bsc: 'BNB Chain', polygon: 'Polygon', eth: 'Ethereum' })[k] || k; }
+  // الدفع من المحفظة نفسها: نفتح الإرسال بالعنوان والمبلغ الدقيق مقفلين. الإرسال يمر بنفس التأكيد والبصمة/الرمز كأي إرسال
+  function payFromWallet(inv) {
+    if (!NETS.some(function (n) { return n.key === inv.network; })) { window.open(inv.pay_url, '_blank'); return; }
+    state.sendNet = inv.network; state.coin = 'USDT'; renderCoinSeg(); show('send');
+    state.payLock = { to: inv.address, amt: inv.pay_amount, net: inv.network, id: inv.id, until: Date.parse(inv.expires_at) || (Date.now() + 3600000) };
+    $('to').value = inv.address; $('amt').value = inv.pay_amount; $('to').readOnly = true; $('amt').readOnly = true;
+    document.querySelectorAll('#s-send .pct button').forEach(function (b) { b.disabled = true; });
+    try { $('to').dispatchEvent(new Event('input')); $('amt').dispatchEvent(new Event('input')); } catch (e) {}
+    toast('شحن رصيد البوابة: العنوان والمبلغ مضبوطان ولا يمكن تعديلهما');
+  }
+  // حالة التاجر محفوظة على الجهاز لتنبيه الرصيد المنخفض من الشاشة الرئيسية (لا مفاتيح ولا أسرار فيها)
+  function mcCache(m) { try { localStorage.setItem('sarra.mc', JSON.stringify({ low: !!m.low_credit, neg: Number(m.credit) < 0, t: Date.now() })); } catch (e) {} }
+  // من الرئيسية: للتجار فقط، فحص خفيف كل 6 ساعات على الأكثر، وتنبيه مرة واحدة في اليوم إن كان الرصيد منخفضاً
+  async function mcLowCheck() {
+    var c = lsJson('sarra.mc', null); if (!c || !PAY_URL) return;
+    if (Date.now() - (c.t || 0) > 6 * 3600000) {
+      try { var d = await payApi('pay.me'); if (!d.merchant) { localStorage.removeItem('sarra.mc'); return; } MC.data = d; mcCache(d.merchant); c = lsJson('sarra.mc', c); } catch (e) { return; }
+    }
+    if (!c.low) return;
+    var last = Number(localStorage.getItem('sarra.mcNote') || 0); if (Date.now() - last < 24 * 3600000) return;
+    try { localStorage.setItem('sarra.mcNote', String(Date.now())); } catch (e) {}
+    toast(c.neg ? '⚠️ رصيد رسوم بوابة الدفع سالب. اشحنه من «بوابة الدفع للتجار» حتى لا تتوقف فواتيرك' : '⚠️ رصيد رسوم بوابة الدفع منخفض. اشحنه من «بوابة الدفع للتجار»');
+  }

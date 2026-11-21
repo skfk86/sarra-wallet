@@ -82,7 +82,7 @@ function fakeDb() {
         const r = T.pay_invoices.find((x) => x.id === a.p_id && x.status === 'pending'); if (!r) return { data: false, error: null };
         if (T.pay_invoices.some((x) => x !== r && x.network === r.network && x.tx_key === a.p_key)) return { data: null, error: { code: '23505' } };
         Object.assign(r, { status: 'paid', tx: a.p_tx, tx_key: a.p_key, payer: a.p_payer, paid_at: new Date(clock.t).toISOString(), hook_state: r.kind === 'payment' ? 'pending' : 'none', hook_event: 'invoice.paid', hook_attempts: 0, hook_next: new Date(clock.t).toISOString() });
-        const m = T.pay_merchants.find((x) => x.id === r.merchant_id)!; m.credit = Number(m.credit) + (r.kind === 'topup' ? Number(r.exact) : -Number(r.fee));
+        const m = T.pay_merchants.find((x) => x.id === r.merchant_id)!; m.credit = Number(m.credit) + (r.kind === 'topup' ? Number(r.exact) + Number(r.bonus || 0) : -Number(r.fee)); // نفس 026: الشحن + مكافأة الباقة
         return { data: true, error: null };
       }
       throw new Error('rpc ' + fn);
@@ -97,6 +97,7 @@ const chain: Record<string, { head: number; logs: any[] }> = { tron: { head: 100
 const rpcCalls: any[] = []; let rpcFail: string | null = null;
 const hooks: { url: string; body: string; sig: string }[] = []; let hookStatus = 200;
 const db = fakeDb();
+const GRACE_T = { v: 0n }; // الاختبارات القديمة بلا هامش سماح، واختبار الهامش يبني نسخة بهامش
 const app = createApp({
   db, now: () => clock.t,
   verify: async (message, signature) => signature === 'sig:' + JSON.parse(message).address ? JSON.parse(message).address : 'TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
@@ -107,7 +108,7 @@ const app = createApp({
     return chain[net].logs.filter((l) => l.bn >= from && l.bn <= to && want.includes(l.topics[2]));
   },
   fetch: (async (url: string, init: any) => { hooks.push({ url, body: init.body, sig: init.headers['x-sarra-signature'] }); if (hookStatus === 0) throw new Error('timeout'); return new Response('', { status: hookStatus }); }) as any,
-  cfg: { feeBps: 50, feeMin: 20000n, topup: { tron: '', evm: OUR_EVM }, payPage: 'https://p/pay.html' }
+  cfg: { feeBps: 50, feeMin: 20000n, topup: { tron: '', evm: OUR_EVM }, payPage: 'https://p/pay.html', grace: GRACE_T.v }
 });
 let nonce = 0;
 const signed = (action: string, params: Row = {}, addr = ME, sig = 'sig:' + addr) => new Request('https://x/functions/v1/pay/v1/merchant', { method: 'POST', body: JSON.stringify({ message: JSON.stringify({ app: 'sarra-p2p', action, params, address: addr, nonce: (++nonce).toString(16).padStart(24, '0'), ts: clock.t }), signature: sig }) });
@@ -188,7 +189,8 @@ await t('شحن الرصيد: فاتورة إلى عنواننا، وبعد ال
   const top = (await call(signed('pay.topup', { amount: '20', network: 'bsc' }))).j.invoice; assert.equal(top.address, OUR_EVM); assert.equal(top.kind, 'topup'); assert.equal(top.fee, '0');
   assert.equal((await api('GET', '/v1/public/' + top.id)).j.invoice.merchant, 'شحن رصيد بوابة صُرّة');
   pay('bsc', OUR_EVM, units(top.pay_amount)); await tick();
-  assert.equal(units((await api('GET', '/v1/balance', KEY)).j.credit), 500000n + units(top.pay_amount)); assert.equal(hooks.length, 1);
+  assert.equal(top.bonus, '2', 'باقة 20 USDT: مكافأة 10%');
+  assert.equal(units((await api('GET', '/v1/balance', KEY)).j.credit), 500000n + units(top.pay_amount) + 2000000n); assert.equal(hooks.length, 1);
   assert.ok(!(await api('GET', '/v1/invoices', KEY)).j.invoices.some((x: Row) => x.kind === 'topup'), 'فواتير الشحن لا تظهر في قائمة الـ API');
 });
 await t('TRON: استعلام لكل عنوان بموضوع واحد، والدفع يُسدَّد', async () => {
@@ -483,5 +485,28 @@ await t('الإشعار لا يُرسل مرتين حين يلتقطه الما�
   await Promise.all([api('POST', '/v1/invoices/' + inv.id + '/simulate', TK), tick(), tick()]);
   const sent = hooks.slice(before).filter((h) => JSON.parse(h.body).invoice.id === inv.id);
   assert.equal(sent.length, 1, 'أُرسل ' + sent.length);
+});
+await t('الباقات: لا مكافأة تحت 20، و15% من 50، والمكافأة لا تُضاف مرتين ولا للفواتير العادية', async () => {
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  const small = (await call(signed('pay.topup', { amount: '19.99', network: 'bsc' }))).j.invoice; assert.equal(small.bonus, '0');
+  const big = (await call(signed('pay.topup', { amount: '50', network: 'bsc' }))).j.invoice; assert.equal(big.bonus, '7.5');
+  const c0 = BigInt(db.T.pay_merchants[0].credit);
+  pay('bsc', OUR_EVM, units(big.pay_amount)); await tick(); await tick();
+  assert.equal(BigInt(db.T.pay_merchants[0].credit), c0 + units(big.pay_amount) + 7500000n, 'المكافأة مرة واحدة فقط');
+  const inv = db.T.pay_invoices.filter((x) => x.kind === 'payment'); assert.ok(inv.every((x) => !Number(x.bonus || 0)), 'لا مكافأة على فواتير الدفع');
+  small && (db.T.pay_invoices.find((x) => x.id === small.id)!.status = 'expired');
+});
+await t('هامش السماح: الفواتير تستمر حتى سالب 0.5، وتتوقف بعده، والتاجر يرى تنبيه الرصيد المنخفض', async () => {
+  const appG = createApp({ db, now: () => clock.t, verify: async () => ME, rpc: async () => '0x0', fetch: async () => new Response('ok'),
+    cfg: { feeBps: 50, feeMin: 20000n, topup: { tron: '', evm: OUR_EVM }, payPage: 'https://p/pay.html', grace: 500000n, lowCredit: 1000000n } });
+  const apiG = async (body: unknown) => { const r = await appG.handle(new Request('https://x/functions/v1/pay/v1/invoices', { method: 'POST', headers: { authorization: 'Bearer ' + KEY }, body: JSON.stringify(body) })); return { status: r.status, j: await r.json() as any }; };
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
+  db.T.pay_merchants[0].credit = 0;
+  assert.equal((await apiG({ amount: '40', network: 'bsc' })).status, 200, 'عمولة 0.2 ضمن الهامش');
+  assert.equal((await apiG({ amount: '50', network: 'bsc' })).status, 200, 'المجموع 0.45 ضمن الهامش');
+  assert.equal((await apiG({ amount: '20', network: 'bsc' })).j.error, 'INSUFFICIENT_CREDIT', '0.55 يتجاوز الهامش');
+  const bal = await (await appG.handle(new Request('https://x/functions/v1/pay/v1/balance', { headers: { authorization: 'Bearer ' + KEY } }))).json() as any;
+  assert.equal(bal.low_credit, true); assert.equal(bal.grace, '0.5');
+  for (const r of db.T.pay_invoices) if (r.status === 'pending') r.status = 'expired';
 });
 console.log(pass + ' اختبارات تكاملية لخادم بوابة الدفع نجحت');

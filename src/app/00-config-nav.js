@@ -37,7 +37,7 @@
   var core = WalletCore.createCore({ deviceKey: (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.DeviceKey) ? function () { return window.Capacitor.Plugins.DeviceKey.get().then(function (r) { return r && r.key; }); } : null, network: NETWORK, apiKey: TRONGRID_API_KEY, feeAddress: CFG.feeAddress, feeBps: CFG.feeBps, evm: CFG.evm === true, lifiFee: CFG.lifiFee, lifiSwapFee: CFG.lifiSwapFee, lifiIntegrator: CFG.lifiIntegrator, bridgeMax: CFG.bridgeMax, lifiTron: CFG.lifiTron || '' });
   // ===== الشبكات =====
   var EVM = core.evmEnabled() ? core.evmChains() : {};
-  if (location.protocol === 'file:') window.__core = { lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
+  if (location.protocol === 'file:') window.__core = { st: function () { return state; }, lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
   // كل الشبكات والعملات من سجل واحد (logic/registry.js)؛ عقود التوكنات في wallet-core.js
   var REG = SarraLogic.buildRegistry(EVM);
   var NETS = REG.networks;
@@ -96,6 +96,7 @@
     $('s-' + name).classList.add('active');
     // شاشات الكلمات والاستيراد: لا تصوير للشاشة ولا معاينة في التطبيقات الأخيرة (أندرويد)
     try { var DK = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.DeviceKey; if (DK && DK.secure) DK.secure({ on: name === 'backup' || name === 'reveal' || name === 'import' }).catch(function () {}); } catch (e) {}
+    if (name !== 'send' && state.payLock) unlockPay(); // قفل دفع فاتورة الشحن يخص شاشة الإرسال فقط
     if (push !== false) state.stack.push(name);
     window.scrollTo(0, 0);
     var tabbed = TAB_SCREENS.indexOf(name) >= 0;
