@@ -43,7 +43,7 @@ src/
 - `supabase/migrations/020_pay.sql`: الجداول، التسديد الذرّي `pay_settle`، والجدولة.
 - `src/app/16-merchant.js`: شاشة التاجر في التطبيق. `docs/pay.html`: صفحة الدفع للعميل. `docs/api.html`: توثيق المطوّرين.
 - النشر: Actions ← Deploy edge function ← `pay-setup`. يحتاج المتغيرين `SARRA_FEE_ADDRESS` (TRON) و`SARRA_EVM_FEE_ADDRESS` (0x) كعنواني شحن الرصيد.
-- إعدادات اختيارية في أسرار الدوال: `PAY_FEE_BPS` (50)، `PAY_FEE_MIN_USDT` (0.02)، `PAY_PAGE_URL`.
+- إعدادات اختيارية في أسرار الدوال: `PAY_FEE_BPS` (50)، `PAY_FEE_MIN_USDT` (0.02)، `PAY_PAGE_URL`، `PAY_GRACE_USDT` (0.5: هامش السماح بعد أول شحن، 0 لإلغائه)، `PAY_LOW_USDT` (1: حد تنبيه الرصيد المنخفض). باقات الشحن (10% من 20، و15% من 50) في `pay/app.ts`.
 
 ## الإعدادات (src/config.js، يُكتب وقت البناء)
 

@@ -804,5 +804,5 @@ body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body
 .mc-pack b{font-size:14px;direction:ltr}.mc-pack small{font-size:11px;color:var(--ac);font-weight:700}
 .mc-pack.on{border-color:var(--ac);background:var(--ok-bg)}
 #s-send input[readonly]{opacity:.85;background:var(--s2)}
-.mc-pack{position:relative}.mc-pack small{color:var(--mut)}
+.mc-pack{position:relative}.mc-pack small{color:var(--mu)}
 .mc-gift{position:absolute;top:-8px;inset-inline-end:6px;font-style:normal;font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:var(--ac);color:#062A20}
