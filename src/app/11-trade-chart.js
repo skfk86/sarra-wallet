@@ -159,10 +159,22 @@
       var c = trCoin(TR.sym), v = trPosView(c); if (!(v.q > 0)) return;
       if (v.net) TR.net = v.net;
       odOpen('sell'); if (v.net && trNets(c).indexOf(v.net) >= 0) { TR.net = v.net; odRender(); }
-      var have = balOn(c.sym, TR.net), q = Math.min(v.q, have == null ? v.q : have) * Number(b.dataset.qs) / 100;
-      // بيع عملة الشبكة نفسها (BNB/ETH/POL): نُبقي رسوم الشبكة وإلا فشلت المعاملة لنقص الوقود
-      if (have != null && c.sym === netOf(TR.net).native) q = Math.max(0, Math.min(q, have - REG.gasKeep(TR.net)));
-      $('od-amt').value = String(Math.floor(q * 1e8) / 1e8); TR.oq = null; odRender();
+      var nt = netOf(TR.net), qs = Number(b.dataset.qs);
+      if (nt.evm) {
+        // وحدات صحيحة BigInt: الأصغر من كمية المركز والرصيد المتاح (بعد حجز رسوم الشبكة إن كانت العملة أصلية)، ثم النسبة
+        var r = spendUnits(TR.net, c.sym, 100);
+        if (!r) return toast('تعذّر قراءة الرصيد الآن، حاول بعد لحظات', true);
+        if (r.bal === 0n) return toast('رصيدك من ' + coinOnLabel(TR.net, c.sym) + ' صفر', true);
+        var qu = WalletCore.toUnitsFloor(Number(v.q).toFixed(Math.min(r.dec, 8)), r.dec), cap = qu < r.units ? qu : r.units, sel = cap * BigInt(qs) / 100n;
+        if (sel === 0n) return toast('رصيدك (' + unitsText(r.bal, r.dec) + ' ' + c.sym + ') أقل من المحجوز لرسوم الشبكة (' + unitsText(r.keep, r.dec) + ')', true);
+        $('od-amt').value = unitsText(sel, r.dec);
+      } else {
+        // TRON: خانات العملة 6 فلا خطر دقة بـ Number هنا
+        var have = balOn(c.sym, TR.net), q = Math.min(v.q, have == null ? v.q : have) * qs / 100;
+        if (have != null && c.sym === nt.native) q = Math.max(0, Math.min(q, have - REG.gasKeep(TR.net)));
+        $('od-amt').value = String(Math.floor(q * 1e6) / 1e6);
+      }
+      TR.oq = null; odRender();
     };
   });
   function trRow(t) {

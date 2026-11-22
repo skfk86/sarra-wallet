@@ -34,6 +34,13 @@ async def main():
     h=lambda: pg.inner_text('#to-hint')
     assert 'معرّف صُرّة' in await h(); print('✓ خانة المستلم تبرز خيار معرّف صُرّة')
     await pg.fill('#to','4829'); assert '4/8' in await h(); await pg.fill('#to','48291736'); assert 'صحيح الشكل' in await h(); await pg.fill('#to','482917361'); assert 'أكبر من 8' in await h(); await pg.fill('#to',''); assert 'معرّف صُرّة' in await h(); print('✓ تلميح فوري لشكل المعرّف (ناقص/صحيح/زائد)')
+    # مفتاح نوع التحويل: خارجي/داخلي يتبدّل مع القيمة، ويُرفض التعارض
+    mode=lambda: pg.get_attribute('#to-mode .on','data-mode')
+    await pg.fill('#to','48291736'); assert await mode()=='int'; await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw'); assert await mode()=='ext'
+    await pg.fill('#to','48291736'); await pg.click('#to-mode [data-mode=ext]'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(300)
+    assert 'تحويل داخلي' in await pg.inner_text('#send-err') and not st['lookups']; print('✓ مفتاح التحويل: تبديل تلقائي ورفض التعارض')
+    await pg.click('#max'); await pg.wait_for_timeout(300)
+    print('✓ زر الكل بلا رصيد لا ينهار')
     await pg.fill('#to','0922223333'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(600)
     assert 'معرّف صُرّة' in await pg.inner_text('#send-err') and not st['lookups']; print('✓ رقم الهاتف في خانة المستلم يُرفض ويوجّه لمعرّف صُرّة دون أي بحث')
     await pg.click('#s-send [data-back]'); await pg.click('.actions [data-go=receive]'); await pg.wait_for_timeout(1200)

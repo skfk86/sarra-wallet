@@ -106,18 +106,32 @@
   function renderRecent() {
     var box = $('recent'), l = recentList(state.sendNet); box.textContent = ''; box.hidden = !l.length;
     l.forEach(function (a) { var b = document.createElement('button'); b.type = 'button'; b.textContent = asPhone(a) ? a : a.slice(0, 6) + '…' + a.slice(-4); b.title = a;
-      b.onclick = function () { $('to').value = a; $('send-err').hidden = true; }; box.appendChild(b); });
+      b.onclick = function () { $('to').value = a; $('to').dispatchEvent(new Event('input')); $('send-err').hidden = true; }; box.appendChild(b); });
   }
   function updUsd() {
     var c = COINS.filter(function (x) { return x.sym === state.coin; })[0], pr = c && priceOf(c), v = amtNum('amt');
     $('amt-usd').textContent = pr && pr.usd && v > 0 ? '≈ $' + fmt(v * pr.usd, 2) : '';
   }
   $('amt').addEventListener('input', updUsd);
+  // نوع التحويل: خارجي (عنوان محفظة) أو داخلي (معرّف صُرّة 8 أرقام). الحقل واحد، فالمفتاح يوضّح ما سيحدث،
+  // ويتبدّل تلقائياً عند كتابة/لصق قيمة يُعرف نوعها، ويُرفض عند المراجعة أي تعارض بين المفتاح والقيمة
+  state.sendMode = 'ext';
+  function setSendMode(m) {
+    state.sendMode = m;
+    document.querySelectorAll('#to-mode [data-mode]').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    $('to').placeholder = m === 'int' ? 'معرّف صُرّة (8 أرقام)' : (state.sendNet === 'tron' ? 'T…' : '0x…');
+    $('to-hint').style.color = ''; $('to-hint').textContent = m === 'int' ? 'تحويل داخلي: اكتب معرّف صُرّة (8 أرقام). سنعرض اسم المستلم للتأكيد قبل الإرسال.' : 'تحويل خارجي: الصق عنوان المحفظة على الشبكة المختارة.';
+  }
+  document.querySelectorAll('#to-mode [data-mode]').forEach(function (b) { b.onclick = function () { setSendMode(b.dataset.mode); $('send-err').hidden = true; }; });
+  $('to').addEventListener('input', function () {
+    var v = this.value.trim(); if (!v) return;
+    if (asSarraId(v) && state.sendMode !== 'int') setSendMode('int'); else if (/^(T[1-9A-HJ-NP-Za-km-z]{10,}|0x[0-9a-fA-F]{10,})/.test(v) && state.sendMode !== 'ext') setSendMode('ext');
+  });
   // تلميح فوري لخانة المستلم (الشكل فقط؛ التحقق من وجود المستلم وعرض اسمه يتمان عند المراجعة)
   $('to').addEventListener('input', function () {
     var v = this.value.trim(), h = $('to-hint'), digits = v.replace(/[\s\-#@]/g, '').replace(/[٠-٩]/g, function (d) { return String(d.charCodeAt(0) - 1632); });
     h.style.color = '';
-    if (!v) h.innerHTML = 'أو اكتب <b>معرّف صُرّة</b> (8 أرقام) بدل العنوان.';
+    if (!v) setSendMode(state.sendMode);
     else if (asSarraId(v)) { h.textContent = '✓ معرّف صُرّة صحيح الشكل. سنعرض لك اسم المستلم للتأكيد قبل الإرسال.'; h.style.color = 'var(--ac)'; }
     else if (/^\d{1,7}$/.test(digits)) h.textContent = 'معرّف صُرّة يتكوّن من 8 أرقام (' + digits.length + '/8).';
     else if (/^\d{9,}$/.test(digits)) { h.textContent = 'عدد الأرقام أكبر من 8. تحقق من المعرّف.'; h.style.color = 'var(--err)'; }
@@ -137,7 +151,7 @@
     var m681 = s.match(/^ethereum:0x[0-9a-fA-F]{40}(?:@\d+)?\/transfer\?(?:.*&)?address=(0x[0-9a-fA-F]{40})/i);
     var addr = m681 ? m681[1] : s.replace(/^(tron|ethereum|bnb|polygon):/i, '').split(/[?&/@]/)[0];
     var evm = state.sendNet !== 'tron';
-    if (evm ? core.isEvmAddress(addr) : core.isValidAddress(addr)) { $('to').value = addr; $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
+    if (evm ? core.isEvmAddress(addr) : core.isValidAddress(addr)) { $('to').value = addr; $('to').dispatchEvent(new Event('input')); $('send-err').hidden = true; toast('تم قراءة العنوان'); return true; }
     toast(evm ? 'الرمز لا يحتوي عنواناً صحيحاً يبدأ بـ 0x' : 'الرمز لا يحتوي عنوان TRON صحيحاً', true);
     return false;
   }
@@ -203,17 +217,18 @@
   $('paste').onclick = async function () {
     try {
       var r = P.Clipboard ? (await P.Clipboard.read()).value : await navigator.clipboard.readText();
-      $('to').value = String(r || '').trim();
+      $('to').value = String(r || '').trim(); $('to').dispatchEvent(new Event('input'));
     } catch (e) { toast('تعذّر اللصق', true); }
   };
   $('max').onclick = function () {
-    var u = coinUnits(); if (u == null) return;
-    // عند إرسال كل TRX نترك 2 TRX للرسوم
-    if (state.coin === 'TRX') u = u > 2000000n ? u - 2000000n : 0n;
-    // عند إرسال كل العملة الأصلية على EVM نترك رسوم الإرسال (وإلا ترفض الشبكة المعاملة)
-    var nn = netOf(state.sendNet);
-    if (nn.evm && state.coin === nn.native) { var keep = { bsc: 100000000000000n, polygon: 10000000000000000n, eth: 300000000000000n }[nn.key] || 300000000000000n; u = u > keep ? u - keep : 0n; }
-    $('amt').value = WalletCore.fromUnits(u, state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin)); updUsd();
+    var u = coinUnits(); if (u == null) return toast('الرصيد لم يُحمّل بعد', true);
+    var nn = netOf(state.sendNet), dec = state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin), keep = 0n, nat = state.coin === nn.native;
+    // العملة الأصلية: نترك رسوم الشبكة. EVM: المحجوز نفسه REG.gasKeep المستعمل في التبديل والنقل والتداول (مصدر واحد).
+    // TRON: إرسال TRX يحتاج عرض نطاق فقط فنترك 2 TRX (حجز التبديل 15 TRX للطاقة غير لازم هنا). TRON بست خانات فلا خطر دقة، والحساب بـ BigInt للتوحيد
+    if (nat) keep = nn.evm ? WalletCore.toUnitsFloor(String(REG.gasKeep(state.sendNet)), dec) : 2000000n;
+    if (u === 0n) return toast('رصيدك من ' + state.coin + ' على ' + nn.name + ' صفر', true);
+    if (nat && u <= keep) return toast('الرصيد غير كافٍ لتغطية رسوم الشبكة. تحتاج ' + WalletCore.fromUnits(keep, dec) + ' ' + nn.native + ' على الأقل (رصيدك ' + WalletCore.fromUnits(u, dec) + ')', true);
+    $('amt').value = WalletCore.fromUnits(u - keep, dec); updUsd();
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
   // معرّف صُرّة: 8 أرقام لا يبدأ بصفر (الهاتف يبدأ بصفر)
@@ -253,6 +268,8 @@
     $('send-err').hidden = true;
     if (navigator.onLine === false) return sendError('لا يوجد اتصال بالإنترنت. تحقق من الاتصال ثم حاول');
     var to = $('to').value.trim(), amt = $('amt').value, via = null;
+    if (state.sendMode === 'int' && !asSarraId(to)) return sendError('اكتب معرّف صُرّة من 8 أرقام (لا يبدأ بصفر)، أو بدّل إلى «تحويل خارجي» للإرسال إلى عنوان محفظة');
+    if (state.sendMode === 'ext' && asSarraId(to)) return sendError('هذا معرّف صُرّة وليس عنوان محفظة. بدّل إلى «تحويل داخلي»');
     var n = netOf(state.sendNet);
     if (n.evm) {
       if (core.isValidAddress(to)) return sendError('هذا عنوان TRON. اختر شبكة TRON للإرسال إليه، أو اطلب من المستلم عنواناً على ' + n.name);

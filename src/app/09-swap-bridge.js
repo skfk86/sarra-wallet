@@ -132,6 +132,7 @@
   document.querySelectorAll('#sw-pct [data-pct]').forEach(function (b) {
     b.onclick = function () {
       var sym = swapSyms()[0], bl = state.balances; if (!bl) return toast('الرصيد لم يُحمّل بعد', true);
+      // TRON: خانات العملتين 6 فقط فلا خطر دقة بـ Number، لكن نستعمل BigInt هنا لتتطابق الطريقة مع EVM ولا يختلف سلوك الأزرار بين الشبكات.
       // وحدات صحيحة (6 خانات) بـ BigInt؛ عند 100% من TRX نحجز REG.gasKeep('tron') للطاقة والرسوم
       var bal = WalletCore.toUnitsFloor(Number(sym === 'TRX' ? bl.trx : bl.usdt).toFixed(6), 6), pct = Number(b.dataset.pct), keep = 0n;
       if (bal === 0n) return toast('رصيدك من ' + sym + ' صفر', true);
