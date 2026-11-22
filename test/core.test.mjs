@@ -330,4 +330,21 @@ await t('معاملة ترون متلاعَب بها تُرفض قبل أي تو
   await assert.rejects(W.checkTronBridgeTx({ txID: 'x', raw_data_hex: 'zz' }, exp), /ROUTE_MISMATCH/);
 });
 
+await t('رسوم EVM: خادم يعيد null لا يُفشل العملية (Cannot read properties of null)', async () => {
+  const G = 10n ** 9n, chain = { id: 1 };
+  // getFeeData ينهار كما في publicnode، والشبكة نفسها تجيب مباشرة
+  const p1 = { getFeeData: async () => { throw new TypeError("Cannot read properties of null (reading 'baseFeePerGas')"); },
+    send: async (m) => m === 'eth_maxPriorityFeePerGas' ? '0x' + (2n * G).toString(16) : m === 'eth_getBlockByNumber' ? { baseFeePerGas: '0x' + (30n * G).toString(16) } : '0x1' };
+  const r1 = await W.evmFees(p1, chain);
+  assert.equal(r1.f.type, 2); assert.equal(r1.f.maxPriorityFeePerGas, 2n * G); assert.equal(r1.f.maxFeePerGas, 62n * G); assert.equal(r1.price, 62n * G);
+  // لا baseFee (سلسلة قديمة): gasPrice عادي
+  const p2 = { getFeeData: async () => ({ maxFeePerGas: null, gasPrice: null }), send: async (m) => { if (m === 'eth_gasPrice') return '0x' + (5n * G).toString(16); if (m === 'eth_getBlockByNumber') return null; throw new Error('x'); } };
+  const r2 = await W.evmFees(p2, chain); assert.equal(r2.f.type, 0); assert.equal(r2.f.gasPrice, 5n * G);
+  // الطريق العادي لا يتغيّر
+  const p3 = { getFeeData: async () => ({ maxFeePerGas: 40n * G, maxPriorityFeePerGas: 1n * G, gasPrice: 20n * G }), send: async () => { throw new Error('unused'); } };
+  const r3 = await W.evmFees(p3, chain); assert.equal(r3.f.maxFeePerGas, 40n * G); assert.equal(r3.f.maxPriorityFeePerGas, 1n * G);
+  // تعذّر الشبكة كلياً: يرمي ليُجرَّب الخادم التالي
+  await assert.rejects(() => W.evmFees({ getFeeData: async () => { throw new Error('down'); }, send: async () => { throw new Error('down'); } }, chain));
+});
+
 console.log(`\n${pass} اختبارات نجحت`);

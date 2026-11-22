@@ -267,7 +267,7 @@
     if (!BR.q || state.txBusy) return;
     var q = BR.q;
     $('brc-amt').textContent = q.amount + ' ' + q.sym;
-    $('brc-nets').textContent = netOf(q.fromNet).name + ' ← ' + netOf(q.toNet).name;
+    $('brc-nets').textContent = 'من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name;
     ['out', 'min', 'plat', 'fee', 'time', 'tool'].forEach(function (k) { $('brc-' + k).textContent = $('br-' + k).textContent; });
     $('br-sheet').classList.add('show');
   };
