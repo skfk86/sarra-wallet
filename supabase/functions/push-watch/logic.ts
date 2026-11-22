@@ -25,8 +25,9 @@ export function fmtUnits(raw: bigint, dec: number): string {
 }
 
 export type Tok = { sym: string; addr: string; dec: number };
+// fromSarra: المرسِل عنوان مسجّل في صُرّة (تحويل بين مستخدمي صُرّة)؛ لا نكشف هويته أبداً
 // self: المعاملة أرسلها عنوانك أنت (تبديل/نقل/إرسال من جهازك)؛ undefined = لم نتمكن من التحقق
-export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean };
+export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean; fromSarra?: boolean };
 
 // يحوّل سجلات Transfer إلى أحداث لعناويننا فقط. ours: hex20 → true
 export function eventsFromLogs(chain: string, logs: any[], toks: Tok[], ours: Set<string>, minRaw: (t: Tok) => bigint): Ev[] {
@@ -42,7 +43,7 @@ export function eventsFromLogs(chain: string, logs: any[], toks: Tok[], ours: Se
     const from = addrOfTopic(l.topics[1]), to = addrOfTopic(l.topics[2]), tx = String(l.transactionHash || ''), key = tx + ':' + String(l.logIndex ?? '');
     if (seen.has(key)) continue; seen.add(key);
     const amount = fmtUnits(v, t.dec);
-    if (ours.has(to)) out.push({ kind: 'in', chain, sym: t.sym, amount, hex: to, tx, key });
+    if (ours.has(to)) out.push({ kind: 'in', chain, sym: t.sym, amount, hex: to, tx, key, fromSarra: ours.has(from) && from !== to });
     if (ours.has(from) && from !== to) out.push({ kind: 'out', chain, sym: t.sym, amount, hex: from, tx, key: key + ':o' });
   }
   return out;
@@ -70,6 +71,7 @@ export function message(e: Ev): { title: string; body: string } {
   if (e.kind === 'in') {
     return e.self === true
       ? { title: 'اكتملت عمليتك', body: 'وصلك +' + amt + ' على ' + net + ' نتيجة عملية أجريتها من محفظتك' + shortTx(e.tx) }
+      : e.fromSarra ? { title: 'وصلتك تحويلة داخلية', body: 'وصلك +' + amt + ' على ' + net + ' من مستخدم صُرّة' }
       : { title: 'وصلتك تحويلة', body: 'استلمت +' + amt + ' على ' + net };
   }
   if (e.self === true) return { title: 'تم إرسال مبلغ', body: 'أُرسلت ' + amt + ' من محفظتك على ' + net + shortTx(e.tx) };

@@ -67,4 +67,15 @@ t('نص الإشعار يتبع أصل العملية (تبديل/إرسال م�
   assert.ok(alien.body.includes('فاحمِ') && alien.body.includes('لم تبدأها'), alien.body);
   assert.ok(L.message({ ...base, kind: 'out' }).body.includes('فاحمِ')); // غير معروف: نبقي التحذير
 });
+t('تحويل بين مستخدمي صُرّة: نص عام بلا هوية المرسل', () => {
+  const B = 'c'.repeat(40);
+  const ev = L.eventsFromLogs('bsc', [log(B, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
+  const m = L.message(ev.filter((e) => e.kind === 'in')[0]);
+  assert.equal(m.title, 'وصلتك تحويلة داخلية'); assert.ok(m.body.includes('من مستخدم صُرّة')); assert.ok(!m.body.includes(B));
+  // مرسل غير مسجّل: النص العادي
+  const ev2 = L.eventsFromLogs('bsc', [log(OTHER, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
+  assert.equal(L.message(ev2[0]).title, 'وصلتك تحويلة');
+  // أصل العملية مني أنا يغلب (تبديل/نقل من محفظتي)
+  assert.equal(L.message({ ...ev[0], self: true }).title, 'اكتملت عمليتك');
+});
 console.log(`\n${pass} اختبارات ماسح الإشعارات نجحت`);
