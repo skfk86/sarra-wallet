@@ -272,11 +272,20 @@
   $('od-amt').addEventListener('input', function () { TR.oq = null; odRender(); });
   document.querySelectorAll('#od-pct button').forEach(function (b) {
     b.onclick = function () {
-      var pay = odPay(), v = balOn(pay, TR.net);
-      if (v == null || !(v > 0)) return toast(v == null ? 'تعذّر قراءة الرصيد الآن، حاول بعد لحظات' : 'رصيدك من ' + pay + ' على ' + netOf(TR.net).name + ' صفر');
-      var n = netOf(TR.net), keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // نُبقي رسوم الشبكة
-      var a = Math.max(0, (Number(b.dataset.p) === 100 ? v - keep : v * Number(b.dataset.p) / 100));
-      $('od-amt').value = String(Math.floor(a * 1e6) / 1e6); TR.oq = null; odRender();
+      var pay = odPay(), n = netOf(TR.net), pct = Number(b.dataset.p), txt;
+      if (n.evm) { // BigInt على الوحدات الصحيحة، ونحجز gasKeep عند 100% من عملة الشبكة
+        var r = spendUnits(TR.net, pay, pct);
+        if (!r) return toast('تعذّر قراءة الرصيد الآن، حاول بعد لحظات', true);
+        if (r.bal === 0n) return toast('رصيدك من ' + coinOnLabel(TR.net, pay) + ' صفر', true);
+        if (r.units === 0n) return toast('رصيدك (' + unitsText(r.bal, r.dec) + ' ' + pay + ') أقل من المحجوز لرسوم الشبكة (' + unitsText(r.keep, r.dec) + ')', true);
+        txt = unitsText(r.units, r.dec);
+      } else {
+        var v = balOn(pay, TR.net);
+        if (v == null || !(v > 0)) return toast(v == null ? 'تعذّر قراءة الرصيد الآن، حاول بعد لحظات' : 'رصيدك من ' + pay + ' على ' + n.name + ' صفر', true);
+        var keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // TRON: نُبقي TRX للطاقة
+        txt = String(Math.floor(Math.max(0, pct === 100 ? v - keep : v * pct / 100) * 1e6) / 1e6);
+      }
+      $('od-amt').value = txt; TR.oq = null; odRender();
     };
   });
   $('od-cancel').onclick = function () { $('od-sheet').classList.remove('show'); };
