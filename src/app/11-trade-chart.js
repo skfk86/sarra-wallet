@@ -272,7 +272,8 @@
   $('od-amt').addEventListener('input', function () { TR.oq = null; odRender(); });
   document.querySelectorAll('#od-pct button').forEach(function (b) {
     b.onclick = function () {
-      var pay = odPay(), v = balOn(pay, TR.net); if (v == null || !(v > 0)) return;
+      var pay = odPay(), v = balOn(pay, TR.net);
+      if (v == null || !(v > 0)) return toast(v == null ? 'تعذّر قراءة الرصيد الآن، حاول بعد لحظات' : 'رصيدك من ' + pay + ' على ' + netOf(TR.net).name + ' صفر');
       var n = netOf(TR.net), keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // نُبقي رسوم الشبكة
       var a = Math.max(0, (Number(b.dataset.p) === 100 ? v - keep : v * Number(b.dataset.p) / 100));
       $('od-amt').value = String(Math.floor(a * 1e6) / 1e6); TR.oq = null; odRender();

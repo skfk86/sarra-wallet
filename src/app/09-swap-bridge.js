@@ -20,7 +20,8 @@
         seg.appendChild(b);
       });
     });
-    var bal = balOn(ES.from, ES.net); $('es-bal').textContent = bal == null ? '—' : (Math.floor(bal * 1e6) / 1e6) + ' ' + ES.from;
+    var bal = balOn(ES.from, ES.net); var eu = evmUnits(ES.net, ES.from); $('es-bal').textContent = eu == null ? '—' : unitsText(BigInt(eu), evmDec(ES.net, ES.from)) + ' ' + ES.from;
+    $('es-bal-net').textContent = 'الرصيد على ' + netOf(ES.net).name + (isWrapped(ES.net, ES.from) ? ' · ' + ES.from + ' مغلّف على هذه الشبكة وليس عملتها الأصلية' : '');
     $('es-note').firstChild.textContent = '⛽ تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة.';
   }
   $('es-amt').addEventListener('input', function () { esReset(); usdEq($('es-usd'), $('es-amt').value, ES.from); });
@@ -28,16 +29,14 @@
   $('es-requote').onclick = function () { $('es-quote-btn').click(); };
   document.querySelectorAll('#es-pct [data-pct]').forEach(function (b) {
     b.onclick = function () {
-      var n = netOf(ES.net), bal = balOn(ES.from, ES.net); if (bal == null) return;
-      var v = bal * Number(b.dataset.pct) / 100;
-      if (ES.from === n.native && b.dataset.pct === '100') v = Math.max(0, v - 0.001); // نترك وقوداً للرسوم
-      $('es-amt').value = String(Math.floor(v * 1e6) / 1e6); esReset(); usdEq($('es-usd'), $('es-amt').value, ES.from);
+      var r = spendUnits(ES.net, ES.from, Number(b.dataset.pct)); if (!r) return toast('الرصيد لم يُحمّل بعد', true);
+      if (r.bal === 0n) return toast('رصيدك من ' + coinOnLabel(ES.net, ES.from) + ' صفر', true);
+      if (r.units === 0n) return toast('رصيدك (' + unitsText(r.bal, r.dec) + ' ' + ES.from + ') أقل من المحجوز لرسوم الشبكة (' + unitsText(r.keep, r.dec) + '). اكتب مبلغاً أصغر يدوياً أو اشحن ' + ES.from, true);
+      $('es-amt').value = unitsText(r.units, r.dec); esReset(); usdEq($('es-usd'), $('es-amt').value, ES.from);
     };
   });
   $('es-max').onclick = function () {
-    var n = netOf(ES.net), b = balOn(ES.from, ES.net); if (b == null) return;
-    if (ES.from === n.native) b = Math.max(0, b - REG.gasKeep(ES.net)); // نترك وقوداً للرسوم
-    $('es-amt').value = String(Math.floor(b * 1e6) / 1e6); esReset();
+    $('es-pct').querySelector('[data-pct="100"]').click();
   };
   $('es-quote-btn').onclick = async function () {
     esReset();
@@ -236,7 +235,7 @@
   $('br-flip').onclick = function () { var t = BR.from; BR.from = BR.to; BR.to = t; $('br-amt').value = ''; brReset(); prepareBridge(); };
   function brErr(m) { var e = $('br-err'); e.textContent = m; e.hidden = !m; }
   $('br-amt').addEventListener('input', brReset);
-  $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null && BR.coin === netOf(BR.from).native) b = Math.max(0, b - REG.gasKeep(BR.from)); if (b != null) { $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); } };
+  $('br-max').onclick = function () { var b = balOn(BR.coin, BR.from); if (b != null && BR.coin === netOf(BR.from).native) b = Math.max(0, b - REG.gasKeep(BR.from)); if (b == null) return toast('الرصيد لم يُحمّل بعد', true); if (!(b > 0)) return toast('رصيدك من ' + BR.coin + ' على ' + netOf(BR.from).name + ' لا يكفي بعد حجز رسوم الشبكة (' + REG.gasKeep(BR.from) + ' ' + netOf(BR.from).native + ')', true); $('br-amt').value = String(Math.floor(b * 1e6) / 1e6); brReset(); };
   $('br-quote-btn').onclick = async function () {
     brReset();
     var amt = readAmt('br-amt', brErr); if (amt === null) return;
@@ -267,7 +266,7 @@
     if (!BR.q || state.txBusy) return;
     var q = BR.q;
     $('brc-amt').textContent = q.amount + ' ' + q.sym;
-    $('brc-nets').textContent = netOf(q.fromNet).name + ' ← ' + netOf(q.toNet).name;
+    $('brc-nets').textContent = 'من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name;
     ['out', 'min', 'plat', 'fee', 'time', 'tool'].forEach(function (k) { $('brc-' + k).textContent = $('br-' + k).textContent; });
     $('br-sheet').classList.add('show');
   };

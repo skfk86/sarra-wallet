@@ -306,7 +306,18 @@
       var maxP = base * 2n + tip;
       return { f: { type: 2, maxFeePerGas: maxP, maxPriorityFeePerGas: tip }, price: maxP };
     }
-    var fee = await p.getFeeData();
+    // بعض الخوادم العامة (publicnode وغيرها) تعيد null لطلب الكتلة فيرمي ethers «Cannot read properties of null»
+    // داخل getFeeData ويفشل النقل من أول محاولة. نجرّبها، وعند أي فشل نحسب الرسوم من الشبكة مباشرة
+    var fee = null;
+    try { fee = await p.getFeeData(); } catch (e) { fee = null; }
+    if (!fee || (!fee.maxFeePerGas && !fee.gasPrice)) {
+      var tip0 = 1n * gwei, base0 = 0n;
+      try { var rt0 = BigInt(await p.send('eth_maxPriorityFeePerGas', [])); if (rt0 > 0n) tip0 = rt0; } catch (e) {}
+      try { var blk0 = await p.send('eth_getBlockByNumber', ['latest', false]); base0 = BigInt(blk0 && blk0.baseFeePerGas || 0); } catch (e) {}
+      if (base0) { var mx0 = base0 * 2n + tip0; return { f: { type: 2, maxFeePerGas: mx0, maxPriorityFeePerGas: tip0 }, price: mx0 }; }
+      var gp0 = BigInt(await p.send('eth_gasPrice', [])); // يرمي إن تعذّر الاتصال فعلاً فينتقل للخادم التالي
+      return { f: { type: 0, gasPrice: gp0 }, price: gp0 };
+    }
     if (!fee.maxFeePerGas) return { f: { type: 0, gasPrice: fee.gasPrice }, price: fee.gasPrice };
     var t = BigInt(fee.maxPriorityFeePerGas || 0n), max = BigInt(fee.maxFeePerGas);
     if (max < t) max = t;
@@ -508,7 +519,16 @@
       var t = c.tokens.filter(function (x) { return x.sym === sym; })[0];
       return t ? { chain: String(c.id), addr: t.addr, dec: t.dec } : null;
     }
+    // طلبات LI.FI قراءة فقط (آمنة للإعادة): انقطاع عابر أو 5xx يُعاد مرة واحدة قبل إظهار الخطأ
     async function lifi(path) {
+      try { return await lifiOnce(path); }
+      catch (e) {
+        if (!e || e.message !== 'BRIDGE_NETWORK') throw e;
+        await new Promise(function (r) { setTimeout(r, 700); });
+        return await lifiOnce(path);
+      }
+    }
+    async function lifiOnce(path) {
       var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       var to = ctl && setTimeout(function () { ctl.abort(); }, 25000);
       try {
@@ -1243,7 +1263,7 @@
 
   var api = {
     normalizeAddress: normalizeAddress,
-    checkBridgeQuote: checkBridgeQuote, checkTronBridgeTx: checkTronBridgeTx, parseTronTrigger: parseTronTrigger,
+    evmFees: evmFees, checkBridgeQuote: checkBridgeQuote, checkTronBridgeTx: checkTronBridgeTx, parseTronTrigger: parseTronTrigger,
     EVM_CHAINS: EVM_CHAINS,
     evmFromMnemonic: evmFromMnemonic,
     createCore: createCore,

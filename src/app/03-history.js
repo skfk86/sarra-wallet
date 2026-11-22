@@ -80,7 +80,7 @@
       var tr = r.trade || (/^شراء /.test(r.via || '') ? 'buy' : /^بيع /.test(r.via || '') ? 'sell' : null); // صفقات شاشة التداول
       if (tr === 'buy') return 'شراء ' + r.coin;
       if (tr === 'sell') return 'بيع ' + (r.paidCoin || '');
-      return 'تبديل ' + (r.paidCoin || '') + ' ← ' + r.coin;
+      return 'تبديل ' + (r.paidCoin || '') + ' إلى ' + r.coin;
     }
     if (r && r.kind === 'bridge') return 'نقل إلى ' + netTag(r.toNet);
     return t.self ? 'تحويل لنفس العنوان' : t.incoming ? 'استلام' : 'إرسال';
@@ -95,7 +95,7 @@
     st.textContent = fail ? 'فشلت' : pend ? 'بانتظار التأكيد' : 'تمت'; st.className = 'txd-st' + (fail ? ' fail' : pend ? ' pend' : '');
     var sign = kind === 'send' ? '−' : kind === 'self' ? '' : '+', a = state.hidden ? '••••' : sign + fmtExact(t.amount) + ' ' + (t.coin || 'USDT');
     $('txd-amt').textContent = a; fitAmt($('txd-amt'), a);
-    $('txd-sub').textContent = kind === 'bridge' ? chainLabel(r.net) + ' ← ' + chainLabel(r.toNet) : chainLabel(t.net);
+    $('txd-sub').textContent = kind === 'bridge' ? 'من ' + chainLabel(r.net) + ' إلى ' + chainLabel(r.toNet) : chainLabel(t.net);
     var dl = $('txd-kv'); dl.textContent = '';
     if (kind === 'swap' || kind === 'bridge') {
       kvRow(dl, 'دفعت', state.hidden ? '••••' : fmtExact(r.paidAmount) + ' ' + (r.paidCoin || ''));
