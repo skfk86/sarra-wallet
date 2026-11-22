@@ -100,6 +100,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
       <h3>احصل على مفتاح API</h3>
       <p>ثبّت <a href="https://sarrapay.com/">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
       <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك. للتجربة بدون مال أنشئ <a href="#test">مفتاحاً تجريبياً</a>.</p>
+      <p><b>قبل أول فاتورة حقيقية</b> اشحن رصيد العمولة من التطبيق، وإلا ترجع <code>INSUFFICIENT_CREDIT</code>. الفواتير التجريبية لا تخصم عمولة ولا تحتاج رصيداً.</p>
     </div></div>
 
     <div class="step"><i>2</i><div>
@@ -346,7 +347,7 @@ def sarra_hook():
     <div class="note">
       <b>ثلاث قواعد:</b>
       <ul>
-        <li>ردّ بكود <code>200</code> خلال 8 ثوانٍ. إن لم يصل ردّك نعيد المحاولة 6 مرات على مدى نحو 16 ساعة.</li>
+        <li>ردّ بكود <code>200</code> خلال 8 ثوانٍ. إن لم يصل ردّك نعيد المحاولة 6 مرات على مدى نحو 16 ساعة. أي ردّ غير 2xx (سواء 4xx أو 5xx) أو انتهاء المهلة يُحسب فشلاً ويدخل في إعادة المحاولة نفسها؛ لا نفرّق بين الدائم والمؤقت، فاردّ بـ 200 متى استلمت الإشعار وتحقق منه.</li>
         <li>قد يصلك الإشعار نفسه أكثر من مرة. لا تسلّم الطلب مرتين: تحقق من <code>invoice.id</code>.</li>
         <li>استخدم نص الطلب الخام في التحقق، لا الكائن بعد تحليله.</li>
         <li>تجاهل في متجرك الحقيقي أي إشعار فيه <code>"test": true</code>.</li>
@@ -396,7 +397,7 @@ def sarra_hook():
     <p>محاكاة دفع أو انتهاء فاتورة تجريبية. بالمفتاح التجريبي فقط. <a href="#test">التفاصيل</a>.</p>
 
     <div class="ep"><span>/v1/balance</span><b class="g">GET</b></div>
-    <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة. <code>low_credit</code> تصبح <code>true</code> حين يقل الرصيد عن 1 USDT، فيمكن لخادمك تنبيهك. وبعد أول شحن لا تتوقف الفواتير فور نفاد الرصيد: تستمر حتى سالب <code>grace</code>، ويُسدَّد ذلك تلقائياً من شحنتك التالية.</p>
+    <p>رصيد حسابك المدفوع مسبقاً ونسبة العمولة. <code>low_credit</code> تصبح <code>true</code> حين يقل الرصيد عن 1 USDT، فيمكن لخادمك تنبيهك. وبعد أول شحن لا تتوقف الفواتير فور نفاد الرصيد: تستمر حتى سالب <code>grace</code> (الحد الحالي 0.5 USDT، ويأتيك في هذا الرد)، ويُسدَّد ذلك تلقائياً من شحنتك التالية.</p>
     <div class="cb"><div class="cbh"><span>cURL</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="bash">curl https://api.sarrapay.com/v1/balance \
   -H "Authorization: Bearer sk_live_XXXXXXXX"</code></pre></div>
     <div class="cb"><div class="cbh"><span>الرد</span><button type="button" class="cp">نسخ</button></div><pre><code data-lang="json">{ "credit": "0.98", "low_credit": true, "grace": "0.5", "currency": "USDT", "fee_pct": 0.5, "fee_min": "0.02" }</code></pre></div>
@@ -421,7 +422,7 @@ def sarra_hook():
       <tr><td><code>BAD_SUCCESS_URL</code></td><td>400</td><td><code>success_url</code> يجب أن يبدأ بـ <code>https://</code>.</td></tr>
       <tr><td><code>NETWORK_NOT_CONFIGURED</code></td><td>400</td><td>لا يوجد عنوان استلام لهذه الشبكة في حسابك.</td></tr>
       <tr><td><code>BAD_ORDER_ID</code></td><td>400</td><td><code>order_id</code> فيه رموز غير مسموحة أو أطول من 64.</td></tr>
-      <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة. انتظر انتهاء بعضها.</td></tr>
+      <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة (حدّ لكل وضع، تجريبي أو حقيقي). تخرج الفاتورة من العدّ حين تُدفع أو تنتهي مهلتها (<code>expires_min</code> + 20 دقيقة سماح للدفع المتأخر) أو تُلغيها بـ <code>/cancel</code>.</td></tr>
       <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحدود: 120 طلباً في الدقيقة لكل IP، و300 فاتورة في الساعة لكل حساب، و600 قراءة في الدقيقة. 20 مفتاحاً خاطئاً من نفس الـ IP تحظر محاولاته الخاطئة 10 دقائق (المفتاح الصحيح لا يُحظر). انتظر المدة في ترويسة <code>Retry-After</code> (بالثواني).</td></tr>
       <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>413</td><td>جسم الطلب أكبر من 16 KB.</td></tr>
       <tr><td><code>ORDER_ID_CONFLICT</code></td><td>409</td><td>رقم الطلب له فاتورة نشطة بمبلغ أو شبكة أو عملة مختلفة.</td></tr>
@@ -433,6 +434,7 @@ def sarra_hook():
       <tr><td><code>TEST_KEY_REQUIRED</code></td><td>403</td><td>المحاكاة تعمل بالمفتاح التجريبي فقط.</td></tr>
       <tr><td><code>NOT_PENDING</code></td><td>400</td><td>العملية (إلغاء أو محاكاة) تحتاج فاتورة بانتظار الدفع.</td></tr>
     </table></div>
+    <p><b>ما يستحق إعادة المحاولة:</b> <code>TRY_AGAIN</code> و<code>SERVER_ERROR</code> (مؤقتان)، و<code>RATE_LIMITED</code> بعد انتظار. وما سواها أخطاء دائمة بالنسبة لهذا الطلب: صحّح الطلب أو حالة حسابك (مثل شحن الرصيد في <code>INSUFFICIENT_CREDIT</code>) ثم أرسل من جديد، ولا تكرّر الطلب نفسه كما هو.</p>
   </section>
 
   <section class="card" id="fees">
