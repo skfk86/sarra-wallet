@@ -149,7 +149,7 @@ async def main():
       await pg.wait_for_timeout(300)
     await pg.click('#s-swap [data-back]'); await pg.wait_for_timeout(400); await pg.click('.tab[data-tab=history]'); await pg.wait_for_timeout(1500)
     txt=await pg.inner_text('#history-full')
-    assert 'تبديل USDT ← BNB' in txt and 'نقل إلى' in txt, txt
+    assert 'تبديل USDT إلى BNB' in txt and 'نقل إلى' in txt, txt
     await pg.locator('#history-full button.tx', has_text='تبديل').first.click(); await pg.wait_for_timeout(400)
     d=await pg.inner_text('#txd-sheet'); assert 'دفعت' in d and '5 USDT' in d and 'استلمت' in d and 'LI.FI' in d, d
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/txd-swap.png')
