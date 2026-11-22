@@ -103,15 +103,37 @@
     cancelled: ['أُلغي الطلب', 'warn'], refunding: ['جارٍ إرجاع USDT للبائع…', 'warn'], refunded: ['أُعيد USDT للبائع', 'warn'],
     refund_failed: ['تأخر الإرجاع · المشرف يتابع', 'err'], disputed: ['نزاع مفتوح · المشرف يراجع الأدلة', 'err']
   };
+  // طلباتي: نشطة/منتهية + شراء/بيع (بدل قائمة واحدة مختلطة). المشرف يرى الطابور كما هو
+  var ORD = { tab: 'active', side: 'all' }, DONE = { released: 1, cancelled: 1, refunded: 1 };
   function renderOrderList(box, list, adminView) {
     box.textContent = '';
     if (!list.length) return emptyMsg(box, adminView ? 'لا توجد نزاعات' : 'لا توجد طلبات');
-    list.forEach(function (o) {
-      var me = state.p2p.me && state.p2p.me.profile ? state.p2p.me.profile.address : null;
-      var mine = adminView ? '' : (o.buyer === me ? 'شراء' : 'بيع');
+    var me = state.p2p.me && state.p2p.me.profile ? state.p2p.me.profile.address : null;
+    var sideOf = function (o) { return o.buyer === me ? 'buy' : 'sell'; };
+    var shown = list;
+    if (!adminView) {
+      var n = { active: 0, done: 0 };
+      list.forEach(function (o) { n[DONE[o.status] ? 'done' : 'active']++; });
+      var bar = function (opts, cur, set) {
+        var r = el('div', 'display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap'); r.className = 'chips';
+        opts.forEach(function (x) {
+          var c = el('button', null, x[1]); c.type = 'button'; c.className = 'chip' + (cur === x[0] ? ' on' : ''); c.setAttribute('aria-pressed', cur === x[0] ? 'true' : 'false');
+          c.onclick = function () { set(x[0]); renderOrderList(box, list, false); }; r.appendChild(c);
+        }); box.appendChild(r);
+      };
+      bar([['active', 'نشطة (' + n.active + ')'], ['done', 'منتهية (' + n.done + ')']], ORD.tab, function (v) { ORD.tab = v; });
+      bar([['all', 'الكل'], ['buy', 'شراء'], ['sell', 'بيع']], ORD.side, function (v) { ORD.side = v; });
+      shown = list.filter(function (o) { return (ORD.tab === 'done') === !!DONE[o.status] && (ORD.side === 'all' || sideOf(o) === ORD.side); });
+      if (!shown.length) { box.appendChild(el('p', 'color:var(--mu);text-align:center;padding:24px 0', ORD.tab === 'active' ? 'لا توجد طلبات نشطة' : 'لا توجد طلبات منتهية')); return; }
+    }
+    shown.forEach(function (o) {
+      var mine = adminView ? '' : (sideOf(o) === 'buy' ? 'شراء' : 'بيع');
       var row = el('button', 'width:100%;text-align:start;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:8px;display:flex;flex-direction:column;gap:4px;color:inherit;font:inherit;cursor:pointer');
       row.type = 'button';
-      row.appendChild(el('b', 'font-size:14px', (mine ? mine + ' ' : '') + fmt(o.amount_usdt) + ' USDT · ' + fmt(o.total_sdg) + ' ج.س'));
+      var t = el('b', 'font-size:14px');
+      if (mine) t.appendChild(el('span', 'color:' + (mine === 'شراء' ? 'var(--ac)' : 'var(--danger)'), mine + ' '));
+      t.appendChild(document.createTextNode(fmt(o.amount_usdt) + ' USDT · ' + fmt(o.total_sdg) + ' ج.س'));
+      row.appendChild(t);
       row.appendChild(el('span', 'font-size:12px;color:var(--mu)', (STATUS[o.status] || [o.status])[0] + ' · ' + new Date(o.created_at).toLocaleString('ar', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })));
       row.onclick = function () { openOrder(o.id); };
       box.appendChild(row);

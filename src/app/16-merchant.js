@@ -50,7 +50,7 @@
     var steps = [
       [true, 'تفعيل المتجر باسم «' + m.name + '»'],
       [!!m.test_key_hint, 'أنشئ مفتاحاً تجريبياً وجرّب الربط بدون مال'],
-      [!!m.webhook_url, 'أضف رابط إشعار الدفع لخادمك (اختياري، ومُستحسن)'],
+      [!!m.webhook_url, 'أضف رابط إشعار الدفع لخادمك (يمكن تخطيه، لكنه يغنيك عن سؤال الخادم عن كل فاتورة)'],
       [Number(m.credit) > 0, 'اشحن رصيد رسوم البوابة'],
       [!!m.key_hint, 'أنشئ المفتاح الحقيقي وضعه في خادمك'],
       [paid, 'استقبل أول دفعة حقيقية']
@@ -96,7 +96,7 @@
     $('mc-tkey-state').textContent = m.test_key_hint ? 'مفعّل، وينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.';
     $('mc-tkey-new').textContent = m.test_key_hint ? 'إنشاء مفتاح تجريبي جديد' : 'إنشاء مفتاح تجريبي';
     $('mc-hooktest').hidden = !m.webhook_url; $('mc-secret-copy').hidden = !m.webhook_url;
-    $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابطاً. بدونه يجب أن يسأل خادمك عن حالة الفاتورة بنفسه.';
+    $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابطاً، وهذا مقبول. لكن حينها يجب أن يسأل خادمك البوابة عن حالة كل فاتورة بنفسه.';
     var box = $('mc-inv'); box.textContent = '';
     var list = (d.invoices || []).filter(function (x) { return x.kind === 'payment'; });
     if (!list.length) box.appendChild(el('span', 'font-size:13px;color:var(--mu)', 'لا فواتير بعد. أنشئ أول فاتورة من خادمك عبر الـ API.'));

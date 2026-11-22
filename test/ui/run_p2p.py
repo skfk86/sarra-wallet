@@ -177,6 +177,10 @@ async def main():
     # البائع: إيداع ثم تحرير
     await pg.click('#s-order [data-back]'); await pg.click('#p2p-orders-btn'); await pg.wait_for_timeout(800)
     t=await pg.inner_text('#orders-list'); assert 'بيع 30' in t and 'شراء 50' in t, t; step('طلباتي: الشراء والبيع')
+    assert 'نشطة (' in t and 'منتهية (' in t, t; step('طلباتي: تبويبا نشطة/منتهية بالعدد')
+    await pg.click('#orders-list .chip:has-text("بيع")'); t=await pg.inner_text('#orders-list'); assert 'بيع 30' in t and 'شراء 50' not in t, t; step('طلباتي: فلتر البيع فقط')
+    await pg.click('#orders-list .chip:text-is("الكل")'); await pg.click('#orders-list .chip:has-text("منتهية")'); t=await pg.inner_text('#orders-list'); assert 'بيع 30' not in t, t; step('طلباتي: المنتهية لا تخلط بالنشطة')
+    await pg.click('#orders-list .chip:has-text("نشطة")'); await pg.wait_for_timeout(200)
     await pg.click('#orders-list button:has-text("بيع 30")'); await pg.wait_for_timeout(800)
     btn=pg.locator('#ord-actions button.btn-primary:has-text("إيداع")'); assert '30.5' in await btn.inner_text(); step('زر الإيداع بالمبلغ الصحيح للبائع')
     await btn.click(); await pin('123456'); await pg.wait_for_timeout(6000)

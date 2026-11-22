@@ -25,7 +25,8 @@ export function fmtUnits(raw: bigint, dec: number): string {
 }
 
 export type Tok = { sym: string; addr: string; dec: number };
-export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string };
+// self: المعاملة أرسلها عنوانك أنت (تبديل/نقل/إرسال من جهازك)؛ undefined = لم نتمكن من التحقق
+export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean };
 
 // يحوّل سجلات Transfer إلى أحداث لعناويننا فقط. ours: hex20 → true
 export function eventsFromLogs(chain: string, logs: any[], toks: Tok[], ours: Set<string>, minRaw: (t: Tok) => bigint): Ev[] {
@@ -56,10 +57,24 @@ export function blockRange(last: number | null, latest: number, cap: number, jum
 }
 
 export const NET_NAME: Record<string, string> = { tron: 'TRON (TRC20)', bsc: 'BNB Chain (BEP20)', polygon: 'Polygon', eth: 'Ethereum (ERC20)' };
+// هل أرسل عنوانُنا المعاملة؟ (from المعاملة = hex20 للمحفظة). تعذّر القراءة ← undefined فلا نخمّن
+export function senderIsUs(txFrom: unknown, hex: string): boolean | undefined {
+  const f = String(txFrom || '').toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{40,42}$/.test(f)) return undefined;
+  return f.slice(-40) === hex.toLowerCase().replace(/^0x/, '');
+}
+const shortTx = (t: string) => t ? ' · ' + t.slice(0, 8) + '…' + t.slice(-6) : '';
+// نص الإشعار حسب أصل العملية: التحذير الأمني فقط لخصم لم تبدأه أنت، وأثر عملياتك يُوصف بما هو عليه
 export function message(e: Ev): { title: string; body: string } {
-  return e.kind === 'in'
-    ? { title: 'وصلتك تحويلة', body: 'استلمت +' + e.amount + ' ' + e.sym + ' على ' + NET_NAME[e.chain] }
-    : { title: 'خرج مبلغ من محفظتك', body: e.amount + ' ' + e.sym + ' على ' + NET_NAME[e.chain] + '. إن لم تكن أنت فاحمِ محفظتك فوراً.' };
+  const net = NET_NAME[e.chain], amt = e.amount + ' ' + e.sym;
+  if (e.kind === 'in') {
+    return e.self === true
+      ? { title: 'اكتملت عمليتك', body: 'وصلك +' + amt + ' على ' + net + ' نتيجة عملية أجريتها من محفظتك' + shortTx(e.tx) }
+      : { title: 'وصلتك تحويلة', body: 'استلمت +' + amt + ' على ' + net };
+  }
+  if (e.self === true) return { title: 'تم إرسال مبلغ', body: 'أُرسلت ' + amt + ' من محفظتك على ' + net + shortTx(e.tx) };
+  if (e.self === false) return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + ' بمعاملة لم تبدأها أنت. إن لم تكن تعرفها فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
+  return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + '. إن لم تكن أنت فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
 }
 
 // ===== إشعارات P2P: حالة الطلب الجديدة ← من يُبلَّغ وبماذا (تصل والتطبيق مغلق) =====

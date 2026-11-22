@@ -175,7 +175,7 @@
           c.appendChild(el('span', 'font-size:12px;font-weight:700;color:' + (o.side === 'buy' ? 'var(--ac)' : 'var(--danger)'), o.side === 'buy' ? 'إعلان شراء' : 'إعلان بيع'));
           c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT · ' + netLabel(o.network)));
           c.appendChild(el('span', 'font-size:13px;color:var(--mu)', (o.side === 'buy' ? 'المطلوب ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
-          c.appendChild(el('span', 'font-size:13px;color:' + (o.active ? 'var(--ac)' : 'var(--mu)'), o.active ? 'نشط' : 'متوقف'));
+          c.appendChild(el('span', 'font-size:13px;color:' + (o.active && Number(o.available_usdt) > 0 ? 'var(--ac)' : 'var(--mu)'), !o.active ? 'متوقف' : Number(o.available_usdt) > 0 ? 'نشط' : 'نفدت الكمية (بيعت بالكامل)'));
           if (o.active) {
             var b = el('button', 'height:40px;border-radius:12px;background:var(--s2);border:0;color:var(--err);font:inherit;font-weight:600;cursor:pointer', 'إيقاف الإعلان');
             b.type = 'button';
@@ -213,7 +213,7 @@
     var box = $('p2p-list'), want = Number($('p2p-amt').value) || 0;
     var list = (state.p2p.offers || []).filter(function (o) { return !want || (want >= Number(o.min_usdt) && want <= Math.min(Number(o.max_usdt), Number(o.available_usdt))); });
     box.textContent = '';
-    if (!list.length) { emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا يوجد من يريد الشراء الآن' : 'لا توجد إعلانات بيع الآن'); var he = box.querySelector('.hempty span'); if (he) { he.replaceWith(mascot('idle', 80)); } return; }
+    if (!list.length) { emptyMsg(box, want ? 'لا إعلان يناسب ' + fmt(want) + ' USDT' : state.p2p.listSide === 'buy' ? 'لا توجد طلبات شراء متاحة حالياً' : 'لا توجد عروض بيع متاحة حالياً'); var he = box.querySelector('.hempty span'); if (he) { he.replaceWith(mascot('idle', 80)); } return; }
     list.forEach(function (o) {
         var sp = o.seller_profile || {}, isBuyAd = o.side === 'buy';
         var c = el('div'); c.className = 'ad' + (isBuyAd ? ' ad-b' : '');

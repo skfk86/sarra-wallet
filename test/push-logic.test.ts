@@ -53,4 +53,18 @@ t('إشعارات رسائل P2P: لا تصل للمرسل، وتُجمع رسا
   const adm = L.p2pMessagePushes([{ order_id: 'o1', sender: 'TA', body: 'قرار' }], { o1: o });
   assert.deepEqual(adm.map((p) => p.to), ['TB', 'TS']); assert.equal(adm[0].title, 'رسالة من المشرف');
 });
+t('نص الإشعار يتبع أصل العملية (تبديل/إرسال من جهازك ≠ خصم غريب)', () => {
+  const hex = 'a'.repeat(40), base = { chain: 'eth', sym: 'USDT', amount: '25', hex, tx: '0x' + '12'.repeat(32), key: 'k' };
+  assert.equal(L.senderIsUs('0x' + hex.toUpperCase(), hex), true);
+  assert.equal(L.senderIsUs('0x' + 'b'.repeat(40), hex), false);
+  assert.equal(L.senderIsUs(null, hex), undefined);
+  assert.equal(L.message({ ...base, kind: 'in', self: true }).title, 'اكتملت عمليتك');
+  assert.equal(L.message({ ...base, kind: 'in', self: false }).title, 'وصلتك تحويلة');
+  assert.equal(L.message({ ...base, kind: 'in' }).title, 'وصلتك تحويلة');
+  const own = L.message({ ...base, kind: 'out', self: true });
+  assert.equal(own.title, 'تم إرسال مبلغ'); assert.ok(!own.body.includes('فاحمِ') && own.body.includes('0x121212'), own.body);
+  const alien = L.message({ ...base, kind: 'out', self: false });
+  assert.ok(alien.body.includes('فاحمِ') && alien.body.includes('لم تبدأها'), alien.body);
+  assert.ok(L.message({ ...base, kind: 'out' }).body.includes('فاحمِ')); // غير معروف: نبقي التحذير
+});
 console.log(`\n${pass} اختبارات ماسح الإشعارات نجحت`);
