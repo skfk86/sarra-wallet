@@ -31,33 +31,18 @@
   // ===== إشعارات Firebase الفورية (تصل والتطبيق مغلق) =====
   var PN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.PushNotifications;
   function pushKey() { return 'sarra.push.' + (state.lhAddr || ''); }
-  // الإشعار الفوري قد يتأخر عند تحسين البطارية (Doze): نسأل مرة واحدة فقط بعد نجاح التسجيل، والقرار للمستخدم
-  function batteryAsk() {
-    var DK = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.DeviceKey; if (!DK || !DK.batteryStatus || state.battAsked) return;
-    state.battAsked = 1;
-    try { if (localStorage.getItem('sarra.batt.asked')) return; } catch (e) {}
-    setTimeout(async function () {
-      try {
-        if (state.stack[state.stack.length - 1] !== 'home') { state.battAsked = 0; return; }
-        var st = await DK.batteryStatus(); if (st && st.exempt) return;
-        try { localStorage.setItem('sarra.batt.asked', '1'); } catch (e) {}
-        if (await askConfirm('لتصلك إشعارات التحويلات فوراً حتى والتطبيق مغلق، اسمح لصُرّة بالعمل دون تقييد البطارية. يتأخر الإشعار أحياناً دقيقة أو أكثر إن قيّد الهاتف التطبيق.', false, 'فتح الإعداد', 'ليس الآن')) await DK.batteryExempt();
-      } catch (e) {}
-    }, 4000);
-  }
   async function pushInit() {
     if (!PN || !P2P_URL || state.pushInit) return; state.pushInit = 1;
     try {
       await PN.addListener('registration', async function (t) {
         var tok = t && t.value; if (!tok) return;
-        try { if (localStorage.getItem(pushKey()) === tok) { state.pushOn = true; batteryAsk(); return; } } catch (e) {}
+        try { if (localStorage.getItem(pushKey()) === tok) { state.pushOn = true; return; } } catch (e) {}
         try {
           var evm = Object.keys(EVM).length ? await core.evmAddress() : null;
           await p2p('push.register', evm ? { token: tok, evm: evm } : { token: tok });
           try { localStorage.setItem(pushKey(), tok); } catch (e) {}
           state.pushOn = true;
         } catch (e) { /* يُعاد التسجيل عند الفتح التالي */ }
-        batteryAsk();
       });
       await PN.addListener('registrationError', function () { state.pushOn = false; });
       // وصل إشعار والتطبيق مفتوح: لا يظهر في الشريط (presentationOptions فارغة)، فنفحص فوراً ونعرض نافذة الاستلام

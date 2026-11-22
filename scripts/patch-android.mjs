@@ -52,8 +52,6 @@ if (!xml.includes('android.permission.USE_BIOMETRIC')) {
 // إشعارات المعاملات: إذن الإشعارات (أندرويد 13+) و"المنبّهات والتذكيرات" (أندرويد 12+) حتى تظهر فوراً
 if (!xml.includes('android.permission.POST_NOTIFICATIONS')) xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />');
 if (!xml.includes('android.permission.SCHEDULE_EXACT_ALARM')) xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />');
-// استثناء من تحسين البطارية: Doze يؤخر وصول الإشعارات؛ الطلب يظهر للمستخدم بموافقته فقط
-if (!xml.includes('REQUEST_IGNORE_BATTERY_OPTIMIZATIONS')) xml = xml.replace(/(<manifest\b[^>]*>)/, '$1\n    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />');
 // منع النسخ الاحتياطي التلقائي إلى Google Drive: لا تخرج بيانات المحفظة المشفّرة من الجهاز
 xml = xml.replace(/android:allowBackup="true"/, 'android:allowBackup="false"');
 if (!xml.includes('android:allowBackup')) xml = xml.replace(/<application\b/, '<application android:allowBackup="false"');

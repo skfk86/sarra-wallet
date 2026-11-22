@@ -1,11 +1,6 @@
 package com.sarra.wallet;
 
 import android.content.Context;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
-import android.os.PowerManager;
-import android.provider.Settings;
 import android.content.SharedPreferences;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -94,35 +89,5 @@ public class DeviceKeyPlugin extends Plugin {
             else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             call.resolve();
         });
-    }
-
-    /** هل التطبيق مستثنى من تحسين البطارية؟ (Doze يؤخر الإشعارات والمهام الخلفية للتطبيقات غير المستثناة) */
-    @PluginMethod
-    public void batteryStatus(PluginCall call) {
-        JSObject r = new JSObject();
-        boolean ex = true;
-        if (Build.VERSION.SDK_INT >= 23) {
-            PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
-            ex = pm != null && pm.isIgnoringBatteryOptimizations(getContext().getPackageName());
-        }
-        r.put("exempt", ex);
-        call.resolve(r);
-    }
-
-    /** يفتح نافذة النظام لطلب الاستثناء من تحسين البطارية (يقرر المستخدم)؛ إن تعذّرت يفتح صفحة إعدادات البطارية العامة */
-    @PluginMethod
-    public void batteryExempt(PluginCall call) {
-        try {
-            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getContext().getPackageName()));
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(i);
-        } catch (Exception e) {
-            try {
-                Intent i = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(i);
-            } catch (Exception e2) { call.reject("UNAVAILABLE"); return; }
-        }
-        call.resolve();
     }
 }
