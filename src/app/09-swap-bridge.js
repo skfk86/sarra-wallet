@@ -131,10 +131,14 @@
   $('sw-requote').onclick = function () { requestQuote(); };
   document.querySelectorAll('#sw-pct [data-pct]').forEach(function (b) {
     b.onclick = function () {
-      var sym = swapSyms()[0], bl = state.balances; if (!bl) return;
-      var v = Number(sym === 'TRX' ? bl.trx : bl.usdt) * Number(b.dataset.pct) / 100;
-      if (sym === 'TRX' && b.dataset.pct === '100') v = Math.max(0, v - 15); // نترك TRX لرسوم الشبكة
-      $('sw-in').value = String(Math.floor(v * 1e6) / 1e6); $('sw-in').oninput();
+      var sym = swapSyms()[0], bl = state.balances; if (!bl) return toast('الرصيد لم يُحمّل بعد', true);
+      // وحدات صحيحة (6 خانات) بـ BigInt؛ عند 100% من TRX نحجز REG.gasKeep('tron') للطاقة والرسوم
+      var bal = WalletCore.toUnitsFloor(Number(sym === 'TRX' ? bl.trx : bl.usdt).toFixed(6), 6), pct = Number(b.dataset.pct), keep = 0n;
+      if (bal === 0n) return toast('رصيدك من ' + sym + ' صفر', true);
+      var v = bal * BigInt(pct) / 100n;
+      if (sym === 'TRX' && pct === 100) { keep = WalletCore.toUnitsFloor(String(REG.gasKeep('tron')), 6); v = bal > keep ? bal - keep : 0n; }
+      if (v === 0n) return toast('رصيدك (' + unitsText(bal, 6) + ' ' + sym + ') أقل من المحجوز لرسوم الشبكة (' + unitsText(keep, 6) + ' TRX). اكتب مبلغاً أصغر يدوياً', true);
+      $('sw-in').value = unitsText(v, 6); $('sw-in').oninput();
     };
   });
   async function requestQuote() {
