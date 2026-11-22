@@ -230,7 +230,7 @@
       if (p.net && p.net !== 'tron') state.evmBal = null;
       state.historyCache = null; state.pending = null; state.balances = null;
       if (p.net && p.net !== 'tron') RX.evmBase = null;
-      showSuccess({ kind: 'send', status: r.status, amt: p.amt, coin: p.coin, net: p.net || 'tron', to: shortAddr(p.to), toFull: p.to, txid: r.txid, url: r.url });
+      showSuccess({ kind: 'send', status: r.status, amt: p.amt, coin: p.coin, net: p.net || 'tron', to: p.via ? recipLabel(p.via) : shortAddr(p.to), toFull: p.to, txid: r.txid, url: r.url });
       saveRecent(p.net || 'tron', p.phone || p.to);
       $('to').value = ''; $('amt').value = '';
       state.stack = ['home'];

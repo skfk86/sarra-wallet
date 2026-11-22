@@ -140,7 +140,8 @@
   document.querySelectorAll('.pct [data-pct]').forEach(function (b) { b.onclick = function () {
     var u = coinUnits(); if (u == null) return;
     var dec = state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin);
-    $('amt').value = WalletCore.fromUnits(u * BigInt(b.dataset.pct) / 100n, dec); updUsd();
+    // حتى 6 خانات عشرية (اقتطاع لا تقريب): عملات BNB/ETH بـ 18 خانة تُنتج أرقاماً طويلة غير مقروءة، والمتبقي أقل من 0.000001
+    $('amt').value = unitsText(u * BigInt(b.dataset.pct) / 100n, dec); updUsd();
   }; });
   // مسح QR: ماسح Google أولاً (لا يحتاج إذن الكاميرا)، وإن لم يتوفر أو فشل
   // نفتح ماسحاً داخل التطبيق بالكاميرا (jsQR) يعمل على أي هاتف
@@ -228,7 +229,7 @@
     if (nat) keep = nn.evm ? WalletCore.toUnitsFloor(String(REG.gasKeep(state.sendNet)), dec) : 2000000n;
     if (u === 0n) return toast('رصيدك من ' + state.coin + ' على ' + nn.name + ' صفر', true);
     if (nat && u <= keep) return toast('الرصيد غير كافٍ لتغطية رسوم الشبكة. تحتاج ' + WalletCore.fromUnits(keep, dec) + ' ' + nn.native + ' على الأقل (رصيدك ' + WalletCore.fromUnits(u, dec) + ')', true);
-    $('amt').value = WalletCore.fromUnits(u - keep, dec); updUsd();
+    $('amt').value = unitsText(u - keep, dec); updUsd();
   };
   function sendError(msg) { $('send-err').textContent = msg; $('send-err').hidden = false; }
   // معرّف صُرّة: 8 أرقام لا يبدأ بصفر (الهاتف يبدأ بصفر)
@@ -290,7 +291,7 @@
       if (have != null && eu > have) return sendError(WalletCore.errorText(new Error('INSUFFICIENT_TOKEN')));
       var nat = evmUnits(state.sendNet, n.native);
       if (nat != null && nat === 0n) return sendError('تحتاج ' + n.native + ' في محفظتك على ' + n.name + ' لدفع رسوم الإرسال');
-      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet, phone: ephone || (esid ? String(esid) : null) };
+      state.pending = { to: to, amt: WalletCore.fromUnits(eu, dec), coin: state.coin, net: state.sendNet, phone: ephone || (esid ? String(esid) : null), via: evia };
       $('c-amt').textContent = state.pending.amt + ' ' + state.coin;
       if (evia) { $('c-to').textContent = recipLabel(evia); $('c-to').classList.remove('mono'); $('c-to').style.direction = 'rtl'; }
       else { $('c-to').textContent = to; $('c-to').classList.add('mono'); $('c-to').style.direction = ''; }
