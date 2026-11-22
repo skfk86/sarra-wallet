@@ -65,14 +65,15 @@ async function fcm(token: string, m: { title: string; body: string }, data: Reco
   const r = await fetch('https://fcm.googleapis.com/v1/projects/' + sa.project_id + '/messages:send', {
     method: 'POST', headers: { authorization: 'Bearer ' + await fcmAccess(), 'content-type': 'application/json' },
     body: JSON.stringify({ message: { token, notification: m, data,
-      android: { priority: 'HIGH', notification: { channel_id: 'tx2', sound: 'coin', icon: 'ic_stat_coin', color: '#16A37A', tag, visibility: 'PRIVATE' } } } })
+      android: { priority: 'HIGH', ttl: '300s', notification: { channel_id: 'tx2', sound: 'coin', icon: 'ic_stat_coin', color: '#16A37A', tag, visibility: 'PRIVATE' } } } })
   });
   if (r.ok) return 'ok';
   const t = await r.text();
   return r.status === 404 || /UNREGISTERED|registration-token-not-registered|INVALID_ARGUMENT.*token/i.test(t) ? 'gone' : 'err';
 }
 
-Deno.serve(async (req) => {
+// مسح واحد؛ المؤشرات (آخر كتلة) تُحفظ في القاعدة آخر كل مسح فالمسح الثاني يكمل من حيث انتهى الأول
+async function scan(req: Request): Promise<Response> {
   const { data: cfg } = await db.from('push_cfg').select('v').eq('k', 'cron_secret').maybeSingle();
   if (!cfg || req.headers.get('x-cron') !== cfg.v) return new Response('forbidden', { status: 403 });
   if (!sa || !sa.private_key) return Response.json({ ok: false, error: 'FCM_SERVICE_ACCOUNT_MISSING' });
@@ -162,4 +163,16 @@ Deno.serve(async (req) => {
   } catch (e) { report.p2p = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
   if (gone.size) await db.from('push_tokens').delete().in('token', [...gone]);
   return Response.json({ ok: true, sent, removed: gone.size, report });
+}
+
+// pg_cron يشغّل الدالة كل دقيقة، فأسوأ تأخير كان ≈ 60 ث + زمن المسح. نمسح مرتين في كل استدعاء (الثانية بعد 28 ث)
+// فيهبط الأسوأ إلى ≈ 30 ث. الاستدعاء يبقى أقل من دقيقة فلا يتداخل مع الذي بعده. PUSH_PASSES=1 يعيد السلوك القديم
+Deno.serve(async (req) => {
+  const first = await scan(req);
+  const passes = Math.min(2, Math.max(1, Number(Deno.env.get('PUSH_PASSES') || 2)));
+  if (passes > 1 && first.status === 200) {
+    await new Promise((r) => setTimeout(r, 28000));
+    try { await scan(req); } catch (e) { console.error('push-watch second pass', String(e)); }
+  }
+  return first;
 });

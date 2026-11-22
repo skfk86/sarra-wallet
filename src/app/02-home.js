@@ -31,18 +31,33 @@
   // ===== إشعارات Firebase الفورية (تصل والتطبيق مغلق) =====
   var PN = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.PushNotifications;
   function pushKey() { return 'sarra.push.' + (state.lhAddr || ''); }
+  // الإشعار الفوري قد يتأخر عند تحسين البطارية (Doze): نسأل مرة واحدة فقط بعد نجاح التسجيل، والقرار للمستخدم
+  function batteryAsk() {
+    var DK = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.DeviceKey; if (!DK || !DK.batteryStatus || state.battAsked) return;
+    state.battAsked = 1;
+    try { if (localStorage.getItem('sarra.batt.asked')) return; } catch (e) {}
+    setTimeout(async function () {
+      try {
+        if (state.stack[state.stack.length - 1] !== 'home') { state.battAsked = 0; return; }
+        var st = await DK.batteryStatus(); if (st && st.exempt) return;
+        try { localStorage.setItem('sarra.batt.asked', '1'); } catch (e) {}
+        if (await askConfirm('لتصلك إشعارات التحويلات فوراً حتى والتطبيق مغلق، اسمح لصُرّة بالعمل دون تقييد البطارية. يتأخر الإشعار أحياناً دقيقة أو أكثر إن قيّد الهاتف التطبيق.', false, 'فتح الإعداد', 'ليس الآن')) await DK.batteryExempt();
+      } catch (e) {}
+    }, 4000);
+  }
   async function pushInit() {
     if (!PN || !P2P_URL || state.pushInit) return; state.pushInit = 1;
     try {
       await PN.addListener('registration', async function (t) {
         var tok = t && t.value; if (!tok) return;
-        try { if (localStorage.getItem(pushKey()) === tok) { state.pushOn = true; return; } } catch (e) {}
+        try { if (localStorage.getItem(pushKey()) === tok) { state.pushOn = true; batteryAsk(); return; } } catch (e) {}
         try {
           var evm = Object.keys(EVM).length ? await core.evmAddress() : null;
           await p2p('push.register', evm ? { token: tok, evm: evm } : { token: tok });
           try { localStorage.setItem(pushKey(), tok); } catch (e) {}
           state.pushOn = true;
         } catch (e) { /* يُعاد التسجيل عند الفتح التالي */ }
+        batteryAsk();
       });
       await PN.addListener('registrationError', function () { state.pushOn = false; });
       // وصل إشعار والتطبيق مفتوح: لا يظهر في الشريط (presentationOptions فارغة)، فنفحص فوراً ونعرض نافذة الاستلام
@@ -101,6 +116,26 @@
     if (net === 'tron') { var b = state.balances; if (!b) return null; return sym === 'USDT' ? Number(b.usdt) : sym === 'TRX' ? Number(b.trx) : null; }
     var u = evmUnits(net, sym); return u == null ? null : Number(WalletCore.fromUnits(u, evmDec(net, sym)));
   }
+  // أقصى مبلغ قابل للصرف بالوحدات الصحيحة (BigInt بلا أخطاء فاصلة عائمة). pct من الرصيد؛ عند 100% من العملة الأصلية
+  // نحجز gasKeep للرسوم. يرجع {units, keep, bal} أو null إن لم يُحمّل الرصيد. units=0n حين لا يتسع الرصيد للحجز.
+  function spendUnits(net, sym, pct) {
+    var u = evmUnits(net, sym); if (u == null) return null;
+    var d = evmDec(net, sym), bal = BigInt(u), v = bal * BigInt(pct) / 100n, keep = 0n;
+    if (sym === netOf(net).native && Number(pct) === 100) { keep = WalletCore.toUnitsFloor(String(REG.gasKeep(net)), d); v = bal > keep ? bal - keep : 0n; }
+    return { units: v, keep: keep, bal: bal, dec: d };
+  }
+  // نص الكمية مقتطعاً (لا تقريب لأعلى أبداً) إلى 6 خانات كحد أقصى
+  function unitsText(units, dec) {
+    var s = WalletCore.fromUnits(units, dec), p = s.split('.'); if (p.length < 2) return s;
+    var f = p[1].slice(0, 6).replace(/0+$/, ''); return f ? p[0] + '.' + f : p[0];
+  }
+  // عملة مغلّفة/مجسّرة على هذه الشبكة (مثل ETH على BNB Chain = Binance-Peg) ليست العملة الأصلية للشبكة الأخرى
+  function isWrapped(net, sym) {
+    if (sym === netOf(net).native) return false;
+    if (sym === 'BTC') return true;
+    return NETS.some(function (n) { return n.key !== net && n.native === sym; });
+  }
+  function coinOnLabel(net, sym) { return sym + ' · ' + netOf(net).name + (isWrapped(net, sym) ? ' (مغلّف)' : ''); }
   function coinTotal(c) {
     var t = 0, known = false;
     c.nets.forEach(function (n) { var v = balOn(c.sym, n); if (v != null) { t += v; known = true; } });
