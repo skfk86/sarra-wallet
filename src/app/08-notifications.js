@@ -103,7 +103,10 @@
   async function rxPollTron() {
     var addr = await core.getAddress(), key = 'sarra.rx.' + addr;
     if (!state.lhAddr) state.lhAddr = addr; // كي يُحفظ أي وارد في السجل حتى قبل فتح الرئيسية
-    var list = await core.getHistory(addr, 15), st = rxGet(key);
+    var gen = RX.gen || 0, list = await core.getHistory(addr, 15), st = rxGet(key);
+    // عملية منك جارية أو بدأت أثناء القراءة (تبديل/شراء TRX: موافقة + معاملة التبديل + العمولة تظهر في السجل قبل أن تُعلَّم "منك"): نؤجل الفحص كله للدورة التالية
+    if (state.txBusy || (RX.gen || 0) !== gen) return;
+    var skipOut = Date.now() < (RX.ownUntil || 0); // خلال 5 دقائق من عمليتك: لا نعدّ صادراً غريباً (نفس سلوك EVM)
     var ids = st && st.ids ? st.ids : [], t0 = st ? st.t : 0, maxT = t0;
     list.forEach(function (t) { if (t.time > maxT) maxT = t.time; });
     if (st) {
@@ -114,7 +117,7 @@
         rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid });
       });
       list.filter(function (t) {
-        return !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; })
+        return !skipOut && !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; })
           && !(CFG.feeAddress && t.counterparty === CFG.feeAddress && Date.now() - t.time < 30 * 60000); // عمولة تبديل أرسلها هذا الجهاز
       }).forEach(function (t) { rxOut({ net: 'tron', coin: t.coin, amount: t.exact, to: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid }); });
     }
