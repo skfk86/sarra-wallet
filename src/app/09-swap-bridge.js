@@ -85,7 +85,7 @@
       finally { state.txBusy = false; }
     };
     var askPin = function () { openPin('verify', run); };
-    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run).catch(askPin); else askPin();
+    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run, askPin); else askPin();
   };
   function swapNets() { return NETS.filter(function (n) { return n.key === 'tron' || (n.evm && core.bridgeEnabled && core.bridgeEnabled()); }); }
   async function prepareSwap() {
@@ -193,7 +193,7 @@
     var s = swapSyms();
     var run = function () { doSwap(q, s); };
     var askPin = function () { openPin('verify', run); };
-    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run).catch(askPin);
+    if (bioEnabled()) bioVerify('تأكيد التبديل').then(run, askPin);
     else askPin();
   };
   async function doSwap(q, s) {
@@ -288,7 +288,7 @@
       var go = run; run = async function () { if (await askConfirm('نقلت ' + q.amount + ' ' + q.sym + ' بنفس الاتجاه قبل ' + Math.max(1, Math.round((Date.now() - lb.at) / 60000)) + ' دقيقة، والجسور قد تستغرق دقائق حتى يظهر الوصول. تحقق من السجل حتى لا تنقل مرتين. هل تريد النقل مرة أخرى فعلاً؟')) go(); };
     }
     var askPin = function () { openPin('verify', run); };
-    if (bioEnabled()) bioVerify('تأكيد النقل').then(run).catch(askPin); else askPin();
+    if (bioEnabled()) bioVerify('تأكيد النقل').then(run, askPin); else askPin();
   };
   async function doBridge(q) {
     if (!q || q.used || state.txBusy) return; q.used = true;

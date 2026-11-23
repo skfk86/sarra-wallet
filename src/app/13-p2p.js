@@ -108,7 +108,7 @@
   function authorize(title, fn) {
     var back = state.stack[state.stack.length - 1];
     var viaPin = function () { openPin('verify', function () { state.stack.pop(); show(back, false); fn(); }); };
-    if (bioEnabled()) bioVerify(title).then(fn).catch(viaPin); else viaPin();
+    if (bioEnabled()) bioVerify(title).then(fn, viaPin); else viaPin();
   }
 
   // الملف يُنشأ تلقائياً على الخادم باسم افتراضي؛ لا نسأل المستخدم عن اسمه

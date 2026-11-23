@@ -344,7 +344,7 @@
     var q = TR.oq; $('od-sheet').classList.remove('show');
     var run = function () { odExec(q); };
     var askPin = function () { openPin('verify', function () { state.stack.pop(); show('pair', false); run(); }); };
-    if (bioEnabled()) bioVerify(q.tSide === 'buy' ? 'تأكيد الشراء' : 'تأكيد البيع').then(run).catch(askPin); else askPin();
+    if (bioEnabled()) bioVerify(q.tSide === 'buy' ? 'تأكيد الشراء' : 'تأكيد البيع').then(run, askPin); else askPin();
   }
   async function odExec(q) {
     if (state.txBusy || !q || q.used) return; q.used = true; // السعر نفسه لا يُنفَّذ مرتين (نقرتان أو تأكيدان)
