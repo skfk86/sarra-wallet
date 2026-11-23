@@ -359,6 +359,6 @@
     }
     $('sheet').classList.remove('show');
     var askPin = function () { openPin('verify', function () { doSend(); }); };
-    if (bioEnabled()) bioVerify('تأكيد الإرسال').then(doSend).catch(askPin);
+    if (bioEnabled()) bioVerify('تأكيد الإرسال').then(doSend, askPin);
     else askPin();
   };
