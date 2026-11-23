@@ -3,7 +3,7 @@
   var P2P_URL = CFG.p2pUrl || '';
   var P2P_ERRORS = {
     BAD_AMOUNT: 'المبلغ غير صحيح', BAD_MESSAGE: 'طلب غير صالح. حدّث التطبيق', BAD_NONCE: 'طلب غير صالح. حاول مرة أخرى', BAD_WINDOW: 'اختر مهلة الدفع',
-    DB_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER: 'تعذّر الاتصال بالخادم. حاول بعد قليل',
+    LOCKED: 'أُقفلت المحفظة. اضغط مرة أخرى وأدخل رمزك', DB_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER_ERROR: 'خطأ مؤقت في الخادم. حاول بعد قليل', SERVER: 'تعذّر الاتصال بالخادم. حاول بعد قليل',
     FEE_TOO_HIGH: 'المبلغ صغير جداً مقارنة بالرسوم', NETWORK: 'لا يوجد اتصال بالإنترنت أو الخادم لا يرد', UNAUTHORIZED: 'تعذّر التحقق من المحفظة. أعد فتح التطبيق',
     UNKNOWN_ACTION: 'هذه الميزة تحتاج تحديث التطبيق', OPEN_ORDERS: 'لديك صفقات مفتوحة. أكملها أولاً', CANCELLED: 'أُلغيت العملية', REPLAY: 'أُرسل الطلب مرتين. حاول مرة أخرى',
     BAD_RECEIPT_TYPE: 'الملف ليس صورة صالحة. ارفع لقطة شاشة من تطبيق بنكك', RECEIPT_TOO_SMALL: 'الصورة صغيرة أو غير واضحة. ارفع لقطة شاشة كاملة', RECEIPT_TOO_LARGE: 'الصورة كبيرة جداً', PAYLOAD_TOO_LARGE: 'الصورة كبيرة جداً. صغّرها أو ارفع لقطة شاشة', MAX_RECEIPTS: 'وصلت للحد الأقصى: 3 إيصالات للصفقة',
@@ -70,12 +70,18 @@
   }
   async function p2p(action, params, isPublic, attachment) {
     if (!isPublic) await ensureUnlocked();
-    var body = isPublic ? Object.assign({ action: action }, params || {}) : await core.signRequest(action, params || {});
-    if (attachment) body.attachment = attachment;
-    var res;
-    try { res = await fetch(P2P_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
-    catch (e) { throw new Error('NETWORK'); }
-    var j = await res.json().catch(function () { return {}; });
+    var mkBody = async function () { var b = isPublic ? Object.assign({ action: action }, params || {}) : await core.signRequest(action, params || {}); if (attachment) b.attachment = attachment; return b; };
+    // قراءات آمنة فقط تُعاد مرة واحدة عند تعثر عابر (شبكة أو خطأ 5xx)؛ أما الكتابة (إنشاء طلب...) فلا تُكرَّر حتى لا تتضاعف
+    var safe = /^(me|orders\.mine|order\.get|order\.refresh|offers\.|receipt\.list|messages\.)/.test(action) || !!isPublic;
+    var res, j;
+    for (var attempt = 0; ; attempt++) {
+      var body = await mkBody(); // توقيع جديد لكل محاولة: الرقم العشوائي (nonce) لا يُقبل مرتين
+      try { res = await fetch(P2P_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+      catch (e) { if (safe && attempt < 1) { await new Promise(function (r) { setTimeout(r, 700); }); continue; } throw new Error('NETWORK'); }
+      if (!res.ok && res.status >= 500 && safe && attempt < 1) { await new Promise(function (r) { setTimeout(r, 700); }); continue; }
+      j = await res.json().catch(function () { return {}; });
+      break;
+    }
     if (!res.ok || j.error) throw new Error(j.error || 'SERVER');
     return j;
   }
@@ -391,7 +397,7 @@
   };
   $('buy-go').onclick = async function () {
     var btn = this; $('buy-err').hidden = true;
-    if (!(await ensureProfile())) return;
+    if (!(await ensureProfile())) { $('buy-err').textContent = 'تعذّر تجهيز حسابك في السوق. حاول مرة أخرى'; $('buy-err').hidden = false; return; }
     btn.disabled = true;
     try {
       var r = await p2p('order.create', { offer_id: state.p2p.offer.id, amount: WalletCore.fromUnits(WalletCore.toUnitsFloor($('buy-amt').value, 6), 6) });
