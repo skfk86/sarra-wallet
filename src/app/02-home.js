@@ -101,13 +101,14 @@
     if (net === 'tron') { var b = state.balances; if (!b) return null; return sym === 'USDT' ? Number(b.usdt) : sym === 'TRX' ? Number(b.trx) : null; }
     var u = evmUnits(net, sym); return u == null ? null : Number(WalletCore.fromUnits(u, evmDec(net, sym)));
   }
-  // أقصى مبلغ قابل للصرف بالوحدات الصحيحة (BigInt بلا أخطاء فاصلة عائمة). pct من الرصيد؛ عند 100% من العملة الأصلية
-  // نحجز gasKeep للرسوم. يرجع {units, keep, bal} أو null إن لم يُحمّل الرصيد. units=0n حين لا يتسع الرصيد للحجز.
+  // المبلغ القابل للصرف بالوحدات الصحيحة (BigInt بلا أخطاء فاصلة عائمة). لعملة الشبكة نحجز gasKeep للرسوم أولاً ثم نطبّق النسبة على المتاح،
+  // فتكون النسب متصاعدة دائماً (25 < 50 < 75 < 100). لغيرها المتاح = الرصيد كله. يرجع {units, keep, bal} أو null إن لم يُحمّل الرصيد.
+  // units=0n حين لا يتسع الرصيد للحجز (الواجهة تعرض رسالة بدل صفر صامت).
   function spendUnits(net, sym, pct) {
     var u = evmUnits(net, sym); if (u == null) return null;
-    var d = evmDec(net, sym), bal = BigInt(u), v = bal * BigInt(pct) / 100n, keep = 0n;
-    if (sym === netOf(net).native && Number(pct) === 100) { keep = WalletCore.toUnitsFloor(String(REG.gasKeep(net)), d); v = bal > keep ? bal - keep : 0n; }
-    return { units: v, keep: keep, bal: bal, dec: d };
+    var d = evmDec(net, sym), bal = BigInt(u), keep = sym === netOf(net).native ? WalletCore.toUnitsFloor(String(REG.gasKeep(net)), d) : 0n;
+    var avail = bal > keep ? bal - keep : 0n;
+    return { units: avail * BigInt(pct) / 100n, keep: keep, bal: bal, dec: d };
   }
   // نص الكمية مقتطعاً (لا تقريب لأعلى أبداً) إلى 6 خانات كحد أقصى
   function unitsText(units, dec) {

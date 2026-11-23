@@ -170,8 +170,9 @@
         $('od-amt').value = unitsText(sel, r.dec);
       } else {
         // TRON: خانات العملة 6 فلا خطر دقة بـ Number هنا
-        var have = balOn(c.sym, TR.net), q = Math.min(v.q, have == null ? v.q : have) * qs / 100;
-        if (have != null && c.sym === nt.native) q = Math.max(0, Math.min(q, have - REG.gasKeep(TR.net)));
+        var have = balOn(c.sym, TR.net), cap = have == null ? v.q : have;
+        if (have != null && c.sym === nt.native) cap = Math.max(0, have - REG.gasKeep(TR.net)); // نحجز الرسوم أولاً ثم النسبة
+        var q = Math.min(v.q, cap) * qs / 100;
         $('od-amt').value = String(Math.floor(q * 1e6) / 1e6);
       }
       TR.oq = null; odRender();
@@ -295,7 +296,7 @@
         var v = balOn(pay, TR.net);
         if (v == null || !(v > 0)) return toast(v == null ? 'تعذّر قراءة الرصيد الآن، حاول بعد لحظات' : 'رصيدك من ' + pay + ' على ' + n.name + ' صفر', true);
         var keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // TRON: نُبقي TRX للطاقة
-        txt = String(Math.floor(Math.max(0, pct === 100 ? v - keep : v * pct / 100) * 1e6) / 1e6);
+        txt = String(Math.floor(Math.max(0, v - keep) * pct / 100 * 1e6) / 1e6);
       }
       $('od-amt').value = txt; TR.oq = null; odRender();
     };

@@ -136,8 +136,8 @@
       // وحدات صحيحة (6 خانات) بـ BigInt؛ عند 100% من TRX نحجز REG.gasKeep('tron') للطاقة والرسوم
       var bal = WalletCore.toUnitsFloor(Number(sym === 'TRX' ? bl.trx : bl.usdt).toFixed(6), 6), pct = Number(b.dataset.pct), keep = 0n;
       if (bal === 0n) return toast('رصيدك من ' + sym + ' صفر', true);
-      var v = bal * BigInt(pct) / 100n;
-      if (sym === 'TRX' && pct === 100) { keep = WalletCore.toUnitsFloor(String(REG.gasKeep('tron')), 6); v = bal > keep ? bal - keep : 0n; }
+      if (sym === 'TRX') keep = WalletCore.toUnitsFloor(String(REG.gasKeep('tron')), 6); // نحجز أولاً ثم نطبّق النسبة على المتاح
+      var v = (bal > keep ? bal - keep : 0n) * BigInt(pct) / 100n;
       if (v === 0n) return toast('رصيدك (' + unitsText(bal, 6) + ' ' + sym + ') أقل من المحجوز لرسوم الشبكة (' + unitsText(keep, 6) + ' TRX). اكتب مبلغاً أصغر يدوياً', true);
       $('sw-in').value = unitsText(v, 6); $('sw-in').oninput();
     };

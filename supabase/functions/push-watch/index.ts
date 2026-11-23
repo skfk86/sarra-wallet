@@ -131,6 +131,8 @@ async function scan(req: Request): Promise<Response> {
     const tokens = (e.chain === 'tron' ? toksByHex.tron : toksByHex.evm)[e.hex] || [];
     const res = await Promise.all(tokens.map((t) => send(t, e).catch(() => 'err' as const)));
     res.forEach((r, i) => { if (r === 'ok') sent++; if (r === 'gone') gone.add(tokens[i]); });
+    // تشخيص بلا بيانات حساسة (لا عناوين ولا مبالغ): هل رُصد الحدث؟ كم جهازاً؟ ماذا ردّ FCM؟ (ok = قبله FCM، لا يعني أن الهاتف استلمه)
+    console.log('push-event', e.chain, e.kind, 'self=' + String(e.self), 'sarra=' + String(!!e.fromSarra), 'devices=' + tokens.length, 'fcm=' + res.join(','));
   }
   // ===== P2P: تغيّرات حالة الطلبات ورسائل المحادثة منذ الدورة السابقة =====
   try {
@@ -162,6 +164,7 @@ async function scan(req: Request): Promise<Response> {
     report.p2p = { changes: ch?.length || 0, messages: msgs?.length || 0, sent: ps };
   } catch (e) { report.p2p = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
   if (gone.size) await db.from('push_tokens').delete().in('token', [...gone]);
+  console.log('push-scan', JSON.stringify(report));
   return Response.json({ ok: true, sent, removed: gone.size, report });
 }
 
