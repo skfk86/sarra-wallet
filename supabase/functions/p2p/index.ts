@@ -134,6 +134,21 @@ function publicOrder(o: Record<string, any>, offer: Record<string, any> | null, 
   return out;
 }
 
+// هل أرسل العنوان from تحويلة إلى me خلال آخر 30 يوماً؟ (USDT/TRC20 ثم TRX). تعذّر القراءة = لا
+async function sentToMe(from: string, me: string): Promise<boolean> {
+  const h = TRONGRID_KEY ? { 'TRON-PRO-API-KEY': TRONGRID_KEY } : {}, since = Date.now() - 30 * 86400000;
+  try {
+    const r = await fetch('https://api.trongrid.io/v1/accounts/' + me + '/transactions/trc20?only_to=true&limit=50&min_timestamp=' + since, { headers: h, signal: AbortSignal.timeout(8000) });
+    if (r.ok && ((await r.json())?.data || []).some((t: { from?: string }) => t.from === from)) return true;
+    const r2 = await fetch('https://api.trongrid.io/v1/accounts/' + me + '/transactions?only_to=true&limit=50&min_timestamp=' + since, { headers: h, signal: AbortSignal.timeout(8000) });
+    if (!r2.ok) return false;
+    return ((await r2.json())?.data || []).some((t: any) => {
+      const v = t?.raw_data?.contract?.[0]?.parameter?.value;
+      try { return !!v?.owner_address && tw.address.fromHex(v.owner_address) === from; } catch { return false; }
+    });
+  } catch { return false; }
+}
+
 // ===== رصيد البائع على الشبكة (TronGrid) =====
 async function onchainBalances(addr: string): Promise<{ usdt: bigint; trx: bigint }> {
   const r = await fetch('https://api.trongrid.io/v1/accounts/' + addr, { headers: TRONGRID_KEY ? { 'TRON-PRO-API-KEY': TRONGRID_KEY } : {} });
@@ -323,6 +338,21 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (r.address === me) throw new Error('SELF_SEND');
     const verified = r.verify_status === 'approved';
     return { address: r.address, evm_address: r.evm_address || null, name: verified ? L.maskName(r.full_name) : r.nickname, verified, id: sid };
+  }
+
+  // هل مرسل تحويلة وردت إليّ مستخدم صُرّة؟ الرد صح/خطأ فقط: لا اسم ولا معرّف ولا عنوان آخر.
+  // يُقبل السؤال فقط عن عنوان ظهر مرسلاً في آخر تحويلات وردت فعلاً لصاحب الطلب (TronGrid، طلبان على الأكثر)،
+  // فلا تصلح الدالة لفحص قائمة عناوين عشوائية. أي عنوان لم يرسل لك = خطأ (لا نميّز «لم يرسل» من «غير مسجّل»).
+  if (action === 'addr.sarra') {
+    const a = String(p.addr || '');
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a) || a === me) return { sarra: false };
+    await limit(me, 'addr_sarra');
+    if (!(await sentToMe(a, me))) return { sarra: false };
+    const [{ data: pr }, { data: pt }] = await Promise.all([
+      db.from('profiles').select('address').eq('address', a).eq('banned', false).limit(1),
+      db.from('push_tokens').select('address').eq('address', a).limit(1)
+    ]);
+    return { sarra: !!((pr && pr.length) || (pt && pt.length)) };
   }
 
   if (action === 'balance.check') {

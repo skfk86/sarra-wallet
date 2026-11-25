@@ -108,17 +108,19 @@
     var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
     return h && h.sarra ? 'sarra' : 'ext';
   }
-  // هل المرسل (عنوان معروف، كما في TRON) مسجّل في صُرّة؟ صح/خطأ فقط من دالة آمنة، مع ذاكرة للجلسة. أي فشل = لا نعرف
+  // هل المرسل (عنوان TRON معروف) مستخدم صُرّة؟ طلب موقّع لخادم P2P يرد بصح/خطأ فقط، ويقبل فقط عنواناً أرسل إليك فعلاً.
+  // لا نفتح شاشة الرمز لأجله: إن كانت المحفظة مقفلة أو فشل الطلب = لا نعرف (يبقى العنوان وحده دون تصنيف)
   RX.sarraAddr = {};
   async function isSarraAddr(a) {
-    if (!a) return false;
+    if (!a || !core.isUnlocked() || !CFG.p2pUrl) return null;
     if (RX.sarraAddr[a] != null) return RX.sarraAddr[a];
-    var r = false;
-    try { r = (await Promise.race([rpc('is_sarra_address', { p_addr: a }), new Promise(function (res) { setTimeout(function () { res(false); }, 4000); })])) === true; } catch (e) {}
-    return (RX.sarraAddr[a] = r);
+    try {
+      var r = await Promise.race([p2p('addr.sarra', { addr: a }), new Promise(function (res, rej) { setTimeout(function () { rej(new Error('TIMEOUT')); }, 8000); })]);
+      return (RX.sarraAddr[a] = r && r.sarra === true);
+    } catch (e) { return null; }
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
-    if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
+    if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
     if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount);
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
@@ -138,7 +140,7 @@
         return t.incoming && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01;
       }).reverse().forEach(function (t) {
         if (rxConsume('tron', t.coin, t.exact)) return;
-        rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, src: undefined, time: t.time, txid: t.txid, url: core.network.explorer + t.txid, _sx: 1 });
+        rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid, _sx: 1 });
       });
       list.filter(function (t) {
         return !skipOut && !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; })

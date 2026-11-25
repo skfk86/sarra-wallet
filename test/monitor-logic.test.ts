@@ -14,4 +14,10 @@ t('لا يتكرر نفس التنبيه قبل ساعة ولو تغيّر ال�
   assert.equal(L.due('⛔ ماسح الإشعارات متوقف على tron منذ 11 دقيقة', sent, now), false);
   assert.equal(L.due('⛔ ماسح الإشعارات متوقف على tron منذ 70 دقيقة', sent, now + 3600000), true);
 });
+t('سر الجدولة: مطابقة تامة فقط، ورفض السر القصير أو الفارغ', () => {
+  const sec = 'a'.repeat(64);
+  assert.equal(L.secretOk(sec, sec), true); assert.equal(L.secretOk(sec.slice(0, 63) + 'b', sec), false);
+  assert.equal(L.secretOk(sec + 'a', sec), false); assert.equal(L.secretOk('', sec), false); assert.equal(L.secretOk(null, sec), false);
+  assert.equal(L.secretOk('short', 'short'), false);
+});
 console.log('\n' + n + ' اختبارات التنبيه نجحت');
