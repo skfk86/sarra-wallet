@@ -116,10 +116,6 @@ jobs:
           SHA=$(sha256sum out/sarra.apk | cut -d' ' -f1)
           NOTES="صُرّة $VERSION — ملف التثبيت لأندرويد (موقّع).
           SHA-256: $SHA"
-          # تحديث إجباري: minVersion في package.json (اختياري) — ما دونه يرى تنبيه «تحديث إجباري» في التطبيق
-          MIN=$(node -p "require('./package.json').minVersion || ''")
-          if [ -n "$MIN" ]; then NOTES="$NOTES
-          MIN-VERSION: $MIN"; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             if [ "$REPUBLISH" = "true" ]; then
               gh release upload "$TAG" out/sarra.apk out/sarra-$VERSION-release.apk --clobber

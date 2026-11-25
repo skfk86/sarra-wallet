@@ -1,6 +1,6 @@
 name: Deploy edge function (manual)
 
-# نشر يدوي فقط لدوال Supabase (p2p، history، push-watch، support) أو إعداد الإشعارات (push-setup). لا يعمل تلقائياً أبداً.
+# نشر يدوي فقط لدوال Supabase (p2p، history، push-watch، support) أو إعداد الإشعارات (push-setup) أو المراقبة (monitor-setup). لا يعمل تلقائياً أبداً.
 # يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN : من supabase.com → Account → Access Tokens
 # ويحتاج في Supabase نفسه (Edge Functions → Secrets): ETHERSCAN_API_KEY (Ethereum وPolygon) وNODEREAL_API_KEY (BNB Chain)، وMORALIS_API_KEY اختياري
@@ -10,7 +10,7 @@ on:
       fn:
         description: 'الدالة'
         type: choice
-        options: [p2p, oxapay-webhook, history, push-watch, support, pay, push-setup, pay-setup]
+        options: [p2p, oxapay-webhook, history, push-watch, support, pay, push-setup, pay-setup, monitor-setup]
         default: p2p
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
           ./node_modules/.bin/supabase --version
       - name: Deploy
-        if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup'
+        if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup' && inputs.fn != 'monitor-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy ${{ inputs.fn }} --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes
@@ -101,4 +101,37 @@ jobs:
           sleep 75
           echo "--- آخر تشغيل للماسح (من جدول cron) ---"
           python3 -c "import json;print(json.dumps({'query':\"select status, return_message, start_time from cron.job_run_details where jobid=(select jobid from cron.job where jobname='push-watch') order by start_time desc limit 2\"}))" > /tmp/q2.json
+          curl -s -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q2.json | head -c 800; echo
+      # monitor-setup: تنبيه تيليغرام + سؤال «هل المرسل مستخدم صُرّة» (addr.sarra في دالة p2p).
+      # ينقل سرّي تيليغرام من GitHub إلى دوال Supabase (لا يُطبعان)، وينشر p2p وmonitor، ثم يطبّق جدولة 027 مرة واحدة عبر سجل الترحيلات
+      - name: Monitor setup (p2p + monitor + migration 027)
+        if: inputs.fn == 'monitor-setup'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+            printf 'TELEGRAM_BOT_TOKEN=%s\nTELEGRAM_CHAT_ID=%s\n' "$TG_TOKEN" "$TG_CHAT" > /tmp/tg.env
+            supabase secrets set --env-file /tmp/tg.env --project-ref osdojhpsfbcqguoctbpk --yes; rm -f /tmp/tg.env; echo "✓ سرّا تيليغرام أُضيفا لدوال Supabase"
+          else echo "::warning::TELEGRAM_BOT_TOKEN أو TELEGRAM_CHAT_ID غير موجود في أسرار GitHub: المراقبة تعمل وتعيد التنبيهات لكنها لا ترسلها"; fi
+          for f in p2p monitor; do supabase functions deploy $f --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes; done
+          q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
+            curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          # السر نفسه يُولَّد في 018 (≈ 244 بت عشوائية)؛ نتحقق من طوله فقط ولا نطبعه
+          q "select (length(v) >= 32)::int n from public.push_cfg where k = 'cron_secret'" >/dev/null
+          grep -Eq '"n": ?1[^0-9]' /tmp/r.txt || { echo "::error::سر الجدولة cron_secret غير موجود أو قصير: شغّل push-setup أولاً"; exit 1; }
+          for m in 027_monitor_cron; do
+            q "create table if not exists public.sarra_migrations (name text primary key, applied_at timestamptz not null default now()); alter table public.sarra_migrations enable row level security;" >/dev/null
+            q "select count(*)::int n from public.sarra_migrations where name = '$m'" >/dev/null
+            if grep -Eq '"n": ?1[^0-9]' /tmp/r.txt; then echo "migration $m: مطبّق سابقاً، تخطّي"; continue; fi
+            code=$(q "$(cat supabase/migrations/$m.sql)")
+            echo "migration $m HTTP $code"; head -c 600 /tmp/r.txt; echo
+            [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق الترحيل $m"; exit 1; }
+            q "insert into public.sarra_migrations(name) values ('$m') on conflict do nothing" >/dev/null
+          done
+          sleep 320
+          echo "--- آخر تشغيل للمراقبة (من جدول cron) ---"
+          python3 -c "import json;print(json.dumps({'query':\"select status, return_message, start_time from cron.job_run_details where jobid=(select jobid from cron.job where jobname='monitor') order by start_time desc limit 2\"}))" > /tmp/q2.json
           curl -s -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q2.json | head -c 800; echo

@@ -17,3 +17,8 @@
   Content-Type: text/plain; charset=utf-8
 /inv_*
   Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'none'
+# ملف الإصدار يقرؤه التطبيق (أصل WebView مختلف): مسموح من أي أصل، ولا تخزين مؤقت طويل
+/version.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300
+  Content-Type: application/json; charset=utf-8

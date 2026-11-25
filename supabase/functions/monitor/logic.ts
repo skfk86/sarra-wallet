@@ -21,3 +21,12 @@ export function due(msg: string, sent: Record<string, number>, now: number, ever
   const k = msg.replace(/\d+/g, '#'); return !(sent[k] && now - sent[k] < everyMs);
 }
 export const keyOf = (msg: string) => msg.replace(/\d+/g, '#');
+
+// مقارنة ثابتة الزمن لسر الجدولة: لا تكشف مدة المقارنة كم حرفاً صحيحاً. السر يجب أن يكون 32 حرفاً على الأقل
+export function secretOk(given: string | null, secret: string): boolean {
+  if (!secret || secret.length < 32 || typeof given !== 'string') return false;
+  const a = new TextEncoder().encode(given), b = new TextEncoder().encode(secret);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) diff |= (a[i % (a.length || 1)] ?? 0) ^ b[i];
+  return diff === 0 && a.length === b.length;
+}

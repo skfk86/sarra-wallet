@@ -1,4 +1,4 @@
--- جدولة دالة المراقبة (supabase/functions/monitor) كل 5 دقائق بنفس سر الجدولة. تُطبَّق بعد نشر الدالة وبموافقة المطوّر.
+-- جدولة دالة المراقبة (supabase/functions/monitor) كل 5 دقائق بنفس سر الجدولة. تُطبَّق عبر مسار monitor-setup في GitHub Actions فقط.
 do $$ begin
   if exists (select 1 from cron.job where jobname = 'monitor') then perform cron.unschedule('monitor'); end if;
 end $$;

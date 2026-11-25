@@ -9,7 +9,7 @@ const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
 Deno.serve(async (req) => {
   const { data: cfg } = await db.from('push_cfg').select('k,v').in('k', ['cron_secret', 'monitor_sent']);
   const get = (k: string) => (cfg || []).find((r) => r.k === k)?.v || '';
-  if (!get('cron_secret') || req.headers.get('x-cron') !== get('cron_secret')) return new Response('forbidden', { status: 403 });
+  if (!L.secretOk(req.headers.get('x-cron'), get('cron_secret'))) return new Response('forbidden', { status: 403 });
   const now = Date.now();
   const [{ data: scans }, { data: orders }] = await Promise.all([
     db.from('push_state').select('chain,updated_at'),

@@ -72,25 +72,29 @@
   // ===== القائمة الجانبية =====
   var APP_VERSION = CFG.version || '';
 
-  // ===== التحديثات (للنسخة الموزّعة خارج Google Play): مرة يومياً نسأل GitHub عن آخر إصدار منشور =====
+  // ===== التحديثات (للنسخة الموزّعة خارج Google Play): مرة يومياً نقرأ sarrapay.com/version.json =====
+  // { latest, min }: min اختياري، ما دونه خلل خطِر ← تنبيه أحمر فقط. لا يمنع أبداً الإرسال أو الاستلام أو الوصول للأموال،
+  // وأي فشل في الجلب أو ملف غير صالح = التطبيق يعمل عادياً بلا بطاقة.
   var UPDATE_PAGE = CFG.updatePage || 'https://sarrapay.com/';
+  var VERSION_URL = CFG.versionUrl || 'https://sarrapay.com/version.json';
+  var semver = function (v) { return /^\d+\.\d+\.\d+$/.test(String(v || '')) ? String(v) : ''; };
   async function checkUpdate() {
     if (CFG.channel === 'play' || !APP_VERSION || navigator.onLine === false) return;
-    // التحديث الإجباري: سطر «MIN-VERSION: x.y.z» في ملاحظات الإصدار يعني أن ما دونه خطِر (ثغرة أو خطأ مالي)
-    var c = lsJson('sarra.upd', null), tag = c && Date.now() - c.at < 86400000 ? c.tag : null, min = c && c.min || '';
-    if (!tag) {
+    var c = lsJson('sarra.upd2', null), info = c && Date.now() - c.at < 86400000 ? c : null;
+    if (!info) {
       try {
-        var r = await fetch('https://api.github.com/repos/' + (CFG.updateRepo || 'skfk86/sarra-wallet') + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
-        if (!r.ok) return; var j = await r.json(); tag = j.tag_name || '';
-        var mm = String(j.body || '').match(/MIN-VERSION:\s*v?(\d+\.\d+\.\d+)/i); min = mm ? mm[1] : '';
-        try { localStorage.setItem('sarra.upd', JSON.stringify({ tag: tag, min: min, at: Date.now() })); } catch (e1) {}
+        var r = await fetch(VERSION_URL, { cache: 'no-store' });
+        if (!r.ok) return; var j = await r.json();
+        info = { latest: semver(j && j.latest), min: semver(j && j.min), at: Date.now() };
+        if (!info.latest) return;
+        try { localStorage.setItem('sarra.upd2', JSON.stringify(info)); } catch (e1) {}
       } catch (e) { return; }
     }
-    var newer = SarraLogic.cmpVersion(tag, APP_VERSION) > 0, must = !!min && SarraLogic.cmpVersion(min, APP_VERSION) > 0;
-    $('upd-card').hidden = !newer;
+    var newer = !!info.latest && SarraLogic.cmpVersion(info.latest, APP_VERSION) > 0, must = !!info.min && SarraLogic.cmpVersion(info.min, APP_VERSION) > 0;
+    $('upd-card').hidden = !(newer || must);
     $('upd-card').classList.toggle('must', must);
-    if (newer) $('upd-ver').textContent = (must ? 'تحديث إجباري: إصدارك فيه خلل خطِر. ' : '') + 'الإصدار ' + String(tag).replace(/^v/i, '') + ' · لديك ' + APP_VERSION;
-    if (must && !checkUpdate.warned) { checkUpdate.warned = 1; toast('حدّث صُرّة الآن: إصدارك ' + APP_VERSION + ' لم يعد آمناً. نزّل الإصدار الجديد من الموقع الرسمي فقط', true); }
+    if (newer || must) $('upd-ver').textContent = (must ? 'تحديث مهم: إصدارك فيه خلل خطِر، أموالك آمنة ويمكنك الاستمرار. ' : '') + 'الإصدار ' + (info.latest || info.min) + ' · لديك ' + APP_VERSION;
+    if (must && !checkUpdate.warned) { checkUpdate.warned = 1; toast('يُنصح بتحديث صُرّة: إصدارك ' + APP_VERSION + ' فيه خلل مهم. نزّل الجديد من sarrapay.com فقط', true); }
   }
   $('upd-card').onclick = function () { window.open(UPDATE_PAGE, '_blank'); };
   setTimeout(checkUpdate, 4000);
