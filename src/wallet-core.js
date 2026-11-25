@@ -1034,6 +1034,8 @@
         return { fromNet: fromNet, toNet: toNet, sym: sym, toSym: toSym, amount: amountStr, units: units, tool: (r.toolDetails && r.toolDetails.name) || r.tool || '',
           toAmount: fromUnits(BigInt(est.toAmount || 0), b.dec), toAmountMin: fromUnits(BigInt(est.toAmountMin || 0), b.dec),
           feesUsd: sum((est.feeCosts || []).filter(function (x) { return !/integrator/i.test(x.name || ''); })), gasUsd: sum(est.gasCosts),
+          // رسوم تُدفع فوق المبلغ (included=false) لا تظهر في toAmount، وقيمة المبلغ بالدولار لمقارنة الكلفة به
+          feesExtraUsd: sum((est.feeCosts || []).filter(function (x) { return x.included === false && !/integrator/i.test(x.name || ''); })), fromUsd: Number(est.fromAmountUSD || 0),
           gasNative: fromUnits((est.gasCosts || []).reduce(function (s2, x) { return s2 + BigInt(x.amount || 0); }, 0n), 18), seconds: Number(est.executionDuration || 0) || (r.includedSteps || []).reduce(function (s3, x) { return s3 + Number(x.estimate && x.estimate.executionDuration || 0); }, 0),
           appFee: p.fee ? Number(p.fee) : 0, approval: est.skipApproval ? '' : (est.approvalAddress || ''), token: a, tx: r.transactionRequest || null, at: Date.now(),
           action: r.action || {}, toAddr: toAddr, toTok: b };

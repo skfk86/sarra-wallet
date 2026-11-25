@@ -52,7 +52,7 @@
       $('es-rate').textContent = Number(q.amount) > 0 ? '1 ' + ES.from + ' ≈ ' + niceNum(Number(q.toAmount) / Number(q.amount), 6) + ' ' + ES.to : '—';
       var usd2 = function (v) { return v < 0.01 ? 'أقل من $0.01' : '≈ $' + v.toFixed(2); };
       $('es-pay').textContent = f(q.amount) + ' ' + ES.from;
-      $('es-app').textContent = q.appFee ? f(Number(q.amount) * q.appFee) + ' ' + ES.from + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
+      $('es-app').textContent = q.appFee ? feeNum(Number(q.amount) * q.appFee) + ' ' + ES.from + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('es-plat').textContent = q.feesUsd ? usd2(q.feesUsd) : 'مضمّنة في السعر';
       $('es-gas-c').textContent = n.native;
       $('es-fee').textContent = (Number(q.gasNative) ? f(q.gasNative) + ' ' + n.native + ' · ' : '') + usd2(q.gasUsd);
@@ -81,7 +81,7 @@
         }
         $('es-quote').hidden = true; $('es-amt').value = '';
         core.evmBalances().then(function (eb) { if (eb) { state.evmBal = eb; renderSwapEvm(); } }).catch(function () {});
-      } catch (e) { esErr(WalletCore.errorText(e)); if (e && e.message === 'LOW_GAS') openGasHelp(q.fromNet); }
+      } catch (e) { ES.q = null; $('es-quote').hidden = true; $('es-go').hidden = true; esErr(WalletCore.errorText(e) + ' — اضغط «عرض السعر» لجلب سعر جديد.'); if (e && e.message === 'LOW_GAS') openGasHelp(q.fromNet); }
       finally { state.txBusy = false; }
     };
     var askPin = function () { openPin('verify', run); };
@@ -223,6 +223,13 @@
     var a = netOf(BR.from).coins, b = netOf(BR.to).coins;
     return a.filter(function (c) { return b.indexOf(c) >= 0; });
   }
+  // كسور العمولة الصغيرة جداً تُكتب 0.0₄365 فيقرؤها الناس 0.04365: نكتفي بـ «أقل من 0.0001»
+  function feeNum(v) { v = Number(v) || 0; return v > 0 && v < 1e-4 ? 'أقل من 0.0001' : niceNum(v, 6); }
+  // كلفة النقل الكلية بالدولار مقابل قيمة المبلغ: رسوم الجسر المدفوعة فوق المبلغ + رسوم الشبكة
+  function brCost(q) {
+    var stable = /^(USDT|USDC|DAI)$/.test(q.sym), val = Number(q.fromUsd) || (stable ? Number(q.amount) : 0);
+    return { val: val, cost: (Number(q.feesExtraUsd) || 0) + (Number(q.gasUsd) || 0) };
+  }
   function brReset() { BR.q = null; $('br-quote').hidden = true; $('br-go').hidden = true; $('br-err').hidden = true; }
   function prepareBridge() {
     if (BR.from === BR.to) BR.to = NETS.filter(function (n) { return n.key !== BR.from; })[0].key;
@@ -258,12 +265,16 @@
       $('br-fee').textContent = (fn.evm && Number(q.gasNative) ? fmt(q.gasNative) + ' ' + gc + ' · ' : '') + usd2b(q.gasUsd);
       $('br-time').textContent = q.seconds ? (q.seconds < 90 ? 'أقل من دقيقتين' : 'حوالي ' + Math.ceil(q.seconds / 60) + ' دقيقة') : 'عادة بضع دقائق';
       $('br-tool').textContent = q.tool || 'LI.FI';
-      $('br-app').textContent = q.appFee ? fmt(Number(q.amount) * q.appFee) + ' ' + BR.coin + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
+      $('br-app').textContent = q.appFee ? feeNum(Number(q.amount) * q.appFee) + ' ' + BR.coin + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       // نفس العملة على الطرفين: ما يصل يجب أن يقارب ما يُدفع. في المبالغ الصغيرة قد تأكل رسوم الجسر معظم المبلغ
       var loss = Number(q.amount) > 0 ? 1 - Number(q.toAmount) / Number(q.amount) : 0;
       if (loss > 0.2) { BR.q = null; return brErr('رسوم هذا النقل تأخذ ' + (loss * 100).toFixed(0) + '% من المبلغ (يصل ' + fmt(q.toAmount) + ' من ' + fmt(q.amount) + '). زِد المبلغ أو اختر شبكة أخرى'); }
+      // الرسوم المدفوعة من رصيد آخر (عملة الشبكة) لا تنقص المبلغ الواصل فلا يكشفها loss: نقارنها بقيمة المبلغ
+      var bc = brCost(q);
+      if (bc.val > 0 && bc.cost >= bc.val) { BR.q = null; return brErr('رسوم هذا النقل (≈ $' + bc.cost.toFixed(2) + ') أكبر من قيمة المبلغ نفسه (≈ $' + bc.val.toFixed(bc.val < 1 ? 4 : 2) + '). زِد المبلغ أو اختر شبكة أخرى'); }
       $('br-quote').hidden = false; $('br-go').hidden = false;
-      if (loss > 0.05) brErr('⚠️ ستخسر حوالي ' + (loss * 100).toFixed(1) + '% من المبلغ في الرسوم. المبالغ الأكبر أوفر نسبياً');
+      if (bc.val > 0 && bc.cost > bc.val * 0.2) brErr('⚠️ الرسوم (≈ $' + bc.cost.toFixed(2) + ') تعادل ' + Math.round(bc.cost / bc.val * 100) + '% من قيمة المبلغ، وتُدفع إضافةً إليه. المبالغ الأكبر أوفر نسبياً');
+      else if (loss > 0.05) brErr('⚠️ ستخسر حوالي ' + (loss * 100).toFixed(1) + '% من المبلغ في الرسوم. المبالغ الأكبر أوفر نسبياً');
     } catch (e) { brErr(WalletCore.errorText(e)); }
     finally { btn.disabled = false; btn.textContent = 'عرض السعر'; }
   };
@@ -315,7 +326,9 @@
       }
     } catch (e) {
       if (e && /^(INSUFFICIENT|LOW_|LOCKED|NO_ROUTE|ROUTE_MISMATCH|QUOTE_EXPIRED|BAD_|APPROVE_PENDING|TX_FAILED)/.test(e.message || '')) { try { localStorage.removeItem('sarra.lastbridge'); } catch (e1) {} }
-      tr.hidden = true; brErr(WalletCore.errorText(e));
+      // السعر القديم لا يصلح بعد الفشل: نخفيه حتى لا تظهر رسالة الخطأ بجانب عرض يبدو صالحاً
+      tr.hidden = true; BR.q = null; $('br-quote').hidden = true; $('br-go').hidden = true;
+      brErr(WalletCore.errorText(e) + ' — اضغط «عرض السعر» لجلب سعر جديد.');
     }
     finally { state.txBusy = false; }
   }

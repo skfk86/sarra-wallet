@@ -107,7 +107,7 @@
       kvRow(dl, 'الشبكة', chainLabel(t.net));
       kvRow(dl, 'العملة', t.coin || 'USDT');
       var who = kind === 'recv' ? (r.from || t.counterparty) : (r.to || t.counterparty);
-      if (who) kvRow(dl, kind === 'recv' ? 'من' : 'إلى', shortAddr(who), who);
+      if (who) { kvRow(dl, kind === 'recv' ? 'من' : 'إلى', shortAddr(who), who); if (kind === 'recv' && r.src) kvRow(dl, 'النوع', el('span', r.src === 'sarra' ? null : 'color:var(--mu)', r.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية')); }
       else if (kind === 'recv') kvRow(dl, 'من', el('span', r.src === 'sarra' ? null : 'color:var(--mu)', r.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية'));
     }
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(t.time)));
