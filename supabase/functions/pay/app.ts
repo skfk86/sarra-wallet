@@ -183,6 +183,12 @@ export function createApp(d: Deps) {
       if (error) throw new Error('SERVER_ERROR');
       return { api_key: key };
     }
+    if (action === 'pay.hooksecret') { // سر إشعار جديد يوقف القديم فوراً: كل إشعار يُوقَّع بالسر المقروء من القاعدة لحظة الإرسال
+      await hit(me, 'pay_hooksecret', 10, 86400);
+      const { data, error } = await db.from('pay_merchants').update({ webhook_secret: P.newHookSecret() }).eq('id', cur.id).select().maybeSingle();
+      if (error || !data) throw new Error('SERVER_ERROR');
+      return { merchant: merchantView(data), ...info };
+    }
     if (action === 'pay.hooktest') { // إشعار تجريبي فوري إلى رابط التاجر، ونعيد له ما ردّ به خادمه
       await hit(me, 'pay_hooktest', 30, 86400);
       const url = P.safeWebhookUrl(cur.webhook_url); if (!url) throw new Error('NO_WEBHOOK_URL');
