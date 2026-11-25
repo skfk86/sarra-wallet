@@ -100,7 +100,7 @@ footer{color:var(--mu);font-size:14px;text-align:center;padding:16px 0 40px}
       <h3>احصل على مفتاح API</h3>
       <p>ثبّت <a href="https://sarrapay.com/">تطبيق صُرّة</a>، ثم افتح <b>القائمة ← بوابة الدفع للتجار</b>، اكتب اسم متجرك واضغط <b>إنشاء مفتاح API</b>.</p>
       <p>المفتاح يبدأ بـ <code>sk_live_</code> ويظهر مرة واحدة فقط. احفظه في خادمك. للتجربة بدون مال أنشئ <a href="#test">مفتاحاً تجريبياً</a>.</p>
-      <p><b>قبل أول فاتورة حقيقية</b> اشحن رصيد العمولة من التطبيق، وإلا ترجع <code>INSUFFICIENT_CREDIT</code>. الفواتير التجريبية لا تخصم عمولة ولا تحتاج رصيداً.</p>
+      <div class="warn"><b>قبل أول فاتورة حقيقية اشحن رصيد العمولة من التطبيق.</b> الحساب يبدأ برصيد صفر، وبدونه يرفض الخادم إنشاء الفاتورة بكود <code>402</code>: <code>{"error": "INSUFFICIENT_CREDIT", "message": "Fee credit is too low. Top up in the Sarra app."}</code>. الفواتير التجريبية لا تخصم عمولة ولا تحتاج رصيداً.</div>
     </div></div>
 
     <div class="step"><i>2</i><div>
@@ -274,7 +274,7 @@ SARRA_KEY=sk_live_XXXXXXXX node server.js
   }
 }</code></pre></div>
     <h3>تحقّق من التوقيع</h3>
-    <p>أي شخص يعرف رابطك يستطيع إرسال إشعار مزيّف، لذلك كل إشعار منا موقّع بسر الإشعار (<code>whsec_…</code>) الذي تجده في نفس الشاشة. انسخ الدالة الجاهزة:</p>
+    <p>أي شخص يعرف رابطك يستطيع إرسال إشعار مزيّف، لذلك كل إشعار منا موقّع بسر الإشعار (<code>whsec_…</code>) الذي تجده في نفس الشاشة. السر يُنشأ مرة واحدة مع حسابك ويبقى ظاهراً لك في شاشة التاجر في التطبيق كلما فتحتها، ولا توجد حالياً طريقة لتوليد سر جديد. انسخ الدالة الجاهزة:</p>
     <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="js"><pre><code data-lang="js">const crypto = require('crypto');
 
 // ترجع true إذا كان الإشعار من صُرّة فعلاً
@@ -369,7 +369,7 @@ def sarra_hook():
     <div class="tw"><table>
       <tr><th>الحقل</th><th>الوصف</th></tr>
       <tr><td><code>amount</code> <span class="req">إلزامي</span></td><td>نص مثل <code>"25"</code> أو <code>"25.50"</code>. من 1 إلى 100000، بخانتين عشريتين كحد أقصى.</td></tr>
-      <tr><td><code>network</code> <span class="req">إلزامي</span></td><td><code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات.</td></tr>
+      <tr><td><code>network</code> <span class="req">إلزامي</span></td><td><code>bsc</code> أو <code>tron</code> أو <code>polygon</code> أو <code>eth</code>. ننصح بـ <code>bsc</code> لأن رسومها على العميل سنتات. تُحدَّد الشبكة عند إنشاء الفاتورة ولا يستطيع العميل تغييرها في صفحة الدفع؛ لعرض شبكة أخرى أنشئ فاتورة جديدة.</td></tr>
       <tr><td><code>order_id</code></td><td>رقم الطلب عندك (حتى 64 حرفاً: حروف لاتينية وأرقام و<code>. : - _</code>). إعادة الطلب بنفس الرقم والبيانات ترجع الفاتورة نفسها ولا تنشئ ثانية. بنفس الرقم ومبلغ أو شبكة أو عملة مختلفة: خطأ <code>ORDER_ID_CONFLICT</code> (ألغِ القديمة أولاً).</td></tr>
       <tr><td><code>description</code></td><td>نص يظهر للعميل في صفحة الدفع (حتى 140 حرفاً).</td></tr>
       <tr><td><code>currency</code></td><td><code>USDT</code> (الافتراضي) أو <code>USDC</code>. USDC متاح على <code>bsc</code> و<code>polygon</code> و<code>eth</code> فقط.</td></tr>
@@ -412,27 +412,27 @@ def sarra_hook():
   "request_id": "req_8f3a2c1d9e7b6a54"
 }</code></pre></div>
     <div class="tw"><table>
-      <tr><th>الرمز</th><th>HTTP</th><th>المعنى والحل</th></tr>
-      <tr><td><code>UNAUTHORIZED</code></td><td>401</td><td>المفتاح ناقص أو خاطئ أو استُبدل بمفتاح جديد.</td></tr>
-      <tr><td><code>INSUFFICIENT_CREDIT</code></td><td>402</td><td>الرصيد لا يغطي عمولة هذه الفاتورة مع عمولات فواتيرك المعلّقة. اشحن الرصيد من التطبيق.</td></tr>
-      <tr><td><code>BAD_AMOUNT</code></td><td>400</td><td>صيغة المبلغ غير صحيحة. ومعها <code>AMOUNT_TOO_SMALL</code> و<code>AMOUNT_TOO_LARGE</code>.</td></tr>
-      <tr><td><code>BAD_NETWORK</code></td><td>400</td><td>شبكة غير مدعومة.</td></tr>
-      <tr><td><code>BAD_CURRENCY</code></td><td>400</td><td>العملة غير مدعومة على هذه الشبكة (مثل USDC على TRON).</td></tr>
-      <tr><td><code>BAD_METADATA</code></td><td>400</td><td><code>metadata</code> ليس كائناً مسطحاً، أو أكبر من الحد.</td></tr>
-      <tr><td><code>BAD_SUCCESS_URL</code></td><td>400</td><td><code>success_url</code> يجب أن يبدأ بـ <code>https://</code>.</td></tr>
-      <tr><td><code>NETWORK_NOT_CONFIGURED</code></td><td>400</td><td>لا يوجد عنوان استلام لهذه الشبكة في حسابك.</td></tr>
-      <tr><td><code>BAD_ORDER_ID</code></td><td>400</td><td><code>order_id</code> فيه رموز غير مسموحة أو أطول من 64.</td></tr>
-      <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>عندك 200 فاتورة معلّقة (حدّ لكل وضع، تجريبي أو حقيقي). تخرج الفاتورة من العدّ حين تُدفع أو تنتهي مهلتها (<code>expires_min</code> + 20 دقيقة سماح للدفع المتأخر) أو تُلغيها بـ <code>/cancel</code>.</td></tr>
-      <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>طلبات كثيرة. الحدود: 120 طلباً في الدقيقة لكل IP، و300 فاتورة في الساعة لكل حساب، و600 قراءة في الدقيقة. 20 مفتاحاً خاطئاً من نفس الـ IP تحظر محاولاته الخاطئة 10 دقائق (المفتاح الصحيح لا يُحظر). انتظر المدة في ترويسة <code>Retry-After</code> (بالثواني).</td></tr>
-      <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>413</td><td>جسم الطلب أكبر من 16 KB.</td></tr>
-      <tr><td><code>ORDER_ID_CONFLICT</code></td><td>409</td><td>رقم الطلب له فاتورة نشطة بمبلغ أو شبكة أو عملة مختلفة.</td></tr>
-      <tr><td><code>METHOD_NOT_ALLOWED</code></td><td>405</td><td>المسار صحيح لكن الطريقة خاطئة (GET بدل POST مثلاً).</td></tr>
-      <tr><td><code>BAD_STATUS_FILTER</code> / <code>BAD_CURSOR</code></td><td>400</td><td>قيمة <code>status</code> أو <code>before</code> غير صحيحة في قائمة الفواتير.</td></tr>
-      <tr><td><code>MERCHANT_DISABLED</code></td><td>403</td><td>حساب التاجر موقوف. تواصل مع الدعم.</td></tr>
-      <tr><td><code>TRY_AGAIN</code> / <code>SERVER_ERROR</code></td><td>409 / 500</td><td>تعارض مؤقت أو خطأ داخلي. أعد المحاولة بعد لحظات بنفس <code>order_id</code>، فلن تُنشأ فاتورة مكررة.</td></tr>
-      <tr><td><code>NOT_FOUND</code></td><td>404</td><td>الفاتورة غير موجودة في حسابك، أو تخص الوضع الآخر (تجريبي/حقيقي).</td></tr>
-      <tr><td><code>TEST_KEY_REQUIRED</code></td><td>403</td><td>المحاكاة تعمل بالمفتاح التجريبي فقط.</td></tr>
-      <tr><td><code>NOT_PENDING</code></td><td>400</td><td>العملية (إلغاء أو محاكاة) تحتاج فاتورة بانتظار الدفع.</td></tr>
+      <tr><th>الرمز</th><th>HTTP</th><th>النوع</th><th>المعنى والحل</th></tr>
+      <tr><td><code>UNAUTHORIZED</code></td><td>401</td><td>دائم</td><td>المفتاح ناقص أو خاطئ أو استُبدل بمفتاح جديد.</td></tr>
+      <tr><td><code>INSUFFICIENT_CREDIT</code></td><td>402</td><td>دائم حتى تتغير حالة حسابك</td><td>الرصيد لا يغطي عمولة هذه الفاتورة مع عمولات فواتيرك المعلّقة. اشحن الرصيد من التطبيق.</td></tr>
+      <tr><td><code>BAD_AMOUNT</code></td><td>400</td><td>دائم</td><td>صيغة المبلغ غير صحيحة. ومعها <code>AMOUNT_TOO_SMALL</code> و<code>AMOUNT_TOO_LARGE</code>.</td></tr>
+      <tr><td><code>BAD_NETWORK</code></td><td>400</td><td>دائم</td><td>شبكة غير مدعومة.</td></tr>
+      <tr><td><code>BAD_CURRENCY</code></td><td>400</td><td>دائم</td><td>العملة غير مدعومة على هذه الشبكة (مثل USDC على TRON).</td></tr>
+      <tr><td><code>BAD_METADATA</code></td><td>400</td><td>دائم</td><td><code>metadata</code> ليس كائناً مسطحاً، أو أكبر من الحد.</td></tr>
+      <tr><td><code>BAD_SUCCESS_URL</code></td><td>400</td><td>دائم</td><td><code>success_url</code> يجب أن يبدأ بـ <code>https://</code>.</td></tr>
+      <tr><td><code>NETWORK_NOT_CONFIGURED</code></td><td>400</td><td>دائم</td><td>لا يوجد عنوان استلام لهذه الشبكة في حسابك.</td></tr>
+      <tr><td><code>BAD_ORDER_ID</code></td><td>400</td><td>دائم</td><td><code>order_id</code> فيه رموز غير مسموحة أو أطول من 64.</td></tr>
+      <tr><td><code>TOO_MANY_PENDING</code></td><td>400</td><td>دائم حتى تتغير حالة حسابك</td><td>عندك 200 فاتورة معلّقة (حدّ لكل وضع، تجريبي أو حقيقي). تخرج الفاتورة من العدّ حين تُدفع أو تنتهي مهلتها (<code>expires_min</code> + 20 دقيقة سماح للدفع المتأخر) أو تُلغيها بـ <code>/cancel</code>.</td></tr>
+      <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>مؤقت (بعد الانتظار)</td><td>طلبات كثيرة. الحدود: 120 طلباً في الدقيقة لكل IP، و300 فاتورة في الساعة لكل حساب، و600 قراءة في الدقيقة. 20 مفتاحاً خاطئاً من نفس الـ IP تحظر محاولاته الخاطئة 10 دقائق (المفتاح الصحيح لا يُحظر). انتظر المدة في ترويسة <code>Retry-After</code> (بالثواني).</td></tr>
+      <tr><td><code>PAYLOAD_TOO_LARGE</code></td><td>413</td><td>دائم</td><td>جسم الطلب أكبر من 16 KB.</td></tr>
+      <tr><td><code>ORDER_ID_CONFLICT</code></td><td>409</td><td>دائم</td><td>رقم الطلب له فاتورة نشطة بمبلغ أو شبكة أو عملة مختلفة.</td></tr>
+      <tr><td><code>METHOD_NOT_ALLOWED</code></td><td>405</td><td>دائم</td><td>المسار صحيح لكن الطريقة خاطئة (GET بدل POST مثلاً).</td></tr>
+      <tr><td><code>BAD_STATUS_FILTER</code> / <code>BAD_CURSOR</code></td><td>400</td><td>دائم</td><td>قيمة <code>status</code> أو <code>before</code> غير صحيحة في قائمة الفواتير.</td></tr>
+      <tr><td><code>MERCHANT_DISABLED</code></td><td>403</td><td>دائم حتى تتغير حالة حسابك</td><td>حساب التاجر موقوف. تواصل مع الدعم.</td></tr>
+      <tr><td><code>TRY_AGAIN</code> / <code>SERVER_ERROR</code></td><td>409 / 500</td><td>مؤقت</td><td>تعارض مؤقت أو خطأ داخلي. أعد المحاولة بعد لحظات بنفس <code>order_id</code>، فلن تُنشأ فاتورة مكررة.</td></tr>
+      <tr><td><code>NOT_FOUND</code></td><td>404</td><td>دائم</td><td>الفاتورة غير موجودة في حسابك، أو تخص الوضع الآخر (تجريبي/حقيقي).</td></tr>
+      <tr><td><code>TEST_KEY_REQUIRED</code></td><td>403</td><td>دائم</td><td>المحاكاة تعمل بالمفتاح التجريبي فقط.</td></tr>
+      <tr><td><code>NOT_PENDING</code></td><td>400</td><td>دائم</td><td>العملية (إلغاء أو محاكاة) تحتاج فاتورة بانتظار الدفع.</td></tr>
     </table></div>
     <p><b>ما يستحق إعادة المحاولة:</b> <code>TRY_AGAIN</code> و<code>SERVER_ERROR</code> (مؤقتان)، و<code>RATE_LIMITED</code> بعد انتظار. وما سواها أخطاء دائمة بالنسبة لهذا الطلب: صحّح الطلب أو حالة حسابك (مثل شحن الرصيد في <code>INSUFFICIENT_CREDIT</code>) ثم أرسل من جديد، ولا تكرّر الطلب نفسه كما هو.</p>
   </section>
