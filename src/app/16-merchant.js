@@ -95,7 +95,7 @@
     $('mc-key-new').textContent = m.key_hint ? 'إنشاء مفتاح جديد' : 'إنشاء مفتاح API';
     $('mc-tkey-state').textContent = m.test_key_hint ? 'مفعّل، وينتهي بـ ' + m.test_key_hint + '. فواتيره تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.' : 'للتجربة بدون مال: فواتير sk_test_ تُدفع بزر «محاكاة الدفع»، لا تخصم من رصيدك، وتُحذف تلقائياً بعد 3 دقائق من انتهائها.';
     $('mc-tkey-new').textContent = m.test_key_hint ? 'إنشاء مفتاح تجريبي جديد' : 'إنشاء مفتاح تجريبي';
-    $('mc-hooktest').hidden = !m.webhook_url; $('mc-secret-copy').hidden = !m.webhook_url;
+    $('mc-hooktest').hidden = !m.webhook_url; $('mc-secret-copy').hidden = !m.webhook_url; $('mc-secret-new').hidden = !m.webhook_url;
     $('mc-hook-view').textContent = m.webhook_url || 'لم تضف رابطاً، وهذا مقبول. لكن حينها يجب أن يسأل خادمك البوابة عن حالة كل فاتورة بنفسه.';
     var box = $('mc-inv'); box.textContent = '';
     var list = (d.invoices || []).filter(function (x) { return x.kind === 'payment'; });
@@ -184,6 +184,12 @@
   });
   $('mc-key-copy').onclick = function () { copyText($('mc-key').textContent); };
   $('mc-secret-copy').onclick = function () { copyText(MC.data.merchant.webhook_secret); };
+  // سر جديد يوقف القديم فوراً: الإشعارات التالية (ومنها المعلّقة في إعادة المحاولة) تُوقَّع بالجديد، فيجب تحديث خادمك مباشرة
+  $('mc-secret-new').onclick = mcDo($('mc-secret-new'), async function () {
+    if (!(await askConfirm('سيتوقف السر الحالي فوراً، وكل إشعار بعد الآن يُوقَّع بالسر الجديد. حدّث السر في خادمك مباشرة بعد النسخ، وإلا سيرفض خادمك الإشعارات. استخدمه إن تسرّب السر.', false, 'إنشاء سر جديد', 'إلغاء'))) return;
+    var r = await payApi('pay.hooksecret'); MC.data.merchant = r.merchant; mcRender();
+    copyText(r.merchant.webhook_secret); toast('أُنشئ سر جديد ونُسخ. حدّثه في خادمك الآن');
+  });
   $('mc-docs').onclick = function () { window.open(PAY_DOCS, '_blank'); };
   $('mc-top').onclick = mcDo($('mc-top'), async function () {
     var amt = readAmt('mc-top-amt'); if (amt === null) throw new Error('INVALID_AMOUNT');

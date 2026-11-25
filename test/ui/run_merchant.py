@@ -23,6 +23,7 @@ async def handler(route):
     k='sk_live_'+'9'*44+'beef'; st['m']['key_hint']='beef'; return await route.fulfill(json={'api_key':k})
   if a=='pay.hooks': return await route.fulfill(json={'hooks':[{'invoice_id':'inv_'+'a'*20,'event':'invoice.paid','status':500,'ok':False,'at':'2026-11-19T10:00:00Z'},{'invoice_id':'inv_'+'b'*20,'event':'invoice.cancelled','status':200,'ok':True,'at':'2026-11-19T09:00:00Z'}]})
   if a=='pay.resend': return await route.fulfill(json={'ok':True,'status':200})
+  if a=='pay.hooksecret': st['m']={**st['m'],'webhook_secret':'whsec_'+'2'*48}; return await route.fulfill(json={'merchant':st['m'],**INFO})
   if a=='pay.hooktest': return await route.fulfill(json=st.pop('hook',{'ok':True,'status':200}))
   if a=='pay.topup':
     bonus='2' if float(p['amount'])>=20 else '0'
@@ -64,6 +65,11 @@ async def main():
     await pg.click('#mc-key-new'); await pg.wait_for_timeout(1200)
     k=await pg.inner_text('#mc-key'); assert k.startswith('sk_live_') and k.endswith('beef') and await pg.locator('#mc-key-box').is_visible() and 'لن يظهر مرة أخرى' in await pg.inner_text('#mc-key-box'); step('مفتاح API: يظهر مرة واحدة مع تحذير الحفظ')
     await no_overflow('المفتاح ظاهر')
+    assert await pg.locator('#mc-secret-new').is_visible(); await pg.click('#mc-secret-new'); await pg.wait_for_timeout(500)
+    assert await pg.locator('#ask-sheet.show').count()==1 and 'سيتوقف السر الحالي فوراً' in await pg.inner_text('#ask-text'); await pg.click('#ask-no'); await pg.wait_for_timeout(400)
+    assert not any(c[0]=='pay.hooksecret' for c in st['calls']) and st['m']['webhook_secret']=='whsec_'+'1'*48; step('سر إشعار جديد: الإلغاء لا يغيّر شيئاً')
+    await pg.click('#mc-secret-new'); await pg.wait_for_timeout(500); await pg.click('#ask-yes'); await pg.wait_for_timeout(1200)
+    assert [c[0] for c in st['calls']].count('pay.hooksecret')==1 and not await pg.locator('#ask-sheet.show').count(); step('سر إشعار جديد: بعد التأكيد يُطلب من الخادم مرة واحدة')
     await pg.fill('#mc-top-amt','abc'); await pg.click('#mc-top'); await pg.wait_for_timeout(500)
     assert not any(c[0]=='pay.topup' for c in st['calls']); step('مبلغ شحن غير صحيح: لا يُرسل للخادم')
     assert await pg.input_value('#mc-top-net')=='bsc' and await pg.locator('#mc-top-net option').count()==2

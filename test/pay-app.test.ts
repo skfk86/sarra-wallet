@@ -279,6 +279,11 @@ await t('إشعار تجريبي من التطبيق: يُرسل موقّعاً 
   const ev = JSON.parse(hooks[n0].body); assert.equal(ev.event, 'test'); assert.equal(ev.invoice.test, true);
   const sg = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(hooks[n0].sig)!; assert.equal(sg[2], await P.hmacHex(db.T.pay_merchants[0].webhook_secret, sg[1] + '.' + hooks[n0].body));
   hookStatus = 500; r = (await call(signed('pay.hooktest'))).j; assert.deepEqual(r, { ok: false, status: 500 }); hookStatus = 200;
+  // سر جديد: يختلف عن القديم، والإشعار التالي يُوقَّع بالجديد ولا يصح بالقديم
+  const old = db.T.pay_merchants[0].webhook_secret, rs = (await call(signed('pay.hooksecret'))).j;
+  assert.match(rs.merchant.webhook_secret, /^whsec_[0-9a-f]{48}$/); assert.notEqual(rs.merchant.webhook_secret, old); assert.equal(db.T.pay_merchants[0].webhook_secret, rs.merchant.webhook_secret);
+  const n1 = hooks.length; await call(signed('pay.hooktest')); const hk = hooks[n1], mm = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(hk.sig)!;
+  assert.equal(mm[2], await P.hmacHex(rs.merchant.webhook_secret, mm[1] + '.' + hk.body)); assert.notEqual(mm[2], await P.hmacHex(old, mm[1] + '.' + hk.body));
   const o = db.T.pay_merchants[0].webhook_url; db.T.pay_merchants[0].webhook_url = null; assert.equal((await call(signed('pay.hooktest'))).j.error, 'NO_WEBHOOK_URL'); db.T.pay_merchants[0].webhook_url = o;
 });
 await t('تاجران على العنوان نفسه: كل دفعة تسدد فاتورتها فقط', async () => {
@@ -412,7 +417,10 @@ await t('هجوم: 30 فاتورة متزامنة بنفس المبلغ تأخذ
   assert.equal(new Set(ok.map((x) => x.pay_amount)).size, ok.length, 'كل مبلغ فريد');
   const target = ok[3], before = db.T.pay_merchants[0].credit;
   pay('bsc', target.address, units(target.pay_amount)); pay('bsc', target.address, units(target.pay_amount), { transactionHash: '0xdup' });
-  pay('bsc', target.address, units(target.pay_amount) - 1n); // أقل بوحدة: لا يطابق
+  // مبلغ قريب لا يطابق: أقل من الهدف بوحدات حتى لا يساوي مبلغ فاتورة أخرى من الثلاثين
+  // (الكسور عشوائية، فـ«أقل بوحدة» قد يطابق فاتورة أخرى فعلاً بنسبة ≈ 0.3% ويُسدّدها بحق، فيفشل الاختبار عشوائياً)
+  const taken = new Set(ok.map((x) => units(x.pay_amount))); let near = units(target.pay_amount) - 1n; while (taken.has(near)) near -= 1n;
+  pay('bsc', target.address, near); // لا يطابق أي فاتورة
   await tick(); await tick();
   const paid = db.T.pay_invoices.filter((x) => ok.some((o) => o.id === x.id) && x.status === 'paid');
   assert.equal(paid.length, 1); assert.equal(paid[0].id, target.id);
