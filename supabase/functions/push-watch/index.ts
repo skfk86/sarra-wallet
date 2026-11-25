@@ -59,7 +59,7 @@ async function fcmAccess() {
   fcmTok = { t: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 }; return fcmTok.t;
 }
 async function send(token: string, e: L.Ev): Promise<'ok' | 'gone' | 'err'> {
-  return fcm(token, L.message(e), { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx, self: e.self === undefined ? '' : e.self ? '1' : '0' }, e.key);
+  return fcm(token, L.message(e), { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx, self: e.self === undefined ? '' : e.self ? '1' : '0', sarra: e.fromSarra ? '1' : '0' }, e.key);
 }
 // visibility PRIVATE: على شاشة القفل الآمنة يظهر «صُرّة» فقط بلا مبالغ ولا نص المحادثة (حسب إعداد الهاتف لإخفاء المحتوى الحساس)
 async function fcm(token: string, m: { title: string; body: string }, data: Record<string, string>, tag: string): Promise<'ok' | 'gone' | 'err'> {
@@ -138,8 +138,12 @@ async function scan(req: Request): Promise<Response> {
   await Promise.all(events.map(async (e) => {
     if (!e.tx) return;
     const k = e.chain + ':' + e.tx;
-    if (!txFrom.has(k)) txFrom.set(k, rpc(e.chain, 'eth_getTransactionByHash', [e.tx.startsWith('0x') ? e.tx : '0x' + e.tx]).then((t) => (t as { from?: string } | null)?.from, () => undefined));
-    e.self = L.senderIsUs(await txFrom.get(k), e.hex);
+    if (!txFrom.has(k)) txFrom.set(k, rpc(e.chain, 'eth_getTransactionByHash', [e.tx.startsWith('0x') ? e.tx : '0x' + e.tx]).then((t) => t as { from?: string; to?: string } | null, () => null));
+    const tx = await txFrom.get(k) as { from?: string; to?: string } | null;
+    e.self = L.senderIsUs(tx?.from, e.hex);
+    // تحويل مباشر لعقد العملة؟ وإلا (موجّه/جسر/تداول) فالصادر ليس «إرسالاً» عادياً
+    const tok = CHAINS[e.chain].toks.find((x) => x.sym === e.sym);
+    e.direct = tok ? L.isDirectToToken(tx?.to, tok.addr) : undefined;
   }));
   let sent = 0; const gone = new Set<string>();
   for (const e of events) {

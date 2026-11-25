@@ -95,8 +95,21 @@
     if (!document.hidden) toast('خرج ' + (state.hidden ? '' : fmtExact(n.amount) + ' ') + n.coin + ' من محفظتك على ' + chainLabel(n.net), true);
     state.balances = null; state.historyCache = null;
   }
+  // تلميح من إشعار push: هل المرسل مستخدم صُرّة؟ (الخادم يعرفه ولا يكشف هويته). يُستعمل لتسمية مصدر التحويل في شاشة الاستلام
+  RX.hints = [];
+  function rxHint(n) {
+    var d = n && (n.data || (n.notification && n.notification.data)) || {};
+    if (d.kind !== 'in' || !d.chain) return;
+    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), amount: parseFloat(String(d.amount || '').replace(/,/g, '')), sarra: d.sarra === '1', at: Date.now() });
+    RX.hints = RX.hints.filter(function (h) { return Date.now() - h.at < 15 * 60000; }).slice(-20);
+  }
+  function rxSrc(net, coin, amt) { // 'sarra' إن أكّد الخادم، وإلا 'ext' (محفظة خارجية)
+    var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
+    return h && h.sarra ? 'sarra' : 'ext';
+  }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
-    n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
+    if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount);
+    n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
     RX.q.push(n); notifyTx('recv', n);
   }
@@ -167,13 +180,13 @@
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
-    if (!n.logged) { n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
+    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount); lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
     var dl = $('rx-kv'); dl.textContent = '';
     if (n.from) kvRow(dl, 'من', shortAddr(n.from), n.from);
-    else kvRow(dl, 'من', el('span', 'color:var(--mu)', 'غير معروف (رُصدت من زيادة الرصيد)'));
+    else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية'));
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(n.time)));
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);
     var more = $('rx-more'); more.hidden = !RX.q.length; more.textContent = RX.q.length ? 'و ' + RX.q.length + ' تحويلات أخرى بعد هذه' : '';

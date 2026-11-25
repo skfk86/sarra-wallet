@@ -74,8 +74,14 @@ t('نص الإشعار يتبع أصل العملية (تبديل/إرسال م�
   assert.equal(L.message({ ...base, kind: 'in', self: true }).title, 'اكتملت عمليتك');
   assert.equal(L.message({ ...base, kind: 'in', self: false }).title, 'وصلتك تحويلة');
   assert.equal(L.message({ ...base, kind: 'in' }).title, 'وصلتك تحويلة');
-  const own = L.message({ ...base, kind: 'out', self: true });
+  const own = L.message({ ...base, kind: 'out', self: true, direct: true });
   assert.equal(own.title, 'تم إرسال مبلغ'); assert.ok(!own.body.includes('فاحمِ') && own.body.includes('0x121212'), own.body);
+  // منك لكن عبر عقد وسيط (تبديل/جسر/تداول) أو لم نتحقق: لا «أُرسلت» ولا تحذير
+  for (const d of [false, undefined]) { const sw = L.message({ ...base, kind: 'out', self: true, direct: d }); assert.equal(sw.title, 'اكتملت عملية من محفظتك'); assert.ok(!sw.body.includes('أُرسلت') && !sw.body.includes('فاحمِ'), sw.body); }
+  const tokA = '0x55d398326f99059fF775485246999027B3197955';
+  assert.equal(L.isDirectToToken(tokA.toUpperCase().replace('0X', '0x'), tokA), true);
+  assert.equal(L.isDirectToToken('0x41' + tokA.slice(2), tokA), true); // TRON بصيغة 21 بايت
+  assert.equal(L.isDirectToToken('0x' + 'd'.repeat(40), tokA), false); assert.equal(L.isDirectToToken(null, tokA), undefined);
   const alien = L.message({ ...base, kind: 'out', self: false });
   assert.ok(alien.body.includes('فاحمِ') && alien.body.includes('لم تبدأها'), alien.body);
   assert.ok(L.message({ ...base, kind: 'out' }).body.includes('فاحمِ')); // غير معروف: نبقي التحذير

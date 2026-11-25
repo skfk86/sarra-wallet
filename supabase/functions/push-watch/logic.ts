@@ -27,7 +27,8 @@ export function fmtUnits(raw: bigint, dec: number): string {
 export type Tok = { sym: string; addr: string; dec: number };
 // fromSarra: المرسِل عنوان مسجّل في صُرّة (تحويل بين مستخدمي صُرّة)؛ لا نكشف هويته أبداً
 // self: المعاملة أرسلها عنوانك أنت (تبديل/نقل/إرسال من جهازك)؛ undefined = لم نتمكن من التحقق
-export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean; fromSarra?: boolean };
+export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean; fromSarra?: boolean; direct?: boolean };
+// direct: المعاملة نفسها استدعت عقد العملة مباشرة (تحويل عادي). غير ذلك (موجّه/جسر/تداول) ← الصادر ليس «إرسالاً»؛ undefined = لم نتحقق
 
 // يحوّل سجلات Transfer إلى أحداث لعناويننا فقط. ours: hex20 → true
 export function eventsFromLogs(chain: string, logs: any[], toks: Tok[], ours: Set<string>, minRaw: (t: Tok) => bigint): Ev[] {
@@ -76,6 +77,12 @@ export function senderIsUs(txFrom: unknown, hex: string): boolean | undefined {
   if (!/^[0-9a-f]{40,42}$/.test(f)) return undefined;
   return f.slice(-40) === hex.toLowerCase().replace(/^0x/, '');
 }
+// هل المعاملة موجّهة إلى عقد العملة نفسه؟ (to المعاملة = عنوان العقد). تعذّرت القراءة ← undefined فلا نخمّن
+export function isDirectToToken(txTo: unknown, tokAddr: string): boolean | undefined {
+  const f = String(txTo || '').toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{40,42}$/.test(f)) return undefined;
+  return f.slice(-40) === tokAddr.toLowerCase().replace(/^0x/, '').slice(-40);
+}
 const shortTx = (t: string) => t ? ' · ' + t.slice(0, 8) + '…' + t.slice(-6) : '';
 // نص الإشعار حسب أصل العملية: التحذير الأمني فقط لخصم لم تبدأه أنت، وأثر عملياتك يُوصف بما هو عليه
 export function message(e: Ev): { title: string; body: string } {
@@ -86,7 +93,9 @@ export function message(e: Ev): { title: string; body: string } {
       : e.fromSarra ? { title: 'وصلتك تحويلة داخلية', body: 'وصلك +' + amt + ' على ' + net + ' من مستخدم صُرّة' }
       : { title: 'وصلتك تحويلة', body: 'استلمت +' + amt + ' على ' + net };
   }
-  if (e.self === true) return { title: 'تم إرسال مبلغ', body: 'أُرسلت ' + amt + ' من محفظتك على ' + net + shortTx(e.tx) };
+  if (e.self === true && e.direct === true) return { title: 'تم إرسال مبلغ', body: 'أُرسلت ' + amt + ' من محفظتك على ' + net + shortTx(e.tx) };
+  // عملية منك لكنها ليست تحويلاً مباشراً (تبديل/جسر/تداول) أو لم نتحقق: لا نقول «أُرسلت» ولا نحذّر
+  if (e.self === true) return { title: 'اكتملت عملية من محفظتك', body: 'خرجت ' + amt + ' على ' + net + ' ضمن عملية أجريتها (تبديل أو نقل أو تداول)' + shortTx(e.tx) };
   if (e.self === false) return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + ' بمعاملة لم تبدأها أنت. إن لم تكن تعرفها فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
   return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + '. إن لم تكن أنت فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
 }
