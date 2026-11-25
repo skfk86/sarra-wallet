@@ -417,7 +417,10 @@ await t('هجوم: 30 فاتورة متزامنة بنفس المبلغ تأخذ
   assert.equal(new Set(ok.map((x) => x.pay_amount)).size, ok.length, 'كل مبلغ فريد');
   const target = ok[3], before = db.T.pay_merchants[0].credit;
   pay('bsc', target.address, units(target.pay_amount)); pay('bsc', target.address, units(target.pay_amount), { transactionHash: '0xdup' });
-  pay('bsc', target.address, units(target.pay_amount) - 1n); // أقل بوحدة: لا يطابق
+  // مبلغ قريب لا يطابق: أقل من الهدف بوحدات حتى لا يساوي مبلغ فاتورة أخرى من الثلاثين
+  // (الكسور عشوائية، فـ«أقل بوحدة» قد يطابق فاتورة أخرى فعلاً بنسبة ≈ 0.3% ويُسدّدها بحق، فيفشل الاختبار عشوائياً)
+  const taken = new Set(ok.map((x) => units(x.pay_amount))); let near = units(target.pay_amount) - 1n; while (taken.has(near)) near -= 1n;
+  pay('bsc', target.address, near); // لا يطابق أي فاتورة
   await tick(); await tick();
   const paid = db.T.pay_invoices.filter((x) => ok.some((o) => o.id === x.id) && x.status === 'paid');
   assert.equal(paid.length, 1); assert.equal(paid[0].id, target.id);
