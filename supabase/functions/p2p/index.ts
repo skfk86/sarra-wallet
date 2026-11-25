@@ -29,6 +29,8 @@ const USDT_BSC = '0x55d398326f99059fF775485246999027B3197955';
 const DEPOSIT_LIFETIME = Number(env('DEPOSIT_LIFETIME_MIN', '30'));
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
+// سقف الدفعة الواحدة من الضمان (تحرير أو إرجاع). ما فوقه يُرفض ويُحال للمشرف يدوياً
+const MAX_PAYOUT = env('P2P_MAX_PAYOUT_USDT', L.DEFAULT_MAX_PAYOUT_USDT);
 const TRONGRID_KEY = env('TRONGRID_API_KEY');
 const USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const WEBHOOK_URL = env('SUPABASE_URL') + '/functions/v1/oxapay-webhook';
@@ -80,6 +82,10 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
   // 1) الدفع وحده داخل try: أي خطأ هنا يعني أن الدفع لم يتأكد
   try {
     to = L.payoutTarget(order, kind);
+    // الحارس: لا دفع إلا بعد تأكيد OxaPay أن هذا الطلب نفسه مموَّل بما يغطي المبلغ، وتحت السقف. الرفض = لم يُرسل شيء
+    const info = order.deposit_track_id ? await paymentInfo(order.deposit_track_id).catch(() => null) : null;
+    const g = L.payoutGuard(info, order as any, amount, MAX_PAYOUT);
+    if (g) throw new Error('OXAPAY: ' + g); // بادئة OXAPAY = رفض صريح بلا دفع، فلا يُعامَل كنتيجة مجهولة
     r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`, net);
   } catch (e) {
     // رفض صريح من OxaPay = لم يُرسل شيء. انقطاع/مهلة = النتيجة مجهولة، فننبّه المشرف قبل أي إعادة محاولة
