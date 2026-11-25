@@ -101,12 +101,21 @@
   function rxHint(n) {
     var d = n && (n.data || (n.notification && n.notification.data)) || {};
     if (d.kind !== 'in' || !d.chain) return;
-    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), amount: parseFloat(String(d.amount || '').replace(/,/g, '')), sarra: d.sarra === '1', at: Date.now() });
+    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), tx: String(d.tx || ''), sarra: d.sarra === '1', at: Date.now() });
     RX.hints = RX.hints.filter(function (h) { return Date.now() - h.at < 15 * 60000; }).slice(-20);
   }
-  function rxSrc(net, coin, amt) { // 'sarra' إن أكّد الخادم، وإلا 'ext' (محفظة خارجية)
-    var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
-    return h && h.sarra ? 'sarra' : 'ext';
+  // مصدر استلام EVM (التطبيق لا يعرف المرسل): نطابق إشعار الخادم برمز معاملته، ونتحقق من إيصالها على الشبكة أن المبلغ
+  // نفسه وصل إلى محفظتي من نفس العملة. كل إشعار يُستعمل لاستلام واحد فقط، فلا يُنسب تحويلان متساويان لبعضهما.
+  // لا إشعار مطابق أو تعذّر التحقق = «محفظة خارجية» (لا نخمّن «صُرّة» أبداً)
+  async function rxSrcEvm(n) {
+    var a = parseFloat(n.amount), cs = SarraLogic.hintCandidates(RX.hints, n.net, n.coin, Date.now());
+    for (var i = 0; i < cs.length; i++) {
+      var h = cs[i], got = await core.evmReceivedIn(n.net, h.tx, n.coin);
+      if (h.used || got == null || !isFinite(a) || Math.abs(parseFloat(got) - a) > 1e-9 + a * 1e-9) continue;
+      h.used = true; n.txid = h.tx; n.url = core.evmTxUrl(n.net, h.tx);
+      return h.sarra ? 'sarra' : 'ext';
+    }
+    return 'ext';
   }
   // هل المرسل (عنوان TRON معروف) مستخدم صُرّة؟ طلب موقّع لخادم P2P يرد بصح/خطأ فقط، ويقبل فقط عنواناً أرسل إليك فعلاً.
   // لا نفتح شاشة الرمز لأجله: إن كانت المحفظة مقفلة أو فشل الطلب = لا نعرف (يبقى العنوان وحده دون تصنيف)
@@ -121,7 +130,8 @@
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
     if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
-    if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount);
+    if (n._ex) { delete n._ex; return rxSrcEvm(n).then(function (src) { n.src = src; rxIn(n); }, function () { n.src = 'ext'; rxIn(n); }); }
+    if (!n.from && !n.src) n.src = 'ext';
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
     RX.q.push(n); notifyTx('recv', n);
@@ -185,7 +195,7 @@
         var amt = WalletCore.fromUnits(diff, dec);
         if (rxDust(amt, sym === 'native' ? EVM[k].native : sym, 0.01)) return;
         if (rxConsume(k, sym === 'native' ? EVM[k].native : sym, amt)) return;
-        rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
+        rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea, _ex: 1 });
       });
     });
     RX.evmBase = next; rxPut(key, next);
@@ -193,13 +203,13 @@
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
-    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount); lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
+    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = 'ext'; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
     var dl = $('rx-kv'); dl.textContent = '';
-    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية')); }
-    else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية'));
+    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية')); }
+    else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية'));
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(n.time)));
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);
     var more = $('rx-more'); more.hidden = !RX.q.length; more.textContent = RX.q.length ? 'و ' + RX.q.length + ' تحويلات أخرى بعد هذه' : '';
