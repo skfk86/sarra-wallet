@@ -69,6 +69,13 @@ const createDeposit = (orderId: string, amount: string, network: string) => oxap
 const payout = (address: string, amount: string, desc: string, network: string) => oxapay('/payout', {
   address, amount: Number(amount), currency: 'USDT', network, description: desc
 }, PAYOUT_KEY, 'payout_api_key');
+// هل في سجل دفعات OxaPay دفعة قائمة لهذا الطلب (تحرير أو إرجاع)؟ بالتاريخ فقط منذ إنشاء الطلب (قبله بيوم احتياطاً)، كل الصفحات.
+// تعذّر السؤال أو رد غير مفهوم = استثناء، ويُعامل كرفض (لا دفع)
+async function oxapayPaidBefore(order: Record<string, any>): Promise<Record<string, any> | null> {
+  const t = Date.parse(String(order.created_at || '')); if (!isFinite(t)) throw new Error('HISTORY_NO_DATE');
+  const from = Math.floor(t / 1000) - 86400;
+  return await L.findPayoutForOrder(String(order.id), (page) => oxapay(`/payout?from_date=${from}&size=100&page=${page}`, null, PAYOUT_KEY, 'payout_api_key', 'GET'));
+}
 const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent(trackId), null, MERCHANT_KEY, 'merchant_api_key', 'GET');
 
 // ===== تنفيذ التحرير/الإرجاع بعد قفل الحالة =====
@@ -86,7 +93,11 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
     const info = order.deposit_track_id ? await paymentInfo(order.deposit_track_id).catch(() => null) : null;
     const g = L.payoutGuard(info, order as any, amount, MAX_PAYOUT);
     if (g) throw new Error('OXAPAY: ' + g); // بادئة OXAPAY = رفض صريح بلا دفع، فلا يُعامَل كنتيجة مجهولة
-    r = await payout(to, amount, `Sarra P2P ${kind} ${order.id}`, net);
+    // منع إعادة الدفع: سجل OxaPay لا تغيّره قاعدتنا. دفعة قائمة لهذا الطلب = لا دفع ثانٍ، وتعذّر الفحص = لا دفع
+    let prev: Record<string, any> | null;
+    try { prev = await oxapayPaidBefore(order); } catch { throw new Error('OXAPAY: GUARD_HISTORY_UNVERIFIED'); }
+    if (prev) throw new Error('OXAPAY: GUARD_ALREADY_PAID_OXAPAY ' + String(prev.track_id || '').slice(0, 40));
+    r = await payout(to, amount, L.payoutDescription(kind, order.id), net);
   } catch (e) {
     // رفض صريح من OxaPay = لم يُرسل شيء. انقطاع/مهلة = النتيجة مجهولة، فننبّه المشرف قبل أي إعادة محاولة
     const m = String((e as Error).message);

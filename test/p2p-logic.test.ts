@@ -350,4 +350,38 @@ t('حارس الدفع: سقف الدفعة الواحدة', () => {
   assert.equal(L.payoutGuard(info, ord, '1000', '1000'), null, 'المبلغ عند السقف تماماً مقبول');
   for (const bad of ['0', '-5', 'abc', '']) assert.notEqual(L.payoutGuard(info, ord, '10', bad), null, 'سقف غير صالح = رفض: ' + bad);
 });
+t('سجل الدفعات: استخراج رقم الطلب بمطابقة كاملة للوصف (12 لا تطابق 123)', () => {
+  for (const k of ['release', 'refund', 'late_refund'] as const) assert.equal(L.orderIdOfPayout(L.payoutDescription(k, 'ord-12')), 'ord-12', k);
+  assert.equal(L.payoutDescription('release', '12'), 'Sarra P2P release 12'); // نفس النص المرسل سابقاً، فالدفعات القديمة تُكتشف أيضاً
+  assert.equal(L.orderIdOfPayout('Sarra P2P release 123'), '123');
+  const list = [{ description: 'Sarra P2P release 123', status: 'confirmed' }, { description: 'Sarra P2P refund 1234', status: 'confirmed' }, { description: 'x Sarra P2P release 12', status: 'confirmed' }, { description: 'Sarra P2P release 12 extra', status: 'confirmed' }];
+  assert.equal(L.payoutForOrder(list, '12'), null, 'الطلب 12 لا يطابق 123 ولا 1234 ولا وصفاً فيه زيادة');
+  assert.equal(L.payoutForOrder(list, '123')?.description, 'Sarra P2P release 123');
+  for (const bad of ['', null, 'Sarra P2P escrow 12', 'sarra p2p release 12', 'Sarra P2P release ', 'Sarra P2P payout 12']) assert.equal(L.orderIdOfPayout(bad), null, String(bad));
+});
+t('سجل الدفعات: أي دفعة قائمة للطلب (تحرير أو إرجاع) تمنع الدفع، والمرفوضة والملغاة لا', () => {
+  const mk = (st: string, d = 'Sarra P2P release ord-1') => [{ description: d, status: st, track_id: 'po' }];
+  for (const st of ['processing', 'pending', 'confirming', 'confirmed', 'Confirmed', '', 'unknown']) assert.ok(L.payoutForOrder(mk(st), 'ord-1'), 'حالة قائمة: ' + st);
+  for (const st of ['canceled', 'Rejected', 'cancelled']) assert.equal(L.payoutForOrder(mk(st), 'ord-1'), null, 'لم تُرسل: ' + st);
+  assert.ok(L.payoutForOrder(mk('confirmed', 'Sarra P2P refund ord-1'), 'ord-1'), 'إرجاع سابق يمنع التحرير');
+  assert.ok(L.payoutForOrder(mk('pending', 'Sarra P2P late deposit refund ord-1'), 'ord-1'));
+  assert.throws(() => L.payoutForOrder(undefined, 'ord-1'), /HISTORY_BAD_RESPONSE/);
+});
+await (async () => {
+  const pages = (arr: any[][]) => async (page: number) => ({ list: arr[page - 1] || [], meta: { page, last_page: arr.length } });
+  const D = (id: string, st = 'confirmed') => ({ description: 'Sarra P2P release ' + id, status: st, track_id: 't-' + id });
+  // يمرّ على كل الصفحات حتى يجد الدفعة في الصفحة الأخيرة
+  let seen: number[] = []; const f = pages([[D('a'), D('b')], [D('c')], [D('ord-9')]]);
+  const hit = await L.findPayoutForOrder('ord-9', async (p) => { seen.push(p); return f(p); });
+  assert.equal(hit?.track_id, 't-ord-9'); assert.deepEqual(seen, [1, 2, 3]);
+  assert.equal(await L.findPayoutForOrder('ord-9', pages([[D('ord-91')], [D('ord-99', 'rejected')]])), null, 'لا دفعة قائمة');
+  assert.equal(await L.findPayoutForOrder('x', pages([])), null, 'سجل فارغ');
+  assert.equal(await L.findPayoutForOrder('x', async () => ({ list: [], meta: { page: 1, last_page: 0 } })), null);
+  // أي فشل في الاستعلام أو رد غير مفهوم = استثناء (والمستدعي لا يدفع)
+  await assert.rejects(L.findPayoutForOrder('x', async () => { throw new Error('net'); }), /net/);
+  await assert.rejects(L.findPayoutForOrder('x', async () => ({ list: [] })), /HISTORY_BAD_RESPONSE/, 'بلا meta');
+  await assert.rejects(L.findPayoutForOrder('x', async () => null), /HISTORY_BAD_RESPONSE/);
+  await assert.rejects(L.findPayoutForOrder('x', async (p) => ({ list: [], meta: { page: p, last_page: 999 } }), 5), /HISTORY_TOO_LONG/, 'سجل أطول من الحد = لا دفع');
+  pass++; console.log('✓ سجل الدفعات: يمرّ على كل الصفحات، وأي فشل أو رد غير مفهوم يمنع الدفع');
+})();
 console.log(`\n${pass} اختبارات P2P نجحت`);
