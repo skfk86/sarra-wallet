@@ -50,7 +50,7 @@
       var p2pData = function (n) { var d = n && (n.data || (n.notification && n.notification.data)) || {}; return d.kind === 'p2p' && /^[\w-]{1,64}$/.test(String(d.order || '')) ? d.order : null; };
       await PN.addListener('pushNotificationReceived', function (n) {
         var oid = p2pData(n);
-        if (!oid) return rxTick(true);
+        if (!oid) { rxHint(n); return rxTick(true); }
         if (state.p2p.orderId === oid && /^order/.test(state.stack[state.stack.length - 1])) refreshOrder('order.get'); else { toast((n && n.title) || 'تحديث على طلب P2P'); pollMyOrders(); }
       });
       await PN.addListener('pushNotificationActionPerformed', function (a) {
