@@ -85,8 +85,9 @@
     var a = state.hidden ? '' : ' ' + fmtExact(n.amount) + ' ' + n.coin;
     try {
       await LN.schedule({ notifications: [{ id: ++lnId, channelId: 'tx2', smallIcon: 'ic_stat_coin', iconColor: '#16A37A', sound: 'coin.wav',
-        title: kind === 'recv' ? 'وصلتك تحويلة' : 'تم خصم مبلغ من محفظتك',
-        body: (kind === 'recv' ? 'استلمت' + (a ? ' +' + a.trim() : '') : 'خرج' + a) + ' على ' + chainLabel(n.net) + (kind === 'out' ? '. إن لم تكن أنت، احمِ محفظتك فوراً.' : '') }] });
+        // نفس صيغة إشعارات الخادم: المبلغ في العنوان (إلا مع إخفاء الأرصدة)
+        title: kind === 'recv' ? (a ? 'وصلك' + a : 'وصلتك تحويلة') : 'خرج' + (a ? 'ت' + a : ' مبلغ') + ' من محفظتك',
+        body: kind === 'recv' ? 'تحويل على ' + chainLabel(n.net) : 'على ' + chainLabel(n.net) + ' من جهاز آخر أو دون علمك. إن لم تكن أنت، احمِ محفظتك فوراً.' }] });
     } catch (e) {}
   }
   function rxOut(n) { // خصم لم يتم من هذا الجهاز (من جهاز آخر بنفس الكلمات مثلاً)
@@ -107,7 +108,17 @@
     var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
     return h && h.sarra ? 'sarra' : 'ext';
   }
+  // هل المرسل (عنوان معروف، كما في TRON) مسجّل في صُرّة؟ صح/خطأ فقط من دالة آمنة، مع ذاكرة للجلسة. أي فشل = لا نعرف
+  RX.sarraAddr = {};
+  async function isSarraAddr(a) {
+    if (!a) return false;
+    if (RX.sarraAddr[a] != null) return RX.sarraAddr[a];
+    var r = false;
+    try { r = (await Promise.race([rpc('is_sarra_address', { p_addr: a }), new Promise(function (res) { setTimeout(function () { res(false); }, 4000); })])) === true; } catch (e) {}
+    return (RX.sarraAddr[a] = r);
+  }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
+    if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
     if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount);
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
@@ -127,7 +138,7 @@
         return t.incoming && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01;
       }).reverse().forEach(function (t) {
         if (rxConsume('tron', t.coin, t.exact)) return;
-        rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, time: t.time, txid: t.txid, url: core.network.explorer + t.txid });
+        rxIn({ net: 'tron', coin: t.coin, amount: t.exact, from: t.counterparty, src: undefined, time: t.time, txid: t.txid, url: core.network.explorer + t.txid, _sx: 1 });
       });
       list.filter(function (t) {
         return !skipOut && !t.incoming && t.ok !== false && ids.indexOf(t.txid) < 0 && t.time >= t0 && !RX.own[t.txid] && Number(t.exact) >= 0.01 && !lhAll().some(function (r) { return r.txid === t.txid; })
@@ -185,7 +196,7 @@
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
     var dl = $('rx-kv'); dl.textContent = '';
-    if (n.from) kvRow(dl, 'من', shortAddr(n.from), n.from);
+    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية')); }
     else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية'));
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(n.time)));
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);

@@ -76,16 +76,21 @@
   var UPDATE_PAGE = CFG.updatePage || 'https://sarrapay.com/';
   async function checkUpdate() {
     if (CFG.channel === 'play' || !APP_VERSION || navigator.onLine === false) return;
-    var c = lsJson('sarra.upd', null), tag = c && Date.now() - c.at < 86400000 ? c.tag : null;
+    // التحديث الإجباري: سطر «MIN-VERSION: x.y.z» في ملاحظات الإصدار يعني أن ما دونه خطِر (ثغرة أو خطأ مالي)
+    var c = lsJson('sarra.upd', null), tag = c && Date.now() - c.at < 86400000 ? c.tag : null, min = c && c.min || '';
     if (!tag) {
       try {
         var r = await fetch('https://api.github.com/repos/' + (CFG.updateRepo || 'skfk86/sarra-wallet') + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
-        if (!r.ok) return; tag = (await r.json()).tag_name || ''; cachePut('sarra.upd', 'tag', tag);
+        if (!r.ok) return; var j = await r.json(); tag = j.tag_name || '';
+        var mm = String(j.body || '').match(/MIN-VERSION:\s*v?(\d+\.\d+\.\d+)/i); min = mm ? mm[1] : '';
+        try { localStorage.setItem('sarra.upd', JSON.stringify({ tag: tag, min: min, at: Date.now() })); } catch (e1) {}
       } catch (e) { return; }
     }
-    var newer = SarraLogic.cmpVersion(tag, APP_VERSION) > 0;
+    var newer = SarraLogic.cmpVersion(tag, APP_VERSION) > 0, must = !!min && SarraLogic.cmpVersion(min, APP_VERSION) > 0;
     $('upd-card').hidden = !newer;
-    if (newer) $('upd-ver').textContent = 'الإصدار ' + String(tag).replace(/^v/i, '') + ' · لديك ' + APP_VERSION;
+    $('upd-card').classList.toggle('must', must);
+    if (newer) $('upd-ver').textContent = (must ? 'تحديث إجباري: إصدارك فيه خلل خطِر. ' : '') + 'الإصدار ' + String(tag).replace(/^v/i, '') + ' · لديك ' + APP_VERSION;
+    if (must && !checkUpdate.warned) { checkUpdate.warned = 1; toast('حدّث صُرّة الآن: إصدارك ' + APP_VERSION + ' لم يعد آمناً. نزّل الإصدار الجديد من الموقع الرسمي فقط', true); }
   }
   $('upd-card').onclick = function () { window.open(UPDATE_PAGE, '_blank'); };
   setTimeout(checkUpdate, 4000);

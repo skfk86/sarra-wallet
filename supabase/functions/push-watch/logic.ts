@@ -83,21 +83,19 @@ export function isDirectToToken(txTo: unknown, tokAddr: string): boolean | undef
   if (!/^[0-9a-f]{40,42}$/.test(f)) return undefined;
   return f.slice(-40) === tokAddr.toLowerCase().replace(/^0x/, '').slice(-40);
 }
-const shortTx = (t: string) => t ? ' · ' + t.slice(0, 8) + '…' + t.slice(-6) : '';
-// نص الإشعار حسب أصل العملية: التحذير الأمني فقط لخصم لم تبدأه أنت، وأثر عملياتك يُوصف بما هو عليه
+// نص الإشعار حسب أصل العملية (مقترح تقرير المراجعة): المبلغ في العنوان ليُقرأ من شاشة القفل، والنص قصير يوضح نوع التحويل.
+// رمز المعاملة لا يُكتب في النص: ينتقل في بيانات الإشعار (data.tx) لتفتحه شاشة التفاصيل.
+// التحذير الأمني فقط لخصم لم تبدأه أنت، وأثر عملياتك (تبديل/جسر/تداول) يُوصف بما هو عليه لا «أُرسلت».
 export function message(e: Ev): { title: string; body: string } {
   const net = NET_NAME[e.chain], amt = e.amount + ' ' + e.sym;
   if (e.kind === 'in') {
-    return e.self === true
-      ? { title: 'اكتملت عمليتك', body: 'وصلك +' + amt + ' على ' + net + ' نتيجة عملية أجريتها من محفظتك' + shortTx(e.tx) }
-      : e.fromSarra ? { title: 'وصلتك تحويلة داخلية', body: 'وصلك +' + amt + ' على ' + net + ' من مستخدم صُرّة' }
-      : { title: 'وصلتك تحويلة', body: 'استلمت +' + amt + ' على ' + net };
+    if (e.self === true) return { title: 'اكتملت عمليتك', body: 'أُضيفت ' + amt + ' إلى محفظتك على ' + net };
+    return { title: 'وصلك ' + amt, body: (e.fromSarra ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية') + ' على ' + net };
   }
-  if (e.self === true && e.direct === true) return { title: 'تم إرسال مبلغ', body: 'أُرسلت ' + amt + ' من محفظتك على ' + net + shortTx(e.tx) };
-  // عملية منك لكنها ليست تحويلاً مباشراً (تبديل/جسر/تداول) أو لم نتحقق: لا نقول «أُرسلت» ولا نحذّر
-  if (e.self === true) return { title: 'اكتملت عملية من محفظتك', body: 'خرجت ' + amt + ' على ' + net + ' ضمن عملية أجريتها (تبديل أو نقل أو تداول)' + shortTx(e.tx) };
-  if (e.self === false) return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + ' بمعاملة لم تبدأها أنت. إن لم تكن تعرفها فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
-  return { title: 'خرج مبلغ من محفظتك', body: amt + ' على ' + net + '. إن لم تكن أنت فاحمِ محفظتك فوراً' + shortTx(e.tx) + '.' };
+  if (e.self === true && e.direct === true) return { title: 'تم إرسال ' + amt, body: 'خرجت من محفظتك على ' + net };
+  if (e.self === true) return { title: 'اكتملت عملية من محفظتك', body: 'خرجت ' + amt + ' على ' + net + ' ضمن عملية أجريتها (تبديل أو نقل أو تداول)' };
+  if (e.self === false) return { title: 'خرجت ' + amt + ' بدون علمك؟', body: 'معاملة لم تبدأها من محفظتك على ' + net + '. إن لم تعرفها فاحمِ محفظتك فوراً.' };
+  return { title: 'خرجت ' + amt + ' من محفظتك', body: 'على ' + net + '. إن لم تكن أنت فاحمِ محفظتك فوراً.' };
 }
 
 // ===== إشعارات P2P: حالة الطلب الجديدة ← من يُبلَّغ وبماذا (تصل والتطبيق مغلق) =====

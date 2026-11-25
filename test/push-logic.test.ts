@@ -25,7 +25,7 @@ t('استلام وإرسال لعناويننا فقط، وتجاهل الغبا
     log(OTHER, OTHER, 5n * 10n ** 18n, 4)          // لا يخصّنا
   ], TOK, new Set([ME]), min);
   assert.deepEqual(ev.map((e) => e.kind + ':' + e.amount), ['in:25', 'out:3']);
-  assert.equal(L.message(ev[0]).body, 'استلمت +25 USDT على BNB Chain (BEP20)');
+  assert.deepEqual(L.message(ev[0]), { title: 'وصلك 25 USDT', body: 'تحويل من محفظة خارجية على BNB Chain (BEP20)' });
 });
 t('عقد TRON بصيغة 0x41 يُطابق', () => {
   const ev = L.eventsFromLogs('tron', [{ ...log(OTHER, ME, 7000000n), address: '0x41a614f803b6fd780986a42c78ec9c7f77e6ded13c' }], [{ sym: 'USDT', addr: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6 }], new Set([ME]), () => 100000n);
@@ -72,10 +72,10 @@ t('نص الإشعار يتبع أصل العملية (تبديل/إرسال م�
   assert.equal(L.senderIsUs('0x' + 'b'.repeat(40), hex), false);
   assert.equal(L.senderIsUs(null, hex), undefined);
   assert.equal(L.message({ ...base, kind: 'in', self: true }).title, 'اكتملت عمليتك');
-  assert.equal(L.message({ ...base, kind: 'in', self: false }).title, 'وصلتك تحويلة');
-  assert.equal(L.message({ ...base, kind: 'in' }).title, 'وصلتك تحويلة');
+  assert.match(L.message({ ...base, kind: 'in', self: false }).title, /^وصلك /);
+  assert.match(L.message({ ...base, kind: 'in' }).title, /^وصلك /);
   const own = L.message({ ...base, kind: 'out', self: true, direct: true });
-  assert.equal(own.title, 'تم إرسال مبلغ'); assert.ok(!own.body.includes('فاحمِ') && own.body.includes('0x121212'), own.body);
+  assert.match(own.title, /^تم إرسال /); assert.ok(!own.body.includes('فاحمِ') && !own.body.includes('0x121212'), own.body); // الرمز في data لا في النص
   // منك لكن عبر عقد وسيط (تبديل/جسر/تداول) أو لم نتحقق: لا «أُرسلت» ولا تحذير
   for (const d of [false, undefined]) { const sw = L.message({ ...base, kind: 'out', self: true, direct: d }); assert.equal(sw.title, 'اكتملت عملية من محفظتك'); assert.ok(!sw.body.includes('أُرسلت') && !sw.body.includes('فاحمِ'), sw.body); }
   const tokA = '0x55d398326f99059fF775485246999027B3197955';
@@ -90,10 +90,10 @@ t('تحويل بين مستخدمي صُرّة: نص عام بلا هوية ال
   const B = 'c'.repeat(40);
   const ev = L.eventsFromLogs('bsc', [log(B, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
   const m = L.message(ev.filter((e) => e.kind === 'in')[0]);
-  assert.equal(m.title, 'وصلتك تحويلة داخلية'); assert.ok(m.body.includes('من مستخدم صُرّة')); assert.ok(!m.body.includes(B));
+  assert.match(m.title, /^وصلك /); assert.ok(m.body.includes('تحويل داخلي من مستخدم صُرّة')); assert.ok(!m.body.includes(B));
   // مرسل غير مسجّل: النص العادي
   const ev2 = L.eventsFromLogs('bsc', [log(OTHER, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
-  assert.equal(L.message(ev2[0]).title, 'وصلتك تحويلة');
+  assert.ok(L.message(ev2[0]).body.startsWith('تحويل من محفظة خارجية'));
   // أصل العملية مني أنا يغلب (تبديل/نقل من محفظتي)
   assert.equal(L.message({ ...ev[0], self: true }).title, 'اكتملت عمليتك');
 });
