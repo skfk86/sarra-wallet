@@ -38,6 +38,19 @@ t('نطاق الكتل: لحاق تدريجي، وقفز بعد انقطاع ط�
   assert.equal(L.blockRange(1000, 1000, 80, 800), null);
   assert.deepEqual(L.blockRange(100, 1000, 80, 800), [1000, 1000]);
 });
+t('خطة المسح: تلحق بالتأخر داخل الدورة بدل التخلف المتراكم', () => {
+  // BSC: 134 كتلة/دقيقة والنافذة 80: دورة واحدة بنافذتين تلحق بدل أن يزيد التأخر
+  assert.deepEqual(L.planRanges(1000, 1134, 80, 4000, 6), [[1001, 1080], [1081, 1134]]);
+  assert.deepEqual(L.planRanges(1000, 1000, 80, 4000, 6), []);
+  assert.deepEqual(L.planRanges(null, 1000, 80, 4000, 6), [[1000, 1000]]);
+  // انقطاع طويل: قفزة واحدة ثم لا شيء (لا نغرق الدورة)
+  assert.deepEqual(L.planRanges(100, 9000, 80, 4000, 6), [[9000, 9000]]);
+  // سقف النوافذ: لا نتجاوزه، والباقي في الدورة التالية دون فقد كتل
+  const p = L.planRanges(0, 3000, 80, 4000, 3); assert.equal(p.length, 3); assert.deepEqual(p[2], [161, 240]);
+  // لا ثقوب ولا تداخل بين النوافذ
+  const q = L.planRanges(500, 900, 80, 4000, 10); for (let i = 1; i < q.length; i++) assert.equal(q[i][0], q[i - 1][1] + 1);
+  assert.equal(q[q.length - 1][1], 900);
+});
 t('إشعارات P2P: كل حالة تُبلغ الطرف المعني فقط', () => {
   const o = { id: 'o1', buyer: 'TB', seller: 'TS', amount_usdt: 50, total_sdg: 135000, status: '' };
   const to = (st: string) => L.p2pStatusPushes({ ...o, status: st }, ['TA']).map((p) => p.to).join(',');

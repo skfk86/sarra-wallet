@@ -11,13 +11,14 @@ const TRON_KEY = env('TRONGRID_API_KEY');
 const CHAINS: Record<string, { rpcs: string[]; toks: L.Tok[]; cap: number; jump: number; headers?: Record<string, string> }> = {
   tron: { rpcs: ['https://api.trongrid.io/jsonrpc'], headers: TRON_KEY ? { 'TRON-PRO-API-KEY': TRON_KEY } : {}, cap: 60, jump: 600,
     toks: [{ sym: 'USDT', addr: '0xa614f803b6fd780986a42c78ec9c7f77e6ded13c', dec: 6 }] },
-  bsc: { rpcs: ['https://bsc-rpc.publicnode.com', 'https://bsc-dataseed.bnbchain.org'], cap: 80, jump: 800,
+  bsc: { rpcs: ['https://bsc-rpc.publicnode.com', 'https://bsc-dataseed.bnbchain.org'], cap: 80, jump: 4000,
     toks: [{ sym: 'USDT', addr: '0x55d398326f99059fF775485246999027B3197955', dec: 18 }, { sym: 'USDC', addr: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', dec: 18 }] },
   polygon: { rpcs: ['https://polygon-bor-rpc.publicnode.com', 'https://polygon.drpc.org'], cap: 100, jump: 1000,
     toks: [{ sym: 'USDT', addr: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', dec: 6 }, { sym: 'USDC', addr: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', dec: 6 }] },
   eth: { rpcs: ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org'], cap: 25, jump: 250,
     toks: [{ sym: 'USDT', addr: '0xdAC17F958D2ee523a2206206994597C13D831EC7', dec: 6 }, { sym: 'USDC', addr: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', dec: 6 }] }
 };
+const MAX_WIN = 8, WIN_BUDGET_MS = 20000; // نوافذ في الدورة وميزانية زمنية، فيبقى المسح أقصر من فاصل الدورتين
 const MIN_USD = 0.1; // أقل من 10 سنتات: غبار/تسميم عناوين، لا نزعج المستخدم
 
 async function rpc(chain: string, method: string, params: unknown[]) {
@@ -97,24 +98,38 @@ async function scan(req: Request): Promise<Response> {
     try {
       const c = CHAINS[chain], map = chain === 'tron' ? toksByHex.tron : toksByHex.evm, mine = Object.keys(map);
       const latest = parseInt(await rpc(chain, 'eth_blockNumber', []), 16);
-      const rg = L.blockRange(lastOf[chain] ?? null, latest, c.cap, c.jump); if (!rg) { report[chain] = 'up-to-date'; return; }
-      if (mine.length) {
-        const ours = new Set(mine), logs: any[] = [];
-        for (let i = 0; i < mine.length; i += 50) { // نفلتر بعناويننا (مستلِم ومرسِل) على دفعات
-          const topics = mine.slice(i, i + 50).map(L.topicOf);
-          const base = { fromBlock: hex(rg[0]), toBlock: hex(rg[1]), address: c.toks.map((t) => t.addr) };
-          const [a, b] = await Promise.all([
-            rpc(chain, 'eth_getLogs', [{ ...base, topics: [L.TRANSFER, null, topics] }]),
-            rpc(chain, 'eth_getLogs', [{ ...base, topics: [L.TRANSFER, topics] }])
-          ]);
-          logs.push(...(a || []), ...(b || []));
+      // نمسح نوافذ متتالية في الدورة الواحدة حتى نلحق بآخر كتلة (أو نبلغ سقف النوافذ/الوقت). نحفظ التقدّم بعد كل نافذة ناجحة،
+      // وإن فشلت نافذة (حد معدّل مثلاً) نتوقف عندها دون أن نتخطاها: تُعاد في الدورة التالية فلا يضيع تحويل
+      const plan = L.planRanges(lastOf[chain] ?? null, latest, c.cap, c.jump, MAX_WIN);
+      if (!plan.length) { report[chain] = 'up-to-date'; return; }
+      const deadline = Date.now() + WIN_BUDGET_MS, ours = new Set(mine); let done = 0, evN = 0, lastTo = plan[0][0];
+      try {
+        for (const rg of plan) {
+          if (done && Date.now() > deadline) break;
+          if (mine.length) {
+            const logs: any[] = [];
+            for (let i = 0; i < mine.length; i += 50) { // نفلتر بعناويننا (مستلِم ومرسِل) على دفعات
+              const topics = mine.slice(i, i + 50).map(L.topicOf);
+              const base = { fromBlock: hex(rg[0]), toBlock: hex(rg[1]), address: c.toks.map((t) => t.addr) };
+              const [a, b] = await Promise.all([
+                rpc(chain, 'eth_getLogs', [{ ...base, topics: [L.TRANSFER, null, topics] }]),
+                rpc(chain, 'eth_getLogs', [{ ...base, topics: [L.TRANSFER, topics] }])
+              ]);
+              logs.push(...(a || []), ...(b || []));
+            }
+            const ev = L.eventsFromLogs(chain, logs, c.toks, ours, (t) => BigInt(Math.round(MIN_USD * 1e6)) * 10n ** BigInt(Math.max(0, t.dec - 6)));
+            for (const e of ev) events.push(e);
+            evN += ev.length;
+          }
+          // نحفظ التقدّم قبل الإرسال: الأفضل أن يفوت إشعار نادر من أن يتكرر
+          await db.from('push_state').upsert({ chain, last_block: rg[1], updated_at: new Date().toISOString() });
+          done++; lastTo = rg[1];
         }
-        const ev = L.eventsFromLogs(chain, logs, c.toks, ours, (t) => BigInt(Math.round(MIN_USD * 1e6)) * 10n ** BigInt(Math.max(0, t.dec - 6)));
-        for (const e of ev) events.push(e);
-        report[chain] = { blocks: rg, events: ev.length };
-      } else report[chain] = { blocks: rg, idle: true };
-      // نحفظ التقدّم قبل الإرسال: الأفضل أن يفوت إشعار نادر من أن يتكرر
-      await db.from('push_state').upsert({ chain, last_block: rg[1], updated_at: new Date().toISOString() });
+        report[chain] = { blocks: [plan[0][0], lastTo], windows: done, behind: Math.max(0, latest - lastTo), events: evN };
+      } catch (e) {
+        // ما مُسح قبل الخطأ محفوظ؛ النافذة الفاشلة تُعاد
+        report[chain] = 'error: ' + String((e as Error)?.message || e).slice(0, 120) + (done ? ' (after ' + done + ' windows, events ' + evN + ')' : '');
+      }
     } catch (e) { report[chain] = 'error: ' + String((e as Error)?.message || e).slice(0, 120); }
   }));
 

@@ -57,6 +57,18 @@ export function blockRange(last: number | null, latest: number, cap: number, jum
   return [last + 1, Math.min(latest, last + cap)];
 }
 
+// خطة مسح الدورة: سلسلة نوافذ متتالية بحجم cap تلحق بآخر كتلة داخل الدورة الواحدة.
+// السبب: كتل BSC صارت ≈ 134 في الدقيقة بينما نافذة واحدة 80 كتلة، فكان المسح يتأخر 54 كتلة كل دقيقة ثم يقفز فتضيع تحويلات.
+// فارغة = لا جديد. الأولى قد تكون قفزة [latest, latest] (أول مرة، أو انقطاع أطول من jumpAfter)
+export function planRanges(last: number | null, latest: number, cap: number, jumpAfter: number, maxWin: number): [number, number][] {
+  const out: [number, number][] = []; let cur = last;
+  while (out.length < maxWin) {
+    const rg = blockRange(cur, latest, cap, jumpAfter); if (!rg) break;
+    out.push(rg); cur = rg[1];
+  }
+  return out;
+}
+
 export const NET_NAME: Record<string, string> = { tron: 'TRON (TRC20)', bsc: 'BNB Chain (BEP20)', polygon: 'Polygon', eth: 'Ethereum (ERC20)' };
 // هل أرسل عنوانُنا المعاملة؟ (from المعاملة = hex20 للمحفظة). تعذّر القراءة ← undefined فلا نخمّن
 export function senderIsUs(txFrom: unknown, hex: string): boolean | undefined {
