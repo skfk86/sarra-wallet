@@ -279,6 +279,11 @@ await t('إشعار تجريبي من التطبيق: يُرسل موقّعاً 
   const ev = JSON.parse(hooks[n0].body); assert.equal(ev.event, 'test'); assert.equal(ev.invoice.test, true);
   const sg = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(hooks[n0].sig)!; assert.equal(sg[2], await P.hmacHex(db.T.pay_merchants[0].webhook_secret, sg[1] + '.' + hooks[n0].body));
   hookStatus = 500; r = (await call(signed('pay.hooktest'))).j; assert.deepEqual(r, { ok: false, status: 500 }); hookStatus = 200;
+  // سر جديد: يختلف عن القديم، والإشعار التالي يُوقَّع بالجديد ولا يصح بالقديم
+  const old = db.T.pay_merchants[0].webhook_secret, rs = (await call(signed('pay.hooksecret'))).j;
+  assert.match(rs.merchant.webhook_secret, /^whsec_[0-9a-f]{48}$/); assert.notEqual(rs.merchant.webhook_secret, old); assert.equal(db.T.pay_merchants[0].webhook_secret, rs.merchant.webhook_secret);
+  const n1 = hooks.length; await call(signed('pay.hooktest')); const hk = hooks[n1], mm = /^t=(\d+),v1=([0-9a-f]{64})$/.exec(hk.sig)!;
+  assert.equal(mm[2], await P.hmacHex(rs.merchant.webhook_secret, mm[1] + '.' + hk.body)); assert.notEqual(mm[2], await P.hmacHex(old, mm[1] + '.' + hk.body));
   const o = db.T.pay_merchants[0].webhook_url; db.T.pay_merchants[0].webhook_url = null; assert.equal((await call(signed('pay.hooktest'))).j.error, 'NO_WEBHOOK_URL'); db.T.pay_merchants[0].webhook_url = o;
 });
 await t('تاجران على العنوان نفسه: كل دفعة تسدد فاتورتها فقط', async () => {
