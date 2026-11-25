@@ -9,7 +9,7 @@ async def main():
     opened=[]; await pg.expose_function('rec', lambda u: opened.append(u))
     await pg.add_init_script("window.open=function(u){window.rec&&rec(u);return null}")
     await pg.route('**/v1/accounts/**', lambda r: r.fulfill(json={'data':[]}))
-    await pg.route('https://api.github.com/**', lambda r: r.fulfill(json={'tag_name':'v0.2.0'}))
+    await pg.route('https://sarrapay.com/version.json', lambda r: r.fulfill(json={'latest':'0.2.0','min':''}))
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
