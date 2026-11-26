@@ -207,8 +207,9 @@
         // TRON: خانات العملة 6 فلا خطر دقة بـ Number هنا
         var have = balOn(c.sym, TR.net), cap = have == null ? v.q : have;
         if (have != null && c.sym === nt.native) cap = Math.max(0, have - REG.gasKeep(TR.net)); // نحجز الرسوم أولاً ثم النسبة
-        var q = Math.min(v.q, cap) * qs / 100;
-        $('od-amt').value = String(Math.floor(q * 1e6) / 1e6);
+        var q = Math.floor(Math.min(v.q, cap) * qs / 100 * 1e6) / 1e6;
+        if (!(q > 0)) return toast(have != null && c.sym === nt.native ? 'رصيدك من ' + c.sym + ' أقل من المحجوز لرسوم الشبكة (' + REG.gasKeep(TR.net) + ' ' + c.sym + ')' : 'الكمية أصغر من أقل ما يمكن بيعه', true);
+        $('od-amt').value = String(q);
       }
       TR.oq = null; odRender();
     };
@@ -331,7 +332,10 @@
         var v = balOn(pay, TR.net);
         if (v == null || !(v > 0)) return toast(v == null ? 'تعذّر قراءة الرصيد الآن، حاول بعد لحظات' : 'رصيدك من ' + pay + ' على ' + n.name + ' صفر', true);
         var keep = pay === n.native ? REG.gasKeep(TR.net) : 0; // TRON: نُبقي TRX للطاقة
+        // UI-009: كان «الكل» يكتب 0 بلا شرح حين يكون الرصيد أقل من المحجوز للطاقة؛ نشرح السبب كما في شبكات EVM
+        if (!(v - keep > 0)) return toast('رصيدك (' + niceNum(v, 6) + ' ' + pay + ') أقل من المحجوز لرسوم الشبكة (' + keep + ' ' + pay + ')', true);
         txt = String(Math.floor(Math.max(0, v - keep) * pct / 100 * 1e6) / 1e6);
+        if (!(Number(txt) > 0)) return toast('النسبة أصغر من أقل كمية يمكن إرسالها، اختر نسبة أكبر', true);
       }
       $('od-amt').value = txt; TR.oq = null; odRender();
     };
