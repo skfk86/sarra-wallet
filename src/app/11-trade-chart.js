@@ -78,7 +78,7 @@
   // وضع العلامتين فوق الشارت: خط قصير من الشمعة إلى الرقم، والرقم يتجه للداخل قرب الحواف فلا يُقصّ أبداً
   function lcHlPos() {
     var box = $('pr-hl'); if (!box) return;
-    if (!LC.chart || !LC.hlI || LCP.line) { box.textContent = ''; return; }
+    if (!LC.chart || !LC.hlI || LCP.line || !TR.kl || !TR.kl.length) { box.textContent = ''; return; } // TR.kl يُصفَّر عند مغادرة شاشة الزوج، وResizeObserver قد يعمل بعدها
     var W = $('pr-cv').clientWidth; box.textContent = '';
     [[LC.hlI[0], 'h', 1], [LC.hlI[1], 'l', 0]].forEach(function (z) {
       var k = TR.kl[z[0]]; if (!k) return; var x = LC.chart.timeScale().logicalToCoordinate(z[0]), y = LC.cs.priceToCoordinate(k[z[1]]);

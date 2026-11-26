@@ -221,6 +221,9 @@ async def main():
     er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'تأكيد شراء' in await pg.inner_text('#od-go') and 'الرسوم تعادل' not in er, er; print('✓ شراء بـ 0.20 دولار مسموح (رسوم $0.03 = 15%)')
     await pg.click('#od-cancel')
     await pg.wait_for_timeout(900); av=await pg.evaluate("__core.tr().avg()"); assert abs(av-60000)<1, av; print('✓ خط «سعر التكلفة» على الشارت بسعر الشراء')
+    # فتح عملة أخرى يصفّر الشموع والشارت ظاهر؛ تغيّر الحجم عندها (دوران/لوحة مفاتيح) كان يرمي TypeError من علامات الأعلى/الأدنى
+    e0=len(errs); await pg.evaluate("__core.tr().TR.kl=null"); await pg.set_viewport_size({'width':360,'height':700}); await pg.wait_for_timeout(400); await pg.set_viewport_size({'width':360,'height':780}); await pg.wait_for_timeout(400); await pg.evaluate("__core.tr().top()")
+    assert len(errs)==e0, errs[e0:]; print('✓ لا أخطاء من الشارت حين تُصفَّر الشموع ويتغيّر حجم الشاشة')
     await pg.click('#s-pair [data-back]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#tr-open .op[data-sym=BTC]').count()==1 and '+10.00%' in await pg.inner_text('#tr-open'); print('✓ «مراكزي المفتوحة» في شاشة السوق')
     if SHOTS: await pg.screenshot(path=SHOTS+'/trade2.png')
