@@ -340,6 +340,41 @@ export function payoutGuard(
   return null;
 }
 
+// ===== منع إعادة الدفع: سجل دفعات OxaPay (خارج قاعدتنا) =====
+// وصف كل دفعة نرسلها: «Sarra P2P release <id>» أو «Sarra P2P refund <id>» أو «Sarra P2P late deposit refund <id>».
+// نستخرج رقم الطلب بمطابقة كاملة للوصف (لا احتواء)، فلا يتطابق الطلب 12 مع 123.
+const PAYOUT_DESC = /^Sarra P2P (?:release|refund|late deposit refund) (\S+)$/;
+export function payoutDescription(kind: 'release' | 'refund' | 'late_refund', orderId: string): string {
+  return 'Sarra P2P ' + (kind === 'late_refund' ? 'late deposit refund' : kind) + ' ' + orderId;
+}
+export function orderIdOfPayout(desc: unknown): string | null {
+  const m = PAYOUT_DESC.exec(String(desc ?? '').trim()); return m ? m[1] : null;
+}
+// حالات تعني أن الدفعة لم تُرسل. أي حالة أخرى (معلّقة أو جارية أو مؤكدة أو غير معروفة) تُعدّ دفعة قائمة
+const PAYOUT_DEAD = new Set(['canceled', 'cancelled', 'rejected']);
+// أول دفعة قائمة لهذا الطلب (تحرير أو إرجاع) في صفحة من سجل OxaPay، أو null
+export function payoutForOrder(list: unknown, orderId: string): Record<string, any> | null {
+  if (!Array.isArray(list)) throw new Error('HISTORY_BAD_RESPONSE');
+  for (const p of list) {
+    if (!p || orderIdOfPayout((p as any).description) !== String(orderId)) continue;
+    if (PAYOUT_DEAD.has(String((p as any).status || '').toLowerCase())) continue;
+    return p as Record<string, any>;
+  }
+  return null;
+}
+// يمرّ على كل صفحات السجل منذ إنشاء الطلب (بالتاريخ فقط، بلا فلتر مبلغ). أي خطأ أو رد غير مفهوم يرمي استثناءً = لا دفع.
+// fetchPage(page) يعيد data من GET /payout: { list, meta: { page, last_page } }
+export async function findPayoutForOrder(orderId: string, fetchPage: (page: number) => Promise<any>, maxPages = 50): Promise<Record<string, any> | null> {
+  for (let page = 1; ; page++) {
+    if (page > maxPages) throw new Error('HISTORY_TOO_LONG');
+    const d = await fetchPage(page);
+    const hit = payoutForOrder(d?.list, orderId); if (hit) return hit;
+    const last = Number(d?.meta?.last_page);
+    if (!Number.isInteger(last) || last < 0) throw new Error('HISTORY_BAD_RESPONSE');
+    if (page >= last) return null;
+  }
+}
+
 export function payoutTarget(o: { network?: string; buyer: string; seller: string; buyer_payout?: string | null; seller_payout?: string | null }, kind: 'release' | 'refund'): string {
   const t = kind === 'release' ? (o.buyer_payout || o.buyer) : (o.seller_payout || o.seller);
   if ((o.network || 'TRC20') === 'BEP20' ? !isEvmAddr(t) : !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(t)) throw new Error('BAD_PAYOUT_ADDRESS');
