@@ -269,6 +269,12 @@ async def main():
     await pg.click('#history-full button.tx'); await pg.wait_for_timeout(600)
     if len(sys.argv)>2: await pg.screenshot(path=sys.argv[2]+'/hist-detail.png')
     assert await pg.locator('#txd-again').is_visible() and await pg.locator('#txd-share').is_visible()
+    # صورة الإيصال: سؤال إظهار العنوان، ثم صورة PNG (تنزيل في المتصفح، نافذة المشاركة في التطبيق)
+    async with pg.expect_download() as dl:
+      await pg.click('#txd-share'); await pg.wait_for_timeout(300); assert 'عنوان المستلم' in await pg.inner_text('#ask-text'); await pg.click('#ask-yes')
+    d=await dl.value; fp=await d.path(); data=open(fp,'rb').read()
+    assert data[:8]==b'\x89PNG\r\n\x1a\n' and len(data)>20000, len(data); print('✓ صورة الإيصال PNG (%d KB) مع سؤال إظهار العنوان' % (len(data)//1024))
+    import shutil, os; shutil.copy(fp, os.environ.get('RECEIPT_OUT','/tmp/receipt.png'))
     await pg.click('#txd-again'); await pg.wait_for_timeout(500)
     assert await pg.locator('#s-send').is_visible() and (await pg.input_value('#to')).startswith('0x'), await pg.input_value('#to'); print('✓ «إرسال مرة أخرى» يفتح الإرسال بنفس المستلم والشبكة والعملة')
     # ===== وضع إخفاء الرصيد في كل الشاشات =====
