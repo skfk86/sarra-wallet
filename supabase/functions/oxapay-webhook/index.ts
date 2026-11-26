@@ -8,6 +8,7 @@ const env = (k: string, d = '') => (Deno.env.get(k) ?? d).replace(/[\s\u200B-\u2
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 const MERCHANT_KEY = env('OXAPAY_MERCHANT_KEY');
 const PAYOUT_KEY = env('OXAPAY_PAYOUT_KEY');
+const MAX_PAYOUT = env('P2P_MAX_PAYOUT_USDT', L.DEFAULT_MAX_PAYOUT_USDT);
 
 async function hmacHex(key: string, data: string) {
   const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']);
@@ -63,9 +64,25 @@ Deno.serve(async (req) => {
     const { data: locked } = await db.from('orders').update({ status: 'refunding' }).eq('id', o.id).eq('status', 'cancelled').select().maybeSingle();
     if (locked) {
       try {
+        // نفس حارس التحرير: info هنا من سؤال OxaPay المباشر أعلاه، والمبلغ تحت السقف ولا يتجاوز المودَع
+        const refundAmt = L.refundAmount(o.amount_usdt, o.network === 'BEP20' ? env('P2P_NETWORK_FEE_BEP20', '0.3') : env('P2P_NETWORK_FEE_USDT', '1'));
+        const g = L.payoutGuard(info, o, refundAmt, MAX_PAYOUT); if (g) throw new Error('OXAPAY: ' + g);
+        // منع إعادة الدفع من سجل OxaPay (نفس فحص p2p): دفعة قائمة لهذا الطلب أو تعذّر الفحص = لا دفع
+        let prev: Record<string, any> | null;
+        try {
+          const t = Date.parse(String(o.created_at || '')); if (!isFinite(t)) throw new Error('HISTORY_NO_DATE');
+          const from = Math.floor(t / 1000) - 86400;
+          prev = await L.findPayoutForOrder(String(o.id), async (page) => {
+            const hr = await fetch(`https://api.oxapay.com/v1/payout?from_date=${from}&size=100&page=${page}`, { headers: { payout_api_key: PAYOUT_KEY, 'Content-Type': 'application/json' } });
+            const hj = await hr.json().catch(() => ({}));
+            if (!hr.ok || (hj.status && hj.status !== 200)) throw new Error('HISTORY_HTTP');
+            return hj.data;
+          });
+        } catch { throw new Error('OXAPAY: GUARD_HISTORY_UNVERIFIED'); }
+        if (prev) throw new Error('OXAPAY: GUARD_ALREADY_PAID_OXAPAY ' + String(prev.track_id || '').slice(0, 40));
         const r = await fetch('https://api.oxapay.com/v1/payout', {
           method: 'POST', headers: { payout_api_key: PAYOUT_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: L.payoutTarget(o, 'refund'), amount: Number(L.refundAmount(o.amount_usdt, o.network === 'BEP20' ? env('P2P_NETWORK_FEE_BEP20', '0.3') : env('P2P_NETWORK_FEE_USDT', '1'))), currency: 'USDT', network: o.network || 'TRC20', description: 'Sarra P2P late deposit refund ' + o.id })
+          body: JSON.stringify({ address: L.payoutTarget(o, 'refund'), amount: Number(refundAmt), currency: 'USDT', network: o.network || 'TRC20', description: L.payoutDescription('late_refund', o.id) })
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || (j.status && j.status !== 200)) throw new Error('OXAPAY: ' + (j.message || String(r.status)));

@@ -309,6 +309,72 @@ export function checkSellerFundsBep(usdtMicro: bigint, bnbWei: bigint, needUsdt:
   if (bnbWei < SELLER_MIN_BNB_WEI) throw new Error('SELLER_NEEDS_BNB');
 }
 // عنوان الدفع: TRC20 = عنوان TRON نفسه، BEP20 = العنوان المحفوظ لحظة إنشاء الصفقة
+// ===== حارس الدفع من الضمان (تحرير أو إرجاع) =====
+// صف الطلب في القاعدة لا يكفي دليلاً: من يكتب في القاعدة يستطيع تغيير المبلغ والعنوان والحالة.
+// لذلك قبل أي دفع نسأل OxaPay (مصدر خارج القاعدة) عن إيداع هذا الطلب، ونرفض إن لم يتطابق. أي شك = لا دفع.
+// يعيد رمز الرفض، أو null إن جاز الدفع. info = رد OxaPay لـ /payment/{deposit_track_id}
+export const DEFAULT_MAX_PAYOUT_USDT = '1000';
+export function payoutGuard(
+  info: Record<string, any> | null | undefined,
+  order: { id: string; amount_usdt: string | number; deposit_track_id?: string | null; payout_track_id?: string | null },
+  payAmount: string, maxPayout: string,
+): string | null {
+  if (!order.deposit_track_id) return 'GUARD_NO_DEPOSIT';
+  if (order.payout_track_id) return 'GUARD_ALREADY_PAID';                // دُفع لهذا الطلب سابقاً: لا دفع ثانٍ
+  // أرقام قد تصل من القاعدة أو OxaPay بخانات أكثر من 6: نوحّدها إلى 6 خانات (قطع لا تقريب لأعلى) قبل المقارنة
+  const micro = (v: unknown): bigint | null => { const n = Number(v); if (!isFinite(n) || n < 0) return null; try { return toMicro((Math.floor(n * 1e6) / 1e6).toFixed(6)); } catch { return null; } };
+  const pay = micro(payAmount), cap = micro(maxPayout), ord = micro(order.amount_usdt);
+  if (pay == null || cap == null || ord == null) return 'GUARD_BAD_AMOUNT';
+  if (!(pay > 0n)) return 'GUARD_BAD_AMOUNT';
+  if (!(cap > 0n) || pay > cap) return 'GUARD_OVER_CAP';                  // سقف الدفعة الواحدة
+  if (pay > ord) return 'GUARD_OVER_ORDER';                               // لا ندفع أكثر من مبلغ الطلب
+  if (!info) return 'GUARD_UNVERIFIED';                                   // تعذّر سؤال OxaPay
+  if (!isPaidStatus(info.status)) return 'GUARD_NOT_PAID';
+  if (String(info.currency || '').toUpperCase() !== 'USDT') return 'GUARD_CURRENCY';
+  // ربط إلزامي بالطلب نفسه من سجل OxaPay (رقم الطلب أُرسل لـ OxaPay عند إنشاء الإيداع ولا تغيّره القاعدة)
+  if (info.order_id == null || String(info.order_id) !== String(order.id)) return 'GUARD_ORDER_MISMATCH';
+  if (info.track_id != null && String(info.track_id) !== String(order.deposit_track_id)) return 'GUARD_TRACK_MISMATCH';
+  const dep = micro(info.amount); if (dep == null) return 'GUARD_BAD_AMOUNT';
+  if (dep + 1n < ord) return 'GUARD_UNDERFUNDED';                         // المودَع فعلاً أقل من مبلغ الطلب المخزّن
+  if (pay > dep) return 'GUARD_OVER_DEPOSIT';                             // لا ندفع أكثر مما أودعه البائع فعلاً
+  return null;
+}
+
+// ===== منع إعادة الدفع: سجل دفعات OxaPay (خارج قاعدتنا) =====
+// وصف كل دفعة نرسلها: «Sarra P2P release <id>» أو «Sarra P2P refund <id>» أو «Sarra P2P late deposit refund <id>».
+// نستخرج رقم الطلب بمطابقة كاملة للوصف (لا احتواء)، فلا يتطابق الطلب 12 مع 123.
+const PAYOUT_DESC = /^Sarra P2P (?:release|refund|late deposit refund) (\S+)$/;
+export function payoutDescription(kind: 'release' | 'refund' | 'late_refund', orderId: string): string {
+  return 'Sarra P2P ' + (kind === 'late_refund' ? 'late deposit refund' : kind) + ' ' + orderId;
+}
+export function orderIdOfPayout(desc: unknown): string | null {
+  const m = PAYOUT_DESC.exec(String(desc ?? '').trim()); return m ? m[1] : null;
+}
+// حالات تعني أن الدفعة لم تُرسل. أي حالة أخرى (معلّقة أو جارية أو مؤكدة أو غير معروفة) تُعدّ دفعة قائمة
+const PAYOUT_DEAD = new Set(['canceled', 'cancelled', 'rejected']);
+// أول دفعة قائمة لهذا الطلب (تحرير أو إرجاع) في صفحة من سجل OxaPay، أو null
+export function payoutForOrder(list: unknown, orderId: string): Record<string, any> | null {
+  if (!Array.isArray(list)) throw new Error('HISTORY_BAD_RESPONSE');
+  for (const p of list) {
+    if (!p || orderIdOfPayout((p as any).description) !== String(orderId)) continue;
+    if (PAYOUT_DEAD.has(String((p as any).status || '').toLowerCase())) continue;
+    return p as Record<string, any>;
+  }
+  return null;
+}
+// يمرّ على كل صفحات السجل منذ إنشاء الطلب (بالتاريخ فقط، بلا فلتر مبلغ). أي خطأ أو رد غير مفهوم يرمي استثناءً = لا دفع.
+// fetchPage(page) يعيد data من GET /payout: { list, meta: { page, last_page } }
+export async function findPayoutForOrder(orderId: string, fetchPage: (page: number) => Promise<any>, maxPages = 50): Promise<Record<string, any> | null> {
+  for (let page = 1; ; page++) {
+    if (page > maxPages) throw new Error('HISTORY_TOO_LONG');
+    const d = await fetchPage(page);
+    const hit = payoutForOrder(d?.list, orderId); if (hit) return hit;
+    const last = Number(d?.meta?.last_page);
+    if (!Number.isInteger(last) || last < 0) throw new Error('HISTORY_BAD_RESPONSE');
+    if (page >= last) return null;
+  }
+}
+
 export function payoutTarget(o: { network?: string; buyer: string; seller: string; buyer_payout?: string | null; seller_payout?: string | null }, kind: 'release' | 'refund'): string {
   const t = kind === 'release' ? (o.buyer_payout || o.buyer) : (o.seller_payout || o.seller);
   if ((o.network || 'TRC20') === 'BEP20' ? !isEvmAddr(t) : !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(t)) throw new Error('BAD_PAYOUT_ADDRESS');
