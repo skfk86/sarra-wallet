@@ -97,4 +97,24 @@ t('تحويل بين مستخدمي صُرّة: نص عام بلا هوية ال
   // أصل العملية مني أنا يغلب (تبديل/نقل من محفظتي)
   assert.equal(L.message({ ...ev[0], self: true }).title, 'اكتملت عمليتك');
 });
+// BUG-012: استلام يطابق فاتورة تاجر يُعلَن «دفعة تجارية» برقم الفاتورة
+t('دفعة تجارية: مطابقة الفاتورة بالعنوان والمبلغ الفريد والعملة', () => {
+  const [e] = L.eventsFromLogs('bsc', [log(OTHER, ME, 12_003_417n * 10n ** 12n, 3)], TOK, new Set([ME]), min);
+  assert.equal(e.units, '12003417');
+  const inv = { id: 'inv_7Hk2', order_id: 'A-1001', network: 'bsc', currency: 'USDT', match_hex: ME, exact: '12003417', status: 'pending', tx: null };
+  assert.equal(L.invoiceFor(e, [inv])?.id, 'inv_7Hk2');
+  assert.equal(L.invoiceFor(e, [{ ...inv, exact: '12003418' }]), null);                 // مبلغ مختلف بكسر واحد
+  assert.equal(L.invoiceFor(e, [{ ...inv, currency: 'USDC' }]), null);                  // فاتورة USDC لا يسددها USDT
+  assert.equal(L.invoiceFor(e, [{ ...inv, network: 'polygon' }]), null);                // شبكة أخرى
+  assert.equal(L.invoiceFor(e, [{ ...inv, match_hex: OTHER }]), null);                  // تاجر آخر
+  assert.equal(L.invoiceFor(e, [{ ...inv, status: 'paid', tx: '0x' + 'cd'.repeat(32) }]), null); // مدفوعة بمعاملة أخرى: لا تُنسب لتحويل جديد
+  assert.equal(L.invoiceFor(e, [{ ...inv, status: 'paid', tx: e.tx }])?.id, 'inv_7Hk2'); // دورة البوابة سبقتنا بنفس المعاملة
+  assert.equal(L.invoiceFor(e, [{ ...inv, status: 'expired' }]), null);
+  e.inv = 'inv_7Hk2'; e.invOrder = 'A-1001';
+  assert.deepEqual(L.message(e), { title: 'دفعة تجارية: 12.003417 USDT', body: 'فاتورة inv_7Hk2 · طلب A-1001 على BNB Chain (BEP20)' });
+  // كسر أصغر من micro (BSC بـ 18 خانة) لا يطابق أي فاتورة
+  const [e2] = L.eventsFromLogs('bsc', [log(OTHER, ME, 12_003_417n * 10n ** 12n + 5n, 4)], TOK, new Set([ME]), min);
+  assert.equal(e2.units, undefined); assert.equal(L.invoiceFor(e2, [inv]), null);
+});
+t('microUnits لعملات 6 خانات (TRON وPolygon)', () => { assert.equal(L.microUnits(5_000_123n, 6), '5000123'); });
 console.log(`\n${pass} اختبارات ماسح الإشعارات نجحت`);
