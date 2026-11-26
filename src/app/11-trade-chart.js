@@ -313,8 +313,11 @@
     if (v != null && Number(amt) > v) return odErr('الرصيد غير كافٍ على ' + netOf(TR.net).name);
     if (v != null && pay === netOf(TR.net).native && Number(amt) > v - REG.gasKeep(TR.net)) return odErr('اترك قليلاً من ' + pay + ' لرسوم الشبكة: الحد الأقصى ' + niceNum(Math.max(0, v - REG.gasKeep(TR.net)), 6) + ' ' + pay);
     var usdIn = TR.side === 'buy' ? Number(amt) : (trPrice(c.sym) || 0) * Number(amt);
-    if (usdIn && usdIn < 1) return odErr('أقل صفقة 1 دولار: المبالغ الأصغر ترفضها خدمات التبديل لأن رسوم الشبكة تقارب المبلغ نفسه');
     var n = netOf(TR.net);
+    // البيع بلا حد أدنى: من اشترى بدولار ونزلت قيمته يجب أن يستطيع الخروج دائماً (الرسوم تُعرض قبل التأكيد).
+    // الشراء: على TRON دولار واحد (SunSwap يحرق TRX للطاقة)، وعلى شبكات EVM 0.10 دولار، ثم يُقارن بالرسوم الفعلية بعد السعر
+    var minBuy = n.evm ? 0.1 : 1;
+    if (TR.side === 'buy' && usdIn && usdIn < minBuy) return odErr('أقل شراء على ' + n.name + ' ' + (minBuy < 1 ? '0.10' : '1') + ' دولار: المبالغ الأصغر تأكلها رسوم الشبكة');
     if (n.evm) { var nat = evmUnits(TR.net, n.native); if (nat != null && nat === 0n) { odErr('تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة'); return openGasHelp(TR.net); } }
     var btn = this, qerr = ''; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');
     try {
@@ -334,11 +337,21 @@
       var mk = trPrice(c.sym), ef = TR.side === 'buy' ? inN / outN : outN / inN, dev = mk && ef > 0 && isFinite(ef) ? (TR.side === 'buy' ? ef / mk - 1 : 1 - ef / mk) : 0;
       if (dev > 0.10) { TR.oq = null; throw { ar: 'سعر التنفيذ أسوأ من سعر السوق بـ ' + (dev * 100).toFixed(1) + '% (سيولة ضعيفة على هذه الشبكة). جرّب مبلغاً أصغر أو شبكة أخرى' }; }
       q.dev = dev > 0.03 ? dev : 0;
+      // كلفة الصفقة الفعلية (رسوم الشبكة + رسوم المزوّد المدفوعة فوق المبلغ) مقابل قيمتها: الشراء يُمنع إن تجاوزت نصفها،
+      // والبيع لا يُمنع أبداً (خروج من مركز) بل يُنبَّه فقط
+      var cost = q.tron ? 0 : (Number(q.gasUsd) || 0) + (Number(q.feesExtraUsd) || 0), val = usdIn || 0;
+      if (val > 0 && cost > 0) {
+        if (TR.side === 'buy' && cost >= val * 0.5) { TR.oq = null; throw { ar: 'رسوم هذه الصفقة (≈ $' + cost.toFixed(2) + ') تعادل ' + Math.round(cost / val * 100) + '% من المبلغ. زِد المبلغ أو اختر شبكة أرخص مثل BNB Chain' }; }
+        q.costPct = cost / val > 0.2 ? Math.round(cost / val * 100) : 0;
+        q.costOver = cost >= val ? { cost: cost, val: val } : null; // بيع مركز أصغر من رسومه: يُسمح لكن يُقال بوضوح
+      }
       $('od-fee').textContent = q.tron ? (q.fee || 'مجاناً') : q.appFee ? niceNum(inN * q.appFee, 6) + ' ' + pay + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('od-gas').textContent = q.tron ? 'بعملة TRX من رصيدك' : (Number(q.gasNative) ? niceNum(q.gasNative, 6) + ' ' + n.native + ' · ' : '') + (q.gasUsd < 0.01 ? 'أقل من $0.01' : '≈ $' + Number(q.gasUsd || 0).toFixed(2));
     } catch (e) { qerr = e && e.ar || WalletCore.errorText(e); TR.oq = null; }
     // odRender يخفي رسالة الخطأ، فنعرضها بعده (وإلا اختفى سبب فشل جلب السعر فوراً ولم يره المستخدم)
-    finally { btn.disabled = false; odRender(); odErr(qerr || (TR.oq && TR.oq.dev ? '⚠️ سعر التنفيذ أسوأ من سعر السوق بـ ' + (TR.oq.dev * 100).toFixed(1) + '%. تأكد قبل المتابعة' : '')); }
+    finally { btn.disabled = false; odRender(); odErr(qerr || (!TR.oq ? '' : TR.oq.costOver ? '⚠️ رسوم هذا البيع (≈ $' + TR.oq.costOver.cost.toFixed(2) + ') أكبر من قيمة مركزك (≈ $' + TR.oq.costOver.val.toFixed(2) + '): ستدفع في الرسوم أكثر مما تحصل عليه. البيع مسموح إن أردت الخروج'
+      : TR.oq.dev ? '⚠️ سعر التنفيذ أسوأ من سعر السوق بـ ' + (TR.oq.dev * 100).toFixed(1) + '%. تأكد قبل المتابعة'
+      : TR.oq.costPct ? '⚠️ الرسوم تعادل نحو ' + TR.oq.costPct + '% من قيمة الصفقة. يمكنك المتابعة، والمبالغ الأكبر أوفر نسبياً' : '')); }
   };
   function odConfirm() {
     var q = TR.oq; $('od-sheet').classList.remove('show');

@@ -143,6 +143,20 @@ async def main():
     if SHOTS: await pg.locator('#pr-pos').screenshot(path=SHOTS+'/position.png')
     await pg.click('.pp-sell [data-qs="50"]'); await pg.wait_for_timeout(300)
     assert await pg.locator('#od-sheet').is_visible() and await pg.input_value('#od-amt')=='0.0001' and 'on' in (await pg.get_attribute('#od-side [data-side=sell]','class')), await pg.input_value('#od-amt'); print('✓ بيع سريع 50% من المركز يفتح أمر البيع بالكمية')
+    # بيع مركز قيمته أقل من دولار (≈ $0.60): لا حد أدنى للبيع، ويُطلب السعر فعلاً
+    n0=len(Q); await pg.fill('#od-amt','0.00001'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
+    er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'أقل' not in er and 'تأكيد بيع' in await pg.inner_text('#od-go'), (er, len(Q)-n0); print('✓ بيع مركز أقل من دولار (≈ $0.60): مسموح ويُطلب السعر')
+    # بيع أصغر من رسومه (≈ $0.012 مقابل رسوم $0.03): مسموح، والتنبيه يقول صراحة إن الرسوم أكبر من القيمة
+    await pg.click('#od-cancel'); await pg.wait_for_timeout(200); await pg.click('.pp-sell [data-qs="50"]'); await pg.wait_for_timeout(300)
+    n0=len(Q); await pg.fill('#od-amt','0.0000002'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
+    er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'أكبر من قيمة مركزك' in er and 'تأكيد بيع' in await pg.inner_text('#od-go'), er; print('✓ بيع أصغر من رسومه: مسموح مع تنبيه صريح')
+    await pg.click('#od-cancel'); await pg.wait_for_timeout(200)
+    # الشراء على BNB Chain: الحد 0.10 دولار، وما فوقه يُقبل إن كانت الرسوم أقل من نصفه
+    await pg.click('#pr-buy'); await pg.wait_for_timeout(300); n0=len(Q)
+    await pg.fill('#od-amt','0.05'); await pg.click('#od-go'); await pg.wait_for_timeout(300)
+    er=await pg.inner_text('#od-err'); assert '0.10' in er and len(Q)==n0, er; print('✓ شراء بـ 0.05 دولار على BNB Chain يُرفض قبل طلب السعر (الحد 0.10)')
+    await pg.fill('#od-amt','0.2'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
+    er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'تأكيد شراء' in await pg.inner_text('#od-go') and 'الرسوم تعادل' not in er, er; print('✓ شراء بـ 0.20 دولار مسموح (رسوم $0.03 = 15%)')
     await pg.click('#od-cancel')
     await pg.click('#s-pair [data-back]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#tr-open .op[data-sym=BTC]').count()==1 and '+10.00%' in await pg.inner_text('#tr-open'); print('✓ «مراكزي المفتوحة» في شاشة السوق')
