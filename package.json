@@ -4,7 +4,7 @@
   "private": true,
   "description": "صُرّة — محفظة USDT غير احتجازية على شبكة TRON",
   "scripts": {
-    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js && cp node_modules/ethers/dist/ethers.umd.min.js src/vendor/ethers.js && npm run build",
+    "vendor": "mkdir -p src/vendor && cp node_modules/tronweb/dist/TronWeb.js src/vendor/tronweb.js && cp node_modules/qrcode-generator/qrcode.js src/vendor/qrcode.js && cp node_modules/jsqr/dist/jsQR.js src/vendor/jsqr.js && cp node_modules/ethers/dist/ethers.umd.min.js src/vendor/ethers.js && cp node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js src/vendor/lightweight-charts.js && npm run build",
     "test": "node test/core.test.mjs && node test/version.test.mjs && node test/format.test.mjs && node test/rxmatch.test.mjs && node test/indicators.test.mjs && node test/records.test.mjs && node test/registry.test.mjs && node test/evm-fees.test.mjs && node --experimental-strip-types --no-warnings test/p2p-logic.test.ts && node --experimental-strip-types --no-warnings test/push-logic.test.ts && node --experimental-strip-types --no-warnings test/monitor-logic.test.ts && node --experimental-strip-types --no-warnings test/pay-logic.test.ts && node --experimental-strip-types --no-warnings test/pay-app.test.ts",
     "config": "node scripts/write-config.mjs",
     "patch:android": "node scripts/patch-android.mjs",
@@ -18,17 +18,18 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/clipboard": "^8.0.0",
-    "@capacitor/local-notifications": "^8.0.0",
-    "@capacitor/push-notifications": "^8.0.0",
     "@capacitor/core": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/preferences": "^8.0.0",
+    "@capacitor/push-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@capgo/capacitor-native-biometric": "^8.0.0",
+    "ethers": "6.13.4",
     "jsqr": "^1.4.0",
+    "lightweight-charts": "4.2.3",
     "qrcode-generator": "^1.4.4",
-    "tronweb": "^6.0.0",
-    "ethers": "6.13.4"
+    "tronweb": "^6.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0"

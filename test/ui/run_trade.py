@@ -21,11 +21,12 @@ async def binance(route):
     chg={'BTCUSDT':'2.50','ETHUSDT':'-1.20','BNBUSDT':'0.80','DOGEUSDT':'-6.40','SOLUSDT':'7.10'}
     return await route.fulfill(json=[{'symbol':s,'lastPrice':str(PRICE['BTC'] if s=='BTCUSDT' else 3.5),'priceChangePercent':chg.get(s,'0.10'),'highPrice':'61000','lowPrice':'58500','quoteVolume':str(1e9 if s=='BTCUSDT' else 1e6)} for s in syms])
   await route.fulfill(status=404, json={})
-BADP=[False]
+BADP=[False]; DELAY=[0]
 async def lifi(route):
   u=urlparse(route.request.url); q={k:v[0] for k,v in parse_qs(u.query).items()}
   if u.path.endswith('/quote'):
     Q.append(q); fa=int(q['fromAmount'])
+    if DELAY[0]: await asyncio.sleep(DELAY[0])   # شبكة بطيئة: السعر يتأخر
     buy=q['fromToken'].lower()=='0x55d398326f99059ff775485246999027b3197955'
     to=fa*10**18//(60000*10**18) if buy else fa*60000   # USDT→BTC أو BTC→USDT بسعر 60,000 (18 خانة على BSC)
     if BADP[0]: to=to*80//100   # مسار بسعر أسوأ من السوق بـ 20%
@@ -45,6 +46,17 @@ async def main():
     await pg.route('https://li.quest/**', lifi)
     for host in ['bsc-dataseed.bnbchain.org','bsc-rpc.publicnode.com','ethereum-rpc.publicnode.com','polygon-bor-rpc.publicnode.com']:
       await pg.route(f'https://{host}/**', E.rpc); await pg.route(f'https://{host}', E.rpc)
+    # بث Binance اللحظي (WebSocket) وهمي: نرسل منه رسائل miniTicker وkline كما يرسلها الخادم الحقيقي
+    import re as _re, json as _json
+    WS={'ok':True,'conns':[]}
+    async def on_ws(ws):
+      WS['conns'].append(ws)
+      if not WS['ok']: await ws.close()
+    await pg.route_web_socket(_re.compile(r'wss://data-stream\.binance\.vision/.*'), on_ws)
+    def ws_send(obj):
+      for w in WS['conns']:
+        try: w.send(_json.dumps(obj))
+        except Exception: pass
     await pg.goto('file://'+S+'/index.html')
     async def pin(d):
       for c in d: await pg.click(f'#keypad button:text-is("{c}")')
@@ -55,47 +67,86 @@ async def main():
     rows=await pg.locator('#tr-list .tr-row').count(); assert rows>=5, rows; print('✓ قائمة السوق:', rows, 'عملة')
     first=await pg.locator('#tr-list .tr-row').first.get_attribute('data-sym'); assert first=='BTC', first; print('✓ الترتيب الافتراضي بحجم التداول (BTC أولاً)')
     t=await pg.inner_text('#tr-list .tr-row[data-sym=BTC]'); assert '60,000.00' in t and '+2.50%' in t, t; print('✓ السعر وتغيّر 24 ساعة')
+    await pg.wait_for_timeout(1500); sp=await pg.evaluate("[document.querySelectorAll('#tr-list .tr-spk svg polyline').length, document.querySelector('#tr-list .tr-row[data-sym=BTC] .tr-spk').className]")
+    assert sp[0]>=3 and 'up' in sp[1], sp; print('✓ رسم مصغّر لآخر 24 ساعة بجانب كل عملة (لون الاتجاه)', sp)
+    assert any('interval=1h&limit=24' in u for u in KLCALLS); assert 'الحجم $' in await pg.inner_text('#tr-list .tr-row[data-sym=BTC]'); print('✓ الحجم تحت رمز العملة')
     await pg.click('#tr-sort [data-sort=gain]'); assert await pg.locator('#tr-list .tr-row').first.get_attribute('data-sym')=='SOL'; print('✓ فرز الأكثر صعوداً')
     await pg.click('#tr-sort [data-sort=loss]'); assert await pg.locator('#tr-list .tr-row').first.get_attribute('data-sym')=='DOGE'; print('✓ فرز الأكثر هبوطاً')
     await pg.click('#tr-sort [data-sort=all]'); await pg.fill('#tr-q','eth'); assert await pg.locator('#tr-list .tr-row').count()==1; await pg.fill('#tr-q',''); print('✓ البحث')
     w=await pg.evaluate('document.documentElement.scrollWidth'); assert w<=360, w; print('✓ لا فيضان أفقي في السوق')
+    # التحديث اللحظي: المؤشر «مباشر»، ورسالة miniTicker تحدّث السعر والتغيّر فوراً (بلا انتظار الاستطلاع كل 10 ثوانٍ)
+    await pg.wait_for_timeout(1500)
+    assert len(WS['conns'])>=1 and 'btcusdt@miniTicker' in WS['conns'][-1].url, [c.url for c in WS['conns']]; assert (await pg.inner_text('#tr-live')).strip()=='مباشر'; print('✓ بث لحظي: اتصال WebSocket واحد لكل العملات، والمؤشر «مباشر»')
+    ws_send({'stream':'btcusdt@miniTicker','data':{'e':'24hrMiniTicker','s':'BTCUSDT','c':'61000','o':'59500','h':'61500','l':'58000','q':'1630000000'}})
+    await pg.wait_for_timeout(1000)
+    t=await pg.inner_text('#tr-list .tr-row[data-sym=BTC]'); assert '61,000.00' in t and '+2.52%' in t, t; print('✓ رسالة البث تحدّث السعر والتغيّر فوراً')
+    assert 'من محفظتك مباشرة' in await pg.inner_text('.tr-self'); print('✓ شارة «التبديل يتم من محفظتك مباشرة» في شاشة التداول')
+    await pg.click('#tr-list .tr-row[data-sym=ETH] [data-fav]'); await pg.wait_for_timeout(300)
+    await pg.click('#tr-sort [data-sort=fav]'); rows=await pg.eval_on_selector_all('#tr-list .tr-row','e=>e.map(x=>x.dataset.sym)'); assert rows==['ETH'], rows
+    assert await pg.locator('#tr-list .tr-row[data-sym=ETH] .tr-fav.on').count()==1; print('✓ المفضلة: النجمة تضيف العملة، وتبويب «المفضلة» يعرضها وحدها')
+    await pg.click('#tr-list .tr-row[data-sym=ETH] [data-fav]'); await pg.wait_for_timeout(300)
+    assert 'لا مفضلة بعد' in await pg.inner_text('#tr-list'); await pg.click('#tr-sort [data-sort=all]'); print('✓ إزالة من المفضلة: التبويب فارغ مع شرح')
     if SHOTS: await pg.screenshot(path=SHOTS+'/trade.png', full_page=True)
     await pg.click('#tr-list .tr-row[data-sym=BTC]'); await pg.wait_for_timeout(1500)
     assert await pg.inner_text('#pr-pair')=='BTC/USDT' and await pg.is_hidden('#pr-load'); print('✓ شاشة الزوج والشموع محمّلة')
-    px=await pg.evaluate("(()=>{const c=document.getElementById('pr-cv');const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let g=0,r=0;for(let i=0;i<d.length;i+=4){if(d[i+1]>140&&d[i]<60)g++;if(d[i]>200&&d[i+1]<100)r++;}return [g,r]})()")
-    assert px[0]>200 and px[1]>200, px; print('✓ رُسمت شموع صاعدة وهابطة', px)
+    px=await pg.evaluate("(()=>{let g=0,r=0;document.querySelectorAll('#pr-cv canvas').forEach(c=>{if(!c.width||!c.height)return;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=0;i<d.length;i+=4){if(d[i+1]>140&&d[i]<60)g++;if(d[i]>200&&d[i+1]<100)r++;}});return [g,r]})()")
+    assert px[0]>200 and px[1]>200, px; print('✓ مكتبة الشارت رسمت شموعاً صاعدة وهابطة', px)
     o=await pg.inner_text('#pr-ohlc'); assert 'O' in o and 'C' in o; print('✓ قراءة OHLC')
+    await pg.wait_for_timeout(400); hl=await pg.evaluate("__core.tr().hl()"); assert hl and hl[0]>hl[1], hl; print('✓ علامتا أعلى وأدنى سعر في الجزء الظاهر', hl)
+    bx=await pg.evaluate("(()=>{const w=document.getElementById('pr-cv').getBoundingClientRect();return [...document.querySelectorAll('#pr-hl span')].map(e=>{const r=e.getBoundingClientRect();return [r.left-w.left,w.right-r.right]})})()")
+    assert len(bx)==2 and all(a>=0 and b>=0 for a,b in bx), bx; print('✓ رقما الأعلى والأدنى داخل حدود الشارت (لا قصّ عند الحواف)')
+    ax=await pg.evaluate("[document.querySelectorAll('#pr-ax .g').length, !!document.querySelector('#pr-ax .now'), getComputedStyle(document.querySelector('#pr-cv canvas')).width, document.getElementById('pr-cv').clientWidth]")
+    assert ax[0]>=3 and ax[1], ax; print('✓ أسعار المحور تطفو فوق الشارت، ووسم السعر الحالي ظاهر', ax)
+    await pg.click('#pr-ct [data-ct=line]'); await pg.wait_for_timeout(300)
+    assert await pg.evaluate("__core.tr().mode()")=='line'; assert await pg.is_hidden('#pr-leg'); await pg.click('#pr-ma'); await pg.wait_for_timeout(200); assert await pg.is_visible('#pr-leg'); print('✓ عرض الخط، والمتوسطات مخفية افتراضياً وتظهر بزر MA')
+    await pg.click('#pr-fs'); await pg.wait_for_timeout(300); b2=await pg.locator('#pr-cv').bounding_box(); assert b2['height']>500, b2; print('✓ ملء الشاشة', int(b2['height']))
+    if SHOTS: await pg.screenshot(path=SHOTS+'/pair-fs.png')
+    await pg.click('#pr-fs'); await pg.click('#pr-ct [data-ct=candle]'); await pg.click('#pr-ma'); await pg.wait_for_timeout(300)
+    assert await pg.evaluate("__core.tr().mode()")=='candle' and await pg.is_hidden('#pr-leg'); print('✓ العودة للشموع وإخفاء المتوسطات (التفضيل محفوظ على الجهاز)')
     await pg.wait_for_timeout(500)
     assert await pg.is_hidden('#pr-ind') and (await pg.inner_text('#pr-sig')) in ('إيجابي','سلبي','محايد'); print('✓ الإشارة مختصرة: شراء/بيع/محايد، والتفاصيل مخفية')
     await pg.click('#pr-more-btn')
     sig=await pg.inner_text('#pr-sig'); ind=await pg.inner_text('#pr-ind'); bt=await pg.inner_text('#pr-bt'); cf=await pg.inner_text('#pr-conf')
     assert sig!='—' and 'RSI' in ind and 'ADX' in ind and 'مستوى وقف' in ind and 'الإطار الأعلى' in ind and '📊' in bt and 'الثقة' in cf, (sig,ind,bt,cf); print('✓ التحليل:', sig, '·', cf); print('  ', bt)
+    # إطار دقيقة واحدة + شمعة لحظية من البث: الشمعة الأخيرة تتحدّث دون إعادة تحميل
+    await pg.click('#pr-tf [data-tf="1m"]'); await pg.wait_for_timeout(1500); assert await pg.is_hidden('#pr-load'); assert await pg.locator('#pr-tf button').count()==8
+    assert any('btcusdt@kline_1m' in c.url for c in WS['conns']), [c.url for c in WS['conns']]; print('✓ 8 إطارات زمنية (من دقيقة إلى أسبوع)، وإطار الدقيقة يفتح بث شمعته')
+    lt=await pg.evaluate("window.__core.tr().TR.kl.slice(-1)[0].t")
+    ws_send({'stream':'btcusdt@kline_1m','data':{'e':'kline','s':'BTCUSDT','k':{'t':lt,'i':'1m','o':'60100','h':'61300','l':'60050','c':'61234.5','q':'1000'}}})
+    await pg.wait_for_timeout(1000)
+    last=await pg.evaluate("window.__core.tr().TR.kl.slice(-1)[0]"); assert last['c']==61234.5 and last['h']==61300, last; print('✓ رسالة kline تحدّث الشمعة الجارية')
+    w=await pg.evaluate('document.documentElement.scrollWidth'); assert w<=360, w; print('✓ شريط الإطارات الثمانية لا يخرج عن الشاشة')
+    # انقطاع البث (حجب أو شبكة): يعود التطبيق للاستطلاع كل 10 ثوانٍ تلقائياً، والمؤشر يقول ذلك بصدق
+    WS['ok']=False
+    for c in WS['conns']:
+      try: await c.close()
+      except Exception: pass
+    await pg.wait_for_timeout(1500)
+    lv=(await pg.inner_text('#tr-live')).strip(); assert lv in ('كل 10 ث','غير متصل'), lv; print('✓ انقطاع البث: عودة تلقائية للاستطلاع، والمؤشر «'+lv+'» لا «مباشر»')
     await pg.click('#pr-tf [data-tf="4h"]'); await pg.wait_for_timeout(800); assert await pg.is_hidden('#pr-load'); print('✓ تغيير الإطار الزمني')
-    box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.mouse.down(); await pg.wait_for_timeout(450)
-    o2=await pg.inner_text('#pr-ohlc'); await pg.mouse.up(); assert '/' in o2, o2; print('✓ لمسة مطوّلة تعرض شمعة محددة بتاريخها')
-    o3=await pg.inner_text('#pr-ohlc'); KLN=len(KLCALLS)
+    box=await pg.locator('#pr-cv').bounding_box(); await pg.mouse.move(box['x']+100, box['y']+150); await pg.wait_for_timeout(300)
+    o2=await pg.inner_text('#pr-ohlc'); assert '/' in o2, o2; print('✓ المؤشر المتقاطع يعرض شمعة محددة بتاريخها')
+    await pg.mouse.move(box['x']+box['width']+30, box['y']-60); await pg.wait_for_timeout(300)
+    assert '/' not in await pg.inner_text('#pr-ohlc'); print('✓ الابتعاد عن الشارت يعيد قراءة آخر شمعة')
+    R=lambda: pg.evaluate("__core.tr().range()")
+    r0=await R(); KLN=len(KLCALLS)
     await pg.mouse.move(box['x']+60, box['y']+150); await pg.mouse.down()
     for i in range(1,16): await pg.mouse.move(box['x']+60+i*16, box['y']+150); await pg.wait_for_timeout(15)
     await pg.mouse.up(); await pg.wait_for_timeout(300)
-    o4=await pg.inner_text('#pr-ohlc'); assert o4!=o3, (o3,o4); print('✓ سحب الشارت يميناً يعرض شموعاً أقدم')
+    r1=await R(); assert r1['to']<r0['to']-3, (r0,r1); print('✓ سحب الشارت يميناً يعرض شموعاً أقدم')
     for i in range(12):
       await pg.mouse.move(box['x']+20, box['y']+150); await pg.mouse.down(); await pg.mouse.move(box['x']+300, box['y']+150, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(120)
     await pg.wait_for_timeout(600)
     assert any('endTime=' in u for u in KLCALLS[KLN:]), KLCALLS[KLN:]; print('✓ عند أول الشارت تُحمَّل شموع أقدم تلقائياً')
-    # التكبير بعجلة الفأرة يثبّت الشمعة تحت المؤشر، وحدود 20..200
-    await pg.evaluate("(function(){var T=__core.tr().TR;T.off=0;T.view=80})()"); await pg.wait_for_timeout(100)
-    await pg.mouse.move(box['x']+box['width']*0.25, box['y']+150)
-    for i in range(6): await pg.mouse.wheel(0,-100); await pg.wait_for_timeout(30)
-    z=await pg.evaluate("({v:__core.tr().TR.view,o:__core.tr().TR.off})"); assert z['v']<80 and z['o']>0, z; print('✓ تكبير حول المؤشر: الشمعة تحت المؤشر تبقى مكانها (العرض', z['v'], 'والإزاحة', z['o'], ')')
-    for i in range(40): await pg.mouse.wheel(0,-100)
-    await pg.wait_for_timeout(100); assert await pg.evaluate("__core.tr().TR.view")==20
-    for i in range(80): await pg.mouse.wheel(0,100)
-    await pg.wait_for_timeout(100); assert await pg.evaluate("__core.tr().TR.view")==200; print('✓ حدود التكبير 20 إلى 200 شمعة')
+    await pg.dblclick('#pr-cv'); await pg.wait_for_timeout(1500)
+    n=await pg.evaluate("__core.tr().TR.kl.length"); r2=await R(); assert r2['to']>=n-1, (r2,n); print('✓ نقرتان تعيدان لآخر سعر')
+    w0=r2['to']-r2['from']; await pg.mouse.move(box['x']+box['width']*0.5, box['y']+150)
+    for i in range(6): await pg.mouse.wheel(0,-120); await pg.wait_for_timeout(40)
+    await pg.wait_for_timeout(200); r3=await R(); assert r3['to']-r3['from']<w0*0.9, (w0,r3); print('✓ التكبير بالعجلة يقلّل عدد الشموع المعروضة')
     # شمعة جديدة عند بدء فترة جديدة بدل تجميد الشارت
     n0=await pg.evaluate("__core.tr().TR.kl.length"); await pg.evaluate("(function(){var X=__core.tr(),T=X.TR,l=T.kl[T.kl.length-1]; l.t=Date.now()-X.tfMs(T.tf)-1000;})()")
     await pg.evaluate("__core.tr().top()"); await pg.wait_for_timeout(100)
     n1=await pg.evaluate("__core.tr().TR.kl.length"); assert n1==n0+1, (n0,n1); print('✓ بدء فترة جديدة يضيف شمعة حيّة بدل تجميد الشارت')
-    await pg.dblclick('#pr-cv'); await pg.wait_for_timeout(200)
     w=await pg.evaluate('document.documentElement.scrollWidth'); assert w<=360, w; print('✓ لا فيضان أفقي في شاشة الزوج')
     if SHOTS: await pg.screenshot(path=SHOTS+'/pair.png', full_page=True)
     # شراء بـ 10 USDT
@@ -110,12 +161,23 @@ async def main():
     BADP[0]=True; await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
     er=await pg.inner_text('#od-err'); assert 'أسوأ من سعر السوق' in er and 'تأكيد' not in await pg.inner_text('#od-go'), er; print('✓ سعر تنفيذ أسوأ من السوق بـ 20% يُرفض وتظهر الرسالة')
     BADP[0]=False
+    # BUG-008: التبديل بين تبويبي الشراء والبيع أثناء جلب السعر
+    # BUG-008 (أ): التبديل إلى «بيع» يغيّر الأمر فعلاً (كان معالج P2P العام يلتقط الزرين فيتلوّن التبويب فقط)
+    await pg.click('#od-side [data-side=sell]'); await pg.wait_for_timeout(200)
+    s8=await pg.evaluate("[__core.tr().TR.side, document.getElementById('od-in-l').textContent]"); assert s8[0]=='sell' and 'تبيع' in s8[1], s8
+    await pg.click('#od-side [data-side=buy]'); await pg.wait_for_timeout(200)
+    s8=await pg.evaluate("[__core.tr().TR.side, document.getElementById('od-in-l').textContent]"); assert s8[0]=='buy' and 'تدفع' in s8[1], s8; print('✓ BUG-008: تبويبا الشراء والبيع يغيّران الأمر نفسه لا لون الزر فقط')
+    # BUG-008 (ب): سعر شراء يصل بعد التبديل إلى «بيع» يُهمل، فلا يظهر «تأكيد بيع» لسعر شراء
+    DELAY[0]=2; await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(300)
+    await pg.click('#od-side [data-side=sell]'); await pg.wait_for_timeout(2600); DELAY[0]=0
+    st8=await pg.evaluate("(()=>{const T=__core.tr().TR;return {side:T.side,q:T.oq&&T.oq.tSide,go:document.getElementById('od-go').textContent}})()")
+    assert st8['side']=='sell' and st8['q'] is None and 'تأكيد' not in st8['go'], st8; print('✓ BUG-008: سعر قديم وصل بعد تبديل الجهة لا يُعرض ولا يُنفَّذ')
+    await pg.click('#od-side [data-side=buy]'); await pg.wait_for_timeout(300)
     await pg.fill('#od-amt','12'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
     q=Q[-1]; assert q['fromChain']=='56' and q['toChain']=='56' and q['fromAmount']==str(12*10**18), q; print('✓ طلب السعر: 12 USDT → BTC على BNB Chain')
     out=await pg.inner_text('#od-out'); rate=await pg.inner_text('#od-rate'); assert 'BTC' in out and '60,000' in rate, (out,rate); print('✓ ستستلم', out, '·', rate)
     if SHOTS: await pg.screenshot(path=SHOTS+'/order.png')
-    E.BAL['bsc']['0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c']=int(0.0002*10**18)  # أثر الشراء على الشبكة
-    assert 'تأكيد شراء' in await pg.inner_text('#od-go'); await pg.click('#od-go'); await pin('123456'); await pg.wait_for_timeout(5000)
+    assert 'تأكيد شراء' in await pg.inner_text('#od-go'); await pg.click('#od-go'); await pin('123456'); E.BAL['bsc']['0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c']=int(0.0002*10**18); await pg.wait_for_timeout(5000)  # أثر الشراء يظهر بعد التوقيع لا قبله
     assert len(E.sent)>=1; print('✓ وُقّعت معاملة الشراء وبُثّت')
     for _ in range(30):
       st=await pg.evaluate("JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('sarra.tr.')))||'[]')")
@@ -158,6 +220,7 @@ async def main():
     await pg.fill('#od-amt','0.2'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
     er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'تأكيد شراء' in await pg.inner_text('#od-go') and 'الرسوم تعادل' not in er, er; print('✓ شراء بـ 0.20 دولار مسموح (رسوم $0.03 = 15%)')
     await pg.click('#od-cancel')
+    await pg.wait_for_timeout(900); av=await pg.evaluate("__core.tr().avg()"); assert abs(av-60000)<1, av; print('✓ خط «سعر التكلفة» على الشارت بسعر الشراء')
     await pg.click('#s-pair [data-back]'); await pg.wait_for_timeout(800)
     assert await pg.locator('#tr-open .op[data-sym=BTC]').count()==1 and '+10.00%' in await pg.inner_text('#tr-open'); print('✓ «مراكزي المفتوحة» في شاشة السوق')
     if SHOTS: await pg.screenshot(path=SHOTS+'/trade2.png')

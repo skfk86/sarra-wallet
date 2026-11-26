@@ -8,6 +8,7 @@ run() {
   cp -r src/index.html src/wallet-core.js src/app.js src/assets src/css src/logic "$DIR/"
   cp "test/ui/stubs/$2" "$DIR/vendor/tronweb.js"; cp test/ui/stubs/qrcode.js test/ui/stubs/jsqr.js "$DIR/vendor/"
   [ -f node_modules/ethers/dist/ethers.umd.min.js ] && cp node_modules/ethers/dist/ethers.umd.min.js "$DIR/vendor/ethers.js"
+  [ -f node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js ] && cp node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.js "$DIR/vendor/lightweight-charts.js"
   echo "window.SARRA_CONFIG = $3;" > "$DIR/config.js"
   [ -n "$ONLY" ] && [ "$4" != "$ONLY" ] && return 0
   echo "== $1 =="; python3 "test/ui/$4" "$DIR" $SHOTS
