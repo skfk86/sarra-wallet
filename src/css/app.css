@@ -861,3 +861,5 @@ body.chart-fs .pr-bar{display:none}
 .pr-axt.cost span{padding:3px 6px;color:var(--tx);font-weight:700}
 /* UI-009: تبويبا الأمر يحتفظان بلونيهما حتى غير النشط (شراء أخضر، بيع أحمر) كأزرار الشاشة */
 .od-side button[data-side=buy]:not(.on){color:var(--up)}.od-side button[data-side=sell]:not(.on){color:var(--dn)}
+/* نافذة السؤال تظهر فوق أي ورقة أخرى (مثل تفاصيل المعاملة عند مشاركة الإيصال) */
+#ask-sheet{z-index:56}

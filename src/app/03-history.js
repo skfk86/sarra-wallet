@@ -125,6 +125,15 @@
       toast('تأكد من العنوان قبل الإرسال');
     };
     $('txd-share').onclick = async function () {
+      // صورة إيصال (التقرير): المبلغ والعملة والشبكة والحالة والتاريخ ورقم المعاملة مختصراً، ورمز QR يفتح المعاملة في المستكشف
+      // ليتحقق المستلم بنفسه. العنوان مختصر ويُخفى بخيار. بلا أي بيانات خاصة. تعذّر الصورة = الإيصال النصي كما كان
+      try {
+        var who0 = kind === 'recv' ? (r.from || t.counterparty) : (r.to || t.counterparty);
+        var hideAddr = !who0 || !(await askConfirm('إظهار عنوان ' + (kind === 'recv' ? 'المرسل' : 'المستلم') + ' مختصراً في الإيصال؟', false, 'إظهار', 'إخفاء'));
+        var png = receiptPng({ title: $('txd-title').textContent, st: $('txd-st').textContent, fail: fail, pend: pend, amt: fmtExact(t.amount), coin: t.coin || 'USDT', sign: sign,
+          sub: $('txd-sub').textContent, when: fmtWhen(t.time), tx: t.txid || '', url: url, who: hideAddr ? '' : shortAddr(who0), whoL: kind === 'recv' ? 'من' : 'إلى' });
+        if (await shareImage(png, 'sarra-receipt-' + (t.txid ? String(t.txid).slice(0, 10) : Date.now()) + '.png')) return;
+      } catch (e) {}
       var lines = ['إيصال عملية · صُرّة', $('txd-title').textContent + ' · ' + $('txd-st').textContent, (state.hidden ? '' : $('txd-amt').textContent), $('txd-sub').textContent, fmtWhen(t.time)];
       if (t.txid) lines.push('رقم المعاملة: ' + t.txid);
       if (url) lines.push(url);
@@ -132,6 +141,52 @@
       try { if (P.Share) await P.Share.share({ title: 'إيصال عملية', text: text }); else { copyText(text); toast('نُسخ الإيصال'); } } catch (e) {}
     };
     $('txd-sheet').classList.add('show');
+  }
+  // ===== رسم صورة الإيصال (Canvas، يمين لليسار) =====
+  function receiptPng(o) {
+    var W = 1080, H = 1440, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d'), F = function (w, s) { return w + ' ' + s + 'px "IBM Plex Sans Arabic", system-ui, sans-serif'; };
+    x.fillStyle = '#F4F7F6'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#0E8F68'; x.fillRect(0, 0, W, 220);
+    x.direction = 'rtl'; x.textAlign = 'right'; x.textBaseline = 'middle';
+    x.fillStyle = '#fff'; x.font = F(800, 64); x.fillText('صُرّة', W - 80, 92); x.font = F(500, 32); x.fillText('إيصال عملية', W - 80, 156);
+    x.textAlign = 'left'; x.direction = 'ltr'; x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillText('sarrapay.com', 80, 110);
+    // البطاقة
+    var card = function (y, h) { x.fillStyle = '#fff'; x.beginPath(); if (x.roundRect) x.roundRect(60, y, W - 120, h, 36); else x.rect(60, y, W - 120, h); x.fill(); };
+    card(260, 1060);
+    x.direction = 'rtl'; x.textAlign = 'center';
+    var stc = o.fail ? '#D2343A' : o.pend ? '#B7791F' : '#0E8F68';
+    x.fillStyle = stc; x.font = F(700, 34); x.fillText(o.title + ' · ' + o.st, W / 2, 340);
+    x.direction = 'ltr'; x.fillStyle = '#111'; var amt = o.sign + o.amt + ' ' + o.coin, fs = 96;
+    do { x.font = F(800, fs); fs -= 4; } while (x.measureText(amt).width > W - 220 && fs > 40);
+    x.fillText(amt, W / 2, 450);
+    x.direction = 'rtl'; x.fillStyle = '#5B6B7B'; x.font = F(500, 32); x.fillText(o.sub, W / 2, 530);
+    // الحقول
+    var rows = [['التاريخ', o.when]]; if (o.who) rows.push([o.whoL, o.who]); if (o.tx) rows.push(['رقم المعاملة', o.tx.length > 20 ? o.tx.slice(0, 10) + '…' + o.tx.slice(-8) : o.tx]);
+    rows.forEach(function (rw, i) {
+      var y = 620 + i * 78; x.strokeStyle = '#E6ECEA'; x.lineWidth = 2; x.beginPath(); x.moveTo(110, y - 39); x.lineTo(W - 110, y - 39); x.stroke();
+      x.direction = 'rtl'; x.textAlign = 'right'; x.fillStyle = '#5B6B7B'; x.font = F(500, 30); x.fillText(rw[0], W - 110, y);
+      x.direction = /[\u0600-\u06FF]/.test(rw[1]) ? 'rtl' : 'ltr'; x.textAlign = 'left'; x.fillStyle = '#111'; x.font = F(600, 30); x.fillText(rw[1], 110, y); // التاريخ العربي من اليمين، والعناوين من اليسار
+    });
+    // رمز QR لرابط المعاملة في المستكشف
+    if (o.url && typeof qrcode === 'function') {
+      var q = qrcode(0, 'M'); q.addData(o.url); q.make(); var n = q.getModuleCount(), sz = 300, cell = Math.floor(sz / n), qx = (W - cell * n) / 2, qy = 880;
+      x.fillStyle = '#111'; for (var r0 = 0; r0 < n; r0++) for (var c0 = 0; c0 < n; c0++) if (q.isDark(r0, c0)) x.fillRect(qx + c0 * cell, qy + r0 * cell, cell, cell);
+      x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#5B6B7B'; x.font = F(500, 28); x.fillText('امسح الرمز للتحقق من المعاملة على الشبكة', W / 2, qy + cell * n + 50);
+    }
+    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#8A97A4'; x.font = F(400, 26);
+    x.fillText('هذه الصورة ليست وثيقة رسمية؛ المرجع هو المعاملة على الشبكة.', W / 2, 1370);
+    return c.toDataURL('image/png');
+  }
+  // مشاركة صورة: على الهاتف تُحفظ في مجلد مؤقت ثم نافذة المشاركة (واتساب، حفظ في المعرض…)؛ في المتصفح تنزيل
+  async function shareImage(dataUrl, name) {
+    var FS = P.Filesystem, b64 = String(dataUrl).split(',')[1]; if (!b64) return false;
+    if (FS && P.Share) {
+      var w = await FS.writeFile({ path: name, data: b64, directory: 'CACHE' });
+      await P.Share.share({ title: 'إيصال عملية', files: [w.uri] }); return true;
+    }
+    if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return false; // أصلي بلا الإضافة: إيصال نصي
+    var a = document.createElement('a'); a.href = dataUrl; a.download = name; document.body.appendChild(a); a.click(); a.remove(); return true;
   }
   $('txd-close').onclick = function () { $('txd-sheet').classList.remove('show'); };
   $('txd-sheet').addEventListener('click', function (e) { if (e.target === $('txd-sheet')) $('txd-sheet').classList.remove('show'); });
