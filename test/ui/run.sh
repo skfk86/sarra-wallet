@@ -28,6 +28,7 @@ run "نقل بين الشبكات (LI.FI)" tronweb-mainnet.js '{"network":"mainn
 run "التداول الفوري (شموع، تحليل، شراء، ربح/خسارة)" tronweb-mainnet.js '{"network":"mainnet","evm":true}' run_trade.py
 run "Android Keystore" tronweb-mainnet.js '{"network":"mainnet"}' run_keystore.py
 run "إيصالات بنكك" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_receipt.py
+run "الإشعارات من الإعدادات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p"}' run_notif.py
 run "الدعم والخصوصية وحذف البيانات" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_support.py
 run "معرّف صُرّة والتوثيق" tronweb-mainnet.js '{"network":"mainnet","evm":true,"p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_sid.py
 run "المحفظة المقفلة أثناء الاستخدام" tronweb-mainnet.js '{"network":"mainnet","p2pUrl":"https://mock.supabase.co/functions/v1/p2p","p2pRest":"https://mock.supabase.co/rest/v1/rpc/","p2pKey":"sb_publishable_test"}' run_lock.py
