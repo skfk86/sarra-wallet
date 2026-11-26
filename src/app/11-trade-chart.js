@@ -120,6 +120,13 @@
   $('pr-ma').onclick = function () { LCP.ma = !LCP.ma; lcSave(); lcMode(); };
   // ملء الشاشة: الشارت وحده بكامل الهاتف (والرجوع يغلقه)
   $('pr-fs').onclick = function () { var c = document.querySelector('.pr-chart'), on = !c.classList.contains('fs'); c.classList.toggle('fs', on); document.body.classList.toggle('chart-fs', on); this.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+  // خط «سعر التكلفة»: متوسط سعر شرائك إن كان لديك مركز مفتوح في هذه العملة (يُخفى في وضع الإخفاء).
+  // يُستدعى من الرسم ومن عرض المركز: الرصيد يُعاد تحميله بعد الصفقة، فلا يبقى الخط مخفياً حتى تحديث السعر التالي
+  function lcCost() {
+    if (!LC.chart || !LC.cs) return;
+    var c0 = trCoin(TR.sym), pv = c0 && !state.hidden ? trPosView(c0) : null, avg = pv && pv.q > 0 && pv.ps && pv.ps.avg > 0 ? pv.ps.avg : 0;
+    if (avg !== LC.avg) { if (LC.pl) LC.cs.removePriceLine(LC.pl); LC.pl = avg ? LC.cs.createPriceLine({ price: avg, color: '#9aa5b1', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' }) : null; LC.avg = avg; lcAxis(); }
+  }
   var drawQ = false;
   function drawCandles() { if (drawQ) return; drawQ = true; (window.requestAnimationFrame || setTimeout)(function () { drawQ = false; drawNow(); }); }
   function drawNow() {
@@ -138,9 +145,7 @@
     }
     LC.ls.setData(kl.map(function (k) { return { time: lcT(k.t), value: k.c }; }));
     LC.key = key; LC.n = kl.length; LC.first = kl[0].t; lcHiLo();
-    // خط «دخولك»: متوسط سعر شرائك إن كان لديك مركز مفتوح في هذه العملة (يُخفى في وضع الإخفاء)
-    var c0 = trCoin(TR.sym), pv = c0 && !state.hidden ? trPosView(c0) : null, avg = pv && pv.q > 0 && pv.ps && pv.ps.avg > 0 ? pv.ps.avg : 0;
-    if (avg !== LC.avg) { if (LC.pl) LC.cs.removePriceLine(LC.pl); LC.pl = avg ? LC.cs.createPriceLine({ price: avg, color: '#9aa5b1', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' }) : null; LC.avg = avg; }
+    lcCost();
     if (TR.hover == null) lcOhlc(null);
     lcAxis();
   }
@@ -158,6 +163,7 @@
   }
   function trRenderPos() {
     var c = trCoin(TR.sym); if (!c) return;
+    lcCost();
     var v = trPosView(c), hid = state.hidden, H = function (x) { return hid ? '••••' : x; };
     $('pr-pos-sym').textContent = c.sym;
     var open = v.q > 0; $('pp-empty').hidden = open; $('pp-card').hidden = !open;
