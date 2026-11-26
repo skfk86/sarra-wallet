@@ -17,8 +17,14 @@
     v = Number(v); if (!isFinite(v) || v <= 0) return '—';
     if (v >= 1000) return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (v >= 1) return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-    if (v >= 0.0001) return Number(v.toPrecision(4)).toString();
-    return niceNum(v);
+    return plainSmall(v);
+  }
+  // الأسعار والكميات الصغيرة جداً بأرقام عادية كما في المنصات (0.00000357) بدل الصيغة المختصرة 0.0₅357 التي تُقرأ خطأً
+  function plainSmall(v) {
+    v = Number(v); if (!isFinite(v) || v <= 0) return '0';
+    if (v >= 1) return niceNum(v, 6);
+    var d = Math.min(12, Math.max(2, -Math.floor(Math.log10(v)) + 3));
+    return v.toFixed(d).replace(/0+$/, '').replace(/\.$/, '');
   }
   function fUsd(v, sign) { if (v == null || !isFinite(v)) return '—'; var s = sign && v > 0 ? '+' : v < 0 ? '−' : ''; var a = Math.abs(v); return s + '$' + (a >= 1000 ? a.toLocaleString('en-US', { maximumFractionDigits: 0 }) : a.toFixed(2)); }
   function fVol(v) { v = Number(v); if (!isFinite(v)) return '—'; return v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toFixed(0); }
@@ -128,7 +134,7 @@
       var t = TR.tick[c.sym], r = el('button'); r.type = 'button'; r.className = 'tr-row'; r.dataset.sym = c.sym;
       var a = el('div'); a.className = 'tr-c'; var im = document.createElement('img'); im.src = coinImg(c); im.alt = ''; im.onerror = function () { this.style.visibility = 'hidden'; }; a.appendChild(im);
       var d = el('div'), nm = el('b', null, c.sym); nm.appendChild(el('small', null, ' /USDT')); d.appendChild(nm);
-      var held = coinTotal(c); d.appendChild(el('span', null, held && held > 0 ? (state.hidden ? '••••' : 'لديك ' + niceNum(held, 6)) : c.name)); a.appendChild(d); r.appendChild(a);
+      var held = coinTotal(c); d.appendChild(el('span', null, held && held > 0 ? (state.hidden ? '••••' : 'لديك ' + plainSmall(held)) : c.name.replace(/\s*\(.*\)\s*$/, ''))); a.appendChild(d); r.appendChild(a);
       var p = el('div'); p.className = 'tr-p'; var pr = trPrice(c.sym); p.appendChild(el('b', null, fp(pr))); if (t && t.vol) p.appendChild(el('small', null, 'Vol ' + fVol(t.vol))); r.appendChild(p);
       var ch = chg(c), cb = el('span', null, ch == null ? '—' : (ch > 0 ? '+' : '') + ch.toFixed(2) + '%'); cb.className = 'tr-ch ' + (ch == null ? 'na' : ch >= 0 ? 'up' : 'dn'); r.appendChild(cb);
       r.onclick = function () { openPair(c.sym); };
@@ -150,7 +156,8 @@
   function trRenderTop() {
     var t = TR.tick[TR.sym] || {}, p = trPrice(TR.sym), pe = $('pr-price');
     var prev = Number(pe.dataset.v || 0); pe.textContent = fp(p); pe.dataset.v = p || 0;
-    pe.className = 'ltr' + (prev && p && p !== prev ? (p > prev ? ' up' : ' dn') : '');
+    // لون السعر الكبير يتبع تغيّر 24 ساعة (كشارة النسبة بجانبه)، فلا يظهر سعر أحمر بجانب +2.7% أخضر
+    pe.className = 'ltr' + (isFinite(t.chg) ? (t.chg >= 0 ? ' up' : ' dn') : '');
     var ch = $('pr-chg'); ch.textContent = isFinite(t.chg) ? (t.chg > 0 ? '+' : '') + t.chg.toFixed(2) + '%' : '—'; ch.className = 'pr-chg ' + (t.chg >= 0 ? 'up' : t.chg < 0 ? 'dn' : '');
     $('pr-usd').textContent = p ? '≈ $' + fp(p) : '';
     $('pr-hi').textContent = fp(t.hi); $('pr-lo').textContent = fp(t.lo); $('pr-vol').textContent = t.vol ? '$' + fVol(t.vol) : '—';

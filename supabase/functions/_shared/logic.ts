@@ -381,8 +381,8 @@ export function payoutTarget(o: { network?: string; buyer: string; seller: strin
   return t;
 }
 
-// البائع يدفع رسوم بوابة الضمان فوق المبلغ، فنشترط هامشاً 1.5% في رصيده
-export const ESCROW_FEE_BUFFER_BPS = 150n;
+// البائع يدفع رسوم بوابة الضمان فوق المبلغ (OxaPay ≈ 2%: إيداع 10 = 10.2)، فنشترط هامشاً 2.5% في رصيده (2% + احتياط لتقلبها)
+export const ESCROW_FEE_BUFFER_BPS = 250n;
 export function withEscrowFee(amount: string | number): bigint {
   const m = toMicro(amount); return m + m * ESCROW_FEE_BUFFER_BPS / 10000n;
 }

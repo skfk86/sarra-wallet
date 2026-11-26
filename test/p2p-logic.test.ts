@@ -232,8 +232,8 @@ t('BEP20 escrow: seller funds and payout targets', () => {
 });
 
 t('هامش رسوم بوابة الضمان 1.5% على رصيد البائع', () => {
-  assert.equal(L.withEscrowFee('10'), 10150000n);
-  assert.equal(L.withEscrowFee('100'), 101500000n);
+  assert.equal(L.withEscrowFee('10'), 10250000n);
+  assert.equal(L.withEscrowFee('100'), 102500000n);
 });
 
 // ===== سجل EVM: تحويل رد Moralis =====
