@@ -59,9 +59,15 @@
         var go = function () { if (core.isUnlocked()) openOrder(oid, true); else setTimeout(go, 700); }; setTimeout(go, 600); // بعد فتح القفل
       });
       if (PN.createChannel) await PN.createChannel({ id: 'tx2', name: 'المعاملات', description: 'استلام وخصم', importance: 5, visibility: 1, sound: 'coin.wav', vibration: true, lights: true, lightColor: '#16A37A' }).catch(function () {});
-      var pm = await PN.checkPermissions(); if (pm.receive !== 'granted') pm = await PN.requestPermissions();
-      if (pm.receive === 'granted') await PN.register();
+      await pushAsk();
     } catch (e) {}
+  }
+  // الإذن والتسجيل وحدهما (المستمعون مرة واحدة في pushInit): يُستدعى أيضاً من زر «تفعيل» في الإعدادات
+  async function pushAsk() {
+    if (!PN) return;
+    if (!state.pushInit) return pushInit();
+    try { var pm = await PN.checkPermissions(); if (pm.receive !== 'granted') pm = await PN.requestPermissions();
+      if (pm.receive === 'granted') await PN.register(); } catch (e) {}
   }
   async function loadHome(force) {
     if (!state.rxFirst) { state.rxFirst = 1; setTimeout(pushInit, 1500); setTimeout(vaultRestore, 2500); setTimeout(function () { lnReady().catch(function () {}); rxTick(true); }, 3000); setTimeout(function () { mcLowCheck().catch(function () {}); }, 6000); } // بعد تحميل الرصيد: لا نزاحم طلبات الفتح

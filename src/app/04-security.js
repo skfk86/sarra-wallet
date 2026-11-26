@@ -4,7 +4,7 @@
     $('sec-net').textContent = netName();
     $('sw-bio').setAttribute('aria-checked', bioEnabled() ? 'true' : 'false');
     bioAvailable().then(function (ok) { $('bio-row').hidden = !ok; });
-    syncPhoneRow();
+    syncPhoneRow(); notifRow();
   }
   // الإعداد يحدد حالة كل فتح جديد، ويطبَّق فوراً أيضاً حتى يرى المستخدم أثره
   $('sw-hide').onclick = function () {
@@ -177,3 +177,42 @@
     openPin('verify', function () { wipeAndRestart('wiped'); });
   };
 
+
+  // ===== الإشعارات من الإعدادات =====
+  // طلب الإذن كان يظهر تلقائياً بعد فتح الرئيسية فقط؛ من رفضه أو لم يره لا يجد طريقاً لتفعيله. هنا حالته وزر تفعيل.
+  // أندرويد لا يعيد عرض نافذة الإذن بعد رفضين: عندها نشرح خطوات التفعيل من إعدادات الهاتف بدل زر لا يفعل شيئاً
+  async function notifPerm() {
+    var P = window.Capacitor && Capacitor.Plugins, PNs = P && P.PushNotifications, LNs = P && P.LocalNotifications;
+    if (!PNs && !LNs) return 'na';
+    try { var r = PNs ? await PNs.checkPermissions() : null, l = LNs ? await LNs.checkPermissions() : null;
+      var v = (r && r.receive) || (l && l.display); return v === 'granted' ? 'on' : v === 'denied' ? 'denied' : 'ask'; } catch (e) { return 'na'; }
+  }
+  // الإذن الثاني (أندرويد 12+): «المنبّهات والتذكيرات». بدونه لا تظهر الإشعارات فوراً على بعض الهواتف، وكان يُطلب مرة واحدة فقط
+  async function exactOk() {
+    var LNs = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.LocalNotifications;
+    if (!LNs || !LNs.checkExactNotificationSetting) return true;
+    try { var r = await LNs.checkExactNotificationSetting(); return !r || !r.exact_alarm || r.exact_alarm === 'granted'; } catch (e) { return true; }
+  }
+  async function notifRow() {
+    var k = await notifPerm(), st = $('notif-st'), go = $('notif-go');
+    if (k === 'on' && !(await exactOk())) k = 'exact';
+    $('notif-row').hidden = k === 'na';
+    st.textContent = k === 'on' ? (state.pushOn ? 'مفعّلة: الاستلام والخصم وطلبات P2P' : 'مسموحة: جارٍ ربط هذا الجهاز…') : k === 'exact' ? 'ناقصة: اسمح بـ«المنبّهات والتذكيرات» لتصل فوراً' : k === 'denied' ? 'متوقفة من إعدادات الهاتف' : 'غير مفعّلة بعد';
+    st.style.color = k === 'on' ? '' : 'var(--warn)';
+    go.textContent = k === 'on' ? 'تجربة' : k === 'exact' ? 'السماح' : k === 'denied' ? 'كيف أفعّلها؟' : 'تفعيل';
+    go.dataset.k = k;
+  }
+  $('notif-go').onclick = async function () {
+    var k = this.dataset.k, P = window.Capacitor && Capacitor.Plugins, LNs = P && P.LocalNotifications;
+    if (k === 'on') { // إشعار محلي تجريبي: يثبت أن الهاتف يعرض إشعارات التطبيق فعلاً
+      try { await LNs.schedule({ notifications: [{ id: Math.floor(Date.now() / 1000) % 1e9, title: 'صُرّة', body: 'الإشعارات تعمل على هذا الجهاز ✓', channelId: 'tx2' }] }); toast('أُرسل إشعار تجريبي'); } catch (e) { toast('تعذّر إرسال إشعار تجريبي', true); }
+      return;
+    }
+    if (k === 'exact') { try { await LNs.changeExactNotificationSetting(); } catch (e) {} return setTimeout(notifRow, 1000); } // يفتح صفحة الإذن في الهاتف؛ الحالة تُحدَّث عند الرجوع
+    if (k === 'denied') return toast('افتح إعدادات الهاتف ← التطبيقات ← صُرّة ← الإشعارات، وفعّلها ثم ارجع هنا');
+    try { if (LNs) await LNs.requestPermissions(); } catch (e) {}
+    await pushAsk(); // يطلب إذن الإشعارات الفورية ويسجّل الجهاز
+    if (!(await exactOk()) && LNs && LNs.changeExactNotificationSetting && await askConfirm('خطوة أخيرة: فعّل «المنبّهات والتذكيرات» لصُرّة في الصفحة التي ستفتح، ثم ارجع. بدونها قد تتأخر الإشعارات أو لا تظهر.')) { try { await LNs.changeExactNotificationSetting(); } catch (e) {} }
+    setTimeout(notifRow, 1500); notifRow();
+  };
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && state.stack[state.stack.length - 1] === 'security') notifRow(); }); // رجع من إعدادات الهاتف
