@@ -146,7 +146,7 @@
     var u = coinUnits(); if (u == null) return toast('الرصيد لم يُحمّل بعد', true);
     var nn = netOf(state.sendNet), dec = state.sendNet === 'tron' ? 6 : evmDec(state.sendNet, state.coin), nat = state.coin === nn.native;
     var keep = nat ? (nn.evm ? WalletCore.toUnitsFloor(String(REG.gasKeep(state.sendNet)), dec) : 2000000n) : 0n;
-    if (nat && nn.evm && core.evmNativeSendCost) { var real = await core.evmNativeSendCost(state.sendNet); if (real != null && real > 0n && real < keep) keep = real; }
+    if (nat && nn.evm && core.evmNativeSendCost) { var real = await core.evmNativeSendCost(state.sendNet); if (real != null && real > 0n && real < keep) keep = real; } // الإرسال وحده: 21000 غاز فقط
     if (u === 0n) return toast('رصيدك من ' + state.coin + ' على ' + nn.name + ' صفر', true);
     if (nat && u <= keep) return toast('الرصيد لا يكفي رسوم الشبكة: تحتاج نحو ' + niceNum(WalletCore.fromUnits(keep, dec), 4) + ' ' + nn.native + '، ورصيدك ' + niceNum(WalletCore.fromUnits(u, dec), 4), true);
     // حتى 6 خانات عشرية (اقتطاع لا تقريب): عملات BNB/ETH بـ 18 خانة تُنتج أرقاماً طويلة غير مقروءة
