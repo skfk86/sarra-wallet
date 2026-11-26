@@ -143,40 +143,71 @@
     $('txd-sheet').classList.add('show');
   }
   // ===== رسم صورة الإيصال (Canvas، يمين لليسار) =====
-  function receiptPng(o) {
-    var W = 1080, H = 1440, c = document.createElement('canvas'); c.width = W; c.height = H;
-    var x = c.getContext('2d'), F = function (w, s) { return w + ' ' + s + 'px "IBM Plex Sans Arabic", system-ui, sans-serif'; };
-    x.fillStyle = '#F4F7F6'; x.fillRect(0, 0, W, H);
-    x.fillStyle = '#0E8F68'; x.fillRect(0, 0, W, 220);
-    x.direction = 'rtl'; x.textAlign = 'right'; x.textBaseline = 'middle';
-    x.fillStyle = '#fff'; x.font = F(800, 64); x.fillText('صُرّة', W - 80, 92); x.font = F(500, 32); x.fillText('إيصال عملية', W - 80, 156);
-    x.textAlign = 'left'; x.direction = 'ltr'; x.font = F(600, 28); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillText('sarrapay.com', 80, 110);
-    // البطاقة
-    var card = function (y, h) { x.fillStyle = '#fff'; x.beginPath(); if (x.roundRect) x.roundRect(60, y, W - 120, h, 36); else x.rect(60, y, W - 120, h); x.fill(); };
-    card(260, 1060);
-    x.direction = 'rtl'; x.textAlign = 'center';
-    var stc = o.fail ? '#D2343A' : o.pend ? '#B7791F' : '#0E8F68';
-    x.fillStyle = stc; x.font = F(700, 34); x.fillText(o.title + ' · ' + o.st, W / 2, 340);
-    x.direction = 'ltr'; x.fillStyle = '#111'; var amt = o.sign + o.amt + ' ' + o.coin, fs = 96;
-    do { x.font = F(800, fs); fs -= 4; } while (x.measureText(amt).width > W - 220 && fs > 40);
-    x.fillText(amt, W / 2, 450);
-    x.direction = 'rtl'; x.fillStyle = '#5B6B7B'; x.font = F(500, 32); x.fillText(o.sub, W / 2, 530);
-    // الحقول
-    var rows = [['التاريخ', o.when]]; if (o.who) rows.push([o.whoL, o.who]); if (o.tx) rows.push(['رقم المعاملة', o.tx.length > 20 ? o.tx.slice(0, 10) + '…' + o.tx.slice(-8) : o.tx]);
-    rows.forEach(function (rw, i) {
-      var y = 620 + i * 78; x.strokeStyle = '#E6ECEA'; x.lineWidth = 2; x.beginPath(); x.moveTo(110, y - 39); x.lineTo(W - 110, y - 39); x.stroke();
-      x.direction = 'rtl'; x.textAlign = 'right'; x.fillStyle = '#5B6B7B'; x.font = F(500, 30); x.fillText(rw[0], W - 110, y);
-      x.direction = /[\u0600-\u06FF]/.test(rw[1]) ? 'rtl' : 'ltr'; x.textAlign = 'left'; x.fillStyle = '#111'; x.font = F(600, 30); x.fillText(rw[1], 110, y); // التاريخ العربي من اليمين، والعناوين من اليسار
+  // تصميم «تذكرة»: شعار وحالة بأيقونة، المبلغ، جدول التفاصيل، حافة مثقّبة، ثم رمز QR للتحقق في المستكشف
+  var RC_LOGO = null; (function () { var im = new Image(); im.onload = function () { RC_LOGO = im; }; im.src = 'assets/logo.png'; })();
+  function receiptPng(o, noLogo) {
+    // التخطيط يُحسب من المحتوى: صفوف التفاصيل ثم رمز QR، والبطاقة والصورة بطولهما
+    var rows = [['نوع العملية', o.title], ['الحالة', o.fail ? 'فشلت' : o.pend ? 'بانتظار التأكيد' : 'مكتملة'], ['التاريخ والوقت', o.when]];
+    if (o.who) rows.push([o.whoL === 'من' ? 'من عنوان' : 'إلى عنوان', o.who]);
+    if (o.tx) rows.push(['رقم المعاملة', o.tx.length > 22 ? o.tx.slice(0, 10) + '…' + o.tx.slice(-8) : o.tx]);
+    var hasQr = !!(o.url && typeof qrcode === 'function');
+    var cy = 300, iy = cy + 120, ay = iy + 225, py = ay + 70, cut = py + 56 + 64, ry = cut + 78, qy = ry + rows.length * 74 + 24;
+    var cardB = hasQr ? qy + 190 + 64 : ry + rows.length * 74 + 20, W = 1080, H = cardB + 190;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d'), FONT = '"IBM Plex Sans Arabic", "Noto Naskh Arabic", system-ui, sans-serif';
+    var F = function (w, sz) { return w + ' ' + sz + 'px ' + FONT; };
+    var G = '#0E8F68', INK = '#0F1A17', MU = '#6B7A77', LINE = '#E3EBE8';
+    var stc = o.fail ? '#D2343A' : o.pend ? '#C27C0E' : G;
+    var rr = function (X, Y, w, h, r) { x.beginPath(); if (x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); };
+    var T = function (t, X, Y, opt) { x.direction = opt.d || 'rtl'; x.textAlign = opt.a || 'center'; x.font = opt.f; x.fillStyle = opt.c || INK; x.fillText(t, X, Y); };
+    x.textBaseline = 'middle';
+    // خلفية بتدرّج هادئ
+    var bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#E6F4EE'); bg.addColorStop(.35, '#F3F7F5'); bg.addColorStop(1, '#F3F7F5'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    // الرأس: الشعار والاسم
+    var lx = W / 2;
+    if (RC_LOGO && !noLogo) { x.save(); rr(lx - 44, 70, 88, 88, 24); x.clip(); x.drawImage(RC_LOGO, lx - 44, 70, 88, 88); x.restore(); }
+    T('صُرّة', lx, 200, { f: F(800, 44), c: INK }); T('SARRA PAY · إيصال عملية', lx, 248, { f: F(600, 24), c: MU, d: 'ltr' });
+    // البطاقة (تذكرة)
+    var cx = 70, cw = W - 140, ch = cardB - cy;
+    x.save(); x.shadowColor = 'rgba(15,26,23,.08)'; x.shadowBlur = 40; x.shadowOffsetY = 12; x.fillStyle = '#fff'; rr(cx, cy, cw, ch, 40); x.fill(); x.restore();
+    // ثقبان على جانبي خط القطع + خط منقّط
+    x.fillStyle = '#F3F7F5'; [cx, cx + cw].forEach(function (px) { x.beginPath(); x.arc(px, cut, 28, 0, Math.PI * 2); x.fill(); });
+    x.strokeStyle = LINE; x.lineWidth = 3; x.setLineDash([14, 12]); x.beginPath(); x.moveTo(cx + 48, cut); x.lineTo(cx + cw - 48, cut); x.stroke(); x.setLineDash([]);
+    // أيقونة الحالة
+    x.fillStyle = stc + '1F'; x.beginPath(); x.arc(lx, iy, 66, 0, Math.PI * 2); x.fill(); x.fillStyle = stc; x.beginPath(); x.arc(lx, iy, 46, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = '#fff'; x.lineWidth = 9; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath();
+    if (o.fail) { x.moveTo(lx - 16, iy - 16); x.lineTo(lx + 16, iy + 16); x.moveTo(lx + 16, iy - 16); x.lineTo(lx - 16, iy + 16); }
+    else if (o.pend) { x.moveTo(lx, iy - 20); x.lineTo(lx, iy); x.lineTo(lx + 14, iy + 12); }
+    else { x.moveTo(lx - 20, iy + 1); x.lineTo(lx - 6, iy + 15); x.lineTo(lx + 21, iy - 14); }
+    x.stroke();
+    T(o.title + (o.fail ? ' · فشلت' : o.pend ? ' · بانتظار التأكيد' : ' · تمت بنجاح'), lx, iy + 120, { f: F(700, 36), c: INK });
+    // المبلغ
+    var amt = o.sign + o.amt, fs = 104; do { x.font = F(800, fs); fs -= 4; } while (x.measureText(amt + ' ' + o.coin).width > cw - 120 && fs > 44);
+    x.direction = 'ltr'; x.textAlign = 'center'; var aw = x.measureText(amt).width; x.font = F(600, Math.round(fs * .5)); var cwid = x.measureText(' ' + o.coin).width;
+    var ax = lx - (aw + cwid) / 2;
+    x.font = F(800, fs + 4); x.textAlign = 'left'; x.fillStyle = INK; x.fillText(amt, ax, ay); x.font = F(600, Math.round(fs * .5)); x.fillStyle = MU; x.fillText(' ' + o.coin, ax + aw, ay + fs * .12);
+    // شارة الشبكة
+    x.font = F(600, 28); var nw = x.measureText(o.sub).width + 56; x.fillStyle = '#EEF4F2'; rr(lx - nw / 2, py, nw, 56, 28); x.fill(); T(o.sub, lx, py + 28, { f: F(600, 28), c: '#3E4D49' });
+    // جدول التفاصيل
+    rows.forEach(function (rw, k) {
+      var y = ry + k * 74;
+      T(rw[0], cx + cw - 60, y, { f: F(500, 30), c: MU, a: 'right' });
+      x.direction = /[؀-ۿ]/.test(rw[1]) ? 'rtl' : 'ltr'; x.textAlign = 'left'; x.font = F(rw[0] === 'الحالة' ? 700 : 600, 30); x.fillStyle = rw[0] === 'الحالة' ? stc : INK; x.fillText(rw[1], cx + 60, y);
     });
-    // رمز QR لرابط المعاملة في المستكشف
-    if (o.url && typeof qrcode === 'function') {
-      var q = qrcode(0, 'M'); q.addData(o.url); q.make(); var n = q.getModuleCount(), sz = 300, cell = Math.floor(sz / n), qx = (W - cell * n) / 2, qy = 880;
-      x.fillStyle = '#111'; for (var r0 = 0; r0 < n; r0++) for (var c0 = 0; c0 < n; c0++) if (q.isDark(r0, c0)) x.fillRect(qx + c0 * cell, qy + r0 * cell, cell, cell);
-      x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#5B6B7B'; x.font = F(500, 28); x.fillText('امسح الرمز للتحقق من المعاملة على الشبكة', W / 2, qy + cell * n + 50);
+    // رمز QR للتحقق
+    if (hasQr) {
+      var q = qrcode(0, 'M'); q.addData(o.url); q.make(); var n = q.getModuleCount(), cell = Math.floor(190 / n), qs = cell * n, qx = cx + 60;
+      x.fillStyle = '#fff'; rr(qx - 14, qy - 14, qs + 28, qs + 28, 18); x.fill(); x.strokeStyle = LINE; x.lineWidth = 2; x.stroke();
+      x.fillStyle = INK; for (var r0 = 0; r0 < n; r0++) for (var c0 = 0; c0 < n; c0++) if (q.isDark(r0, c0)) x.fillRect(qx + c0 * cell, qy + r0 * cell, cell, cell);
+      x.strokeStyle = LINE; x.lineWidth = 2; x.beginPath(); x.moveTo(cx + 60, qy - 30); x.lineTo(cx + cw - 60, qy - 30); x.stroke();
+      T('تحقّق من المعاملة', cx + cw - 60, qy + 40, { f: F(700, 32), c: INK, a: 'right' });
+      T('امسح الرمز لفتحها على مستكشف الشبكة.', cx + cw - 60, qy + 92, { f: F(500, 26), c: MU, a: 'right' });
+      T('المرجع هو المعاملة على الشبكة لا هذه الصورة.', cx + cw - 60, qy + 136, { f: F(500, 26), c: MU, a: 'right' });
     }
-    x.direction = 'rtl'; x.textAlign = 'center'; x.fillStyle = '#8A97A4'; x.font = F(400, 26);
-    x.fillText('هذه الصورة ليست وثيقة رسمية؛ المرجع هو المعاملة على الشبكة.', W / 2, 1370);
-    return c.toDataURL('image/png');
+    // التذييل
+    T('صُرّة · محفظة غير احتجازية · sarrapay.com', lx, H - 120, { f: F(600, 26), c: MU });
+    T('هذا الإيصال للمعلومة وليس وثيقة رسمية.', lx, H - 76, { f: F(500, 24), c: '#9AA7A3' });
+    try { return c.toDataURL('image/png'); } catch (e) { if (!noLogo) return receiptPng(o, true); throw e; } // صورة شعار من أصل آخر تمنع التصدير: نعيد الرسم بدونه
   }
   // مشاركة صورة: على الهاتف تُحفظ في مجلد مؤقت ثم نافذة المشاركة (واتساب، حفظ في المعرض…)؛ في المتصفح تنزيل
   async function shareImage(dataUrl, name) {
