@@ -176,12 +176,40 @@
         var mine = (await p2p('offers.mine')).offers;
         box.textContent = '';
         if (!mine.length) return emptyMsg(box, 'لا توجد إعلانات. اضغط "+ إعلان بيع"');
-        mine.forEach(function (o) {
-          var c = el('div', 'background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px');
-          c.appendChild(el('span', 'font-size:12px;font-weight:700;color:' + (o.side === 'buy' ? 'var(--ac)' : 'var(--danger)'), o.side === 'buy' ? 'إعلان شراء' : 'إعلان بيع'));
+        // حالة كل إعلان من منظور صاحبه: نشط (يظهر في السوق)، نفدت كميته، متوقف، أو على شبكة قديمة لا تظهر في السوق
+        var stOf = function (o) {
+          if (!o.active) return { k: 'off', t: 'متوقف', c: 'var(--mu)', bg: 'var(--s2)' };
+          if (o.network !== 'BEP20') return { k: 'old', t: 'شبكة قديمة · لا يظهر في السوق', c: 'var(--warn)', bg: 'var(--warn-bg)' };
+          if (!(Number(o.available_usdt) > 0)) return { k: 'out', t: 'نفدت الكمية', c: 'var(--warn)', bg: 'var(--warn-bg)' };
+          return { k: 'on', t: 'نشط · يظهر في السوق', c: 'var(--ac)', bg: 'var(--ok-bg)' };
+        };
+        var rank = { on: 0, out: 1, old: 2, off: 3 };
+        mine = mine.map(function (o) { return { o: o, st: stOf(o) }; }).sort(function (x, y) {
+          return (rank[x.st.k] - rank[y.st.k]) || (Date.parse(y.o.created_at || 0) - Date.parse(x.o.created_at || 0));
+        });
+        var nAct = mine.filter(function (x) { return x.st.k !== 'off'; }).length, nOff = mine.length - nAct;
+        // الفلتر: الافتراضي «النشطة» إن وُجد إعلان غير متوقف، وإلا «الكل»
+        var f = state.p2p.mineFilter || (nAct ? 'act' : 'all'); if (f === 'act' && !nAct) f = 'all';
+        var bar = el('div', 'display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap'); bar.setAttribute('role', 'tablist');
+        [['act', 'النشطة (' + nAct + ')'], ['off', 'المتوقفة (' + nOff + ')'], ['all', 'الكل (' + mine.length + ')']].forEach(function (x) {
+          var on = x[0] === f, bt = el('button', 'height:34px;padding:0 14px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (on ? 'var(--ac)' : 'var(--line)') + ';background:' + (on ? 'var(--ac)' : 'transparent') + ';color:' + (on ? 'var(--on-ac, #fff)' : 'var(--tx)'), x[1]);
+          bt.type = 'button'; bt.dataset.minef = x[0]; bt.setAttribute('role', 'tab'); bt.setAttribute('aria-selected', on ? 'true' : 'false');
+          bt.onclick = function () { state.p2p.mineFilter = x[0]; loadP2P(); };
+          bar.appendChild(bt);
+        });
+        box.appendChild(bar);
+        var shown = mine.filter(function (x) { return f === 'all' || (f === 'act' ? x.st.k !== 'off' : x.st.k === 'off'); });
+        if (!shown.length) emptyMsg(box, f === 'off' ? 'لا توجد إعلانات متوقفة' : 'لا توجد إعلانات نشطة');
+        shown.forEach(function (x) {
+          var o = x.o, st = x.st, dim = st.k === 'off';
+          var c = el('div', 'background:var(--s1);border:1px solid ' + (st.k === 'on' ? 'var(--ac)' : 'var(--line)') + ';border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px' + (dim ? ';opacity:.55' : ''));
+          c.dataset.mine = st.k;
+          var top = el('div', 'display:flex;align-items:center;justify-content:space-between;gap:8px');
+          top.appendChild(el('span', 'font-size:12px;font-weight:700;color:' + (o.side === 'buy' ? 'var(--ac)' : 'var(--danger)'), o.side === 'buy' ? 'إعلان شراء' : 'إعلان بيع'));
+          top.appendChild(el('span', 'font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;color:' + st.c + ';background:' + st.bg, st.t));
+          c.appendChild(top);
           c.appendChild(el('b', 'font-size:17px', fmt(o.price_sdg) + ' ج.س / USDT · ' + netLabel(o.network)));
           c.appendChild(el('span', 'font-size:13px;color:var(--mu)', (o.side === 'buy' ? 'المطلوب ' : 'المتاح ') + fmt(o.available_usdt) + ' USDT · الحدود ' + fmt(o.min_usdt) + '–' + fmt(o.max_usdt)));
-          c.appendChild(el('span', 'font-size:13px;color:' + (o.active && Number(o.available_usdt) > 0 ? 'var(--ac)' : 'var(--mu)'), !o.active ? 'متوقف' : Number(o.available_usdt) > 0 ? 'نشط' : 'نفدت الكمية (بيعت بالكامل)'));
           if (o.active) {
             var b = el('button', 'height:40px;border-radius:12px;background:var(--s2);border:0;color:var(--err);font:inherit;font-weight:600;cursor:pointer', 'إيقاف الإعلان');
             b.type = 'button';
