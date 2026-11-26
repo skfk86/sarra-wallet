@@ -817,3 +817,11 @@ body.privacy .tx-end>.ltr,body.privacy #tr-pf-val,body.privacy .tr-pf-row b,body
 .mc-gift{position:absolute;top:-8px;inset-inline-end:6px;font-style:normal;font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:var(--ac);color:#062A20}
 
 #upd-card.must{border:1.5px solid var(--danger);background:var(--danger-bg)}#upd-card.must #upd-ver{color:var(--danger-tx);font-weight:700}
+
+/* التداول: مؤشر «غير متصل»، شارة التنفيذ من المحفظة، 8 إطارات زمنية، ونجمة المفضلة */
+.tr-live.down{color:var(--err);background:var(--err-bg)}.tr-live.down i{background:var(--err)}
+.tr-self{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--tx2);background:var(--ok-bg);border:1px solid var(--ok-bd);border-radius:12px;padding:8px 12px}
+.tr-self .i{width:16px;height:16px;flex:none;color:var(--ac)}
+.pr-tf button{min-width:0;padding:0 2px}
+.tr-fav{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-inline-end:4px;color:var(--faint);font-size:15px;line-height:1;border-radius:6px;vertical-align:middle;cursor:pointer}
+.tr-fav.on{color:#F5B301}

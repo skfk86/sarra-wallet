@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest https://api.github.com https://sarrapay.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://raw.githubusercontent.com; connect-src https://api.trongrid.io https://nile.trongrid.io https://*.supabase.co https://bsc-dataseed.bnbchain.org https://bsc-dataseed1.defibit.io https://*.publicnode.com https://eth.llamarpc.com https://polygon.llamarpc.com https://polygon.drpc.org https://eth.drpc.org https://1rpc.io https://data-api.binance.vision https://tron-rpc.publicnode.com https://api.coingecko.com https://li.quest https://api.github.com https://sarrapay.com wss://data-stream.binance.vision">
 <title>صُرّة</title>
 <meta name="theme-color" content="#0B0F14">
 <script src="boot-theme.js"></script>
@@ -956,7 +956,8 @@
 
 <!-- ===== التداول: قائمة السوق ===== -->
 <section class="screen with-tabs" id="s-trade" aria-label="التداول" style="gap:14px">
-  <div class="row between"><h1 style="font-size:22px">التداول</h1><span class="tr-live" id="tr-live"><i></i>مباشر</span></div>
+  <div class="row between"><h1 style="font-size:22px">التداول</h1><span class="tr-live off" id="tr-live"><i></i>جارٍ الاتصال</span></div>
+  <div class="tr-self"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>التبديل يتم من محفظتك مباشرة على الشبكة، وبتوقيعك أنت.</span></div>
   <div class="tr-pf" id="tr-pf">
     <div class="tr-pf-top"><span>قيمة مراكزك المفتوحة</span><button type="button" class="tr-eye" id="tr-pf-hist">سجل الصفقات</button></div>
     <b class="ltr" id="tr-pf-val">—</b>
@@ -969,7 +970,7 @@
   </div>
   <div class="field tr-search"><svg class="i" viewBox="0 0 24 24" style="width:18px;height:18px;color:var(--mu);flex-shrink:0"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tr-q" placeholder="ابحث عن عملة (BTC، ETH…)" autocomplete="off"></div>
   <div class="tr-tabs" id="tr-sort" role="tablist">
-    <button type="button" data-sort="all" class="on">الكل</button><button type="button" data-sort="gain">الأكثر صعوداً</button><button type="button" data-sort="loss">الأكثر هبوطاً</button><button type="button" data-sort="mine">ممتلكاتي</button>
+    <button type="button" data-sort="all" class="on">الكل</button><button type="button" data-sort="fav">★ المفضلة</button><button type="button" data-sort="gain">الأكثر صعوداً</button><button type="button" data-sort="loss">الأكثر هبوطاً</button><button type="button" data-sort="mine">ممتلكاتي</button>
   </div>
   <div id="tr-open" hidden style="display:flex;flex-direction:column;gap:8px">
     <div class="row between"><b style="font-size:16px">مراكزي المفتوحة</b><small class="muted" id="tr-open-n"></small></div>
@@ -1001,7 +1002,7 @@
   </div>
   <div class="pr-chart card">
     <div class="pr-tf" id="pr-tf" role="tablist">
-      <button type="button" data-tf="15m">15د</button><button type="button" data-tf="1h" class="on">1س</button><button type="button" data-tf="4h">4س</button><button type="button" data-tf="1d">يوم</button><button type="button" data-tf="1w">أسبوع</button>
+      <button type="button" data-tf="1m">1د</button><button type="button" data-tf="5m">5د</button><button type="button" data-tf="15m">15د</button><button type="button" data-tf="30m">30د</button><button type="button" data-tf="1h" class="on">1س</button><button type="button" data-tf="4h">4س</button><button type="button" data-tf="1d">يوم</button><button type="button" data-tf="1w">أسبوع</button>
     </div>
     <div class="pr-ohlc ltr" id="pr-ohlc"></div>
     <div class="pr-cv-wrap"><canvas id="pr-cv" aria-label="رسم الشموع اليابانية"></canvas><div class="pr-load" id="pr-load">جارٍ تحميل الشموع…</div></div>

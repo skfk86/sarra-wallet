@@ -77,7 +77,7 @@
       state.txBusy = true; state.stack = ['home', 'swap']; show('swap', false);
       $('es-go').hidden = true; esErr(''); toast('جارٍ التبديل…');
       try {
-        var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+        rxExpect(q); /* قبل التنفيذ لا بعده: فحص الرصيد قد يرى الوارد قبل تسجيله فيعرضه «استلاماً من محفظة خارجية» */ var r = await core.bridgeExecute(q).catch(function (e) { rxUnexpect(q); throw e; }); ES.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
         var rec = { kind: 'swap', net: q.fromNet, coin: q.toSym || q.sym, amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: netOf(q.fromNet).name + ' · LI.FI', txid: r.txid, url: core.evmTxUrl ? core.evmTxUrl(q.fromNet, r.txid) : '', status: 'PENDING' };
         lhAdd(rec); // يظهر في السجل فوراً "قيد التنفيذ" ثم يُحدَّث، فلا تضيع العملية إن أُغلق التطبيق
         state.txBusy = false; // أُرسلت المعاملة: لا نوقف بقية التطبيق (والإشعارات) أثناء المتابعة
@@ -316,7 +316,7 @@
     $('br-track-t').textContent = 'جارٍ إرسال المعاملة…'; $('br-track-s').textContent = q.amount + ' ' + q.sym + ' من ' + netOf(q.fromNet).name + ' إلى ' + netOf(q.toNet).name; $('br-track-l').hidden = true;
     try { localStorage.setItem('sarra.lastbridge', JSON.stringify({ f: q.fromNet, t: q.toNet, c: q.sym, a: q.amount, at: Date.now() })); } catch (e0) {}
     try {
-      var r = await core.bridgeExecute(q); rxExpect(q); /* بعد النجاح فقط: الفحص الدوري متوقف أثناء العملية */ BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
+      rxExpect(q); /* قبل التنفيذ لا بعده: فحص الرصيد قد يرى الوارد قبل تسجيله فيعرضه «استلاماً من محفظة خارجية» */ var r = await core.bridgeExecute(q).catch(function (e) { rxUnexpect(q); throw e; }); BR.q = null; state.balances = null; state.evmBal = null; state.historyCache = null;
       var rec = { kind: 'bridge', net: q.fromNet, toNet: q.toNet, coin: q.toSym || q.sym, amount: String(q.toAmount), paidAmount: q.amount, paidCoin: q.sym, via: 'LI.FI', txid: r.txid, url: '', status: 'PENDING' };
       lhAdd(rec); // في السجل فوراً "قيد التنفيذ"
       state.txBusy = false; // أُرسلت: المتابعة قد تطول، فلا نوقف الإرسال والإشعارات خلالها
