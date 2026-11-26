@@ -50,10 +50,10 @@ export function createApp(d: Deps) {
     try { const j = JSON.parse(t || '{}'); return j && typeof j === 'object' && !Array.isArray(j) ? j : {}; } catch { return {}; }
   }
   const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json', 'X-Request-Id': RQ().reqId, ...extra } });
-  const STATUS: Record<string, number> = { TRY_AGAIN: 409, METHOD_NOT_ALLOWED: 405, ORDER_ID_CONFLICT: 409, BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
+  const STATUS: Record<string, number> = { TRY_AGAIN: 409, METHOD_NOT_ALLOWED: 405, ORDER_ID_CONFLICT: 409, BANNED: 403, PAYLOAD_TOO_LARGE: 413, TEST_KEY_REQUIRED: 403, UNAUTHORIZED: 401, BAD_SIGNATURE: 401, REPLAY: 401, INSUFFICIENT_CREDIT: 402, PAUSED: 503, NOT_FOUND: 404, MERCHANT_DISABLED: 403, SERVER_ERROR: 500 };
   // رسالة إنجليزية قصيرة لكل رمز (الرمز ثابت للبرمجة، والرسالة للبشر)
   const MSG: Record<string, string> = {
-    UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.',
+    UNAUTHORIZED: 'Missing or invalid API key.', TEST_KEY_REQUIRED: 'This endpoint requires a sk_test_ key.', INSUFFICIENT_CREDIT: 'Fee credit is too low. Top up in the Sarra app.', PAUSED: 'Invoice creation is temporarily paused for maintenance. Existing invoices are not affected. Try again later.',
     BAD_AMOUNT: 'Amount must be a string like "10" or "10.50".', AMOUNT_TOO_SMALL: 'Minimum amount is 1.', AMOUNT_TOO_LARGE: 'Maximum amount is 100000.',
     BAD_NETWORK: 'Unsupported network. Use bsc, tron, polygon or eth.', BAD_CURRENCY: 'Unsupported currency for this network.', NETWORK_NOT_CONFIGURED: 'No receiving address for this network in your account.',
     METHOD_NOT_ALLOWED: 'This HTTP method is not allowed on this path.', BAD_STATUS_FILTER: 'status must be pending, paid, expired or cancelled.', BAD_CURSOR: 'before must be the id of one of your invoices.', ORDER_ID_CONFLICT: 'This order_id already has an active invoice with a different amount, network or currency. Cancel it first or use a new order_id.', BAD_ORDER_ID: 'order_id may contain letters, digits and . : - _ (max 64).', BAD_METADATA: 'metadata must be a flat JSON object (max 20 keys, 2000 chars).', BAD_SUCCESS_URL: 'success_url must be an https URL.',
@@ -95,6 +95,12 @@ export function createApp(d: Deps) {
 
   // ===== إنشاء فاتورة (دفع لتاجر، أو شحن رصيد إلى عنواننا) =====
   async function createInvoice(m: Merchant, p: Record<string, unknown>, kind: 'payment' | 'topup', test = false) {
+    // مفتاح الإيقاف السريع: settings.pause = {"pay": true} يوقف الفواتير الحقيقية الجديدة فقط.
+    // الشحن والتجريبية والفواتير القائمة (المطابقة والإشعارات) تستمر. تعذّر القراءة = يعمل
+    if (kind === 'payment' && !test) {
+      let pz = false; try { const { data } = await db.from('settings').select('value').eq('key', 'pause').maybeSingle(); pz = (data?.value as Record<string, unknown> | null)?.pay === true; } catch { /* يعمل */ }
+      if (pz) throw new Error('PAUSED');
+    }
     const net = String(p.network || ''); if (!P.hasNet(net)) throw new Error('BAD_NETWORK'); const N = P.NETS[net];
     const currency = kind === 'topup' ? 'USDT' : String(p.currency || 'USDT').toUpperCase();
     if (!P.tokenOf(net, currency)) throw new Error('BAD_CURRENCY');

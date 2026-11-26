@@ -8,7 +8,7 @@ import { TRANSFER, topicOf } from '../supabase/functions/push-watch/logic.ts';
 type Row = Record<string, any>;
 const NO_BONUS_COL = { v: false };
 function fakeDb() {
-  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [], profiles: [] };
+  const T: Record<string, Row[]> = { pay_merchants: [], pay_invoices: [], push_state: [], push_cfg: [{ k: 'cron_secret', v: 'CRON' }], used_nonces: [], pay_hook_log: [], profiles: [], settings: [] };
   const hits: Record<string, number> = {}; let hitLimit = Infinity;
   const DEF: Record<string, () => Row> = {
     pay_merchants: () => ({ id: 'm' + (T.pay_merchants.length + 1), key_hash: null, key_hint: null, test_key_hash: null, test_key_hint: null, webhook_url: null, credit: 1000000, active: true, tron_addr: null, evm_addr: null }),
@@ -156,6 +156,13 @@ await t('فاتورة: مبلغ فريد على عنوان التاجر، وال
   const r = await api('POST', '/v1/invoices', KEY, { amount: '100', network: 'bsc', order_id: 'ORDER-1', description: 'طلب 1' }); INV = r.j.invoice;
   assert.equal(r.status, 200); assert.equal(INV.address, EVM); assert.equal(INV.amount, '100'); assert.equal(INV.fee, '0.5'); assert.equal(INV.status, 'pending');
   const d = units(INV.pay_amount) - 100000000n; assert.ok(d >= 1n && d <= 9999n, 'الكسر الفريد أقل من سنت'); assert.equal(INV.pay_url, 'https://p/pay.html?i=' + INV.id);
+});
+await t('مفتاح الإيقاف: pause.pay يوقف الفواتير الحقيقية الجديدة فقط (503 PAUSED)، والإطفاء يعيدها', async () => {
+  db.T.settings.push({ key: 'pause', value: { pay: true } });
+  const r = await api('POST', '/v1/invoices', KEY, { amount: '50', network: 'bsc', order_id: 'PAUSE-1' }); assert.equal(r.status, 503); assert.equal(r.j.error, 'PAUSED');
+  db.T.settings[0].value = { pay: false };
+  const r2 = await api('POST', '/v1/invoices', KEY, { amount: '50', network: 'bsc', order_id: 'PAUSE-1' }); assert.equal(r2.status, 200);
+  db.T.settings.length = 0; db.T.pay_invoices = db.T.pay_invoices.filter((x: Row) => x.order_id !== 'PAUSE-1'); // لا يؤثر على عدّ الفواتير في الاختبارات التالية
 });
 await t('نفس رقم الطلب يرجع الفاتورة نفسها (لا فاتورة ثانية)', async () => {
   const r = await api('POST', '/v1/invoices', KEY, { amount: '100', network: 'bsc', order_id: 'ORDER-1' });
