@@ -78,6 +78,19 @@ async function oxapayPaidBefore(order: Record<string, any>): Promise<Record<stri
 }
 const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent(trackId), null, MERCHANT_KEY, 'merchant_api_key', 'GET');
 
+// ===== مفتاح الإيقاف السريع (طوارئ) =====
+// صف settings.key='pause' بقيمة {"p2p": true} يوقف إنشاء طلبات وإعلانات جديدة فوراً، بلا نشر ولا إصدار.
+// كل ما يخص الصفقات القائمة يبقى يعمل (الإيداع، الدفع، الإفراج، الإرجاع، الإلغاء، النزاع، المحادثة) فلا يعلق مال أحد.
+// غياب الصف أو تعذّر قراءته = يعمل (الإيقاف قرار صريح لا عطل). يُقرأ كل 15 ثانية على الأكثر لكل نسخة من الدالة.
+let pauseAt = 0, pauseV: Record<string, unknown> = {};
+async function paused(k: string): Promise<boolean> {
+  if (Date.now() - pauseAt > 15000) {
+    try { const { data } = await db.from('settings').select('value').eq('key', 'pause').maybeSingle(); pauseV = (data?.value as Record<string, unknown>) || {}; } catch { pauseV = {}; }
+    pauseAt = Date.now();
+  }
+  return pauseV[k] === true;
+}
+
 // ===== إعلان نفدت كميته يتوقف فوراً =====
 // بعد صفقة ناجحة: إن بقي في الإعلان أقل من حده الأدنى، ولا طلب مفتوح عليه (قد يُلغى فتعود كميته)، يُوقَف.
 // كان يبقى «نشطاً» بكمية صفر فيظهر للبائع نشطاً ولا يظهر في السوق.
@@ -397,6 +410,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'offer.create') {
+    if (await paused('p2p')) throw new Error('P2P_PAUSED');
     // لا إعلان بيع بدون توثيق، وحساب بنكك هو الحساب الموثّق نفسه
     if (profile.verify_status !== 'approved') throw new Error('VERIFY_REQUIRED');
     const v = L.validateOffer({ ...p, bankak_name: profile.full_name, bankak_account: profile.bankak_account }, MIN_TRADE);
@@ -434,6 +448,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'order.create') {
+    if (await paused('p2p')) throw new Error('P2P_PAUSED');
     const amount = L.fromMicro(L.toMicro(String(p.amount)));
     const { data: offer } = await db.from('offers').select('*').eq('id', p.offer_id).single();
     if (!offer || !offer.active || !L.isTradableOffer(offer)) throw new Error('OFFER_UNAVAILABLE');
