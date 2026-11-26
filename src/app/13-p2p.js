@@ -289,7 +289,7 @@
       if (pf.verify_status !== 'approved') { try { state.p2p.me = await fetchMe(true); renderMe(); pf = state.p2p.me.profile; } catch (e) {} }
       if (pf.verify_status !== 'approved') { toast('وثّق حسابك أولاً لتبيع', true); openVerify(); return; }
       $('buy-sellnote').hidden = false;
-      $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك على BNB Smart Chain (تحتاج قليلاً من BNB للرسوم).';
+      $('buy-sellnote').firstChild.textContent = 'ستستلم على حسابك الموثّق: ' + pf.full_name + ' · ' + pf.bankak_account + '. ستودع الكمية في الضمان من محفظتك على BNB Smart Chain (تحتاج قليلاً من BNB للرسوم). إن أُلغيت الصفقة بعد إيداعك تُعاد الكمية بعد خصم رسوم الشبكة (' + (Number(state.p2p && state.p2p.netFeeBep) || 0.3) + ' USDT).';
       // رصيدك أنت كبائع (من الشبكة مباشرة، بدون الخادم)
       state.p2p.myBal = null; $('buy-mybal').hidden = false; $('buy-mybal').className = 'note ok'; $('buy-mybal').firstChild.textContent = 'جارٍ فحص رصيدك…';
       // التداول على BNB Smart Chain فقط: نقرأ رصيدك من هذه الشبكة (وليس من TRON)
@@ -455,7 +455,7 @@
       state.p2p.newNet = b.dataset.pnet;
       document.querySelectorAll('[data-pnet]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
       $('new-sellnote-t').textContent = state.p2p.newNet === 'BEP20'
-        ? 'عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.'
+        ? 'عند كل صفقة تودع الكمية + رسوم بوابة الضمان (بـ USDT، يظهر المبلغ الدقيق قبل الإيداع)، وتحتاج قليلاً من BNB لرسوم الشبكة. إن أُلغيت صفقة بعد إيداعك تُعاد الكمية بعد خصم رسوم الشبكة (' + (Number(state.p2p && state.p2p.netFeeBep) || 0.3) + ' USDT). يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.'
         : 'عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج 15 TRX على الأقل لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.';
       state.p2p.bal = null; if (state.p2p.newSide === 'sell') loadSellerBalance();
     };

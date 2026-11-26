@@ -250,6 +250,7 @@ async def main():
     await pg.click('#buy-go'); await pg.wait_for_timeout(1200)
     assert await vis('s-order') and st['orders']['sell2']['seller']==ME; step('فتح طلب بيع لإعلان شراء')
     assert await pg.locator('#ord-actions button.btn-primary:has-text("إيداع")').count()==1; step('البائع يرى زر الإيداع في الضمان')
+    t=await pg.inner_text('#s-order'); assert 'إن أُلغيت الصفقة' in t and 'بعد خصم رسوم الشبكة' in t, t[:400]; step('البائع يرى قبل الإيداع ما يُعاد إن أُلغيت الصفقة (بعد خصم رسوم الشبكة)')
     await pg.click('#s-order [data-back]'); await pg.wait_for_timeout(300)
     await pg.click('#p2p-new-btn'); await pg.wait_for_timeout(800)
     assert await pg.get_attribute('[data-side=buy]','aria-checked')=='true' and not await vis('new-bal'); step('نشر إعلان من تبويب البيع يبدأ كإعلان شراء بدون فحص رصيد')
