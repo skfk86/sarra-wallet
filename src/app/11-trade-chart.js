@@ -18,10 +18,13 @@
     var ph = H - VOLH - TOP - BOT, Y = function (v) { return TOP + (hi - v) / (hi - lo) * ph; }, X = function (i) { return i * cw + cw / 2; };
     // شبكة وأسعار المحور
     x.font = '10px system-ui,sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left';
+    // أسعار المحور بخانات تناسب المسافة بين الخطوط (95.84 لا 95.8418)، ويُخفى ما يقع تحت مربع آخر سعر حتى لا يتداخلا
+    var gStep = (hi - lo) / 4, gDec = gStep >= 1 ? 2 : Math.min(10, Math.max(2, Math.ceil(-Math.log10(gStep)) + 1)), lastY = Y(kl[kl.length - 1].c);
     for (var g = 0; g <= 4; g++) {
       var gv = lo + (hi - lo) * g / 4, gy = Y(gv);
       x.strokeStyle = grid; x.lineWidth = 1; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(0, gy); x.lineTo(W - AX, gy); x.stroke(); x.setLineDash([]);
-      x.fillStyle = mu; x.fillText(fp(gv), W - AX + 6, gy);
+      if (Math.abs(gy - lastY) < 16) continue;
+      x.fillStyle = mu; x.fillText(gv >= 1000 ? gv.toLocaleString('en-US', { maximumFractionDigits: 0 }) : gv.toFixed(gDec), W - AX + 6, gy);
     }
     // الحجم
     var vmax = Math.max.apply(null, s.map(function (k) { return k.v || 0; })) || 1;
