@@ -2,12 +2,12 @@
 import asyncio, sys
 from playwright.async_api import async_playwright
 S=sys.argv[1]
-INIT="""window.__perm = '%s'; window.__ask = 0; window.__reg = 0; window.__ln = []; window.__lsn = {};
+INIT="""window.__perm = '%s'; window.__exact = 'granted'; window.__exactOpen = 0; window.__ask = 0; window.__reg = 0; window.__ln = []; window.__lsn = {};
 const perm = async () => ({ receive: window.__perm, display: window.__perm });
 window.Capacitor = { Plugins: {
   PushNotifications: { checkPermissions: perm, requestPermissions: async () => { window.__ask++; if (window.__perm === 'prompt') window.__perm = window.__grant; return perm(); },
     register: async () => { window.__reg++; }, addListener: async (n, f) => { window.__lsn[n] = (window.__lsn[n] || 0) + 1; }, createChannel: async () => {} },
-  LocalNotifications: { checkPermissions: perm, requestPermissions: perm, schedule: async (o) => { window.__ln.push(o.notifications[0].body); } }
+  LocalNotifications: { checkPermissions: perm, requestPermissions: perm, checkExactNotificationSetting: async () => ({ exact_alarm: window.__exact }), changeExactNotificationSetting: async () => { window.__exactOpen++; window.__exact = 'granted'; }, schedule: async (o) => { window.__ln.push(o.notifications[0].body); } }
 } };"""
 async def scenario(pw, start, grant):
   b=await pw.chromium.launch(); ctx=await b.new_context(viewport={'width':360,'height':780}); pg=await ctx.new_page()
@@ -34,6 +34,11 @@ async def main():
     st=await pg.evaluate("[window.__ask, window.__reg, window.__lsn.registration||0]")
     assert st[0]>n0 and st[1]>=1 and st[2]==1, st; assert await pg.inner_text('#notif-go')=='تجربة', await pg.inner_text('#notif-go'); print('✓ «تفعيل» يطلب الإذن ويسجّل الجهاز، دون تكرار المستمعين', st)
     await pg.click('#notif-go'); await pg.wait_for_timeout(300); assert any('تعمل' in x for x in await pg.evaluate("window.__ln")); print('✓ «تجربة» ترسل إشعاراً محلياً')
+    # الإذن الثاني «المنبّهات والتذكيرات» متوقف: الحالة تقول ذلك و«السماح» يفتح صفحته
+    await pg.evaluate("window.__exact='denied'"); await pg.click('.tab[data-tab=home]'); await pg.wait_for_timeout(300); await pg.click('.tab[data-tab=security]'); await pg.wait_for_timeout(700)
+    assert 'المنبّهات والتذكيرات' in await pg.inner_text('#notif-st') and await pg.inner_text('#notif-go')=='السماح', await pg.inner_text('#notif-st')
+    await pg.click('#notif-go'); await pg.wait_for_timeout(1500)
+    assert await pg.evaluate("window.__exactOpen")==1 and await pg.inner_text('#notif-go')=='تجربة'; print('✓ الإذن الثاني (المنبّهات والتذكيرات): حالته ظاهرة و«السماح» يفتح صفحته')
     assert not errs, errs; await b.close()
     # 2) مرفوض نهائياً: لا زر بلا فائدة، بل شرح خطوات إعدادات الهاتف
     b,pg,errs=await scenario(pw,'denied','denied')
