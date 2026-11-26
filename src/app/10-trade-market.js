@@ -142,18 +142,41 @@
     list.forEach(function (c) {
       var t = TR.tick[c.sym], r = el('button'); r.type = 'button'; r.className = 'tr-row'; r.dataset.sym = c.sym;
       var a = el('div'); a.className = 'tr-c'; var im = document.createElement('img'); im.src = coinImg(c); im.alt = ''; im.onerror = function () { this.style.visibility = 'hidden'; }; a.appendChild(im);
-      var d = el('div'), nm = el('b', null, c.sym); nm.appendChild(el('small', null, ' /USDT'));
+      var d = el('div'), nm = el('b', null, c.sym); // «/USDT» واحدة لكل الأزواج فلا نكررها في كل صف
       // نجمة المفضلة داخل صف القائمة (الصف زر، فالنجمة عنصر مستقل يوقف وصول اللمس إلى الصف)
       var fav = trFavs().indexOf(c.sym) >= 0, st = el('span', null, fav ? '★' : '☆'); st.className = 'tr-fav' + (fav ? ' on' : '');
       st.setAttribute('role', 'button'); st.setAttribute('aria-label', fav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'); st.dataset.fav = c.sym;
       st.onclick = function (e) { e.stopPropagation(); trFavToggle(c.sym); renderTrade(); };
       nm.insertBefore(st, nm.firstChild); d.appendChild(nm);
-      var held = coinTotal(c); d.appendChild(el('span', null, held && held > 0 ? (state.hidden ? '••••' : 'لديك ' + plainSmall(held)) : c.name.replace(/\s*\(.*\)\s*$/, ''))); a.appendChild(d); r.appendChild(a);
-      var p = el('div'); p.className = 'tr-p'; var pr = trPrice(c.sym); p.appendChild(el('b', null, fp(pr))); if (t && t.vol) p.appendChild(el('small', null, 'Vol ' + fVol(t.vol))); r.appendChild(p);
-      var ch = chg(c), cb = el('span', null, ch == null ? '—' : (ch > 0 ? '+' : '') + ch.toFixed(2) + '%'); cb.className = 'tr-ch ' + (ch == null ? 'na' : ch >= 0 ? 'up' : 'dn'); r.appendChild(cb);
+      var held = coinTotal(c); d.appendChild(el('span', null, held && held > 0 ? (state.hidden ? '••••' : 'لديك ' + plainSmall(held)) : t && t.vol ? 'الحجم $' + fVol(t.vol) : c.name.replace(/\s*\(.*\)\s*$/, ''))); a.appendChild(d); r.appendChild(a);
+      // رسم مصغّر لآخر 24 ساعة (أخضر صاعد / أحمر هابط)، ثم السعر وتغيّره تحته
+      r.appendChild(trSparkEl(c.sym, chg(c)));
+      var p = el('div'); p.className = 'tr-p'; var pr = trPrice(c.sym); p.appendChild(el('b', null, pr ? '$' + fp(pr) : '—'));
+      var ch = chg(c), cb = el('small', null, ch == null ? '—' : (ch > 0 ? '+' : '') + ch.toFixed(2) + '%'); cb.className = 'tr-ch ' + (ch == null ? 'na' : ch >= 0 ? 'up' : 'dn'); p.appendChild(cb); r.appendChild(p);
       r.onclick = function () { openPair(c.sym); };
       box.appendChild(r);
     });
+  }
+  // ===== الرسوم المصغّرة: شموع ساعة لآخر 24 ساعة، طلب خفيف لكل عملة يُحفظ 10 دقائق، وآخر نقطة يحدّثها السعر اللحظي =====
+  TR.spark = TR.spark || {}; var SPK_BUSY = {};
+  function trSparkLoad(sym) {
+    if (SPK_BUSY[sym] || !BN_SYM[sym]) return; var key = 'sarra.spk.' + sym, c = cacheGet(key, 600000, 'v');
+    if (c) { TR.spark[sym] = c; return; }
+    SPK_BUSY[sym] = 1;
+    trJson(BN_API + 'klines?symbol=' + BN_SYM[sym] + '&interval=1h&limit=24').then(function (j) {
+      var v = j.map(function (x) { return +x[4]; }).filter(function (x) { return x > 0; });
+      if (v.length > 2) { TR.spark[sym] = v; cachePut(key, 'v', v); LV.dirty = true; if (!LV.live && state.stack[state.stack.length - 1] === 'trade') renderTrade(); }
+    }).catch(function () {}).then(function () { setTimeout(function () { delete SPK_BUSY[sym]; }, 60000); });
+  }
+  function trSparkEl(sym, ch) {
+    var W = 64, H = 30, box = el('span'); box.className = 'tr-spk'; box.setAttribute('aria-hidden', 'true');
+    var v = TR.spark[sym]; if (!v) { trSparkLoad(sym); return box; }
+    v = v.slice(); var p = trPrice(sym); if (p) v[v.length - 1] = p;
+    var lo = Math.min.apply(null, v), hi = Math.max.apply(null, v), d = hi - lo || 1, up = ch == null ? v[v.length - 1] >= v[0] : ch >= 0;
+    var pts = v.map(function (y, i) { return (i * W / (v.length - 1)).toFixed(1) + ',' + (2 + (hi - y) / d * (H - 6)).toFixed(1); });
+    var col = up ? 'var(--up)' : 'var(--dn)', last = pts[pts.length - 1].split(',');
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"><polygon points="0,' + H + ' ' + pts.join(' ') + ' ' + W + ',' + H + '" fill="' + col + '" opacity=".13"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="' + col + '" stroke-width="1.4" vector-effect="non-scaling-stroke"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="2" fill="' + col + '"/></svg>';
+    box.className = 'tr-spk ' + (up ? 'up' : 'dn'); return box;
   }
   $('tr-q').addEventListener('input', function () { TR.q = this.value; renderTrade(); });
   document.querySelectorAll('#tr-sort button').forEach(function (b) { b.onclick = function () { TR.sort = b.dataset.sort; document.querySelectorAll('#tr-sort button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderTrade(); }; });
@@ -175,20 +198,20 @@
     var ch = $('pr-chg'); ch.textContent = isFinite(t.chg) ? (t.chg > 0 ? '+' : '') + t.chg.toFixed(2) + '%' : '—'; ch.className = 'pr-chg ' + (t.chg >= 0 ? 'up' : t.chg < 0 ? 'dn' : '');
     $('pr-usd').textContent = p ? '≈ $' + fp(p) : '';
     $('pr-hi').textContent = fp(t.hi); $('pr-lo').textContent = fp(t.lo); $('pr-vol').textContent = t.vol ? '$' + fVol(t.vol) : '—';
-    if (TR.kl && TR.kl.length && p && TR.hover == null) {
+    if (TR.kl && TR.kl.length && p) { // يستمر التحديث حتى أثناء قراءة شمعة بالمؤشر (القراءة تبقى على شمعتها)
       var last = TR.kl[TR.kl.length - 1], ms = tfMs(TR.tf), now = Date.now();
       if (now - last.t < ms) { last.c = p; if (p > last.h) last.h = p; if (p < last.l) last.l = p; }
       else if (ms && now - last.t < ms * 3 && TR.tf !== '1w') {
         // بدأت شمعة جديدة: نضيفها بدل تجميد الشارت على شمعة منتهية حتى إعادة التحميل (حجمها يكتمل عند التحميل التالي)
         var nt = last.t + Math.floor((now - last.t) / ms) * ms; TR.kl.push({ t: nt, o: last.c, h: Math.max(p, last.c), l: Math.min(p, last.c), c: p, v: 0 });
-        if (TR.off) TR.off++; // المستخدم يتصفح الماضي: يبقى المنظر ثابتاً
+       
         try { localStorage.removeItem('sarra.kl.' + TR.sym + '.' + TR.tf); } catch (e) {}
       }
       drawCandles();
     }
     trRenderPos();
   }
-  if (location.protocol === 'file:' && window.__core) window.__core.tr = function () { return { TR: TR, top: trRenderTop, tfMs: tfMs }; }; // للاختبارات الآلية فقط
+  if (location.protocol === 'file:' && window.__core) window.__core.tr = function () { return { TR: TR, top: trRenderTop, tfMs: tfMs, avg: function () { return LC.avg; }, hl: function () { return LC.hl; }, mode: function () { return LCP.line ? 'line' : 'candle'; }, range: function () { return LC.chart && LC.chart.timeScale().getVisibleLogicalRange(); } }; }; // للاختبارات الآلية فقط
   function tfMs(tf) { return { '1m': 6e4, '5m': 3e5, '15m': 9e5, '30m': 18e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 }[tf]; }
   // شموع Binance (200 شمعة) بصيغة موحّدة { t, o, h, l, c, v }؛ v = حجم التداول بالدولار
   async function binanceKlines(sym, tf) {
@@ -213,7 +236,7 @@
     }
     if (TR.sym !== sym || TR.tf !== tf) return;
     if (!kl || kl.length < 5) { $('pr-load').textContent = 'تعذّر تحميل الشموع الآن. اضغط لإعادة المحاولة'; $('pr-load').onclick = function () { $('pr-load').onclick = null; loadKlines(); }; return; }
-    $('pr-load').hidden = true; TR.kl = kl; TR.hover = null; TR.off = 0; TR.oldDone = false; drawCandles(); renderAnalysis();
+    $('pr-load').hidden = true; TR.kl = kl; TR.hover = null; TR.oldDone = false; drawCandles(); renderAnalysis();
   }
   async function loadOlder() {
     if (TR.oldBusy || TR.oldDone || !TR.kl || !TR.kl.length || TR.kl.length >= 1000) return;
@@ -223,7 +246,7 @@
       if (TR.sym !== sym || TR.tf !== tf || TR.kl[0].t !== first) return;
       var more = j.map(function (x) { return { t: x[0], o: +x[1], h: +x[2], l: +x[3], c: +x[4], v: +x[7] }; }).filter(function (k) { return k.t < first; });
       if (!more.length) { TR.oldDone = true; return; }
-      TR.kl = more.concat(TR.kl); drawCandles(); // TR.off محسوب من النهاية فيبقى المنظر ثابتاً
+      TR.kl = more.concat(TR.kl); drawCandles(); // المنظر يبقى ثابتاً (drawNow يزيح النطاق)
     } catch (e) {} finally { TR.oldBusy = false; }
   }
   $('pr-more-btn').onclick = function () { var m = $('pr-more'); m.hidden = !m.hidden; this.textContent = m.hidden ? 'عرض التفاصيل' : 'إخفاء التفاصيل'; };

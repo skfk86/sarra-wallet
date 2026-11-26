@@ -1,123 +1,149 @@
-  // ===== رسم الشموع اليابانية (Canvas بلا مكتبات) =====
-  // رسم واحد لكل إطار شاشة مهما كثرت أحداث اللمس (السحب والتكبير يطلقان عشرات الأحداث في الثانية)
+  // ===== الشارت: TradingView Lightweight Charts (مكتبة مفتوحة المصدر Apache-2.0، محمّلة محلياً من src/vendor، بلا اتصال خارجي) =====
+  // السحب والتكبير بإصبعين وعجلة الفأرة والمؤشر المتقاطع تتولاها المكتبة نفسها، بسلاسة 60 إطاراً في الثانية.
+  // TR.kl يبقى مصدر البيانات الوحيد: البث اللحظي والاستطلاع والتحميل يحدّثونه ثم يستدعون drawCandles().
+  var LC = { chart: null, cs: null, ls: null, vs: null, ma: [], key: '', n: 0, first: 0, theme: '' };
+  // تفضيلات العرض على الجهاز: نوع الشارت (شموع/خط) وإظهار المتوسطات
+  var LCP = (function () { try { return JSON.parse(localStorage.getItem('sarra.chart') || '{}') || {}; } catch (e) { return {}; } })();
+  function lcSave() { try { localStorage.setItem('sarra.chart', JSON.stringify(LCP)); } catch (e) {} }
+  var UP = '#16A37A', DN = '#E5484D', MA_DEF = [[7, '#f0b90b'], [25, '#8b5cf6'], [99, '#3b82f6']];
+  // المكتبة تعرض الوقت بتوقيت UTC، فنزيح الطوابع لتوقيت الجهاز
+  function lcT(t) { return Math.floor(t / 1000) - new Date(t).getTimezoneOffset() * 60; }
+  function lcBar(k) { return { time: lcT(k.t), open: k.o, high: k.h, low: k.l, close: k.c }; }
+  function lcVol(k) { return { time: lcT(k.t), value: k.v || 0, color: k.c >= k.o ? 'rgba(22,163,122,.35)' : 'rgba(229,72,77,.35)' }; }
+  function lcColors() {
+    var cs = getComputedStyle(document.documentElement), g = function (n, d) { return cs.getPropertyValue(n).trim() || d; };
+    return { bg: g('--s1', '#fff'), tx: g('--mu', '#8b99a8'), grid: g('--div', '#e5e7eb'), fg: g('--tx', '#111') };
+  }
+  function lcInit() {
+    var box = $('pr-cv'); if (LC.chart || !window.LightweightCharts || !box.offsetWidth) return !!LC.chart;
+    var L = window.LightweightCharts, c = lcColors();
+    LC.chart = L.createChart(box, {
+      autoSize: true,
+      layout: { background: { type: 'solid', color: c.bg }, textColor: c.tx, fontSize: 10, fontFamily: 'system-ui,sans-serif', attributionLogo: true },
+      grid: { vertLines: { visible: false }, horzLines: { color: c.grid, style: 2 } },
+      rightPriceScale: { visible: false, borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.24 } }, // المحور يُرسم عائماً فوق الشارت (lcAxis) فيأخذ الشارت العرض كاملاً
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 12, barSpacing: 6, minBarSpacing: 1.5, maxBarSpacing: 30 },
+      crosshair: { mode: L.CrosshairMode.Normal, vertLine: { labelBackgroundColor: c.fg }, horzLine: { labelVisible: false } },
+      localization: { priceFormatter: fp, locale: 'en-US' },
+      kineticScroll: { touch: true, mouse: false }
+    });
+    LC.theme = JSON.stringify(c);
+    var pf = { type: 'custom', formatter: fp, minMove: 1e-10 };
+    // هامش علوي وسفلي يدوي (المحور مخفي فلا تُطبَّق scaleMargins): الشموع فوق منطقة الحجم ولا تلمس الحافة
+    var asp = function (orig) { var r = orig(); if (r && r.priceRange) { var lo = r.priceRange.minValue, hi = r.priceRange.maxValue, d = (hi - lo) || hi * 0.01; r.priceRange = { minValue: lo - d * 0.42, maxValue: hi + d * 0.1 }; } return r; };
+    LC.vs = LC.chart.addHistogramSeries({ priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
+    LC.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    LC.ma = MA_DEF.map(function (m) { return LC.chart.addLineSeries({ color: m[1], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf, autoscaleInfoProvider: asp }); });
+    LC.cs = LC.chart.addCandlestickSeries({ upColor: UP, downColor: DN, borderVisible: false, wickUpColor: UP, wickDownColor: DN, priceFormat: pf, priceLineStyle: 2, autoscaleInfoProvider: asp });
+    LC.ls = LC.chart.addAreaSeries({ lineColor: '#16A37A', topColor: 'rgba(22,163,122,.28)', bottomColor: 'rgba(22,163,122,0)', lineWidth: 2, priceFormat: pf, priceLineStyle: 2, autoscaleInfoProvider: asp });
+    lcMode();
+    // لمس الشارت: قراءة الشمعة تحت الإصبع (OHLC وتاريخها)؛ الابتعاد يعيد آخر شمعة
+    LC.chart.subscribeCrosshairMove(function (p) {
+      var k = p && p.time != null && p.logical != null && TR.kl ? TR.kl[Math.round(p.logical)] : null;
+      TR.hover = k ? Math.round(p.logical) : null; lcOhlc(k); LC.cy = k && p.point ? p.point.y : null; lcAxis();
+    });
+    // الوصول لأول الشارت بالسحب: نحمّل شموعاً أقدم
+    LC.chart.timeScale().subscribeVisibleLogicalRangeChange(function (r) { if (r && r.from < 10) loadOlder(); lcHlPos(); lcAxis(); lcHiLo(); });
+    LC.chart.subscribeCrosshairMove(lcHlPos); new ResizeObserver(function () { lcHlPos(); lcAxis(); }).observe(box);
+    box.addEventListener('dblclick', function () { if (TR.kl) LC.chart.timeScale().setVisibleLogicalRange({ from: TR.kl.length - 60, to: TR.kl.length + 12 }); }); // نقرتان: العودة لآخر سعر
+    return true;
+  }
+  function lcMa(full) {
+    var closes = TR.kl.map(function (k) { return k.c; });
+    MA_DEF.forEach(function (m, i) {
+      var a = sma(closes, m[0]);
+      if (full) LC.ma[i].setData(TR.kl.map(function (k, j) { return a[j] == null ? { time: lcT(k.t) } : { time: lcT(k.t), value: a[j] }; }));
+      else { var j = a.length - 1; if (a[j] != null) LC.ma[i].update({ time: lcT(TR.kl[j].t), value: a[j] }); }
+    });
+  }
+  function lcOhlc(k) {
+    var hv = !!k; k = k || TR.kl[TR.kl.length - 1];
+    var o = $('pr-ohlc'), ch = (k.c - k.o) / k.o * 100; o.textContent = '';
+    [['O', fp(k.o)], ['H', fp(k.h)], ['L', fp(k.l)], ['C', fp(k.c)]].forEach(function (p) { var sp = el('span', null, p[0] + ' '); sp.appendChild(el('b', null, p[1])); o.appendChild(sp); });
+    o.appendChild(el('span', 'color:' + (ch >= 0 ? UP : DN) + ';font-weight:700', (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%'));
+    if (hv) o.appendChild(el('span', null, new Date(k.t).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+  }
+  // أعلى وأدنى سعر في الجزء الظاهر: علامتان على الشمعتين نفسيهما
+  var hlQ = 0;
+  function lcHiLo() {
+    clearTimeout(hlQ); hlQ = setTimeout(function () {
+      if (!LC.chart || !TR.kl || !TR.kl.length) return;
+      var r = LC.chart.timeScale().getVisibleLogicalRange(); if (!r) return;
+      var a = Math.max(0, Math.ceil(r.from)), b = Math.min(TR.kl.length - 1, Math.floor(r.to)), hi = -1, lo = -1;
+      for (var i = a; i <= b; i++) { if (hi < 0 || TR.kl[i].h > TR.kl[hi].h) hi = i; if (lo < 0 || TR.kl[i].l < TR.kl[lo].l) lo = i; }
+      LC.hlI = hi >= 0 ? [hi, lo] : null; lcHlPos();
+      LC.hl = hi >= 0 ? [TR.kl[hi].h, TR.kl[lo].l] : null;
+    }, 120);
+  }
+  // وضع العلامتين فوق الشارت: خط قصير من الشمعة إلى الرقم، والرقم يتجه للداخل قرب الحواف فلا يُقصّ أبداً
+  function lcHlPos() {
+    var box = $('pr-hl'); if (!box) return;
+    if (!LC.chart || !LC.hlI || LCP.line) { box.textContent = ''; return; }
+    var W = $('pr-cv').clientWidth; box.textContent = '';
+    [[LC.hlI[0], 'h', 1], [LC.hlI[1], 'l', 0]].forEach(function (z) {
+      var k = TR.kl[z[0]]; if (!k) return; var x = LC.chart.timeScale().logicalToCoordinate(z[0]), y = LC.cs.priceToCoordinate(k[z[1]]);
+      if (x == null || y == null) return;
+      var right = x < W / 2, d = el('div'); d.className = 'pr-hlm ' + (right ? 'r' : 'l');
+      d.style.top = Math.round(y) + 'px'; d.style[right ? 'left' : 'right'] = Math.round(right ? x : $('pr-cv').clientWidth - x) + 'px';
+      d.appendChild(el('i')); d.appendChild(el('span', null, fp(k[z[1]]))); box.appendChild(d);
+    });
+  }
+  // المحور العائم: أسعار الشبكة على يمين الشارت فوق الرسم، ووسم السعر الحالي، وسعر المؤشر، و«سعر التكلفة» يساراً
+  function niceStep(r) { var e = Math.pow(10, Math.floor(Math.log10(r))), f = r / e; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * e; }
+  function lcAxis() {
+    var box = $('pr-ax'); if (!box || !LC.chart || !TR.kl || !TR.kl.length) return;
+    var ser = LCP.line ? LC.ls : LC.cs, H = $('pr-cv').clientHeight - LC.chart.timeScale().height(), d = '';
+    var top = ser.coordinateToPrice(10), bot = ser.coordinateToPrice(H * 0.74); box.textContent = '';
+    var tag = function (cls, y, txt, sub) {
+      if (y == null || y < 6 || y > H - 6) return null;
+      var t = el('div'); t.className = 'pr-axt ' + cls; t.style.top = Math.round(y) + 'px';
+      if (sub) t.appendChild(el('small', null, sub)); t.appendChild(el('span', null, txt)); box.appendChild(t); return t;
+    };
+    if (top != null && bot != null && top > bot) {
+      var st = niceStep((top - bot) / 5);
+      for (var v = Math.ceil(bot / st) * st; v <= top; v += st) tag('g', ser.priceToCoordinate(v), fp(v));
+    }
+    var last = TR.kl[TR.kl.length - 1], ly = ser.priceToCoordinate(last.c);
+    tag('now ' + (last.c >= last.o ? 'up' : 'dn'), ly, fp(last.c));
+    if (LC.avg) tag('cost', ser.priceToCoordinate(LC.avg), fp(LC.avg), 'سعر التكلفة');
+    if (LC.cy != null) { var cp = ser.coordinateToPrice(LC.cy); if (cp != null) tag('cross', LC.cy, fp(cp)); }
+  }
+  // شموع أو خط، والمتوسطات تظهر أو تُخفى
+  function lcMode() {
+    if (!LC.chart) return;
+    LC.cs.applyOptions({ visible: !LCP.line }); LC.ls.applyOptions({ visible: !!LCP.line });
+    LC.ma.forEach(function (s) { s.applyOptions({ visible: !!LCP.ma }); });
+    document.querySelectorAll('#pr-ct button').forEach(function (b) { b.classList.toggle('on', (b.dataset.ct === 'line') === !!LCP.line); });
+    $('pr-ma').classList.toggle("on", !!LCP.ma); $("pr-leg").hidden = !LCP.ma; lcHiLo();
+  }
+  document.querySelectorAll('#pr-ct button').forEach(function (b) { b.onclick = function () { LCP.line = b.dataset.ct === 'line'; lcSave(); lcMode(); }; });
+  $('pr-ma').onclick = function () { LCP.ma = !LCP.ma; lcSave(); lcMode(); };
+  // ملء الشاشة: الشارت وحده بكامل الهاتف (والرجوع يغلقه)
+  $('pr-fs').onclick = function () { var c = document.querySelector('.pr-chart'), on = !c.classList.contains('fs'); c.classList.toggle('fs', on); document.body.classList.toggle('chart-fs', on); this.setAttribute('aria-pressed', on ? 'true' : 'false'); };
   var drawQ = false;
   function drawCandles() { if (drawQ) return; drawQ = true; (window.requestAnimationFrame || setTimeout)(function () { drawQ = false; drawNow(); }); }
   function drawNow() {
-    var kl = TR.kl, cv = $('pr-cv'); if (!kl || !kl.length || !cv.offsetWidth) return;
-    var dpr = window.devicePixelRatio || 1, W = cv.offsetWidth, H = cv.offsetHeight;
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    var x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
-    var cs = getComputedStyle(document.documentElement), mu = cs.getPropertyValue('--mu').trim() || '#8b99a8', grid = cs.getPropertyValue('--div').trim() || '#e5e7eb', tx = cs.getPropertyValue('--tx').trim() || '#111', bg = cs.getPropertyValue('--s1').trim() || '#fff';
-    var UP = '#16A37A', DN = '#E5484D', AX = 58, VOLH = 54, TOP = 8, BOT = 18;
-    var n = Math.min(TR.view, kl.length); TR.off = Math.max(0, Math.min(TR.off || 0, kl.length - n));
-    var off = kl.length - n - TR.off, s = kl.slice(off, off + n), cw = (W - AX) / n; // TR.off: كم شمعة رجعنا للخلف بالسحب
-    var closes = kl.map(function (k) { return k.c; }), m7 = sma(closes, 7), m25 = sma(closes, 25), m99 = sma(closes, 99);
-    var hi = -Infinity, lo = Infinity; s.forEach(function (k) { if (k.h > hi) hi = k.h; if (k.l < lo) lo = k.l; });
-    [m7, m25, m99].forEach(function (m) { for (var i = off; i < off + n; i++) if (m[i] != null) { if (m[i] > hi) hi = m[i]; if (m[i] < lo) lo = m[i]; } });
-    var pad = (hi - lo) * 0.06 || hi * 0.01; hi += pad; lo -= pad;
-    var ph = H - VOLH - TOP - BOT, Y = function (v) { return TOP + (hi - v) / (hi - lo) * ph; }, X = function (i) { return i * cw + cw / 2; };
-    // شبكة وأسعار المحور
-    x.font = '10px system-ui,sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left';
-    // أسعار المحور بخانات تناسب المسافة بين الخطوط (95.84 لا 95.8418)، ويُخفى ما يقع تحت مربع آخر سعر حتى لا يتداخلا
-    var gStep = (hi - lo) / 4, gDec = gStep >= 1 ? 2 : Math.min(10, Math.max(2, Math.ceil(-Math.log10(gStep)) + 1)), lastY = Y(kl[kl.length - 1].c);
-    for (var g = 0; g <= 4; g++) {
-      var gv = lo + (hi - lo) * g / 4, gy = Y(gv);
-      x.strokeStyle = grid; x.lineWidth = 1; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(0, gy); x.lineTo(W - AX, gy); x.stroke(); x.setLineDash([]);
-      if (Math.abs(gy - lastY) < 16) continue;
-      x.fillStyle = mu; x.fillText(gv >= 1000 ? gv.toLocaleString('en-US', { maximumFractionDigits: 0 }) : gv.toFixed(gDec), W - AX + 6, gy);
+    var kl = TR.kl; if (!kl || !kl.length || !lcInit()) return;
+    var c = lcColors(), th = JSON.stringify(c);
+    if (th !== LC.theme) { LC.theme = th; LC.chart.applyOptions({ layout: { background: { type: 'solid', color: c.bg }, textColor: c.tx }, grid: { horzLines: { color: c.grid } }, crosshair: { vertLine: { labelBackgroundColor: c.fg } } }); }
+    var key = TR.sym + '|' + TR.tf, ts = LC.chart.timeScale(), grow = kl.length - LC.n;
+    if (key === LC.key && kl[0].t === LC.first && (grow === 0 || grow === 1)) {
+      // تحديث لحظي: آخر شمعة فقط (أو شمعة جديدة)، دون إعادة رسم الكل
+      var k = kl[kl.length - 1]; LC.cs.update(lcBar(k)); LC.vs.update(lcVol(k)); lcMa(false);
+    } else {
+      var prepend = key === LC.key && LC.n && kl[0].t < LC.first ? kl.length - LC.n : 0, r = prepend ? ts.getVisibleLogicalRange() : null;
+      LC.cs.setData(kl.map(lcBar)); LC.vs.setData(kl.map(lcVol)); lcMa(true);
+      if (r) ts.setVisibleLogicalRange({ from: r.from + prepend, to: r.to + prepend }); // شموع أقدم أُضيفت في البداية: يبقى المنظر ثابتاً
+      else if (key !== LC.key || !LC.n) ts.setVisibleLogicalRange({ from: kl.length - 60, to: kl.length + 12 }); // زوج أو إطار جديد: آخر 60 شمعة بعرض مريح
     }
-    // الحجم
-    var vmax = Math.max.apply(null, s.map(function (k) { return k.v || 0; })) || 1;
-    s.forEach(function (k, i) { if (!k.v) return; var vh = k.v / vmax * (VOLH - 6); x.fillStyle = k.c >= k.o ? 'rgba(22,163,122,.28)' : 'rgba(229,72,77,.28)'; x.fillRect(i * cw + cw * 0.15, H - BOT - vh, Math.max(1, cw * 0.7), vh); });
-    // الشموع
-    s.forEach(function (k, i) {
-      var up = k.c >= k.o, col = up ? UP : DN, cx = X(i), bw = Math.max(1, cw * 0.66);
-      x.strokeStyle = col; x.lineWidth = 1; x.beginPath(); x.moveTo(Math.round(cx) + 0.5, Y(k.h)); x.lineTo(Math.round(cx) + 0.5, Y(k.l)); x.stroke();
-      var y1 = Y(Math.max(k.o, k.c)), y2 = Y(Math.min(k.o, k.c)); x.fillStyle = col; x.fillRect(cx - bw / 2, y1, bw, Math.max(1, y2 - y1));
-    });
-    // المتوسطات
-    [[m7, '#f0b90b'], [m25, '#8b5cf6'], [m99, '#3b82f6']].forEach(function (m) {
-      x.strokeStyle = m[1]; x.lineWidth = 1.3; x.beginPath(); var st = false;
-      for (var i = 0; i < n; i++) { var v = m[0][off + i]; if (v == null) continue; if (!st) { x.moveTo(X(i), Y(v)); st = true; } else x.lineTo(X(i), Y(v)); }
-      x.stroke();
-    });
-    // خط آخر سعر
-    var last = s[s.length - 1], now = kl[kl.length - 1], ly = Y(now.c), lc = now.c >= now.o ? UP : DN; // خط آخر سعر فعلي حتى أثناء تصفّح الماضي
-    x.strokeStyle = lc; x.setLineDash([4, 3]); x.beginPath(); x.moveTo(0, ly); x.lineTo(W - AX, ly); x.stroke(); x.setLineDash([]);
-    if (ly > TOP && ly < TOP + ph) { x.fillStyle = lc; x.fillRect(W - AX + 1, ly - 9, AX - 2, 18); x.fillStyle = '#fff'; x.font = 'bold 10px system-ui,sans-serif'; x.fillText(fp(now.c), W - AX + 5, ly); }
-    // محور الوقت
-    x.fillStyle = mu; x.font = '10px system-ui,sans-serif'; x.textAlign = 'center';
-    // التاريخ يظهر عند تغيّر اليوم (وفي الإطارات اليومية دائماً)، والساعة داخل اليوم نفسه، فلا تتكرر «08:00» بلا معنى في إطار 4 ساعات
-    var p2 = function (v) { return ('0' + v).slice(-2); }, prevD = null;
-    var fmtT = function (t, i) { var d = new Date(t), day = d.getMonth() * 40 + d.getDate(), lbl;
-      if (TR.tf === '1w') lbl = d.getFullYear() !== new Date().getFullYear() && d.getMonth() === 0 ? String(d.getFullYear()) : (d.getMonth() + 1) + '/' + d.getDate();
-      else if (TR.tf === '1d' || (prevD != null && day !== prevD) || TR.tf === '4h' && i === 0) lbl = (d.getMonth() + 1) + '/' + d.getDate();
-      else lbl = p2(d.getHours()) + ':' + p2(d.getMinutes());
-      prevD = day; return lbl; };
-    var step = Math.max(1, Math.floor(n / 4));
-    for (var ti = Math.floor(n / 8); ti < n; ti += step) { var lb = fmtT(s[ti].t, ti); if (X(ti) < W - AX - 14) x.fillText(lb, X(ti), H - 6); }
-    // مؤشر اللمس
-    var hv = TR.hover == null ? null : Math.max(0, Math.min(n - 1, TR.hover)), k2 = hv == null ? last : s[hv];
-    if (hv != null) {
-      var hx = X(hv); x.strokeStyle = mu; x.setLineDash([3, 3]); x.beginPath(); x.moveTo(hx, TOP); x.lineTo(hx, H - BOT); x.moveTo(0, Y(k2.c)); x.lineTo(W - AX, Y(k2.c)); x.stroke(); x.setLineDash([]);
-      x.fillStyle = tx; x.fillRect(W - AX + 1, Y(k2.c) - 9, AX - 2, 18); x.fillStyle = bg; x.textAlign = 'left'; x.fillText(fp(k2.c), W - AX + 5, Y(k2.c));
-    }
-    var o = $('pr-ohlc'), ch = (k2.c - k2.o) / k2.o * 100; o.textContent = '';
-    [['O', fp(k2.o)], ['H', fp(k2.h)], ['L', fp(k2.l)], ['C', fp(k2.c)]].forEach(function (p) { var sp = el('span', null, p[0] + ' '); sp.appendChild(el('b', null, p[1])); o.appendChild(sp); });
-    var cp = el('span', 'color:' + (ch >= 0 ? UP : DN) + ';font-weight:700', (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%'); o.appendChild(cp);
-    if (hv != null) { var d = new Date(k2.t); o.appendChild(el('span', null, d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }))); }
+    LC.ls.setData(kl.map(function (k) { return { time: lcT(k.t), value: k.c }; }));
+    LC.key = key; LC.n = kl.length; LC.first = kl[0].t; lcHiLo();
+    // خط «دخولك»: متوسط سعر شرائك إن كان لديك مركز مفتوح في هذه العملة (يُخفى في وضع الإخفاء)
+    var c0 = trCoin(TR.sym), pv = c0 && !state.hidden ? trPosView(c0) : null, avg = pv && pv.q > 0 && pv.ps && pv.ps.avg > 0 ? pv.ps.avg : 0;
+    if (avg !== LC.avg) { if (LC.pl) LC.cs.removePriceLine(LC.pl); LC.pl = avg ? LC.cs.createPriceLine({ price: avg, color: '#9aa5b1', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' }) : null; LC.avg = avg; }
+    if (TR.hover == null) lcOhlc(null);
+    lcAxis();
   }
-  (function () {
-    // إصبع واحد: سحب يمين/يسار يتصفّح الشموع، ولمسة مطوّلة (أو نقرة) تُظهر بيانات شمعة. إصبعان: تكبير وتصغير
-    var cv = $('pr-cv'), AXW = 58, st = null, holdT = null, d0 = null, v0 = 80;
-    var cwOf = function () { return (cv.getBoundingClientRect().width - AXW) / Math.min(TR.view, (TR.kl || []).length || 1); };
-    var hoverAt = function (x) { if (!TR.kl) return; var r = cv.getBoundingClientRect(); TR.hover = Math.floor((x - r.left) / cwOf()); drawCandles(); };
-    var down = function (x) {
-      if (!TR.kl) return; st = { x: x, off: TR.off || 0, mode: null, t: Date.now() };
-      clearTimeout(holdT); holdT = setTimeout(function () { if (st && !st.mode) { st.mode = 'hover'; hoverAt(st.x); } }, 280);
-    };
-    var move = function (x) {
-      if (!st) return;
-      if (!st.mode && Math.abs(x - st.x) > 6) { st.mode = 'pan'; clearTimeout(holdT); TR.hover = null; }
-      if (st.mode === 'hover') return hoverAt(x);
-      if (st.mode === 'pan') {
-        TR.off = Math.max(0, st.off + Math.round((x - st.x) / cwOf())); drawCandles();
-        if (TR.kl && TR.off >= TR.kl.length - Math.min(TR.view, TR.kl.length) - 5) loadOlder(); // وصلنا لأول الشارت: نحمّل شموعاً أقدم
-      }
-    };
-    var up = function () {
-      clearTimeout(holdT);
-      if (st && !st.mode && Date.now() - st.t < 280) { hoverAt(st.x); setTimeout(function () { if (!st) { TR.hover = null; drawCandles(); } }, 2500); } // نقرة: نعرض الشمعة لحظة
-      else if (st && st.mode === 'hover') { TR.hover = null; drawCandles(); }
-      st = null;
-    };
-    // تكبير حول نقطة: الشمعة تحت الإصبعين (أو مؤشر الفأرة) تبقى مكانها، كما في منصات التداول
-    var zoomAt = function (cx, nv, base) {
-      var kl = TR.kl || [], r = cv.getBoundingClientRect(), f = Math.max(0, Math.min(1, (cx - r.left) / Math.max(1, r.width - AXW)));
-      var vOld = Math.min(base.view, kl.length), vNew = Math.max(20, Math.min(200, Math.round(nv)));
-      TR.view = vNew; TR.off = Math.max(0, base.off + Math.round((1 - f) * (vOld - Math.min(vNew, kl.length))));
-      drawCandles(); if (kl.length && TR.off + Math.min(vNew, kl.length) >= kl.length - 5) loadOlder();
-    };
-    var dist = function (t) { var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY; return Math.sqrt(dx * dx + dy * dy); };
-    var pz = null;
-    cv.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 2) { clearTimeout(holdT); st = null; TR.hover = null; d0 = dist(e.touches); v0 = TR.view; pz = { view: TR.view, off: TR.off || 0, cx: (e.touches[0].clientX + e.touches[1].clientX) / 2 }; return; }
-      down(e.touches[0].clientX);
-    }, { passive: true });
-    cv.addEventListener('touchmove', function (e) {
-      if (e.touches.length === 2 && d0) { e.preventDefault(); zoomAt(pz.cx, v0 * d0 / Math.max(dist(e.touches), 20), pz); return; }
-      if (st && (st.mode || Math.abs(e.touches[0].clientX - st.x) > 6)) e.preventDefault(); // نمنع تمرير الصفحة أثناء السحب الأفقي
-      move(e.touches[0].clientX);
-    }, { passive: false });
-    cv.addEventListener('touchend', function (e) { if (!e.touches.length) { d0 = null; up(); } });
-    // الفأرة (للتجربة على الحاسوب): سحب للتصفّح، تمرير للتكبير
-    cv.addEventListener('mousedown', function (e) { down(e.clientX); });
-    window.addEventListener('mousemove', function (e) { if (st) move(e.clientX); });
-    window.addEventListener('mouseup', function () { if (st) up(); });
-    cv.addEventListener('wheel', function (e) { e.preventDefault(); zoomAt(e.clientX, TR.view * (e.deltaY > 0 ? 1.12 : 1 / 1.12), { view: TR.view, off: TR.off || 0 }); }, { passive: false });
-    cv.addEventListener('dblclick', function () { TR.off = 0; TR.view = 80; drawCandles(); }); // نقرتان: العودة لآخر سعر
-    window.addEventListener('resize', function () { if (state.stack[state.stack.length - 1] === 'pair') drawCandles(); });
-  })();
 
   // ===== مركز المستخدم (على طريقة منصات التداول) =====
   function plCls(v) { return v > 0 ? 'pl-up' : v < 0 ? 'pl-dn' : ''; }
@@ -322,7 +348,7 @@
     var minBuy = n.evm ? 0.1 : 1;
     if (TR.side === 'buy' && usdIn && usdIn < minBuy) return odErr('أقل شراء على ' + n.name + ' ' + (minBuy < 1 ? '0.10' : '1') + ' دولار: المبالغ الأصغر تأكلها رسوم الشبكة');
     if (n.evm) { var nat = evmUnits(TR.net, n.native); if (nat != null && nat === 0n) { odErr('تحتاج قليلاً من ' + n.native + ' لرسوم الشبكة'); return openGasHelp(TR.net); } }
-    var btn = this, qerr = ''; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');
+    var btn = this, qerr = '', ask = TR.side + '|' + TR.net + '|' + String($('od-amt').value).trim() + '|' + c.sym; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…'; odErr('');
     try {
       var q;
       if (TR.net === 'tron') { // TRX ↔ USDT عبر SunSwap
@@ -331,6 +357,8 @@
       } else {
         q = await core.bridgeQuote(TR.net, TR.net, pay, amt, TR.side === 'buy' ? c.sym : 'USDT');
       }
+      // سعر وصل بعد أن غيّر المستخدم الجهة أو الشبكة أو المبلغ أثناء جلبه: يُهمل (وإلا عُرض زر «تأكيد بيع» لسعر شراء)
+      if (ask !== TR.side + '|' + TR.net + '|' + String($('od-amt').value).trim() + '|' + (trCoin(TR.sym) || {}).sym || !$('od-sheet').classList.contains('show')) return;
       q.at = Date.now(); q.tSide = TR.side; q.tSym = c.sym; q.tNet = TR.net; TR.oq = q;
       var got = TR.side === 'buy' ? c.sym : 'USDT', inN = Number(q.amount), outN = Number(q.toAmount);
       $('od-out').textContent = niceNum(q.toAmount, 8) + ' ' + got;
