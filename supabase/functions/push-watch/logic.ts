@@ -27,7 +27,8 @@ export function fmtUnits(raw: bigint, dec: number): string {
 export type Tok = { sym: string; addr: string; dec: number };
 // fromSarra: المرسِل عنوان مسجّل في صُرّة (تحويل بين مستخدمي صُرّة)؛ لا نكشف هويته أبداً
 // self: المعاملة أرسلها عنوانك أنت (تبديل/نقل/إرسال من جهازك)؛ undefined = لم نتمكن من التحقق
-export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean; fromSarra?: boolean; direct?: boolean };
+export type Ev = { kind: 'in' | 'out'; chain: string; sym: string; amount: string; hex: string; tx: string; key: string; self?: boolean; fromSarra?: boolean; direct?: boolean; units?: string; inv?: string; invOrder?: string };
+// units: المبلغ بوحدة micro (6 خانات) إن كان دقيقاً، للمطابقة مع «المبلغ الفريد» لفواتير بوابة الدفع. inv: رقم الفاتورة المطابقة
 // direct: المعاملة نفسها استدعت عقد العملة مباشرة (تحويل عادي). غير ذلك (موجّه/جسر/تداول) ← الصادر ليس «إرسالاً»؛ undefined = لم نتحقق
 
 // يحوّل سجلات Transfer إلى أحداث لعناويننا فقط. ours: hex20 → true
@@ -44,7 +45,7 @@ export function eventsFromLogs(chain: string, logs: any[], toks: Tok[], ours: Se
     const from = addrOfTopic(l.topics[1]), to = addrOfTopic(l.topics[2]), tx = String(l.transactionHash || ''), key = tx + ':' + String(l.logIndex ?? '');
     if (seen.has(key)) continue; seen.add(key);
     const amount = fmtUnits(v, t.dec);
-    if (ours.has(to)) out.push({ kind: 'in', chain, sym: t.sym, amount, hex: to, tx, key, fromSarra: ours.has(from) && from !== to });
+    if (ours.has(to)) out.push({ kind: 'in', chain, sym: t.sym, amount, hex: to, tx, key, fromSarra: ours.has(from) && from !== to, units: microUnits(v, t.dec) });
     if (ours.has(from) && from !== to) out.push({ kind: 'out', chain, sym: t.sym, amount, hex: from, tx, key: key + ':o' });
   }
   return out;
@@ -89,6 +90,7 @@ export function isDirectToToken(txTo: unknown, tokAddr: string): boolean | undef
 export function message(e: Ev): { title: string; body: string } {
   const net = NET_NAME[e.chain], amt = e.amount + ' ' + e.sym;
   if (e.kind === 'in') {
+    if (e.inv) return { title: 'دفعة تجارية: ' + amt, body: 'فاتورة ' + e.inv + (e.invOrder ? ' · طلب ' + e.invOrder : '') + ' على ' + net };
     if (e.self === true) return { title: 'اكتملت عمليتك', body: 'أُضيفت ' + amt + ' إلى محفظتك على ' + net };
     return { title: 'وصلك ' + amt, body: (e.fromSarra ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية') + ' على ' + net };
   }
@@ -132,4 +134,19 @@ export function p2pMessagePushes(msgs: { order_id: string; sender: string; body:
     }
   }
   return [...out.values()].map(({ n: _n, ...p }) => p);
+}
+
+// المبلغ الخام → وحدات micro (6 خانات) فقط إن لم يضع كسراً أصغر (BSC بـ 18 خانة). وإلا null: لا يطابق أي فاتورة
+export function microUnits(raw: bigint, dec: number): string | undefined {
+  if (dec <= 6) return (raw * 10n ** BigInt(6 - dec)).toString();
+  const d = 10n ** BigInt(dec - 6); return raw % d === 0n ? (raw / d).toString() : undefined;
+}
+// BUG-012: استلام يطابق فاتورة تاجر (الشبكة + العملة + عنوان التاجر + المبلغ الفريد) = «دفعة تجارية».
+// المعلّقة تُطابق بالمبلغ، والمدفوعة (إن سبقتنا دورة بوابة الدفع) يجب أن تكون بنفس المعاملة، فلا تُنسب دفعة قديمة لتحويل جديد بنفس المبلغ
+export type Inv = { id: string; order_id?: string | null; network: string; currency?: string | null; match_hex: string; exact: string | number; status: string; tx?: string | null };
+export function invoiceFor(e: Ev, invs: Inv[]): Inv | null {
+  if (e.kind !== 'in' || !e.units) return null;
+  const tx = (x: string | null | undefined) => String(x || '').toLowerCase().replace(/^0x/, '');
+  return invs.find((i) => i.network === e.chain && (i.currency || 'USDT') === e.sym && String(i.match_hex).toLowerCase() === e.hex.toLowerCase() &&
+    String(i.exact) === e.units && (i.status === 'pending' || (i.status === 'paid' && tx(i.tx) === tx(e.tx)))) || null;
 }

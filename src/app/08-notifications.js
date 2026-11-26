@@ -101,12 +101,18 @@
   function rxHint(n) {
     var d = n && (n.data || (n.notification && n.notification.data)) || {};
     if (d.kind !== 'in' || !d.chain) return;
-    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), amount: parseFloat(String(d.amount || '').replace(/,/g, '')), sarra: d.sarra === '1', at: Date.now() });
+    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), amount: parseFloat(String(d.amount || '').replace(/,/g, '')), sarra: d.sarra === '1', inv: /^[\w-]{4,64}$/.test(String(d.inv || '')) ? String(d.inv) : '', at: Date.now() });
     RX.hints = RX.hints.filter(function (h) { return Date.now() - h.at < 15 * 60000; }).slice(-20);
+  }
+  // نص مصدر الاستلام: دفعة تجارية (فاتورة) / تحويل داخلي / محفظة خارجية
+  function srcSpan(src) {
+    var inv = String(src || '').indexOf('inv:') === 0 ? String(src).slice(4) : '';
+    if (inv) return el('span', 'font-weight:700', 'دفعة تجارية · فاتورة ' + inv);
+    return el('span', src === 'sarra' ? null : 'color:var(--mu)', src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية');
   }
   function rxSrc(net, coin, amt) { // 'sarra' إن أكّد الخادم، وإلا 'ext' (محفظة خارجية)
     var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
-    return h && h.sarra ? 'sarra' : 'ext';
+    return h && h.inv ? 'inv:' + h.inv : h && h.sarra ? 'sarra' : 'ext'; // inv: دفعة لفاتورة تاجر (BUG-012)
   }
   // هل المرسل (عنوان TRON معروف) مستخدم صُرّة؟ طلب موقّع لخادم P2P يرد بصح/خطأ فقط، ويقبل فقط عنواناً أرسل إليك فعلاً.
   // لا نفتح شاشة الرمز لأجله: إن كانت المحفظة مقفلة أو فشل الطلب = لا نعرف (يبقى العنوان وحده دون تصنيف)
@@ -121,7 +127,7 @@
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
     if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
-    if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount);
+    var hs = rxSrc(n.net, n.coin, n.amount); if (hs.indexOf('inv:') === 0) n.src = hs; else if (!n.from && !n.src) n.src = hs;
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
     RX.q.push(n); notifyTx('recv', n);
@@ -193,13 +199,13 @@
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
-    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = rxSrc(n.net, n.coin, n.amount); lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
+    if (!n.logged) { n.logged = 1; var hs2 = rxSrc(n.net, n.coin, n.amount); if (hs2.indexOf('inv:') === 0) n.src = hs2; else if (!n.from && !n.src) n.src = hs2; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
     var dl = $('rx-kv'); dl.textContent = '';
-    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية')); }
-    else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية'));
+    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', srcSpan(n.src)); }
+    else kvRow(dl, 'من', srcSpan(n.src));
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(n.time)));
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);
     var more = $('rx-more'); more.hidden = !RX.q.length; more.textContent = RX.q.length ? 'و ' + RX.q.length + ' تحويلات أخرى بعد هذه' : '';

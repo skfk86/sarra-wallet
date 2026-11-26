@@ -59,7 +59,7 @@ async function fcmAccess() {
   fcmTok = { t: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 }; return fcmTok.t;
 }
 async function send(token: string, e: L.Ev): Promise<'ok' | 'gone' | 'err'> {
-  return fcm(token, L.message(e), { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx, self: e.self === undefined ? '' : e.self ? '1' : '0', sarra: e.fromSarra ? '1' : '0' }, e.key);
+  return fcm(token, L.message(e), { kind: e.kind, chain: e.chain, sym: e.sym, amount: e.amount, tx: e.tx, self: e.self === undefined ? '' : e.self ? '1' : '0', sarra: e.fromSarra ? '1' : '0', inv: e.inv || '' }, e.key);
 }
 // visibility PRIVATE: على شاشة القفل الآمنة يظهر «صُرّة» فقط بلا مبالغ ولا نص المحادثة (حسب إعداد الهاتف لإخفاء المحتوى الحساس)
 async function fcm(token: string, m: { title: string; body: string }, data: Record<string, string>, tag: string): Promise<'ok' | 'gone' | 'err'> {
@@ -145,13 +145,23 @@ async function scan(req: Request): Promise<Response> {
     const tok = CHAINS[e.chain].toks.find((x) => x.sym === e.sym);
     e.direct = tok ? L.isDirectToToken(tx?.to, tok.addr) : undefined;
   }));
+  // BUG-012: دفعات فواتير التجار (بوابة الدفع). فشل القراءة لا يوقف الإشعار: يصل كاستلام عادي
+  const inEv = events.filter((e) => e.kind === 'in' && e.units);
+  if (inEv.length) {
+    try {
+      const { data: invs } = await db.from('pay_invoices').select('id,order_id,network,currency,match_hex,exact,status,tx')
+        .in('match_hex', [...new Set(inEv.map((e) => e.hex.toLowerCase()))]).in('status', ['pending', 'paid']).eq('test', false)
+        .gt('created_at', new Date(Date.now() - 3 * 864e5).toISOString()).limit(1000);
+      for (const e of inEv) { const iv = L.invoiceFor(e, (invs || []) as L.Inv[]); if (iv) { e.inv = iv.id; e.invOrder = iv.order_id ? String(iv.order_id).slice(0, 40) : undefined; } }
+    } catch (e) { console.log('pay-match error', String((e as Error)?.message || e).slice(0, 120)); }
+  }
   let sent = 0; const gone = new Set<string>();
   for (const e of events) {
     const tokens = (e.chain === 'tron' ? toksByHex.tron : toksByHex.evm)[e.hex] || [];
     const res = await Promise.all(tokens.map((t) => send(t, e).catch(() => 'err' as const)));
     res.forEach((r, i) => { if (r === 'ok') sent++; if (r === 'gone') gone.add(tokens[i]); });
     // تشخيص بلا بيانات حساسة (لا عناوين ولا مبالغ): هل رُصد الحدث؟ كم جهازاً؟ ماذا ردّ FCM؟ (ok = قبله FCM، لا يعني أن الهاتف استلمه)
-    console.log('push-event', e.chain, e.kind, 'self=' + String(e.self), 'sarra=' + String(!!e.fromSarra), 'devices=' + tokens.length, 'fcm=' + res.join(','));
+    console.log('push-event', e.chain, e.kind, 'self=' + String(e.self), 'sarra=' + String(!!e.fromSarra), 'inv=' + String(!!e.inv), 'devices=' + tokens.length, 'fcm=' + res.join(','));
   }
   // ===== P2P: تغيّرات حالة الطلبات ورسائل المحادثة منذ الدورة السابقة =====
   try {
