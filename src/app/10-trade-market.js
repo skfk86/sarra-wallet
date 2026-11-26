@@ -40,11 +40,18 @@
       var j = await trJson(BN_API + 'ticker/24hr?symbols=' + encodeURIComponent(syms));
       var by = {}; (j || []).forEach(function (x) { by[x.symbol] = x; });
       cs.forEach(function (c) { var x = by[BN_SYM[c.sym]]; if (x) TR.tick[c.sym] = { p: Number(x.lastPrice), chg: Number(x.priceChangePercent), hi: Number(x.highPrice), lo: Number(x.lowPrice), vol: Number(x.quoteVolume) }; });
-      TR.tickAt = Date.now(); $('tr-live').classList.remove('off');
+      TR.tickAt = Date.now(); if (!LV.live) lvLabel('poll');
     } catch (e) {
-      $('tr-live').classList.add('off'); // احتياط: أسعار CoinGecko المحمّلة مسبقاً
+      if (!LV.live) lvLabel('down'); // احتياط: أسعار CoinGecko المحمّلة مسبقاً
       cs.forEach(function (c) { var p = priceOf(c); if (p && p.usd != null && !TR.tick[c.sym]) TR.tick[c.sym] = { p: p.usd, chg: p.chg }; });
     } finally { TR.tickTried = true; }
+  }
+  // المفضلة: تفضيل محلي على هذا الجهاز فقط (لا يُرسل لأي خادم)
+  function trFavs() { var v = lsJson('sarra.trfav', []); return Array.isArray(v) ? v : []; }
+  function trFavToggle(sym) {
+    var v = trFavs(), i = v.indexOf(sym); if (i >= 0) v.splice(i, 1); else v.push(sym);
+    try { localStorage.setItem('sarra.trfav', JSON.stringify(v)); } catch (e) {}
+    toast(i >= 0 ? 'أُزيلت ' + sym + ' من المفضلة' : 'أُضيفت ' + sym + ' إلى المفضلة');
   }
   function trPrice(sym) { var t = TR.tick[sym]; if (t && t.p) return t.p; var c = trCoin(sym), p = c && priceOf(c); return p && p.usd != null ? p.usd : null; }
 
@@ -102,6 +109,7 @@
       if (document.hidden || (cur !== 'trade' && cur !== 'pair')) return;
       TR.n = (TR.n || 0) + 1;
       if (TR.n % 3 === 0 && Object.keys(EVM).length) core.evmBalances().then(function (eb) { if (eb) state.evmBal = eb; }).catch(function () {}); // الكمية الفعلية بعد الصفقات
+      if (LV.live) return; // البث اللحظي يحدّث الأسعار: لا داعي للاستطلاع
       trTickers().then(function () { if (cur === 'trade') renderTrade(); else trRenderTop(); });
     }, 10000);
   }
@@ -118,6 +126,7 @@
     renderAlloc($('tr-alloc'), items, state.hidden, ['#FFFFFF', '#FCD34D', '#93C5FD', '#C4B5FD', '#FCA5A5', 'rgba(255,255,255,.5)']);
     renderOpen();
     var q = TR.q.trim().toUpperCase(), list = trCoins().filter(function (c) { return !q || c.sym.indexOf(q) >= 0 || c.name.toUpperCase().indexOf(q) >= 0; });
+    if (TR.sort === 'fav') { var fv = trFavs(); list = list.filter(function (c) { return fv.indexOf(c.sym) >= 0; }); }
     if (TR.sort === 'mine') list = list.filter(function (c) { var t = coinTotal(c); return (t && t > 0) || trPos(c.sym).qty > 0; });
     var chg = function (c) { var t = TR.tick[c.sym]; return t && isFinite(t.chg) ? t.chg : null; };
     if (TR.sort === 'gain') list.sort(function (a, b) { return (chg(b) || -999) - (chg(a) || -999); });
@@ -129,11 +138,16 @@
       for (var k = 0; k < 7; k++) { var sk = el('div'); sk.className = 'tr-row tr-skel'; sk.innerHTML = '<div class="tr-c"><i class="skeleton" style="width:32px;height:32px;border-radius:50%"></i><div style="display:flex;flex-direction:column;gap:6px"><i class="skeleton" style="width:70px;height:13px"></i><i class="skeleton" style="width:46px;height:10px"></i></div></div><i class="skeleton" style="width:70px;height:13px"></i><i class="skeleton" style="width:58px;height:26px;border-radius:8px"></i>'; box.appendChild(sk); }
       return;
     }
-    if (!list.length) { box.appendChild(el('div', null, TR.sort === 'mine' ? 'لا تملك عملات للتداول بعد. اختر عملة واضغط «شراء».' : 'لا توجد نتائج')).className = 'tr-empty'; return; }
+    if (!list.length) { box.appendChild(el('div', null, TR.sort === 'fav' ? 'لا مفضلة بعد. اضغط ☆ بجانب أي عملة لإضافتها هنا.' : TR.sort === 'mine' ? 'لا تملك عملات للتداول بعد. اختر عملة واضغط «شراء».' : 'لا توجد نتائج')).className = 'tr-empty'; return; }
     list.forEach(function (c) {
       var t = TR.tick[c.sym], r = el('button'); r.type = 'button'; r.className = 'tr-row'; r.dataset.sym = c.sym;
       var a = el('div'); a.className = 'tr-c'; var im = document.createElement('img'); im.src = coinImg(c); im.alt = ''; im.onerror = function () { this.style.visibility = 'hidden'; }; a.appendChild(im);
-      var d = el('div'), nm = el('b', null, c.sym); nm.appendChild(el('small', null, ' /USDT')); d.appendChild(nm);
+      var d = el('div'), nm = el('b', null, c.sym); nm.appendChild(el('small', null, ' /USDT'));
+      // نجمة المفضلة داخل صف القائمة (الصف زر، فالنجمة عنصر مستقل يوقف وصول اللمس إلى الصف)
+      var fav = trFavs().indexOf(c.sym) >= 0, st = el('span', null, fav ? '★' : '☆'); st.className = 'tr-fav' + (fav ? ' on' : '');
+      st.setAttribute('role', 'button'); st.setAttribute('aria-label', fav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'); st.dataset.fav = c.sym;
+      st.onclick = function (e) { e.stopPropagation(); trFavToggle(c.sym); renderTrade(); };
+      nm.insertBefore(st, nm.firstChild); d.appendChild(nm);
       var held = coinTotal(c); d.appendChild(el('span', null, held && held > 0 ? (state.hidden ? '••••' : 'لديك ' + plainSmall(held)) : c.name.replace(/\s*\(.*\)\s*$/, ''))); a.appendChild(d); r.appendChild(a);
       var p = el('div'); p.className = 'tr-p'; var pr = trPrice(c.sym); p.appendChild(el('b', null, fp(pr))); if (t && t.vol) p.appendChild(el('small', null, 'Vol ' + fVol(t.vol))); r.appendChild(p);
       var ch = chg(c), cb = el('span', null, ch == null ? '—' : (ch > 0 ? '+' : '') + ch.toFixed(2) + '%'); cb.className = 'tr-ch ' + (ch == null ? 'na' : ch >= 0 ? 'up' : 'dn'); r.appendChild(cb);
@@ -175,7 +189,7 @@
     trRenderPos();
   }
   if (location.protocol === 'file:' && window.__core) window.__core.tr = function () { return { TR: TR, top: trRenderTop, tfMs: tfMs }; }; // للاختبارات الآلية فقط
-  function tfMs(tf) { return { '15m': 9e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 }[tf]; }
+  function tfMs(tf) { return { '1m': 6e4, '5m': 3e5, '15m': 9e5, '30m': 18e5, '1h': 36e5, '4h': 144e5, '1d': 864e5, '1w': 6048e5 }[tf]; }
   // شموع Binance (200 شمعة) بصيغة موحّدة { t, o, h, l, c, v }؛ v = حجم التداول بالدولار
   async function binanceKlines(sym, tf) {
     var j = await trJson(BN_API + 'klines?symbol=' + BN_SYM[sym] + '&interval=' + tf + '&limit=200');
@@ -190,7 +204,7 @@
         kl = await binanceKlines(sym, tf);
       } catch (e) {
         try { // احتياط CoinGecko (بلا حجم تداول، وفترات أخشن)
-          var c = trCoin(sym), days = { '15m': 1, '1h': 7, '4h': 30, '1d': 365, '1w': 'max' }[tf];
+          var c = trCoin(sym), days = { '1m': 1, '5m': 1, '15m': 1, '30m': 1, '1h': 7, '4h': 30, '1d': 365, '1w': 'max' }[tf];
           var g = await trJson('https://api.coingecko.com/api/v3/coins/' + c.cg + '/ohlc?vs_currency=usd&days=' + days);
           kl = g.map(function (x) { return { t: x[0], o: x[1], h: x[2], l: x[3], c: x[4], v: 0 }; });
         } catch (e2) { kl = null; }

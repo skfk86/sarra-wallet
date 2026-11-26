@@ -382,7 +382,7 @@
         trSave(t); lhAdd(lh); state.balances = null; state.historyCache = null;
         toast(ok ? (q.tSide === 'buy' ? 'تم الشراء ✓' : 'تم البيع ✓') : pend ? 'أُرسلت الصفقة وتنتظر تأكيد الشبكة. لا تكررها، ستُحدَّث تلقائياً' : 'لم تكتمل الصفقة', !ok && !pend);
       } else {
-        var r2 = await core.bridgeExecute(q); rxExpect(q);
+        rxExpect(q); /* قبل التنفيذ لا بعده: فحص الرصيد قد يرى الوارد قبل تسجيله فيعرضه «استلاماً من محفظة خارجية» */ var r2 = await core.bridgeExecute(q).catch(function (e) { rxUnexpect(q); throw e; });
         t.id = r2.txid; t.url = core.evmTxUrl ? core.evmTxUrl(q.tNet, r2.txid) : ''; lh.txid = r2.txid; lh.url = t.url;
         trSave(t); lhAdd(lh); state.balances = null; state.evmBal = null; state.historyCache = null;
         state.txBusy = false; trRenderPos(); // أُرسلت: نتابع دون إيقاف التطبيق
