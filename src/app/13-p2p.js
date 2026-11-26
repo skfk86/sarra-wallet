@@ -42,7 +42,9 @@
     return res.json();
   }
   function p2pErr(e) {
-    var c = e && e.message; if (P2P_ERRORS[c]) return P2P_ERRORS[c];
+    var c = e && e.message;
+    if (c === 'MIN_TOO_LOW') return 'أقل صفقة ' + (Number(state.p2p && state.p2p.minTrade) || 10) + ' USDT'; // الحد من الخادم (P2P_MIN_USDT)، لا رقم ثابت
+    if (P2P_ERRORS[c]) return P2P_ERRORS[c];
     if (/^RATE_LIMITED/.test(c || '')) return 'محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى';
     var t = c && WalletCore.errorText(e);
     // لا نعرض رمزاً إنجليزياً خاماً للمستخدم أبداً

@@ -106,17 +106,38 @@
   }
   // مصدر استلام EVM (التطبيق لا يعرف المرسل): نطابق إشعار الخادم برمز معاملته، ونتحقق من إيصالها على الشبكة أن المبلغ
   // نفسه وصل إلى محفظتي من نفس العملة. كل إشعار يُستعمل لاستلام واحد فقط، فلا يُنسب تحويلان متساويان لبعضهما.
-  // لا إشعار مطابق أو تعذّر التحقق = «محفظة خارجية» (لا نخمّن «صُرّة» أبداً)
+  // لا إشعار مطابق = لا نعرف المرسل: نفحص هل هو تحرير/استرداد من ضمان P2P لصفقة لك، وإلا «تحويل وارد» بلا ادعاء.
+  // («محفظة خارجية» فقط حين يؤكد الخادم أن المرسل غير مسجّل؛ والخادم يرصد USDT/USDC فقط، فـ BNB مثلاً لا يُؤكَّد أبداً)
   async function rxSrcEvm(n) {
     var a = parseFloat(n.amount), cs = SarraLogic.hintCandidates(RX.hints, n.net, n.coin, Date.now());
     for (var i = 0; i < cs.length; i++) {
       var h = cs[i], got = await core.evmReceivedIn(n.net, h.tx, n.coin);
       if (h.used || got == null || !isFinite(a) || Math.abs(parseFloat(got) - a) > 1e-9 + a * 1e-9) continue;
       h.used = true; n.txid = h.tx; n.url = core.evmTxUrl(n.net, h.tx);
-      return h.sarra ? 'sarra' : 'ext';
+      return h.sarra ? 'sarra' : (await rxP2P(n)) || 'ext';
     }
-    return 'ext';
+    return (await rxP2P(n)) || 'in';
   }
+  // هل هذا الوارد تحرير صفقة P2P اشتريتها (يستلم المشتري buyer_receives) أو استرداد إيداعك بعد إلغاء (المبلغ − رسوم الشبكة)؟
+  // من قائمة طلباتك على الخادم (طلب موقّع)، خلال 6 ساعات من آخر تحديث للطلب. تعذّر القراءة = null
+  async function rxP2P(n) {
+    if (!P2P_URL || !core.isUnlocked() || n.coin !== 'USDT' || n.net !== 'bsc') return null;
+    try {
+      var me = await core.getAddress(), a = parseFloat(n.amount), fee = Number(state.p2p && state.p2p.netFeeBep) || 0.3;
+      var r = await Promise.race([p2p('orders.mine'), new Promise(function (res, rej) { setTimeout(function () { rej(new Error('TIMEOUT')); }, 8000); })]);
+      var near = function (x) { return isFinite(x) && Math.abs(x - a) < 0.000001 + a * 1e-9; };
+      var hit = (r && r.orders || []).filter(function (o) { return o.network === 'BEP20' && Date.now() - Date.parse(o.updated_at || o.created_at || 0) < 6 * 3600000; });
+      if (hit.some(function (o) { return o.status === 'released' && o.buyer === me && near(Number(o.buyer_receives)); })) return 'p2p';
+      if (hit.some(function (o) { return o.status === 'refunded' && o.seller === me && near(Number(o.amount_usdt) - fee); })) return 'p2pr';
+    } catch (e) {}
+    return null;
+  }
+  // وصف مصدر الاستلام في الشاشة والسجل (مصدر واحد للنص)
+  function srcLabel(src) {
+    return src === 'sarra' ? { t: 'من عنوان مسجّل في صُرّة', s: 1 } : src === 'p2p' ? { t: 'تحرير صفقة P2P من الضمان', s: 1 } : src === 'p2pr' ? { t: 'استرداد إيداعك من ضمان P2P', s: 1 }
+      : src === 'ext' ? { t: 'تحويل من محفظة خارجية' } : { t: 'تحويل وارد' };
+  }
+  function srcSpan(src) { var l = srcLabel(src); return el('span', l.s ? null : 'color:var(--mu)', l.t); }
   // هل المرسل (عنوان TRON معروف) مستخدم صُرّة؟ طلب موقّع لخادم P2P يرد بصح/خطأ فقط، ويقبل فقط عنواناً أرسل إليك فعلاً.
   // لا نفتح شاشة الرمز لأجله: إن كانت المحفظة مقفلة أو فشل الطلب = لا نعرف (يبقى العنوان وحده دون تصنيف)
   RX.sarraAddr = {};
@@ -130,8 +151,8 @@
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
     if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
-    if (n._ex) { delete n._ex; return rxSrcEvm(n).then(function (src) { n.src = src; rxIn(n); }, function () { n.src = 'ext'; rxIn(n); }); }
-    if (!n.from && !n.src) n.src = 'ext';
+    if (n._ex) { delete n._ex; return rxSrcEvm(n).then(function (src) { n.src = src; rxIn(n); }, function () { n.src = 'in'; rxIn(n); }); }
+    if (!n.from && !n.src) n.src = 'in';
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
     RX.q.push(n); notifyTx('recv', n);
@@ -203,13 +224,13 @@
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
-    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = 'ext'; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
+    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = 'in'; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);
     var dl = $('rx-kv'); dl.textContent = '';
-    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية')); }
-    else kvRow(dl, 'من', el('span', n.src === 'sarra' ? null : 'color:var(--mu)', n.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية'));
+    if (n.from) { kvRow(dl, 'من', shortAddr(n.from), n.from); if (n.src) kvRow(dl, 'النوع', srcSpan(n.src)); }
+    else kvRow(dl, 'من', srcSpan(n.src));
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(n.time)));
     if (n.txid) kvRow(dl, 'رقم المعاملة', shortAddr(n.txid), n.txid);
     var more = $('rx-more'); more.hidden = !RX.q.length; more.textContent = RX.q.length ? 'و ' + RX.q.length + ' تحويلات أخرى بعد هذه' : '';

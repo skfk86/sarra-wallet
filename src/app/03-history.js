@@ -107,8 +107,8 @@
       kvRow(dl, 'الشبكة', chainLabel(t.net));
       kvRow(dl, 'العملة', t.coin || 'USDT');
       var who = kind === 'recv' ? (r.from || t.counterparty) : (r.to || t.counterparty);
-      if (who) { kvRow(dl, kind === 'recv' ? 'من' : 'إلى', shortAddr(who), who); if (kind === 'recv' && r.src) kvRow(dl, 'النوع', el('span', r.src === 'sarra' ? null : 'color:var(--mu)', r.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية')); }
-      else if (kind === 'recv') kvRow(dl, 'من', el('span', r.src === 'sarra' ? null : 'color:var(--mu)', r.src === 'sarra' ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية'));
+      if (who) { kvRow(dl, kind === 'recv' ? 'من' : 'إلى', shortAddr(who), who); if (kind === 'recv' && r.src) kvRow(dl, 'النوع', srcSpan(r.src)); }
+      else if (kind === 'recv') kvRow(dl, 'من', srcSpan(r.src));
     }
     kvRow(dl, 'الوقت', el('span', null, fmtWhen(t.time)));
     if (t.txid) kvRow(dl, 'رقم المعاملة', shortAddr(t.txid), t.txid);

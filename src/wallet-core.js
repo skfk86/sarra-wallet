@@ -1098,6 +1098,11 @@
       // DONE | FAILED | PENDING (+ رابط التتبع)
       // حالة معاملة إرسال سابقة: SUCCESS أو FAILED أو PENDING (لم تُعدَّن بعد أو لا نعرف)
       // كم وصل إلى محفظتي من عملة sym في المعاملة hash؟ (من إيصالها على الشبكة نفسها، لا من الإشعار). null = تعذّرت القراءة أو فشلت المعاملة
+      // كلفة إرسال عملة الشبكة نفسها (BNB/ETH/POL) الآن: 21000 غاز × سعر الغاز الحالي × 1.5 هامشاً. null = تعذّرت القراءة
+      evmNativeSendCost: async function (netKey) {
+        var c = EVM_CHAINS[netKey]; if (!c) return null;
+        try { return await evmCall(c, async function (p) { var fee = await evmFees(p, c); return 21000n * BigInt(fee.price) * 15n / 10n; }); } catch (e) { return null; }
+      },
       evmReceivedIn: async function (netKey, hash, sym) {
         var c = EVM_CHAINS[netKey], tk = c && c.tokens.filter(function (t) { return t.sym === sym; })[0];
         if (!tk || !session || !session.evm || !/^0x[0-9a-fA-F]{64}$/.test(String(hash || ''))) return null;
