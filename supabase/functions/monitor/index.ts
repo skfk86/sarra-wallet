@@ -30,8 +30,11 @@ Deno.serve(async (req) => {
   if (L.purgeDue(get('purge_at'), now)) {
     try {
       const cut = new Date(now - L.RETAIN_DAYS * 864e5).toISOString(); let files = 0;
-      const { data: old } = await db.from('orders').select('id').in('status', L.CLOSED).lt('updated_at', cut).limit(1000);
-      const ids = (old || []).map((o) => o.id);
+      const done = new Date(now - L.DONE_DAYS * 864e5).toISOString();
+      const [{ data: old }, { data: ok }] = await Promise.all([
+        db.from('orders').select('id').in('status', ['cancelled', 'refunded']).lt('updated_at', cut).limit(1000),
+        db.from('orders').select('id').eq('status', 'released').lt('updated_at', done).limit(1000)]);
+      const ids = [...(old || []), ...(ok || [])].map((o) => o.id);
       for (let i = 0; i < ids.length; i += 100) {
         const { data: rec } = await db.from('order_receipts').select('path').in('order_id', ids.slice(i, i + 100));
         const paths = (rec || []).map((r) => r.path);

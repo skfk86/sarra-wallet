@@ -34,6 +34,7 @@ export function secretOk(given: string | null, secret: string): boolean {
 // ===== الاحتفاظ بالبيانات: تنظيف يومي (180 يوماً) =====
 export const RETAIN_DAYS = 180;
 export const CLOSED = ['released', 'cancelled', 'refunded'];
+export const DONE_DAYS = 3; // الصفقة الناجحة: تُنظَّف بعد 3 أيام (قرار المالك)
 // مرة كل 24 ساعة على الأكثر (الدالة تُستدعى كل 5 دقائق)
 export function purgeDue(lastAt: string | undefined, now: number): boolean {
   const t = Number(lastAt || 0); return !(t > 0) || now - t >= 24 * 3600000;

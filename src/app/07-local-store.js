@@ -2,16 +2,17 @@
   // {id, kind: send|recv|swap|bridge, net, toNet?, coin, amount, paidCoin?, paidAmount?, to?, from?, txid?, url?, status, time, via?}
   // مفتاح السجل مربوط بعنوان المحفظة (لكل محفظة سجلها)؛ العنوان يُحفظ عند فتح الرئيسية
   function lhKey() { return 'sarra.lh.' + (state.lhAddr || ''); }
-  // الاحتفاظ: سجل الجهاز يُبقي آخر 180 يوماً (العمليات المعلّقة تبقى حتى تُحسم). المعاملات نفسها على الشبكة لا تُحذف
-  var LH_KEEP = 180 * 864e5;
-  function lhFresh(l) { var cut = Date.now() - LH_KEEP; return (l || []).filter(function (r) { return r && (r.status === 'PENDING' || !(r.time < cut)); }); }
+  // الاحتفاظ (قرار المالك): سجل الجهاز والخزنة يحفظان آخر 20 عملية فقط، والمعلّقة تبقى حتى تُحسم.
+  // الباقي على الشبكة نفسها: السجل يجلبه منها، وزر «السجل الكامل على الشبكة» يفتح المستكشف
+  var LH_MAX = 20;
+  function lhFresh(l) { var n = 0; return (l || []).filter(function (r) { return r && (r.status === 'PENDING' || n++ < LH_MAX); }); }
   function lhAll() { return lhFresh(lsJson(lhKey(), [])); }
   function lhAdd(r) {
     if (!state.lhAddr) return;
     try {
       r.time = r.time || Date.now(); r.id = r.txid || ('L' + r.time + Math.random().toString(36).slice(2, 6));
       var l = lhAll().filter(function (x) { return x.id !== r.id; }); l.unshift(r);
-      localStorage.setItem(lhKey(), JSON.stringify(l.slice(0, 300)));
+      localStorage.setItem(lhKey(), JSON.stringify(lhFresh(l)));
       state.historyCache = null; state.fetchedAt.history = 0;
     } catch (e) {}
     vaultSoon();
@@ -49,7 +50,7 @@
   async function vaultPush() {
     if (!core.isUnlocked() || !state.lhAddr || !core.vaultSeal) return;
     try {
-      var blob = await core.vaultSeal({ v: 1, at: Date.now(), lh: lhAll().slice(0, 300), tr: trAll().slice(0, 500) });
+      var blob = await core.vaultSeal({ v: 1, at: Date.now(), lh: lhAll(), tr: trAll().slice(0, 500) });
       await p2p('vault.put', { blob: blob }); state.vaultAt = Date.now();
     } catch (e) { vaultT = setTimeout(vaultPush, 60000); } // نعيد المحاولة بهدوء
   }
