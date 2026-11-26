@@ -1,6 +1,6 @@
 name: Deploy edge function (manual)
 
-# نشر يدوي فقط لدوال Supabase (p2p، history، push-watch، support) أو إعداد الإشعارات (push-setup) أو المراقبة (monitor-setup). لا يعمل تلقائياً أبداً.
+# نشر يدوي فقط لدوال Supabase (p2p، history، push-watch، support) أو إعداد الإشعارات (push-setup) أو المراقبة (monitor-setup) أو الاحتفاظ بالبيانات (retention-setup). لا يعمل تلقائياً أبداً.
 # يحتاج سرّين في المستودع (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN : من supabase.com → Account → Access Tokens
 # ويحتاج في Supabase نفسه (Edge Functions → Secrets): ETHERSCAN_API_KEY (Ethereum وPolygon) وNODEREAL_API_KEY (BNB Chain)، وMORALIS_API_KEY اختياري
@@ -10,7 +10,7 @@ on:
       fn:
         description: 'الدالة'
         type: choice
-        options: [p2p, oxapay-webhook, history, push-watch, support, pay, push-setup, pay-setup, monitor-setup]
+        options: [p2p, oxapay-webhook, history, push-watch, support, pay, push-setup, pay-setup, monitor-setup, retention-setup]
         default: p2p
 
 permissions:
@@ -36,8 +36,28 @@ jobs:
           for i in 1 2 3; do npm install --no-save --no-audit --no-fund supabase@^2 && break; echo "محاولة $i فشلت، إعادة بعد 15 ثانية"; sleep 15; done
           echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
           ./node_modules/.bin/supabase --version
+      # retention-setup: الاحتفاظ 180 يوماً — يطبّق ترحيل 028 مرة واحدة، ثم ينشر monitor التي تنظّف يومياً
+      - name: Retention setup (migration 028 + monitor)
+        if: inputs.fn == 'retention-setup'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          q() { python3 -c "import json,sys;print(json.dumps({'query':sys.argv[1]}))" "$1" > /tmp/q.json
+            curl -s -o /tmp/r.txt -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/osdojhpsfbcqguoctbpk/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @/tmp/q.json; }
+          for m in 028_retention; do
+            q "create table if not exists public.sarra_migrations (name text primary key, applied_at timestamptz not null default now()); alter table public.sarra_migrations enable row level security;" >/dev/null
+            q "select count(*)::int n from public.sarra_migrations where name = '$m'" >/dev/null
+            if grep -Eq '"n": ?1[^0-9]' /tmp/r.txt; then echo "migration $m: مطبّق سابقاً، تخطّي"; continue; fi
+            code=$(q "$(cat supabase/migrations/$m.sql)")
+            echo "migration $m HTTP $code"; head -c 600 /tmp/r.txt; echo
+            [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::فشل تطبيق الترحيل $m"; exit 1; }
+            q "insert into public.sarra_migrations(name) values ('$m') on conflict do nothing" >/dev/null
+          done
+          supabase functions deploy monitor --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes
+          echo "✓ الاحتفاظ مفعّل: أول تنظيف خلال 5 دقائق ثم مرة يومياً"
       - name: Deploy
-        if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup' && inputs.fn != 'monitor-setup'
+        if: inputs.fn != 'push-setup' && inputs.fn != 'pay-setup' && inputs.fn != 'monitor-setup' && inputs.fn != 'retention-setup'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy ${{ inputs.fn }} --project-ref osdojhpsfbcqguoctbpk --no-verify-jwt --use-api --yes

@@ -143,8 +143,13 @@
     renderTxList(box, withLocal(tron).sort(function (a, b) { return b.time - a.time; }).slice(0, 5));
   }
   function renderEvmHist() {
-    var on = Object.keys(EVM).length > 0; $('evm-hist').hidden = !on; if (!on) return;
+    // الجهاز يحفظ آخر 20 عملية فقط (قرار المالك)؛ كل السجل موجود على الشبكة، وهنا روابطه لكل شبكة
+    $('evm-hist').hidden = false;
     var box = $('evm-hist-links'); if (box.childNodes.length) return;
+    var t = el('button', null); t.type = 'button'; t.className = 'hexp-l';
+    var ti = document.createElement('img'); ti.src = netLogo('tron'); ti.alt = ''; t.appendChild(ti); t.appendChild(document.createTextNode('TRON ↗'));
+    t.onclick = async function () { var a = state.lhAddr || await core.getAddress().catch(function () { return ''; }); if (a) window.open((NETWORK === 'mainnet' ? 'https://tronscan.org' : 'https://nile.tronscan.org') + '/#/address/' + a, '_blank'); };
+    box.appendChild(t);
     Object.keys(EVM).forEach(function (k) {
       var c = EVM[k], b = el('button', null); b.type = 'button'; b.className = 'hexp-l';
       var d = document.createElement('img'); d.src = netLogo(k); d.alt = ''; b.appendChild(d);
