@@ -504,7 +504,7 @@
     <div class="chips" id="new-win"><button type="button" class="chip on" data-win="15">15 دقيقة</button><button type="button" class="chip" data-win="30">30 دقيقة</button><button type="button" class="chip" data-win="60">60 دقيقة</button></div>
   </fieldset>
   <div class="note ok" id="new-buynote" hidden><span>البائع يحجز USDT في الضمان أولاً، ثم تحوّل له بالجنيه عبر بنكك وتستلم USDT في محفظتك على الشبكة التي اخترتها. لا يلزمك رصيد الآن.</span></div>
-  <div class="note ok" id="new-sellnote"><span id="new-sellnote-t">عند كل صفقة تودع الكمية + 1.5% تقريباً رسوم بوابة الضمان (بـ USDT)، وتحتاج قليلاً من BNB (نحو 0.0003) لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.</span></div>
+  <div class="note ok" id="new-sellnote"><span id="new-sellnote-t">عند كل صفقة تودع الكمية + رسوم بوابة الضمان (بـ USDT، يظهر المبلغ الدقيق قبل الإيداع)، وتحتاج قليلاً من BNB لرسوم الشبكة. لذلك يعرض التطبيق أقصى كمية يمكنك بيعها فعلاً.</span></div>
   <div class="note err" id="new-err" hidden></div>
   <button class="btn btn-primary" id="new-go">نشر الإعلان</button>
 </section>
@@ -1265,6 +1265,7 @@
 <script src="logic/indicators.js"></script>
 <script src="logic/records.js"></script>
 <script src="logic/registry.js"></script>
+<script src="logic/rxmatch.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

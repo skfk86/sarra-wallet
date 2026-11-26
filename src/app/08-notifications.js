@@ -101,19 +101,44 @@
   function rxHint(n) {
     var d = n && (n.data || (n.notification && n.notification.data)) || {};
     if (d.kind !== 'in' || !d.chain) return;
-    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), amount: parseFloat(String(d.amount || '').replace(/,/g, '')), sarra: d.sarra === '1', inv: /^[\w-]{4,64}$/.test(String(d.inv || '')) ? String(d.inv) : '', at: Date.now() });
+    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), tx: String(d.tx || ''), sarra: d.sarra === '1', inv: /^[\w-]{4,64}$/.test(String(d.inv || '')) ? String(d.inv) : '', at: Date.now() }); // inv: دفعة لفاتورة تاجر (BUG-012)
     RX.hints = RX.hints.filter(function (h) { return Date.now() - h.at < 15 * 60000; }).slice(-20);
   }
-  // نص مصدر الاستلام: دفعة تجارية (فاتورة) / تحويل داخلي / محفظة خارجية
-  function srcSpan(src) {
-    var inv = String(src || '').indexOf('inv:') === 0 ? String(src).slice(4) : '';
-    if (inv) return el('span', 'font-weight:700', 'دفعة تجارية · فاتورة ' + inv);
-    return el('span', src === 'sarra' ? null : 'color:var(--mu)', src === 'sarra' ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية');
+  // مصدر استلام EVM (التطبيق لا يعرف المرسل): نطابق إشعار الخادم برمز معاملته، ونتحقق من إيصالها على الشبكة أن المبلغ
+  // نفسه وصل إلى محفظتي من نفس العملة. كل إشعار يُستعمل لاستلام واحد فقط، فلا يُنسب تحويلان متساويان لبعضهما.
+  // لا إشعار مطابق = لا نعرف المرسل: نفحص هل هو تحرير/استرداد من ضمان P2P لصفقة لك، وإلا «تحويل وارد» بلا ادعاء.
+  // («محفظة خارجية» فقط حين يؤكد الخادم أن المرسل غير مسجّل؛ والخادم يرصد USDT/USDC فقط، فـ BNB مثلاً لا يُؤكَّد أبداً)
+  async function rxSrcEvm(n) {
+    var a = parseFloat(n.amount), cs = SarraLogic.hintCandidates(RX.hints, n.net, n.coin, Date.now());
+    for (var i = 0; i < cs.length; i++) {
+      var h = cs[i], got = await core.evmReceivedIn(n.net, h.tx, n.coin);
+      if (h.used || got == null || !isFinite(a) || Math.abs(parseFloat(got) - a) > 1e-9 + a * 1e-9) continue;
+      h.used = true; n.txid = h.tx; n.url = core.evmTxUrl(n.net, h.tx);
+      return h.inv ? 'inv:' + h.inv : h.sarra ? 'sarra' : (await rxP2P(n)) || 'ext';
+    }
+    return (await rxP2P(n)) || 'in';
   }
-  function rxSrc(net, coin, amt) { // 'sarra' إن أكّد الخادم، وإلا 'ext' (محفظة خارجية)
-    var a = parseFloat(amt), h = RX.hints.filter(function (x) { return x.chain === net && x.sym === coin && isFinite(a) && Math.abs(x.amount - a) < 0.00001 + a * 1e-6; })[0];
-    return h && h.inv ? 'inv:' + h.inv : h && h.sarra ? 'sarra' : 'ext'; // inv: دفعة لفاتورة تاجر (BUG-012)
+  // هل هذا الوارد تحرير صفقة P2P اشتريتها (يستلم المشتري buyer_receives) أو استرداد إيداعك بعد إلغاء (المبلغ − رسوم الشبكة)؟
+  // من قائمة طلباتك على الخادم (طلب موقّع)، خلال 6 ساعات من آخر تحديث للطلب. تعذّر القراءة = null
+  async function rxP2P(n) {
+    if (!P2P_URL || !core.isUnlocked() || n.coin !== 'USDT' || n.net !== 'bsc') return null;
+    try {
+      var me = await core.getAddress(), a = parseFloat(n.amount), fee = Number(state.p2p && state.p2p.netFeeBep) || 0.3;
+      var r = await Promise.race([p2p('orders.mine'), new Promise(function (res, rej) { setTimeout(function () { rej(new Error('TIMEOUT')); }, 8000); })]);
+      var near = function (x) { return isFinite(x) && Math.abs(x - a) < 0.000001 + a * 1e-9; };
+      var hit = (r && r.orders || []).filter(function (o) { return o.network === 'BEP20' && Date.now() - Date.parse(o.updated_at || o.created_at || 0) < 6 * 3600000; });
+      if (hit.some(function (o) { return o.status === 'released' && o.buyer === me && near(Number(o.buyer_receives)); })) return 'p2p';
+      if (hit.some(function (o) { return o.status === 'refunded' && o.seller === me && near(Number(o.amount_usdt) - fee); })) return 'p2pr';
+    } catch (e) {}
+    return null;
   }
+  // وصف مصدر الاستلام في الشاشة والسجل (مصدر واحد للنص)
+  function srcLabel(src) {
+    if (String(src || '').indexOf('inv:') === 0) return { t: 'دفعة تجارية · فاتورة ' + String(src).slice(4), s: 1 };
+    return src === 'sarra' ? { t: 'من عنوان مسجّل في صُرّة', s: 1 } : src === 'p2p' ? { t: 'تحرير صفقة P2P من الضمان', s: 1 } : src === 'p2pr' ? { t: 'استرداد إيداعك من ضمان P2P', s: 1 }
+      : src === 'ext' ? { t: 'تحويل من محفظة خارجية' } : { t: 'تحويل وارد' };
+  }
+  function srcSpan(src) { var l = srcLabel(src); return el('span', l.s ? null : 'color:var(--mu)', l.t); }
   // هل المرسل (عنوان TRON معروف) مستخدم صُرّة؟ طلب موقّع لخادم P2P يرد بصح/خطأ فقط، ويقبل فقط عنواناً أرسل إليك فعلاً.
   // لا نفتح شاشة الرمز لأجله: إن كانت المحفظة مقفلة أو فشل الطلب = لا نعرف (يبقى العنوان وحده دون تصنيف)
   RX.sarraAddr = {};
@@ -126,8 +151,12 @@
     } catch (e) { return null; }
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
+    // TRON: إشعار الخادم لنفس المعاملة يحمل رقم فاتورة تاجر ← «دفعة تجارية» دون سؤال الخادم عن المرسل
+    var ih = n.txid && RX.hints.filter(function (h) { return h.inv && h.tx && h.tx.replace(/^0x/, '').toLowerCase() === String(n.txid).replace(/^0x/, '').toLowerCase(); })[0];
+    if (ih) { delete n._sx; n.src = 'inv:' + ih.inv; }
     if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
-    var hs = rxSrc(n.net, n.coin, n.amount); if (hs.indexOf('inv:') === 0) n.src = hs; else if (!n.from && !n.src) n.src = hs;
+    if (n._ex) { delete n._ex; return rxSrcEvm(n).then(function (src) { n.src = src; rxIn(n); }, function () { n.src = 'in'; rxIn(n); }); }
+    if (!n.from && !n.src) n.src = 'in';
     n.logged = 1; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time });
     state.balances = null; state.historyCache = null;
     RX.q.push(n); notifyTx('recv', n);
@@ -191,7 +220,7 @@
         var amt = WalletCore.fromUnits(diff, dec);
         if (rxDust(amt, sym === 'native' ? EVM[k].native : sym, 0.01)) return;
         if (rxConsume(k, sym === 'native' ? EVM[k].native : sym, amt)) return;
-        rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea });
+        rxIn({ net: k, coin: sym === 'native' ? EVM[k].native : sym, amount: amt, from: null, time: Date.now(), txid: null, url: EVM[k].explorer + '/address/' + ea, _ex: 1 });
       });
     });
     RX.evmBase = next; rxPut(key, next);
@@ -199,7 +228,7 @@
   function rxShow() {
     if (RX.cur || !RX.q.length || document.hidden || !core.isUnlocked()) return;
     var n = RX.cur = RX.q.shift();
-    if (!n.logged) { n.logged = 1; var hs2 = rxSrc(n.net, n.coin, n.amount); if (hs2.indexOf('inv:') === 0) n.src = hs2; else if (!n.from && !n.src) n.src = hs2; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
+    if (!n.logged) { n.logged = 1; if (!n.from && !n.src) n.src = 'in'; lhAdd({ kind: 'recv', net: n.net, coin: n.coin, amount: String(n.amount), from: n.from, src: n.src, txid: n.txid, url: n.url, status: 'SUCCESS', time: n.time }); }
     var a = fmtExact(n.amount);
     $('rx-amt').textContent = state.hidden ? '••••' : '+' + a; fitAmt($('rx-amt'), state.hidden ? '••••' : '+' + a);
     $('rx-coin').textContent = n.coin + ' · ' + chainLabel(n.net);

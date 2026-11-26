@@ -92,7 +92,7 @@ export function message(e: Ev): { title: string; body: string } {
   if (e.kind === 'in') {
     if (e.inv) return { title: 'دفعة تجارية: ' + amt, body: 'فاتورة ' + e.inv + (e.invOrder ? ' · طلب ' + e.invOrder : '') + ' على ' + net };
     if (e.self === true) return { title: 'اكتملت عمليتك', body: 'أُضيفت ' + amt + ' إلى محفظتك على ' + net };
-    return { title: 'وصلك ' + amt, body: (e.fromSarra ? 'تحويل داخلي من مستخدم صُرّة' : 'تحويل من محفظة خارجية') + ' على ' + net };
+    return { title: 'وصلك ' + amt, body: (e.fromSarra ? 'من عنوان مسجّل في صُرّة' : 'تحويل من محفظة خارجية') + ' على ' + net };
   }
   if (e.self === true && e.direct === true) return { title: 'تم إرسال ' + amt, body: 'خرجت من محفظتك على ' + net };
   if (e.self === true) return { title: 'اكتملت عملية من محفظتك', body: 'خرجت ' + amt + ' على ' + net + ' ضمن عملية أجريتها (تبديل أو نقل أو تداول)' };

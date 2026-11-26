@@ -40,6 +40,21 @@
   if (location.protocol === 'file:') window.__core = { st: function () { return state; }, hide: function (v) { setHidden(v, true); }, lock: function () { core.lock(); }, rx: function () { return RX; }, busy: function () { return !!state.txBusy; }, rebase: function (ok) { RX.rebasing = (RX.rebasing || 0) + 1; return rxRebase(ok); } }; // للاختبارات الآلية فقط
   // كل الشبكات والعملات من سجل واحد (logic/registry.js)؛ عقود التوكنات في wallet-core.js
   var REG = SarraLogic.buildRegistry(EVM);
+  // حجز رسوم الشبكة عند «الكل» في التبديل والنقل والتداول والإرسال: على شبكات EVM بسعر الغاز الحالي
+  // (موافقة + تبديل ≈ 350,000 غاز × السعر × 1.5) بدل حجز ثابت (0.001 BNB ≈ 0.6$ بينما الكلفة الفعلية أقل من سنت).
+  // سقفه الحجز الثابت القديم، ويُحدَّث كل 5 دقائق؛ تعذّرت القراءة = الحجز الثابت. TRON لا يتغير (الطاقة تُحرق بـ TRX)
+  var GAS_LIVE = {}, gasKeepFixed = REG.gasKeep;
+  REG.gasKeep = function (k) { var v = GAS_LIVE[k]; return v != null ? v : gasKeepFixed(k); };
+  function refreshGasKeep() {
+    Object.keys(EVM).forEach(function (k) {
+      if (!core.evmGasCost) return;
+      core.evmGasCost(k, 350000).then(function (w) {
+        if (w == null || !(w > 0n)) return;
+        var v = Number(w) / 1e18, cap = gasKeepFixed(k); GAS_LIVE[k] = Math.min(cap, Math.ceil(v * 1e8) / 1e8);
+      }).catch(function () {});
+    });
+  }
+  setTimeout(refreshGasKeep, 3000); setInterval(refreshGasKeep, 5 * 60000);
   var NETS = REG.networks;
   function netOf(k) { return REG.network(k) || NETS[0]; }
   function netLogo(k) { return REG.netLogo(k); }

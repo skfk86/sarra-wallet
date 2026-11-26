@@ -90,7 +90,7 @@ t('تحويل بين مستخدمي صُرّة: نص عام بلا هوية ال
   const B = 'c'.repeat(40);
   const ev = L.eventsFromLogs('bsc', [log(B, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
   const m = L.message(ev.filter((e) => e.kind === 'in')[0]);
-  assert.match(m.title, /^وصلك /); assert.ok(m.body.includes('تحويل داخلي من مستخدم صُرّة')); assert.ok(!m.body.includes(B));
+  assert.match(m.title, /^وصلك /); assert.ok(m.body.includes('من عنوان مسجّل في صُرّة')); assert.ok(!m.body.includes(B));
   // مرسل غير مسجّل: النص العادي
   const ev2 = L.eventsFromLogs('bsc', [log(OTHER, ME, 2n * 10n ** 18n, 0)], TOK, new Set([ME, B]), min);
   assert.ok(L.message(ev2[0]).body.startsWith('تحويل من محفظة خارجية'));

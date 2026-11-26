@@ -1097,6 +1097,23 @@
       },
       // DONE | FAILED | PENDING (+ رابط التتبع)
       // حالة معاملة إرسال سابقة: SUCCESS أو FAILED أو PENDING (لم تُعدَّن بعد أو لا نعرف)
+      // كم وصل إلى محفظتي من عملة sym في المعاملة hash؟ (من إيصالها على الشبكة نفسها، لا من الإشعار). null = تعذّرت القراءة أو فشلت المعاملة
+      // كلفة إرسال عملة الشبكة نفسها (BNB/ETH/POL) الآن: 21000 غاز × سعر الغاز الحالي × 1.5 هامشاً. null = تعذّرت القراءة
+      evmNativeSendCost: async function (netKey) { return this.evmGasCost(netKey, 21000); },
+      // كلفة gasUnits من الغاز الآن بالوحدات الصغرى للعملة الأصلية (wei)، مع هامش 50%. null = تعذّرت القراءة
+      evmGasCost: async function (netKey, gasUnits) {
+        var c = EVM_CHAINS[netKey]; if (!c) return null;
+        try { return await evmCall(c, async function (p) { var fee = await evmFees(p, c); return BigInt(gasUnits) * BigInt(fee.price) * 15n / 10n; }); } catch (e) { return null; }
+      },
+      evmReceivedIn: async function (netKey, hash, sym) {
+        var c = EVM_CHAINS[netKey], tk = c && c.tokens.filter(function (t) { return t.sym === sym; })[0];
+        if (!tk || !session || !session.evm || !/^0x[0-9a-fA-F]{64}$/.test(String(hash || ''))) return null;
+        try {
+          var rc = await evmCall(c, function (p) { return p.getTransactionReceipt(hash); });
+          if (!rc || rc.status === 0) return null;
+          return fromUnits(SarraLogic.transferRawTo(rc.logs, tk.addr, session.evm.address), tk.dec);
+        } catch (e) { return null; }
+      },
       txStatus: async function (netKey, txid, isContract) {
         try {
           if (netKey === 'tron') {
