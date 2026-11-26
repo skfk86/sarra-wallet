@@ -30,3 +30,11 @@ export function secretOk(given: string | null, secret: string): boolean {
   for (let i = 0; i < b.length; i++) diff |= (a[i % (a.length || 1)] ?? 0) ^ b[i];
   return diff === 0 && a.length === b.length;
 }
+
+// ===== الاحتفاظ بالبيانات: تنظيف يومي (180 يوماً) =====
+export const RETAIN_DAYS = 180;
+export const CLOSED = ['released', 'cancelled', 'refunded'];
+// مرة كل 24 ساعة على الأكثر (الدالة تُستدعى كل 5 دقائق)
+export function purgeDue(lastAt: string | undefined, now: number): boolean {
+  const t = Number(lastAt || 0); return !(t > 0) || now - t >= 24 * 3600000;
+}

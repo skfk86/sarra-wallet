@@ -2,7 +2,10 @@
   // {id, kind: send|recv|swap|bridge, net, toNet?, coin, amount, paidCoin?, paidAmount?, to?, from?, txid?, url?, status, time, via?}
   // مفتاح السجل مربوط بعنوان المحفظة (لكل محفظة سجلها)؛ العنوان يُحفظ عند فتح الرئيسية
   function lhKey() { return 'sarra.lh.' + (state.lhAddr || ''); }
-  function lhAll() { return lsJson(lhKey(), []); }
+  // الاحتفاظ: سجل الجهاز يُبقي آخر 180 يوماً (العمليات المعلّقة تبقى حتى تُحسم). المعاملات نفسها على الشبكة لا تُحذف
+  var LH_KEEP = 180 * 864e5;
+  function lhFresh(l) { var cut = Date.now() - LH_KEEP; return (l || []).filter(function (r) { return r && (r.status === 'PENDING' || !(r.time < cut)); }); }
+  function lhAll() { return lhFresh(lsJson(lhKey(), [])); }
   function lhAdd(r) {
     if (!state.lhAddr) return;
     try {
