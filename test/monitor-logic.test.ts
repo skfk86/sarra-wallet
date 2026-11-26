@@ -20,4 +20,11 @@ t('سر الجدولة: مطابقة تامة فقط، ورفض السر الق�
   assert.equal(L.secretOk(sec + 'a', sec), false); assert.equal(L.secretOk('', sec), false); assert.equal(L.secretOk(null, sec), false);
   assert.equal(L.secretOk('short', 'short'), false);
 });
+t('التنظيف اليومي: مرة كل 24 ساعة، والحالات المغلقة فقط', () => {
+  const now = Date.parse('2026-11-26T12:00:00Z');
+  assert.equal(L.purgeDue(undefined, now), true); assert.equal(L.purgeDue('', now), true);
+  assert.equal(L.purgeDue(String(now - 3600000), now), false); assert.equal(L.purgeDue(String(now - 25 * 3600000), now), true);
+  for (const s of [...L.OPEN, ...L.FAILED]) assert.ok(!L.CLOSED.includes(s), s); // لا يُمسّ مفتوح أو نزاع أو فاشل
+  assert.equal(L.RETAIN_DAYS, 180); assert.equal(L.DONE_DAYS, 3);
+});
 console.log('\n' + n + ' اختبارات التنبيه نجحت');

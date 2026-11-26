@@ -146,6 +146,7 @@ async def main():
     assert await pg.locator('#ord-steps span.on').count()==2; step('مؤشر الخطوات (الضمان ← الدفع)')
     if len(sys.argv)>2: await pg.wait_for_timeout(400); await pg.screenshot(path=sys.argv[2]+'/p2p-funded.png', full_page=True)
     await pg.click('#ord-chat-card'); await pg.wait_for_timeout(400); assert await vis('s-order-chat'); step('المحادثة في شاشة منفصلة')
+    await pg.evaluate("document.documentElement.style.setProperty('--safe-area-inset-top','44px')"); await pg.wait_for_timeout(200); await pg.screenshot(path='/tmp/claude-0/-home-user-sarra-wallet/84c4ba16-f172-50f9-b1e1-02186b48a093/scratchpad/chat.png'); hb=await pg.evaluate("(()=>{const r=document.querySelector('#s-order-chat .icon-btn').getBoundingClientRect();return r.top})()"); assert hb>=44, hb; step('رأس المحادثة تحت شريط الحالة والنتوء'); await pg.evaluate("document.documentElement.style.removeProperty('--safe-area-inset-top')")
     await pg.fill('#ord-msg','حوّلت 135 ألف'); await pg.click('#ord-send'); await pg.wait_for_timeout(800)
     assert 'حوّلت 135 ألف' in await pg.inner_text('#ord-chat'); step('المحادثة')
     st['msgs']['buy1'].append({'id':2,'sender':SELLER,'body':'تمام، أنتظر الإيصال','created_at':'2026-10-24T09:05:00Z'})

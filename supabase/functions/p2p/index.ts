@@ -406,7 +406,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { offer: data };
   }
   if (action === 'offers.mine') {
-    const { data } = await db.from('offers').select('*').eq('seller', me).order('created_at', { ascending: false }).limit(50);
+    // «إعلاناتي»: المتوقف الأقدم من 30 يوماً لا يظهر (يُحذف يومياً إن لم يُفتح عليه طلب)
+    const adCut = new Date(Date.now() - 30 * 864e5).toISOString();
+    const { data } = await db.from('offers').select('*').eq('seller', me).or(`active.eq.true,created_at.gt.${adCut}`).order('created_at', { ascending: false }).limit(50);
     return { offers: data || [] };
   }
   if (action === 'offer.close') {
@@ -474,7 +476,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
   }
 
   if (action === 'orders.mine') {
-    const { data } = await db.from('orders').select('*').or(`buyer.eq.${me},seller.eq.${me}`).order('created_at', { ascending: false }).limit(30);
+    // الصفقة الناجحة تختفي من «طلباتي» بعد 3 أيام (قرار المالك)؛ الملغاة والمفتوحة والنزاعات تبقى ظاهرة
+    const doneCut = new Date(Date.now() - 3 * 864e5).toISOString();
+    const { data } = await db.from('orders').select('*').or(`buyer.eq.${me},seller.eq.${me}`).or(`status.neq.released,updated_at.gt.${doneCut}`).order('created_at', { ascending: false }).limit(30);
     const list = await Promise.all((data || []).map(expireStale));
     const profs = await profilesMap(list.flatMap((o) => [o.buyer, o.seller]));
     return { orders: list.map((o) => ({ ...publicOrder(o, null, me), buyer_profile: profs[o.buyer], seller_profile: profs[o.seller] })) };
