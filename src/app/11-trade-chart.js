@@ -343,12 +343,15 @@
       if (val > 0 && cost > 0) {
         if (TR.side === 'buy' && cost >= val * 0.5) { TR.oq = null; throw { ar: 'رسوم هذه الصفقة (≈ $' + cost.toFixed(2) + ') تعادل ' + Math.round(cost / val * 100) + '% من المبلغ. زِد المبلغ أو اختر شبكة أرخص مثل BNB Chain' }; }
         q.costPct = cost / val > 0.2 ? Math.round(cost / val * 100) : 0;
+        q.costOver = cost >= val ? { cost: cost, val: val } : null; // بيع مركز أصغر من رسومه: يُسمح لكن يُقال بوضوح
       }
       $('od-fee').textContent = q.tron ? (q.fee || 'مجاناً') : q.appFee ? niceNum(inN * q.appFee, 6) + ' ' + pay + ' (' + (q.appFee * 100).toFixed(1).replace(/\.0$/, '') + '%)' : 'مجاناً';
       $('od-gas').textContent = q.tron ? 'بعملة TRX من رصيدك' : (Number(q.gasNative) ? niceNum(q.gasNative, 6) + ' ' + n.native + ' · ' : '') + (q.gasUsd < 0.01 ? 'أقل من $0.01' : '≈ $' + Number(q.gasUsd || 0).toFixed(2));
     } catch (e) { qerr = e && e.ar || WalletCore.errorText(e); TR.oq = null; }
     // odRender يخفي رسالة الخطأ، فنعرضها بعده (وإلا اختفى سبب فشل جلب السعر فوراً ولم يره المستخدم)
-    finally { btn.disabled = false; odRender(); odErr(qerr || (TR.oq && TR.oq.dev ? '⚠️ سعر التنفيذ أسوأ من سعر السوق بـ ' + (TR.oq.dev * 100).toFixed(1) + '%. تأكد قبل المتابعة' : TR.oq && TR.oq.costPct ? '⚠️ الرسوم تعادل نحو ' + TR.oq.costPct + '% من قيمة الصفقة. يمكنك المتابعة، والمبالغ الأكبر أوفر نسبياً' : '')); }
+    finally { btn.disabled = false; odRender(); odErr(qerr || (!TR.oq ? '' : TR.oq.costOver ? '⚠️ رسوم هذا البيع (≈ $' + TR.oq.costOver.cost.toFixed(2) + ') أكبر من قيمة مركزك (≈ $' + TR.oq.costOver.val.toFixed(2) + '): ستدفع في الرسوم أكثر مما تحصل عليه. البيع مسموح إن أردت الخروج'
+      : TR.oq.dev ? '⚠️ سعر التنفيذ أسوأ من سعر السوق بـ ' + (TR.oq.dev * 100).toFixed(1) + '%. تأكد قبل المتابعة'
+      : TR.oq.costPct ? '⚠️ الرسوم تعادل نحو ' + TR.oq.costPct + '% من قيمة الصفقة. يمكنك المتابعة، والمبالغ الأكبر أوفر نسبياً' : '')); }
   };
   function odConfirm() {
     var q = TR.oq; $('od-sheet').classList.remove('show');

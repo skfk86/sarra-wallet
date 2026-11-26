@@ -146,6 +146,10 @@ async def main():
     # بيع مركز قيمته أقل من دولار (≈ $0.60): لا حد أدنى للبيع، ويُطلب السعر فعلاً
     n0=len(Q); await pg.fill('#od-amt','0.00001'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
     er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'أقل' not in er and 'تأكيد بيع' in await pg.inner_text('#od-go'), (er, len(Q)-n0); print('✓ بيع مركز أقل من دولار (≈ $0.60): مسموح ويُطلب السعر')
+    # بيع أصغر من رسومه (≈ $0.012 مقابل رسوم $0.03): مسموح، والتنبيه يقول صراحة إن الرسوم أكبر من القيمة
+    await pg.click('#od-cancel'); await pg.wait_for_timeout(200); await pg.click('.pp-sell [data-qs="50"]'); await pg.wait_for_timeout(300)
+    n0=len(Q); await pg.fill('#od-amt','0.0000002'); await pg.click('#od-go'); await pg.wait_for_timeout(800)
+    er=await pg.inner_text('#od-err'); assert len(Q)==n0+1 and 'أكبر من قيمة مركزك' in er and 'تأكيد بيع' in await pg.inner_text('#od-go'), er; print('✓ بيع أصغر من رسومه: مسموح مع تنبيه صريح')
     await pg.click('#od-cancel'); await pg.wait_for_timeout(200)
     # الشراء على BNB Chain: الحد 0.10 دولار، وما فوقه يُقبل إن كانت الرسوم أقل من نصفه
     await pg.click('#pr-buy'); await pg.wait_for_timeout(300); n0=len(Q)
