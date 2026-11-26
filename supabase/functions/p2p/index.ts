@@ -78,6 +78,19 @@ async function oxapayPaidBefore(order: Record<string, any>): Promise<Record<stri
 }
 const paymentInfo = (trackId: string) => oxapay('/payment/' + encodeURIComponent(trackId), null, MERCHANT_KEY, 'merchant_api_key', 'GET');
 
+// ===== إعلان نفدت كميته يتوقف فوراً =====
+// بعد صفقة ناجحة: إن بقي في الإعلان أقل من حده الأدنى، ولا طلب مفتوح عليه (قد يُلغى فتعود كميته)، يُوقَف.
+// كان يبقى «نشطاً» بكمية صفر فيظهر للبائع نشطاً ولا يظهر في السوق.
+async function stopIfSoldOut(offerId: string | null | undefined) {
+  if (!offerId) return;
+  const { data: f } = await db.from('offers').select('id,active,available_usdt,min_usdt').eq('id', offerId).maybeSingle();
+  if (!f || !f.active || Number(f.available_usdt) >= Number(f.min_usdt)) return;
+  const { count } = await db.from('orders').select('id', { count: 'exact', head: true }).eq('offer_id', offerId).in('status', OPEN_ORDER);
+  if (count) return;
+  await db.from('offers').update({ active: false }).eq('id', offerId).eq('active', true);
+}
+const OPEN_ORDER = ['awaiting_deposit', 'paying', 'funded', 'paid', 'disputed', 'releasing', 'refunding', 'release_failed', 'refund_failed'];
+
 // ===== تنفيذ التحرير/الإرجاع بعد قفل الحالة =====
 async function settle(order: Record<string, any>, kind: 'release' | 'refund', actor: string) {
   const net = order.network || 'TRC20';
@@ -117,6 +130,7 @@ async function settle(order: Record<string, any>, kind: 'release' | 'refund', ac
         const { data: p } = await db.from('profiles').select('trades_completed').eq('address', a).single();
         if (p) await db.from('profiles').update({ trades_completed: p.trades_completed + 1 }).eq('address', a);
       }
+      await stopIfSoldOut(order.offer_id);
     } else {
       await db.rpc('p2p_unreserve_order', { p_order: order.id });
     }
@@ -406,6 +420,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     return { offer: data };
   }
   if (action === 'offers.mine') {
+    // إعلانات قديمة بقيت نشطة بكمية نفدت (قبل هذا الإصلاح): تُوقَف عند عرض «إعلاناتي»
+    const { data: stale } = await db.from('offers').select('id,available_usdt,min_usdt').eq('seller', me).eq('active', true);
+    for (const f of stale || []) if (Number(f.available_usdt) < Number(f.min_usdt)) await stopIfSoldOut(f.id);
     const { data } = await db.from('offers').select('*').eq('seller', me).order('created_at', { ascending: false }).limit(50);
     return { offers: data || [] };
   }
@@ -521,7 +538,7 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
       if (tr.marked) { // تسجيل يدوي بلا دفع: نُكمل المحاسبة كما لو أن settle نجح
         await audit(o.id, me, 'admin_marked_' + tr.to, { prev_status: o.status, prev_error: o.payout_error || null, payout_track_id: String(p.payout_track_id || '').slice(0, 80) || null });
         if (p.payout_track_id) await db.from('orders').update({ payout_track_id: String(p.payout_track_id).slice(0, 80), payout_error: null }).eq('id', o.id);
-        if (tr.to === 'released') for (const a of [o.buyer, o.seller]) { const { data: pr } = await db.from('profiles').select('trades_completed').eq('address', a).single(); if (pr) await db.from('profiles').update({ trades_completed: pr.trades_completed + 1 }).eq('address', a); }
+        if (tr.to === 'released') { for (const a of [o.buyer, o.seller]) { const { data: pr } = await db.from('profiles').select('trades_completed').eq('address', a).single(); if (pr) await db.from('profiles').update({ trades_completed: pr.trades_completed + 1 }).eq('address', a); } await stopIfSoldOut(o.offer_id); }
         else await db.rpc('p2p_unreserve_order', { p_order: o.id });
       }
       if (tr.release) locked.status = await settle(locked, 'release', me);
