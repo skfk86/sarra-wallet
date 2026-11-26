@@ -44,6 +44,14 @@
     if (!(Number(amt) > 0)) return esErr('أدخل المبلغ');
     var bal = balOn(ES.from, ES.net); if (bal != null && Number(amt) > bal) return esErr('الرصيد غير كافٍ');
     var nat = evmUnits(ES.net, n.native); if (nat != null && nat === 0n) { esErr('تحتاج ' + n.native + ' لدفع رسوم الشبكة'); return openGasHelp(ES.net); }
+    // السبب الحقيقي قبل طلب السعر: مبلغ لا قيمة له، أو عملة الشبكة لا تكفي رسوم التبديل الآن (موافقة + تبديل بسعر الغاز الحالي).
+    // وإلا تفشل خدمة التبديل فيظهر «خطأ في الاتصال» والسبب ليس الإنترنت (مثل 0.007 USDT على Ethereum ورصيد ETH ضئيل)
+    var usdIn = usdOf(amt, ES.from);
+    if (usdIn != null && usdIn < 0.05) return esErr('المبلغ صغير جداً للتبديل (≈ $' + usdIn.toFixed(3) + '). رسوم الشبكة وحدها قد تتجاوزه');
+    if (nat != null && core.evmGasCost) {
+      var need = await core.evmGasCost(ES.net, 350000), spend = ES.from === n.native ? WalletCore.toUnitsFloor(String(amt), 18) : 0n;
+      if (need != null && nat < need + spend) { esErr('رصيد ' + n.native + ' لا يكفي رسوم الشبكة على ' + n.name + ': تحتاج نحو ' + WalletCore.fromUnits(need, 18).replace(/(\.\d*?[1-9])0+$/, '$1') + ' ' + n.native + (spend ? ' فوق المبلغ' : '')); return openGasHelp(ES.net); }
+    }
     var btn = this; btn.disabled = true; btn.textContent = 'جارٍ جلب السعر…';
     try {
       var q = await core.bridgeQuote(ES.net, ES.net, ES.from, amt, ES.to); q.at = Date.now(); ES.q = q;

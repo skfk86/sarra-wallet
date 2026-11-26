@@ -600,7 +600,14 @@ i.skeleton{display:block;font-style:normal}
 .bn-bar .btn-ghost:only-child,.bn-bar .btn-ghost:last-child:nth-child(odd){grid-column:1/-1}
 
 /* ===== المحادثة v2 ===== */
-.chat-screen.active{height:100dvh;min-height:0;overflow:hidden;padding-top:12px}
+.chat-screen.active{height:100dvh;min-height:0;overflow:hidden;padding-top:0}
+/* رأس المحادثة: شريط ثابت يبدأ تحت شريط الحالة والنتوء (كان padding-top:12px يلغي هامش الأمان فيلتصق بحافة الهاتف) */
+.chat-head{margin:0 -20px;padding:calc(max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px)) + 8px) 12px 10px;background:var(--tab);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--div);min-height:56px}
+.chat-head .cc-av{flex:0 0 40px;width:40px;height:40px}
+.chat-head #oc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-head #oc-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-head+.chat-order{margin-top:4px}
+.chat-safe{font-size:11.5px;line-height:1.6;padding:7px 10px}
 .chat-wrap{position:relative;flex:1;min-height:0;display:flex}
 .chat-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px;padding:4px 2px 12px;scroll-behavior:smooth}
 .chat-empty{margin:auto;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:var(--mu);max-width:260px;padding:20px 0}
