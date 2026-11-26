@@ -274,7 +274,7 @@ SARRA_KEY=sk_live_XXXXXXXX node server.js
   }
 }</code></pre></div>
     <h3>تحقّق من التوقيع</h3>
-    <p>أي شخص يعرف رابطك يستطيع إرسال إشعار مزيّف، لذلك كل إشعار منا موقّع بسر الإشعار (<code>whsec_…</code>) الذي تجده في نفس الشاشة. السر يُنشأ مرة واحدة مع حسابك ويبقى ظاهراً لك في شاشة التاجر في التطبيق كلما فتحتها، ولا توجد حالياً طريقة لتوليد سر جديد. انسخ الدالة الجاهزة:</p>
+    <p>أي شخص يعرف رابطك يستطيع إرسال إشعار مزيّف، لذلك كل إشعار منا موقّع بسر الإشعار (<code>whsec_…</code>) الذي تجده في نفس الشاشة. السر يُنشأ مع حسابك ويبقى ظاهراً لك في شاشة التاجر في التطبيق. إن تسرّب، اضغط <b>سر جديد</b> في الشاشة نفسها: يتوقف القديم فوراً، وكل إشعار بعدها (ومنها المعلّقة في إعادة المحاولة) يُوقَّع بالجديد، فحدّثه في خادمك مباشرة. انسخ الدالة الجاهزة:</p>
     <div class="cb tabs"><div class="cbh"><div class="tb" role="tablist"><button type="button" role="tab" data-l="js">Node.js</button><button type="button" role="tab" data-l="php">PHP</button><button type="button" role="tab" data-l="py">Python</button></div><button type="button" class="cp">نسخ</button></div><div class="tp" data-l="js"><pre><code data-lang="js">const crypto = require('crypto');
 
 // ترجع true إذا كان الإشعار من صُرّة فعلاً
