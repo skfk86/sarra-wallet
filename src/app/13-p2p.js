@@ -500,7 +500,7 @@
     openVerify(false, true);
   };
   // نترك 1.5% لرسوم بوابة الضمان التي يدفعها البائع عند الإيداع
-  function sellable(u) { return String(Math.floor(Number(u) / 1.015 * 100) / 100); }
+  function sellable(u) { return String(Math.floor(Number(u) / 1.025 * 100) / 100); } // نفس هامش الخادم (ESCROW_FEE_BUFFER_BPS = 2.5%)
   $('new-all').onclick = function () { if (state.p2p.bal) { var v = sellable(state.p2p.bal.usdt); $('new-amount').value = v; if (!$('new-max').value) $('new-max').value = v; } };
   $('new-go').onclick = async function () {
     var btn = this; $('new-err').hidden = true; btn.disabled = true;
