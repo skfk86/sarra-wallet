@@ -341,6 +341,8 @@
       kv(dl, 'كمية البيع', fmt(o.amount_usdt, 6) + ' USDT');
       kv(dl, 'رسوم بوابة الضمان', fmt(gw, 6) + ' USDT');
       kv(dl, 'المبلغ الكامل للإيداع', fmt(o.deposit_amount, 6) + ' USDT', true);
+      // الإلغاء بعد الإيداع (من أي طرف أو بانتهاء المهلة): تُعاد الكمية بعد خصم رسوم شبكة الإرجاع، فيعرفها البائع قبل أن يودع
+      if (role === 'seller') kv(dl, 'إن أُلغيت الصفقة', 'تُعاد ' + fmt(Math.max(0, Number(o.amount_usdt) - (o.network === 'BEP20' ? (Number(state.p2p.netFeeBep) || 0.3) : (Number(state.p2p.netFee) || 1))), 6) + ' USDT (بعد خصم رسوم الشبكة)');
       if (role === 'seller') {
         var bep = o.network === 'BEP20', wn = el('div', 'margin-top:4px;line-height:1.8;font-size:13px');
         wn.className = 'note warn';
