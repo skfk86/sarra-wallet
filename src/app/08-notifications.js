@@ -101,7 +101,7 @@
   function rxHint(n) {
     var d = n && (n.data || (n.notification && n.notification.data)) || {};
     if (d.kind !== 'in' || !d.chain) return;
-    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), tx: String(d.tx || ''), sarra: d.sarra === '1', at: Date.now() });
+    RX.hints.push({ chain: String(d.chain), sym: String(d.sym || ''), tx: String(d.tx || ''), sarra: d.sarra === '1', inv: /^[\w-]{4,64}$/.test(String(d.inv || '')) ? String(d.inv) : '', at: Date.now() }); // inv: دفعة لفاتورة تاجر (BUG-012)
     RX.hints = RX.hints.filter(function (h) { return Date.now() - h.at < 15 * 60000; }).slice(-20);
   }
   // مصدر استلام EVM (التطبيق لا يعرف المرسل): نطابق إشعار الخادم برمز معاملته، ونتحقق من إيصالها على الشبكة أن المبلغ
@@ -114,7 +114,7 @@
       var h = cs[i], got = await core.evmReceivedIn(n.net, h.tx, n.coin);
       if (h.used || got == null || !isFinite(a) || Math.abs(parseFloat(got) - a) > 1e-9 + a * 1e-9) continue;
       h.used = true; n.txid = h.tx; n.url = core.evmTxUrl(n.net, h.tx);
-      return h.sarra ? 'sarra' : (await rxP2P(n)) || 'ext';
+      return h.inv ? 'inv:' + h.inv : h.sarra ? 'sarra' : (await rxP2P(n)) || 'ext';
     }
     return (await rxP2P(n)) || 'in';
   }
@@ -134,6 +134,7 @@
   }
   // وصف مصدر الاستلام في الشاشة والسجل (مصدر واحد للنص)
   function srcLabel(src) {
+    if (String(src || '').indexOf('inv:') === 0) return { t: 'دفعة تجارية · فاتورة ' + String(src).slice(4), s: 1 };
     return src === 'sarra' ? { t: 'من عنوان مسجّل في صُرّة', s: 1 } : src === 'p2p' ? { t: 'تحرير صفقة P2P من الضمان', s: 1 } : src === 'p2pr' ? { t: 'استرداد إيداعك من ضمان P2P', s: 1 }
       : src === 'ext' ? { t: 'تحويل من محفظة خارجية' } : { t: 'تحويل وارد' };
   }
@@ -150,6 +151,9 @@
     } catch (e) { return null; }
   }
   function rxIn(n) { // يُحفظ في السجل فوراً عند الكشف، حتى لو لم تظهر النافذة (التطبيق في الخلفية)
+    // TRON: إشعار الخادم لنفس المعاملة يحمل رقم فاتورة تاجر ← «دفعة تجارية» دون سؤال الخادم عن المرسل
+    var ih = n.txid && RX.hints.filter(function (h) { return h.inv && h.tx && h.tx.replace(/^0x/, '').toLowerCase() === String(n.txid).replace(/^0x/, '').toLowerCase(); })[0];
+    if (ih) { delete n._sx; n.src = 'inv:' + ih.inv; }
     if (n._sx) { delete n._sx; return isSarraAddr(n.from).then(function (y) { if (y != null) n.src = y ? 'sarra' : 'ext'; rxIn(n); }); }
     if (n._ex) { delete n._ex; return rxSrcEvm(n).then(function (src) { n.src = src; rxIn(n); }, function () { n.src = 'in'; rxIn(n); }); }
     if (!n.from && !n.src) n.src = 'in';
