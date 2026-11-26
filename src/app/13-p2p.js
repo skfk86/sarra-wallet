@@ -453,7 +453,7 @@
     $('new-err').hidden = true;
     if (!r || !r.sdg_per_usdt || !rg) { toast('لم يُحدَّد سعر الصرف بعد. حاول لاحقاً', true); return; }
     $('new-payee').textContent = pf.full_name + ' · ' + pf.bankak_account;
-    state.p2p.bal = null; setNewSide(state.p2p.tab === 'sell' ? 'buy' : 'sell');
+    state.p2p.bal = null; setNewSide(state.p2p.tab === 'market' ? 'buy' : 'sell'); // النموذج يتبع التبويب: «أريد البيع» ← إعلان بيع، «أريد الشراء» ← إعلان شراء
     $('new-price').value = String(r.sdg_per_usdt);
     $('new-range').textContent = 'السعر المرجعي ' + fmt(r.sdg_per_usdt) + ' ج.س · المسموح من ' + fmt(rg.min) + ' إلى ' + fmt(rg.max);
     show('p2p-new');
