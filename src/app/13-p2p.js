@@ -488,13 +488,14 @@
   });
   function setNewSide(s) {
     state.p2p.newSide = s;
-    document.querySelectorAll('[data-side]').forEach(function (b) { var on = b.dataset.side === s; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    document.querySelectorAll('#new-side [data-side]').forEach(function (b) { var on = b.dataset.side === s; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
     var buy = s === 'buy';
     $('new-bal').hidden = buy; $('new-payee-card').hidden = buy; $('new-sellnote').hidden = buy; $('new-buynote').hidden = !buy; $('new-all').hidden = buy;
     $('new-go').textContent = buy ? 'نشر إعلان الشراء' : 'نشر إعلان البيع';
     if (!buy && !state.p2p.bal) loadSellerBalance();
   }
-  document.querySelectorAll('[data-side]').forEach(function (b) { b.onclick = function () { setNewSide(b.dataset.side); }; });
+  // BUG-008: المحدِّد محصور في نموذج الإعلان؛ كان [data-side] العام يلتقط تبويبي الشراء/البيع في شاشة التداول ويستبدل معالجهما
+  document.querySelectorAll('#new-side [data-side]').forEach(function (b) { b.onclick = function () { setNewSide(b.dataset.side); }; });
   $('new-change-acct').onclick = async function () {
     if (!(await askConfirm('تغيير حساب بنكك يتطلب مراجعة جديدة لبياناتك، وتتوقف إعلاناتك الحالية حتى يُقبل الطلب. متابعة؟'))) return;
     openVerify(false, true);

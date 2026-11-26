@@ -56,12 +56,13 @@
       if (ks !== TR.sym || k.i !== TR.tf || !TR.kl || !TR.kl.length) return;
       var bar = { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.q }, last = TR.kl[TR.kl.length - 1];
       if (bar.t === last.t) TR.kl[TR.kl.length - 1] = bar;
-      else if (bar.t > last.t) { TR.kl.push(bar); if (TR.off) TR.off++; }
+      else if (bar.t > last.t) { TR.kl.push(bar); }
       LV.dirty = true;
     }
   }
   // رسم واحد كل 700ms على الأكثر مهما كثرت الرسائل (عشرات في الثانية)، فلا يثقل الهاتف
   setInterval(function () {
+    if (state.stack[state.stack.length - 1] !== 'pair' && document.body.classList.contains('chart-fs')) { document.querySelector('.pr-chart').classList.remove('fs'); document.body.classList.remove('chart-fs'); } // غادر الشاشة: لا يبقى الشارت مكبّراً
     var want = lvWanted();
     if (!want) { if (LV.ws) lvClose(); return; }
     if (want !== LV.key || !LV.ws) { if (want !== LV.key || Date.now() >= LV.retryAt) lvOpen(want); }

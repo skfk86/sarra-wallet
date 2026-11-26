@@ -977,9 +977,9 @@
     <div id="tr-open-l" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
   <b style="font-size:16px;margin-top:4px">السوق</b>
-  <div class="tr-head"><span>العملة</span><span>السعر</span><span>24س</span></div>
+  <div class="tr-head"><span>العملة / الحجم</span><span>آخر سعر / تغيّر 24س</span></div>
   <div class="tr-list" id="tr-list"></div>
-  <p class="muted" style="font-size:11px;line-height:1.8;text-align:center;margin:4px 0 0">الأسعار والشموع من Binance. الشراء والبيع يتمّان من محفظتك مباشرة على الشبكة. المؤشرات للمعلومة فقط وليست نصيحة مالية.</p>
+  <p class="muted" style="font-size:11px;line-height:1.8;text-align:center;margin:4px 0 0">بيانات السوق مرجعية من مصادر عامة وقد تختلف قليلاً عن سعر التنفيذ؛ السعر النهائي يظهر قبل تأكيد كل صفقة. التنفيذ يتم من محفظتك مباشرة على الشبكة. المؤشرات للمعلومة فقط وليست نصيحة مالية.</p>
 </section>
 
 <!-- ===== التداول: زوج العملة ===== -->
@@ -1004,9 +1004,15 @@
     <div class="pr-tf" id="pr-tf" role="tablist">
       <button type="button" data-tf="1m">1د</button><button type="button" data-tf="5m">5د</button><button type="button" data-tf="15m">15د</button><button type="button" data-tf="30m">30د</button><button type="button" data-tf="1h" class="on">1س</button><button type="button" data-tf="4h">4س</button><button type="button" data-tf="1d">يوم</button><button type="button" data-tf="1w">أسبوع</button>
     </div>
+    <div class="pr-tools">
+      <div class="pr-seg" id="pr-ct" role="group" aria-label="نوع الشارت"><button type="button" data-ct="candle" class="on">شموع</button><button type="button" data-ct="line">خط</button></div>
+      <button type="button" class="pr-tbtn" id="pr-ma" aria-label="إظهار المتوسطات أو إخفاؤها">MA</button>
+      <span class="grow"></span>
+      <button type="button" class="pr-tbtn" id="pr-fs" aria-label="ملء الشاشة" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+    </div>
     <div class="pr-ohlc ltr" id="pr-ohlc"></div>
-    <div class="pr-cv-wrap"><canvas id="pr-cv" aria-label="رسم الشموع اليابانية"></canvas><div class="pr-load" id="pr-load">جارٍ تحميل الشموع…</div></div>
-    <div class="pr-leg ltr"><span><i style="background:#f0b90b"></i>MA7</span><span><i style="background:#8b5cf6"></i>MA25</span><span><i style="background:#3b82f6"></i>MA99</span></div>
+    <div class="pr-cv-wrap"><div id="pr-cv" role="img" aria-label="رسم الشموع اليابانية"></div><div class="pr-hl ltr" id="pr-hl" aria-hidden="true"></div><div class="pr-ax ltr" id="pr-ax" aria-hidden="true"></div><div class="pr-load" id="pr-load">جارٍ تحميل الشموع…</div></div>
+    <div class="pr-leg ltr" id="pr-leg" hidden><span><i style="background:#f0b90b"></i>MA7</span><span><i style="background:#8b5cf6"></i>MA25</span><span><i style="background:#3b82f6"></i>MA99</span></div>
   </div>
   <div class="card pp" id="pr-pos">
     <div class="pp-tabs" role="tablist"><button type="button" data-pp="pos" class="on">المركز</button><button type="button" data-pp="hist">صفقاتي <span id="pp-n" class="pp-n">0</span></button></div>
@@ -1045,8 +1051,8 @@
     </div>
   </div>
   <div class="pr-bar">
-    <button type="button" class="pr-buy" id="pr-buy">شراء</button>
-    <button type="button" class="pr-sell" id="pr-sell">بيع</button>
+    <button type="button" class="pr-buy" id="pr-buy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>شراء</button>
+    <button type="button" class="pr-sell" id="pr-sell"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 8v9H8"/></svg>بيع</button>
   </div>
 </section>
 
@@ -1261,6 +1267,7 @@
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/jsqr.js"></script>
 <script src="vendor/ethers.js"></script>
+<script src="vendor/lightweight-charts.js"></script>
 <script src="wallet-core.js"></script>
 <script src="logic/format.js"></script>
 <script src="logic/indicators.js"></script>
