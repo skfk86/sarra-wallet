@@ -299,7 +299,16 @@ dl.kv dd{margin:0;font-size:14px;font-weight:600;text-align:left}
 #swap-evm[hidden]{display:none!important}
 #es-from button,#es-to button{display:flex;align-items:center;justify-content:center;gap:6px}#es-from img,#es-to img{width:18px;height:18px;border-radius:50%}
 /* UI-044: مفتاح نوع التحويل — نصوص قصيرة، خلفية موحّدة مع الحقل، النشط واضح، وفجوة صغيرة قبل الحقل */
-#to-mode{margin:10px 0 6px;background:var(--s1)}#to-mode button{height:36px;font-size:13.5px}#to-mode button.on{color:var(--ac)}
+/* نوع التحويل: بطاقتان بأيقونة وعنوان وشرح (بدل زرّين نصيّين) */
+#to-mode{margin:10px 0 6px;background:none;border:0;padding:0;gap:10px}
+#to-mode button{height:auto;min-height:64px;padding:10px 12px;display:flex;align-items:center;gap:10px;text-align:start;border:1.5px solid var(--line);border-radius:16px;background:var(--s1);color:var(--tx);box-shadow:none}
+#to-mode button .i{flex:0 0 22px;width:22px;height:22px;color:var(--mu)}
+#to-mode button span{display:flex;flex-direction:column;gap:2px;min-width:0}
+#to-mode button b{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#to-mode button small{font-size:11.5px;font-weight:500;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#to-mode button.on{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 9%,var(--s1));box-shadow:none}
+#to-mode button.on .i,#to-mode button.on b{color:var(--ac)}
+:root[data-theme="light"] #to-mode button.on{box-shadow:none}
 .seg.scroll{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.seg.scroll::-webkit-scrollbar{display:none}.seg.scroll>button{flex:0 0 auto;min-width:84px;padding:0 12px}
 .recv-coins{flex-wrap:wrap;justify-content:center}
 .chart{display:flex;flex-direction:column;gap:8px}

@@ -272,7 +272,7 @@
         var price = el('div', 'display:flex;flex-direction:column;gap:2px;min-width:0');
         price.appendChild(el('span', 'font-size:11px;color:var(--mu)', 'السعر لكل USDT'));
         var pv = el('div', 'display:flex;align-items:baseline;gap:4px');
-        pv.appendChild(el('b', 'font-size:24px;direction:ltr;letter-spacing:-.5px', fmt(o.price_sdg)));
+        pv.appendChild(el('b', 'font-size:19px;direction:ltr;letter-spacing:-.3px', fmt(o.price_sdg))); // UX-031: السعر أهدأ فلا يطغى على المتاح والحدود
         pv.appendChild(el('span', 'font-size:12px;color:var(--mu);font-weight:600', 'ج.س'));
         price.appendChild(pv); mid.appendChild(price);
         var nt = el('span', null, netLabel(o.network)); nt.className = 'ad-net' + (o.network === 'BEP20' ? ' bsc' : ''); mid.appendChild(nt);
@@ -300,7 +300,7 @@
       $('p2p-hint').hidden = state.p2p.tab === 'mine';
       $('p2p-hint').querySelector('span').textContent = state.p2p.tab === 'sell'
         ? 'تودع USDT في الضمان، يحوّل لك المشتري بالجنيه، ثم تحرّرها بعد وصول المبلغ.'
-        : 'لا تحوّل أي مبلغ قبل ظهور "محجوز في الضمان".';
+        : 'حوّل الجنيهات فقط بعد أن يظهر في طلبك «محجوز في الضمان»: عندها تكون USDT مقفلة لك، ولا يستطيع البائع سحبها.';
       $('p2p-filter').hidden = state.p2p.tab === 'mine';
       document.querySelectorAll('[data-p2ptab]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
       loadP2P();

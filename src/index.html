@@ -129,8 +129,8 @@
     <button type="button" role="tab" data-coin="TRX" aria-selected="false">TRX</button>
   </div>
   <div class="seg" role="radiogroup" aria-label="نوع التحويل" id="to-mode">
-    <button type="button" role="radio" class="on" data-mode="ext" aria-checked="true">تحويل خارجي</button>
-    <button type="button" role="radio" data-mode="int" aria-checked="false">تحويل داخلي</button>
+    <button type="button" role="radio" class="on" data-mode="ext" aria-checked="true"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span><b>محفظة خارجية</b><small>بعنوان المحفظة</small></span></button>
+    <button type="button" role="radio" data-mode="int" aria-checked="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span><b>مستخدم صُرّة</b><small>بمعرّف صُرّة</small></span></button>
   </div>
   <label class="lbl" for="to" id="to-lbl">المستلم</label>
   <div class="field">
@@ -400,7 +400,7 @@
   </div>
 
   <div class="row" style="gap:8px;align-items:center;justify-content:space-between">
-    <div class="info-line" id="p2p-hint"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;color:var(--ac)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>لا تحوّل أي مبلغ قبل ظهور "محجوز في الضمان".</span></div>
+    <div class="info-line" id="p2p-hint"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;color:var(--ac)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg><span>حوّل الجنيهات فقط بعد أن يظهر في طلبك «محجوز في الضمان»: عندها تكون USDT مقفلة لك، ولا يستطيع البائع سحبها.</span></div>
   </div>
   <button type="button" class="chip" id="p2p-nick-btn" style="align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:32px;font-size:12px" aria-label="تعديل اسمك في السوق"></button>
 
