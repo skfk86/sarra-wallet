@@ -872,3 +872,6 @@ body.chart-fs .pr-bar{display:none}
 .od-side button[data-side=buy]:not(.on){color:var(--up)}.od-side button[data-side=sell]:not(.on){color:var(--dn)}
 /* نافذة السؤال تظهر فوق أي ورقة أخرى (مثل تفاصيل المعاملة عند مشاركة الإيصال) */
 #ask-sheet{z-index:56}
+/* إيقاف الطوارئ: البطاقة حمراء الحدود حين يكون شيء موقوفاً */
+.adm-pause.on{border-color:var(--err);box-shadow:0 0 0 2px color-mix(in srgb,var(--err) 25%,transparent)}
+.adm-pause .switch[aria-checked="true"]{background:var(--err)}

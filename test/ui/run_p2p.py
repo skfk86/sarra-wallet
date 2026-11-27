@@ -35,6 +35,8 @@ async def handler(route):
   if a=='admin.rate.set':
     st['rate']={'sdg_per_usdt':float(p['sdg_per_usdt']),'band_pct':p['band_pct']}; r=st['rate']
     return await ok({'rate':r,'range':{'min':round(r['sdg_per_usdt']*(1-r['band_pct']/100),2),'max':round(r['sdg_per_usdt']*(1+r['band_pct']/100),2)}})
+  if a=='admin.pause.get': return await ok(st.setdefault('pause',{'p2p':False,'pay':False}))
+  if a=='admin.pause.set': st['pause']={'p2p':p.get('p2p') is True,'pay':p.get('pay') is True}; st.setdefault('pause_log',[]).append(dict(st['pause'])); return await ok(st['pause'])
   if a=='admin.ban': st['banned'].append((p['address'],p['banned'])); return await ok({'ok':True})
   if a=='verify.submit':
     import hashlib
@@ -277,6 +279,12 @@ async def main():
     await pg.click('[data-minef=act]'); await pg.wait_for_timeout(600)
     await pg.click('#p2p-admin-btn'); await pg.wait_for_timeout(1000)
     assert '7' in await pg.inner_text('#adm-stats'); step('لوحة الأدمن: الإحصائيات')
+    # إيقاف الطوارئ من اللوحة: التشغيل بتأكيد، والإعادة بلا سؤال، والبطاقة حمراء أثناء الإيقاف
+    assert await pg.get_attribute('#adm-pause-p2p','aria-checked')=='false' and await pg.get_attribute('#adm-pause-pay','aria-checked')=='false'
+    await pg.click('#adm-pause-p2p'); await pg.wait_for_timeout(300); assert 'إيقاف سوق P2P' in await pg.inner_text('#ask-text'); await pg.click('#ask-yes'); await pg.wait_for_timeout(500)
+    assert await pg.get_attribute('#adm-pause-p2p','aria-checked')=='true' and 'on' in (await pg.get_attribute('#adm-pause','class')) and st['pause']=={'p2p':True,'pay':False}, st.get('pause')
+    await pg.click('#adm-pause-p2p'); await pg.wait_for_timeout(500)
+    assert await pg.get_attribute('#adm-pause-p2p','aria-checked')=='false' and st['pause']=={'p2p':False,'pay':False}; step('لوحة الأدمن: إيقاف P2P بتأكيد، وإعادة تشغيله بضغطة')
     await no_overflow('لوحة الأدمن')
     assert await pg.inner_text('#adm-earn-com')=='12.75'; step('أرباح العمولات: 30 يوماً افتراضياً')
     gw=await pg.inner_text('#adm-gw'); assert await pg.inner_text('#adm-gw-earned')=='8.5' and '3.25' in gw and '120.000777' in gw and '119' in gw and '7.5' in gw and 'ديون هامش السماح' in gw and '2 نشط من 5' in gw and '14 فاتورة' in gw, gw; step('ملخص بوابة الدفع للأدمن: المكتسب منفصل عما وصلك ورصيد التجار')
