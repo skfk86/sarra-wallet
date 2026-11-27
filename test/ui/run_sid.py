@@ -15,7 +15,7 @@ async def p2p(route):
   if a=='id.lookup':
     st['lookups'].append(p['id'])
     if p['id']!='73519024': return await route.fulfill(status=400,json={'error':'ID_NOT_FOUND'})
-    return await route.fulfill(json={'address':FR,'evm_address':FE,'name':'سارة أ•••','verified':True,'id':73519024})
+    return await route.fulfill(json={'address':FR,'evm_address':FE,'name':'سارة أحمد علي','verified':True,'id':73519024})
   return await route.fulfill(json={'offers':[]})
 async def main():
   async with async_playwright() as pw:
@@ -52,7 +52,7 @@ async def main():
     await pg.fill('#to','1111 2222'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(800)
     assert 'لا يوجد مستخدم' in await pg.inner_text('#send-err'); print('✓ معرّف غير موجود: رسالة واضحة')
     await pg.fill('#to','7351 9024'); await pg.click('#review'); await pg.wait_for_timeout(800)
-    t=await pg.inner_text('#c-to'); assert 'سارة' in t and '7351 9024' in t and FR not in t, t
+    t=await pg.inner_text('#c-to'); assert 'سارة أحمد علي' in t and 'موثّق' in t and '7351 9024' in t and FR not in t, t
     await pg.click('#confirm-send'); await pin('123456'); await pg.wait_for_timeout(5000)
     log=await pg.evaluate('window.__log'); assert ['USDT',FR,'1000000'] in log, log; print('✓ بالمعرّف على TRON: يصل لعنوان T الخاص بالمستلم')
     # الإرسال بالمعرّف على BNB Chain

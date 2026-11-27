@@ -381,7 +381,9 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
     if (!r) throw new Error('ID_NOT_FOUND');
     if (r.address === me) throw new Error('SELF_SEND');
     const verified = r.verify_status === 'approved';
-    return { address: r.address, evm_address: r.evm_address || null, name: verified ? L.maskName(r.full_name) : r.nickname, verified, id: sid };
+    // قرار المالك: الموثّق يظهر باسمه الكامل كما راجعه المشرف، ليتأكد المرسل أنه الشخص المقصود قبل الإرسال (كتطبيقات البنوك).
+    // يظهر فقط لمن أدخل معرّف صُرّة الصحيح (8 أرقام) وبحد طلبات لكل مرسل؛ غير الموثّق يظهر باسم السوق
+    return { address: r.address, evm_address: r.evm_address || null, name: verified ? String(r.full_name || '').trim() || r.nickname : r.nickname, verified, id: sid };
   }
 
   // هل مرسل تحويلة وردت إليّ مستخدم صُرّة؟ الرد صح/خطأ فقط: لا اسم ولا معرّف ولا عنوان آخر.

@@ -240,7 +240,7 @@
   }
   function fmtSid(id) { var s = String(id || ''); return s.length === 8 ? s.slice(0, 4) + ' ' + s.slice(4) : s; }
   function recipLabel(v) {
-    if (v.id) return (v.name || '') + ' · معرّف ' + fmtSid(v.id) + (v.verified ? ' · موثّق ✓' : '');
+    if (v.id) return (v.name || '') + ' · معرّف ' + fmtSid(v.id) + (v.verified ? ' · موثّق ✓' : ' · اسم السوق، غير موثّق');
     return v.name + ' · ' + v.phone + ' · موثّق ✓';
   }
   // رقم هاتف سوداني؟ (09xxxxxxxx أو +249… بالأرقام العربية أو الإنجليزية)
