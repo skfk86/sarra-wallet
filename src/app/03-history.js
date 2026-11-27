@@ -130,7 +130,12 @@
       try {
         var who0 = kind === 'recv' ? (r.from || t.counterparty) : (r.to || t.counterparty);
         var hideAddr = !who0 || !(await askConfirm('إظهار عنوان ' + (kind === 'recv' ? 'المرسل' : 'المستلم') + ' مختصراً في الإيصال؟', false, 'إظهار', 'إخفاء'));
-        var png = receiptPng({ title: $('txd-title').textContent, st: $('txd-st').textContent, fail: fail, pend: pend, amt: fmtExact(t.amount), coin: t.coin || 'USDT', sign: sign,
+        // التداول والتبديل: «شراء BTC»/«بيع BTC» بدل «تبديل»، مع ما دفعته وسعر التنفيذ
+        var tside = r.trade === 'buy' || r.trade === 'sell' ? r.trade : '', paidN = Number(r.paidAmount), gotN = Number(t.amount), extra = [];
+        var rtitle = tside ? (tside === 'buy' ? 'شراء ' + (t.coin || '') : 'بيع ' + (r.paidCoin || '')) : $('txd-title').textContent;
+        if ((kind === 'swap' || kind === 'bridge') && r.paidAmount) extra.push(['دفعت', fmtExact(r.paidAmount) + ' ' + (r.paidCoin || '')]);
+        if (tside && paidN > 0 && gotN > 0) { var px = tside === 'buy' ? paidN / gotN : gotN / paidN, base = tside === 'buy' ? t.coin : r.paidCoin; extra.push(['سعر التنفيذ', '1 ' + base + ' ≈ ' + fp(px) + ' USDT']); }
+        var png = receiptPng({ extra: extra, title: rtitle, st: $('txd-st').textContent, fail: fail, pend: pend, amt: fmtExact(t.amount), coin: t.coin || 'USDT', sign: sign,
           sub: $('txd-sub').textContent, when: fmtWhen(t.time), tx: t.txid || '', url: url, who: hideAddr ? '' : shortAddr(who0), whoL: kind === 'recv' ? 'من' : 'إلى' });
         if (await shareImage(png, 'sarra-receipt-' + (t.txid ? String(t.txid).slice(0, 10) : Date.now()) + '.png')) return;
       } catch (e) {}
@@ -147,7 +152,7 @@
   var RC_LOGO = null; (function () { var im = new Image(); im.onload = function () { RC_LOGO = im; }; im.src = 'assets/logo.png'; })();
   function receiptPng(o, noLogo) {
     // التخطيط يُحسب من المحتوى: صفوف التفاصيل ثم رمز QR، والبطاقة والصورة بطولهما
-    var rows = [['نوع العملية', o.title], ['الحالة', o.fail ? 'فشلت' : o.pend ? 'بانتظار التأكيد' : 'مكتملة'], ['التاريخ والوقت', o.when]];
+    var rows = [['نوع العملية', o.title]].concat(o.extra || [], [['الحالة', o.fail ? 'فشلت' : o.pend ? 'بانتظار التأكيد' : 'مكتملة'], ['التاريخ والوقت', o.when]]);
     if (o.who) rows.push([o.whoL === 'من' ? 'من عنوان' : 'إلى عنوان', o.who]);
     if (o.tx) rows.push(['رقم المعاملة', o.tx.length > 22 ? o.tx.slice(0, 10) + '…' + o.tx.slice(-8) : o.tx]);
     var hasQr = !!(o.url && typeof qrcode === 'function');
