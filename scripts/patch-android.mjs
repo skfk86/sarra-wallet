@@ -30,9 +30,21 @@ public class MainActivity extends BridgeActivity {
             WindowManager.LayoutParams.FLAG_SECURE
         );
     }
+
+    // حجم الخط من إعدادات الهاتف: نتبعه حتى 115% فقط. الأكبر منه يكسر تخطيط المحفظة والأزرار
+    // (مثل «الخط الكبير جداً» في سامسونج وشاومي)، والنص يبقى أكبر قليلاً لمن يحتاجه
+    @Override
+    public void onResume() {
+        super.onResume();
+        try {
+            float scale = getResources().getConfiguration().fontScale;
+            int zoom = Math.max(85, Math.min(115, Math.round(scale * 100)));
+            if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().getSettings().setTextZoom(zoom);
+        } catch (Exception e) { /* لا يمنع فتح التطبيق */ }
+    }
 }
 `);
-console.log('FLAG_SECURE applied to ' + file);
+console.log('FLAG_SECURE + text zoom cap (115%) applied to ' + file);
 copyFileSync('android-src/DeviceKeyPlugin.java', file.replace('MainActivity.java', 'DeviceKeyPlugin.java'));
 console.log('DeviceKeyPlugin (Android Keystore) added');
 

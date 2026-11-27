@@ -38,7 +38,7 @@ async def main():
     mode=lambda: pg.get_attribute('#to-mode .on','data-mode')
     await pg.fill('#to','48291736'); assert await mode()=='int'; await pg.fill('#to','TK3aZ4bR8xLkP2vN9cW3jH5sD6fGa12pLw'); assert await mode()=='ext'
     await pg.fill('#to','48291736'); await pg.click('#to-mode [data-mode=ext]'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(300)
-    assert 'تحويل داخلي' in await pg.inner_text('#send-err') and not st['lookups']; print('✓ مفتاح التحويل: تبديل تلقائي ورفض التعارض')
+    assert 'مستخدم صُرّة' in await pg.inner_text('#send-err') and not st['lookups']; print('✓ مفتاح التحويل: تبديل تلقائي ورفض التعارض')
     await pg.click('#max'); await pg.wait_for_timeout(300)
     print('✓ زر الكل بلا رصيد لا ينهار')
     await pg.fill('#to','0922223333'); await pg.fill('#amt','1'); await pg.click('#review'); await pg.wait_for_timeout(600)

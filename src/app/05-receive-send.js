@@ -63,7 +63,7 @@
     renderNetbar($('send-nets'), state.sendNet, function (k) { state.sendNet = k; $('amt').value = ''; renderCoinSeg(); prepareSend(); }, state.coin);
     var n = netOf(state.sendNet), b = state.balances;
     $('amt-unit').textContent = state.coin;
-    $('to').placeholder = n.evm ? 'عنوان 0x أو معرّف صُرّة' : 'عنوان T أو معرّف صُرّة';
+    $('to').placeholder = state.sendMode === 'int' ? 'معرّف صُرّة (8 أرقام)' : n.evm ? 'عنوان المحفظة 0x…' : 'عنوان المحفظة T…'; // يطابق النوع المختار
     $('send-net-logo').src = netLogo(n.key); renderRecent(); updUsd();
     $('to-lbl').textContent = n.evm ? 'المستلم على ' + n.name : 'المستلم';
     $('send-warn').firstChild.textContent = n.evm
@@ -119,7 +119,7 @@
   function setSendMode(m) {
     state.sendMode = m;
     document.querySelectorAll('#to-mode [data-mode]').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
-    $('to').placeholder = m === 'int' ? 'معرّف صُرّة (8 أرقام)' : (state.sendNet === 'tron' ? 'T…' : '0x…');
+    $('to').placeholder = m === 'int' ? 'معرّف صُرّة (8 أرقام)' : (state.sendNet === 'tron' ? 'عنوان المحفظة T…' : 'عنوان المحفظة 0x…');
     $('to-hint').style.color = ''; $('to-hint').textContent = m === 'int' ? 'تحويل داخلي: اكتب معرّف صُرّة (8 أرقام). سنعرض اسم المستلم للتأكيد قبل الإرسال.' : 'تحويل خارجي: الصق عنوان المحفظة على الشبكة المختارة.';
   }
   document.querySelectorAll('#to-mode [data-mode]').forEach(function (b) { b.onclick = function () { setSendMode(b.dataset.mode); $('send-err').hidden = true; }; });
@@ -270,8 +270,8 @@
     $('send-err').hidden = true;
     if (navigator.onLine === false) return sendError('لا يوجد اتصال بالإنترنت. تحقق من الاتصال ثم حاول');
     var to = $('to').value.trim(), amt = $('amt').value, via = null;
-    if (state.sendMode === 'int' && !asSarraId(to)) return sendError('اكتب معرّف صُرّة من 8 أرقام (لا يبدأ بصفر)، أو بدّل إلى «تحويل خارجي» للإرسال إلى عنوان محفظة');
-    if (state.sendMode === 'ext' && asSarraId(to)) return sendError('هذا معرّف صُرّة وليس عنوان محفظة. بدّل إلى «تحويل داخلي»');
+    if (state.sendMode === 'int' && !asSarraId(to)) return sendError('اكتب معرّف صُرّة من 8 أرقام (لا يبدأ بصفر)، أو بدّل إلى «محفظة خارجية» للإرسال إلى عنوان محفظة');
+    if (state.sendMode === 'ext' && asSarraId(to)) return sendError('هذا معرّف صُرّة وليس عنوان محفظة. بدّل إلى «مستخدم صُرّة»');
     var n = netOf(state.sendNet);
     if (n.evm) {
       if (core.isValidAddress(to)) return sendError('هذا عنوان TRON. اختر شبكة TRON للإرسال إليه، أو اطلب من المستلم عنواناً على ' + n.name);
