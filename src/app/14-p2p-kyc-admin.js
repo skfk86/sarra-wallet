@@ -163,6 +163,7 @@
       document.querySelectorAll('[data-band]').forEach(function (x) { x.classList.toggle('on', Number(x.dataset.band) === state.p2p.band); });
     }
     admRange();
+    admPauseLoad();
     var box = $('adm-stats'); box.textContent = '';
     try {
       var s = await p2p('admin.stats');
@@ -626,3 +627,23 @@
     } catch (e) { if (e.message === 'NO_REST' || orderTick % 3 === 0) refreshOrder('order.get'); }
   }, 6000);
 
+
+  // ===== إيقاف الطوارئ من لوحة الأدمن (settings.pause) =====
+  var ADM_PAUSE = { p2p: false, pay: false };
+  function admPauseShow() {
+    ['p2p', 'pay'].forEach(function (k) { var b = $('adm-pause-' + k); b.setAttribute('aria-checked', ADM_PAUSE[k] ? 'true' : 'false'); });
+    var on = ADM_PAUSE.p2p || ADM_PAUSE.pay; $('adm-pause').classList.toggle('on', on);
+  }
+  async function admPauseLoad() {
+    try { var r = await p2p('admin.pause.get'); ADM_PAUSE = { p2p: !!r.p2p, pay: !!r.pay }; admPauseShow(); } catch (e) {}
+  }
+  ['p2p', 'pay'].forEach(function (k) {
+    $('adm-pause-' + k).onclick = async function () {
+      var want = !ADM_PAUSE[k], name = k === 'p2p' ? 'سوق P2P' : 'بوابة الدفع';
+      // التشغيل خطوة خطرة: تأكيد صريح. الإعادة بلا سؤال
+      if (want && !(await askConfirm('إيقاف ' + name + ' الآن؟ لن تُقبل ' + (k === 'p2p' ? 'طلبات أو إعلانات' : 'فواتير') + ' جديدة حتى تعيد تشغيله. القائم يكمل عادياً.', false, 'إيقاف', 'رجوع'))) return;
+      var nv = { p2p: ADM_PAUSE.p2p, pay: ADM_PAUSE.pay }; nv[k] = want;
+      try { var r = await p2p('admin.pause.set', nv); ADM_PAUSE = { p2p: !!r.p2p, pay: !!r.pay }; admPauseShow(); toast(want ? 'أُوقف ' + name : 'أُعيد تشغيل ' + name); }
+      catch (e) { toast(p2pErr(e), true); }
+    };
+  });

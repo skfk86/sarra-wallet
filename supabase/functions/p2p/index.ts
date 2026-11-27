@@ -622,6 +622,19 @@ async function handle(action: string, p: Record<string, any>, me: string | null,
 
   // ===== لوحة المشرف =====
   if (action.startsWith('admin.') && !ADMINS.includes(me)) throw new Error('NOT_ALLOWED');
+  // مفتاح الإيقاف من لوحة الأدمن: نفس صف settings.pause الذي يُضبط بـ SQL (للأدمن فقط: الفحص العام لـ admin.* أعلاه)
+  if (action === 'admin.pause.get') {
+    const { data } = await db.from('settings').select('value,updated_at,updated_by').eq('key', 'pause').maybeSingle();
+    const v = (data?.value || {}) as Record<string, unknown>;
+    return { p2p: v.p2p === true, pay: v.pay === true, updated_at: data?.updated_at || null };
+  }
+  if (action === 'admin.pause.set') {
+    const v = { p2p: p.p2p === true, pay: p.pay === true };
+    await db.from('settings').upsert({ key: 'pause', value: v, updated_by: me, updated_at: new Date().toISOString() });
+    pauseAt = 0; // هذه النسخة تقرأ الحالة الجديدة فوراً، والبقية خلال 15 ث
+    await audit(null, me, 'pause_set', v);
+    return v;
+  }
   if (action === 'admin.rate.set') {
     const v = L.validateRateSetting(p);
     await db.from('settings').upsert({ key: 'rate', value: v, updated_by: me, updated_at: new Date().toISOString() });
